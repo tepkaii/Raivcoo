@@ -1,0 +1,200 @@
+import { createClient } from "@/utils/supabase/server";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { RevButtons } from "@/components/ui/RevButtons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ChevronDown,
+  LogOut,
+  Menu,
+  User,
+  LogInIcon,
+  UserPlus,
+  Link as LinkIcon,
+  ChartLine,
+} from "lucide-react";
+import React from "react";
+import Image from "next/image";
+import { NavLinks, NavDropdownItems } from "./NavComponents";
+
+export default async function Header() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await (await supabase).auth.getUser();
+
+  const { data: account } = !user?.id
+    ? { data: null }
+    : await (await supabase)
+        .from("editor_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+  return (
+    <header
+      className=" fixed  top-0 z-[99]  right-0 left-0     md:p-6
+        transition-all duration-300"
+    >
+      <div
+        className="mx-auto px-4  sm:px-6 md:rounded-[15px] lg:px-8 py-3 bg-background/50 border
+backdrop-blur-sm"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Link href="/">
+              <Image
+                src="/Raivcco.svg"
+                alt="Raivcoo.com logo"
+                priority
+                width={35}
+                height={35}
+                className=" hover:scale-105 transition-all duration-300 "
+              />
+            </Link>
+
+            <NavLinks />
+          </div>
+
+          <div className="flex items-center ">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <RevButtons
+                    variant="ghost"
+                    className="flex items-center space-x-2 hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="relative">
+                      <Avatar className="h-8 w-8 rounded-lg border-[1.8px]">
+                        <AvatarImage
+                          src={account?.avatar_url || ""}
+                          loading="lazy"
+                          alt={account?.display_name || "Avatar"}
+                        />
+                        <AvatarFallback>
+                          <Image
+                            width={32}
+                            height={32}
+                            src="/avif/user-profile-avatar.avif"
+                            loading="lazy"
+                            alt="Avatar"
+                          />
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Availability dot */}
+                    </div>
+
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </RevButtons>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="font-medium">@{account?.display_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <UserMenuItems account={account} />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="hidden md:flex space-x-2">
+                <Link href="/signup">
+                  <RevButtons variant="outline" className="border">
+                    Sign up
+                  </RevButtons>
+                </Link>
+                <Link href="/login">
+                  <RevButtons variant="default">Log in</RevButtons>
+                </Link>
+              </div>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <RevButtons variant="ghost" size="icon" className="md:hidden">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Open menu</span>
+                </RevButtons>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {user ? (
+                  <></>
+                ) : (
+                  <>
+                    <DropdownMenuLabel className="font-light ">
+                      Account
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem asChild>
+                      <Link href="/signup" className="w-full flex items-center">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Sign up
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/login" className="w-full flex items-center">
+                        <LogInIcon className="mr-2 h-4 w-4" />
+                        Login
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuLabel className="font-light ">
+                  Navigation
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <NavDropdownItems />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function UserMenuItems({ account }: { account: any }) {
+  return (
+    <>
+      <DropdownMenuItem asChild>
+        <Link href="/account" className="flex items-center">
+          <User className="mr-2 h-4 w-4" />
+          <span>Account</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild></DropdownMenuItem>
+      {account?.is_published && (
+        <DropdownMenuItem asChild>
+          <Link href={`/analytics`} className="flex items-center">
+            <ChartLine className="mr-2 h-4 w-4" />
+            <span>Analytics</span>
+          </Link>
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem>
+        <form action="/auth/signout" method="post" className="w-full">
+          <button type="submit" className="w-full">
+            <RevButtons
+              variant="destructive"
+              className="w-full text-left flex items-center"
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Sign out
+            </RevButtons>
+          </button>
+        </form>
+      </DropdownMenuItem>
+    </>
+  );
+}
