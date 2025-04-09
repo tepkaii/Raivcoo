@@ -4,7 +4,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// Client actions
 export async function CreateClient(formData: FormData) {
   const supabase = await createClient();
 
@@ -16,7 +15,6 @@ export async function CreateClient(formData: FormData) {
     throw new Error("Not authenticated");
   }
 
-  // Get editor profile ID
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
     .select("id")
@@ -28,7 +26,7 @@ export async function CreateClient(formData: FormData) {
   }
 
   const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
+  const email = formData.get("email") as string | null;
   const company = formData.get("company") as string;
   const phone = formData.get("phone") as string;
   const notes = formData.get("notes") as string;
@@ -43,7 +41,7 @@ export async function CreateClient(formData: FormData) {
       .insert({
         editor_id: editorProfile.id,
         name,
-        email,
+        email: email || null,
         company,
         phone,
         notes,
@@ -76,7 +74,6 @@ export async function updateClient(clientId: string, formData: FormData) {
     throw new Error("Not authenticated");
   }
 
-  // Verify ownership of client
   const { data: client, error: clientError } = await supabase
     .from("clients")
     .select("id, editor_id")
@@ -87,7 +84,6 @@ export async function updateClient(clientId: string, formData: FormData) {
     throw new Error("Client not found");
   }
 
-  // Get editor profile ID to verify ownership
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
     .select("id")
@@ -99,7 +95,7 @@ export async function updateClient(clientId: string, formData: FormData) {
   }
 
   const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
+  const email = formData.get("email") as string | null;
   const company = formData.get("company") as string;
   const phone = formData.get("phone") as string;
   const notes = formData.get("notes") as string;
@@ -108,16 +104,18 @@ export async function updateClient(clientId: string, formData: FormData) {
     throw new Error("Client name is required");
   }
 
+  const updateData = {
+    name,
+    email: email || null,
+    company,
+    phone,
+    notes,
+  };
+
   try {
     const { data, error } = await supabase
       .from("clients")
-      .update({
-        name,
-        email,
-        company,
-        phone,
-        notes,
-      })
+      .update(updateData)
       .eq("id", clientId)
       .select()
       .single();
@@ -137,69 +135,109 @@ export async function updateClient(clientId: string, formData: FormData) {
   }
 }
 
-export async function deleteClient(clientId: string) {
+export async function deleteClient(
+  clientId: string,
+  forceDelete: boolean = false // Keep forceDelete to decide whether to warn or proceed
+) {
   const supabase = await createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user)
+    return { success: false, message: "Not authenticated", hasProjects: false };
 
-  if (!user) {
-    throw new Error("Not authenticated");
-  }
-
-  // Verify ownership of client
-  const { data: client, error: clientError } = await supabase
-    .from("clients")
-    .select("id, editor_id")
-    .eq("id", clientId)
-    .single();
-
-  if (clientError || !client) {
-    throw new Error("Client not found");
-  }
-
-  // Get editor profile ID to verify ownership
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
     .select("id")
     .eq("user_id", user.id)
     .single();
+  if (profileError || !editorProfile)
+    return {
+      success: false,
+      message: "Failed to fetch editor profile or unauthorized",
+      hasProjects: false,
+    };
 
-  if (profileError || client.editor_id !== editorProfile.id) {
-    throw new Error("Unauthorized");
-  }
+  const { data: client, error: clientError } = await supabase
+    .from("clients")
+    .select("id, editor_id")
+    .eq("id", clientId)
+    .single();
+  if (clientError || !client)
+    return { success: false, message: "Client not found", hasProjects: false };
+  if (client.editor_id !== editorProfile.id)
+    return { success: false, message: "Unauthorized", hasProjects: false };
 
   try {
-    // First check if there are any projects for this client
-    const { data: projects, error: projectsError } = await supabase
+    // 1. Check for associated projects (still needed for the warning)
+    const {
+      data: projects,
+      error: projectsError,
+      count,
+    } = await supabase
       .from("projects")
-      .select("id")
+      .select("id", { count: "exact", head: true }) // Efficiently check existence & count
       .eq("client_id", clientId);
 
     if (projectsError) {
-      throw projectsError;
+      console.error("Error checking projects:", projectsError);
+      throw new Error("Failed to check for associated projects.");
     }
 
-    if (projects && projects.length > 0) {
-      throw new Error("Cannot delete client with active projects");
+    const hasProjects = count && count > 0;
+
+    // 2. If projects exist and not forcing delete, return info message
+    if (hasProjects && !forceDelete) {
+      return {
+        success: false,
+        hasProjects: true,
+        projectCount: count,
+        message: `Client has ${count} project(s). Deleting will also remove associated projects and tracks due to cascade rules.`,
+      };
     }
 
-    const { error } = await supabase
+    // 3. Delete the client (Database handles cascading deletes for projects/tracks)
+    const { error: deleteClientError } = await supabase
       .from("clients")
       .delete()
       .eq("id", clientId);
 
-    if (error) {
-      throw error;
+    if (deleteClientError) {
+      // Catch potential errors during the client deletion itself
+      console.error("Error deleting client:", deleteClientError);
+      const detail = deleteClientError.details
+        ? ` (${deleteClientError.details})`
+        : "";
+      throw new Error(`Failed to delete the client.${detail}`);
     }
 
+    // 4. Revalidate and return success
     revalidatePath("/clients");
-    return { message: "Client deleted successfully" };
+    return {
+      success: true,
+      message:
+        "Client" +
+        (hasProjects ? " and associated data" : "") +
+        " deleted successfully",
+      forceDeletedProjects: hasProjects, // Indicate cascade happened if projects existed
+      hasProjects: false,
+    };
   } catch (error) {
-    console.error("Error deleting client:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("An unexpected error occurred");
+    console.error("Error during client deletion:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred during deletion.",
+      // Re-check needed only if initial check could be stale, often not necessary here
+      hasProjects: !!(
+        await supabase
+          .from("projects")
+          .select("id", { count: "exact", head: true })
+          .eq("client_id", clientId)
+      ).count,
+    };
   }
 }

@@ -115,10 +115,9 @@ export default async function LiveTrackPage(props: {
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to project
         </Link>
-
         <h1 className="text-2xl font-bold mt-4">{project.title}</h1>
         <p className="text-muted-foreground">Live Track View</p>
-
+        ss
         <div className="flex items-center gap-4 mt-2 text-sm">
           <span className="flex items-center">
             <Calendar className="h-4 w-4 mr-1" />

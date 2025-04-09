@@ -73,11 +73,11 @@ export default function RootLayout({
             <Analytics />
             <SpeedInsights />
           </main>
-          <HideOnPaths
+          {/* <HideOnPaths
             pathStarts={["/editors/", "/test", "/chat/", "/portfolio"]}
           >
             <Footer />
-          </HideOnPaths>
+          </HideOnPaths> */}
 
           <Toaster />
         </ThemeProvider>

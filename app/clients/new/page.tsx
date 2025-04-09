@@ -32,11 +32,20 @@ export default async function NewClientPage() {
     redirect("/profile");
   }
 
+  // Fetch other editor profiles that could be clients
+  const { data: potentialClients } = await supabase
+    .from("editor_profiles")
+    .select("id, full_name, email")
+    .neq("user_id", user.id) // Exclude current user
+    .order("full_name", { ascending: true });
+
   return (
     <div className="container mx-auto py-6 space-y-6 mt-24">
       <h1 className="text-2xl font-bold">Add New Client</h1>
-
-      <ClientForm createClient={createClientAction} />
+      <ClientForm
+        createClient={createClientAction}
+        potentialClients={potentialClients || []}
+      />
     </div>
   );
 }

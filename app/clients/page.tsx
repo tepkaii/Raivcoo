@@ -3,9 +3,12 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Users } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { PlusCircle, Users } from "lucide-react"; // Removed MoreVertical
 import { Metadata } from "next";
+
+// Import the new ClientCard component
+import { ClientCard } from "./ClientCard"; // Adjust path if you put it in components/
 
 export const metadata: Metadata = {
   title: "Clients - Video Editor Dashboard",
@@ -13,30 +16,40 @@ export const metadata: Metadata = {
 };
 
 export default async function ClientsPage() {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Runs on the server
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(); // Runs on the server
 
   if (!user) {
     redirect("/login");
   }
 
-  // Get editor profile ID
+  // Get editor profile ID - Runs on the server
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
     .select("id")
     .eq("user_id", user.id)
     .single();
 
-  if (profileError) {
-    // If no profile exists, redirect to profile creation
-    redirect("/profile");
+  if (profileError || !editorProfile) {
+    console.error("Editor profile error or not found:", profileError);
+    // Redirect to profile setup or show an error state
+    redirect("/profile?error=Editor profile not found"); // Example redirect with query param
   }
 
-  // Fetch clients
-  const { data: clients, error: clientsError } = await supabase
+  // Fetch clients - Runs on the server
+  // Define the type explicitly for better clarity
+  type ClientWithProjects = {
+    id: string;
+    name: string;
+    company: string | null;
+    email: string | null;
+    projects: { id: string }[] | null;
+  };
+
+  const { data: clientsData, error: clientsError } = await supabase
     .from("clients")
     .select(
       `
@@ -50,9 +63,16 @@ export default async function ClientsPage() {
     .eq("editor_id", editorProfile.id)
     .order("name", { ascending: true });
 
+  // Cast the fetched data to the defined type
+  const clients: ClientWithProjects[] | null = clientsData;
+
   if (clientsError) {
     console.error("Error fetching clients:", clientsError);
+    // Handle error - maybe show an error message component
+    // For now, we'll let it render the empty state or potentially crash if severe
   }
+
+  // ClientCard component is now defined in its own file and imported
 
   return (
     <div className="container mx-auto py-6 space-y-6 mt-24">
@@ -68,30 +88,25 @@ export default async function ClientsPage() {
 
       {clients && clients.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Use the imported ClientCard component */}
           {clients.map((client) => (
-            <Link key={client.id} href={`/clients/${client.id}`} passHref>
-              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader className="pb-2">
-                  <CardTitle>{client.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {client.company}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {client.email}
-                  </p>
-                  <div className="mt-2 flex items-center">
-                    <div className="bg-muted px-2 py-1 rounded-md text-xs font-medium">
-                      {client.projects ? client.projects.length : 0} projects
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <ClientCard key={client.id} client={client} />
           ))}
         </div>
+      ) : clientsError ? (
+        // Optional: Show an error state if fetching failed
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <p className="text-red-600">
+              Failed to load clients. Please try again later.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {clientsError.message}
+            </p>
+          </CardContent>
+        </Card>
       ) : (
+        // Show the "No clients yet" state
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
