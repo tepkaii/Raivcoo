@@ -1,53 +1,38 @@
-// components/PricingPlans.tsx
 "use client";
 
 import { SetStateAction, useState } from "react";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, Laptop, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const primaryColor = "#8B5CF6";
 
 const plans = [
   {
-    id: "free",
-    name: "Free",
-    price: 0,
-    features: [
-      "Create and customize your portfolio",
-      "Shareable portfolio link",
-      "Upload video links (YouTube/Drive)",
-      "Embed banners, titles, and pricing",
-      "Basic view analytics",
-      "Responsive layout",
-    ],
-    recommended: false,
-  },
-  {
     id: "monthly",
-    name: "Pro Monthly",
-    price: 10,
+    name: "Rivew Monthly",
+    price: 3.99,
     features: [
-      "1-on-1 voice calls (up to 60 min)",
-      "Call recording + AI subtitles/summaries",
-      "DM clients directly",
-      "Access premium portfolio templates",
-      "Advanced analytics dashboard",
-      "Custom domain support",
+      "Unlimited projects & tracks",
+      "Timestamped client feedback",
+      "AI-generated summaries",
+      "Client review portals",
+      "Extensions for 🟣AE, 🔵PR, 🟦PS, 🟨AI, 🔴AN",
+      "Desktop apps for Windows 🪟 & macOS 🍎",
     ],
     recommended: false,
   },
   {
     id: "quarterly",
-    name: "Pro - 3 Months",
-    price: 24,
-    features: ["All Pro Monthly features", "Save 20% vs monthly"],
+    name: "Rivew – 3 Months",
+    price: 9.57,
+    features: ["All Monthly features", "Save 20% – Best Value"],
     recommended: true,
   },
   {
     id: "yearly",
-    name: "Pro - Yearly",
-    price: 72,
-    features: ["All Pro Monthly features", "Save 40% vs monthly"],
+    name: "Rivew – Yearly",
+    price: 28.69,
+    features: ["All Monthly features", "Save 40% – Long-Term Deal"],
     recommended: false,
   },
 ];
@@ -65,12 +50,12 @@ export default function PricingPlans({
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-4">
+    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {plans.map((plan) => (
         <div
           key={plan.id}
           className={cn(
-            "relative bg-card border rounded-2xl shadow-md transition-all p-6",
+            "relative bg-card border rounded-2xl shadow-md transition-all p-6 flex flex-col justify-between h-full",
             selectedPlan.id === plan.id
               ? `border-[${primaryColor}] ring-2 ring-[${primaryColor}]/20`
               : `hover:border-[${primaryColor}]/60`
@@ -81,18 +66,20 @@ export default function PricingPlans({
               <span
                 className={`bg-[${primaryColor}] text-white text-xs font-bold px-3 py-1 rounded-full shadow`}
               >
-                Most Popular
+                Best Value
               </span>
             </div>
           )}
 
-          <h3 className="text-xl font-semibold text-foreground">{plan.name}</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-foreground">
+              {plan.name}
+            </h3>
 
-          <div className="mt-4 flex items-baseline">
-            <span className="text-3xl font-bold text-foreground">
-              {plan.price === 0 ? "Free" : `$${plan.price}`}
-            </span>
-            {plan.price !== 0 && (
+            <div className="mt-4 flex items-baseline">
+              <span className="text-3xl font-bold text-foreground">
+                ${plan.price.toFixed(2)}
+              </span>
               <span className="text-sm text-muted-foreground ml-1">
                 {plan.id === "monthly"
                   ? "/mo"
@@ -100,19 +87,21 @@ export default function PricingPlans({
                     ? "/3 mo"
                     : "/yr"}
               </span>
-            )}
-          </div>
+            </div>
 
-          <ul className="mt-6 space-y-3">
-            {plan.features.map((feature) => (
-              <li key={feature} className="flex items-start">
-                <CheckIcon
-                  className={`h-5 w-5 text-[${primaryColor}] flex-shrink-0 mr-2`}
-                />
-                <span className="text-sm text-muted-foreground">{feature}</span>
-              </li>
-            ))}
-          </ul>
+            <ul className="mt-6 space-y-3">
+              {plan.features.map((feature, i) => (
+                <li key={i} className="flex items-start">
+                  <CheckIcon
+                    className={`h-5 w-5 text-[${primaryColor}] flex-shrink-0 mr-2`}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {feature}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <button
             onClick={() => handlePlanSelect(plan)}

@@ -36,10 +36,6 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 
-interface PageProps {
-  params: { id: string };
-}
-
 type ClientData = {
   id: string;
   name: string;
@@ -59,7 +55,11 @@ type ProjectWithTracksForClientPage = {
   project_tracks: { round_number: number }[] | null;
 };
 
-export default function ClientDetailPageClient({ params }: PageProps) {
+export default function ClientDetailPageClient({
+  params,
+}: {
+  params: { id: string };
+}) {
   const [client, setClient] = useState<ClientData | null>(null);
   const [projects, setProjects] = useState<
     ProjectWithTracksForClientPage[] | null
@@ -142,9 +142,9 @@ export default function ClientDetailPageClient({ params }: PageProps) {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-8 mt-24">
+    <div className="container mx-auto py-6 space-y-8 ">
       <Link
-        href="/clients"
+        href="/dashboard/clients"
         className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 mb-2 group"
       >
         <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />

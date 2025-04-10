@@ -4,9 +4,9 @@
 import { useState, ChangeEvent, FormEvent } from "react"; // Added ChangeEvent, FormEvent
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label"; // Import Label
-import { Input } from "@/components/ui/input"; // Import Input
-import { Textarea } from "@/components/ui/textarea"; // Import Textarea
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { MoreVertical } from "lucide-react";
 import {
   Dialog,
@@ -22,14 +22,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator, // Added Separator
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { deleteClient, updateClient } from "./actions"; // Import updateClient
+import { deleteClient, updateClient } from "./actions";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 // Define a more complete type for the client data needed for editing
-// Ensure the parent component fetching data includes these fields
+
 type ClientData = {
   id: string;
   name: string;
@@ -185,7 +185,11 @@ export function ClientCard({ client }: ClientCardProps) {
       <Card className="h-full hover:shadow-md transition-shadow">
         {/* Link should ideally navigate to a dedicated client page */}
         {/* Or remove the Link wrapper if all actions are via dropdown */}
-        <Link href={`/clients/${client.id}`} passHref className="block h-full">
+        <Link
+          href={`/dashboard/clients/${client.id}`}
+          passHref
+          className="block h-full"
+        >
           <CardHeader className="pb-2">
             <CardTitle>{client.name}</CardTitle>
           </CardHeader>
@@ -228,7 +232,7 @@ export function ClientCard({ client }: ClientCardProps) {
               Edit Client
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href={`/clients/${client.id}`}>View Details</Link>{" "}
+              <Link href={`/dashboard/clients/${client.id}`}>View Details</Link>{" "}
               {/* Changed link purpose */}
             </DropdownMenuItem>
             <DropdownMenuSeparator />

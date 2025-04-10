@@ -10,13 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  Calendar,
-  Clock,
-  ArrowLeft,
-  CheckCircle,
-  ExternalLink,
-} from "lucide-react";
+import { Calendar, Clock, CheckCircle, ExternalLink } from "lucide-react";
 import { Metadata } from "next";
 
 export async function generateMetadata(props: {
@@ -84,12 +78,12 @@ export default async function LiveTrackPage(props: {
   if (tracksError || !tracks || tracks.length === 0) {
     return (
       <div className="container mx-auto py-6 mt-24">
-        <Link
-          href={`/projects/${id}`}
+        {/* <Link
+          href={`/dashboard/projects/${id}`}
           className="text-blue-500 hover:underline flex items-center mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to project
-        </Link>
+        </Link> */}
         <Card>
           <CardContent className="py-10 text-center">
             <p className="text-muted-foreground">
@@ -107,14 +101,14 @@ export default async function LiveTrackPage(props: {
     tracks[tracks.length - 1];
 
   return (
-    <div className="container mx-auto py-6 mt-24">
+    <div className="container mx-auto py-6">
       <div className="mb-6">
-        <Link
-          href={`/projects/${id}`}
+        {/* <Link
+          href={`/dashboard/projects/${id}`}
           className="text-blue-500 hover:underline flex items-center"
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to project
-        </Link>
+        </Link> */}
         <h1 className="text-2xl font-bold mt-4">{project.title}</h1>
         <p className="text-muted-foreground">Live Track View</p>
         ss

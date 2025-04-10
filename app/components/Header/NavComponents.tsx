@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { FlaskConical } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/clients", label: "ff" },
+  { href: "/dashboard", label: "dashboard" },
   // { href: "/feed", label: "Feed", icon: MessageSquare },
   // { href: "/post", label: "Community", icon: Users },
   // { href: "/links/edit", label: "Links page", icon: LinkIcon },
   // { href: "/tools", label: "Tools" },
   // { href: "/templates", label: "Templates" },
-  // { href: "/test", label: "test", icon: FlaskConical },
+  { href: "/membership", label: "pro", icon: FlaskConical },
 ];
 
 export function NavLinks() {

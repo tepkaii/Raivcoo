@@ -40,7 +40,7 @@ export default async function NewClientPage() {
     .order("full_name", { ascending: true });
 
   return (
-    <div className="container mx-auto py-6 space-y-6 mt-24">
+    <div className="container mx-auto py-6 space-y-6">
       <h1 className="text-2xl font-bold">Add New Client</h1>
       <ClientForm
         createClient={createClientAction}

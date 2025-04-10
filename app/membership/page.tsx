@@ -32,15 +32,7 @@ export default async function MembershipPage() {
     .single();
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">Upgrade Your Experience</h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Join our Pro community to unlock advanced features, boost your
-          visibility, and take your profile to the next level.
-        </p>
-      </div>
-
+    <div className="max-w-6xl mx-auto py-12 px-4 mt-24 sm:px-6">
       <MembershipClient profile={profile} />
 
       <div className="mt-16 bg-muted/30 rounded-xl p-8">

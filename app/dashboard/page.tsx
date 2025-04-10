@@ -1,4 +1,4 @@
-// app/clients/page.tsx
+//  app/dashboard/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -7,15 +7,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PlusCircle, Users } from "lucide-react"; // Removed MoreVertical
 import { Metadata } from "next";
 
-// Import the new ClientCard component
-import { ClientCard } from "./ClientCard"; // Adjust path if you put it in components/
+import { ClientCard } from "./clients/ClientCard";
 
 export const metadata: Metadata = {
   title: "Clients - Video Editor Dashboard",
   description: "Manage your clients",
 };
 
-export default async function ClientsPage() {
+export default async function page() {
   const supabase = await createClient(); // Runs on the server
 
   const {
@@ -35,12 +34,10 @@ export default async function ClientsPage() {
 
   if (profileError || !editorProfile) {
     console.error("Editor profile error or not found:", profileError);
-    // Redirect to profile setup or show an error state
-    redirect("/profile?error=Editor profile not found"); // Example redirect with query param
+
+    redirect("/profile?error=Editor profile not found");
   }
 
-  // Fetch clients - Runs on the server
-  // Define the type explicitly for better clarity
   type ClientWithProjects = {
     id: string;
     name: string;
@@ -75,10 +72,10 @@ export default async function ClientsPage() {
   // ClientCard component is now defined in its own file and imported
 
   return (
-    <div className="container mx-auto py-6 space-y-6 mt-24">
+    <div className="container mx-auto py-6 space-y-6 ">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">My Clients</h1>
-        <Link href="/clients/new" passHref>
+        <Link href="/dashboard/clients/new" passHref>
           <RevButtons variant="success">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add New Client

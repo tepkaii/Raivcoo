@@ -3,10 +3,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation"; // Import redirect if needed elsewhere
 
-// --- Helper: Get User and Verify Client Authorization ---
-// Checks if the currently logged-in user's email matches the client email for the given project.
 async function verifyClientAuthorization(
   projectId: string
 ): Promise<{ user: any; client: any; project: any; error: string | null }> {
@@ -75,14 +72,12 @@ async function verifyClientAuthorization(
   };
 }
 
-// =============================================
-// === EDITOR ACTIONS (Placeholders/Stubs) ====
-// =============================================
-// Add your full implementations for these editor actions here
+//  EDITOR ACTIONS
+
 export async function createProject(formData: FormData) {
   console.log("Placeholder for createProject");
   // ... Full implementation needed ...
-  return { message: "Project created (placeholder)" }; // Example return
+  return { message: "Project created " }; // Example return
 }
 export async function updateProjectTrack(
   trackId: string,
@@ -92,7 +87,7 @@ export async function updateProjectTrack(
 ) {
   console.log("Placeholder for updateProjectTrack");
   // ... Full implementation needed based on Phase 1 code ...
-  return { message: "Track updated (placeholder)" }; // Example return
+  return { message: "Track updated " }; // Example return
 }
 // Deprecated stubs:
 export async function completeTrackAndCreateNewRound(trackId: string) {
@@ -109,13 +104,9 @@ export async function completeProject(projectId: string) {
     "Operation not permitted for editor. Client must approve the project via the review page."
   );
 }
-// =============================================
 
-// =============================================
-// === CLIENT ACTIONS (Revised Implementations) =
-// =============================================
+//  CLIENT ACTIONS (Revised Implementations)
 
-// --- Client Adds a Review Comment (Simplified: No user_id stored) ---
 export async function addReviewComment(
   trackId: string,
   timestamp: number,
@@ -256,9 +247,6 @@ export async function clientRequestRevisions(trackId: string) {
 
   // 6. Use Transaction (via RPC function is recommended)
   try {
-    // Assuming RPC function 'handle_client_revision_request_v2' exists and handles:
-    // - Updating current track client_decision to 'revisions_requested' & status to 'completed' (atomically)
-    // - Inserting the new track with provided steps
     const { data: rpcData, error: rpcError } = await supabase.rpc(
       "handle_client_revision_request_v2",
       {

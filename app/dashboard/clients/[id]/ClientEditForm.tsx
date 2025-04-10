@@ -3,7 +3,7 @@
 
 import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { updateClient } from "@/app/clients/actions"; // Adjust path if actions are elsewhere
+import { updateClient } from "../actions";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

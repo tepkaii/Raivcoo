@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { Loader2, PlusCircle, X, Edit, Move } from "lucide-react";
+import { Loader2, PlusCircle, X, Edit } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import {

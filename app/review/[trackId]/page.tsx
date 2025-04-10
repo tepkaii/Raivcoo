@@ -1,11 +1,10 @@
-// app/projects/[id]/review/[trackId]/page.tsx
+// app/review/[trackId]/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { Metadata } from "next";
 import ReviewPage from "./ReviewPage"; // Client component
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
-// Import actions from the correct path (app/projects/actions.ts)
 import {
   addReviewComment,
   clientApproveProject,
@@ -16,24 +15,31 @@ import {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string; trackId: string };
+  params: { trackId: string };
 }): Promise<Metadata> {
   const supabase = await createClient();
-  const { id: projectId } = params;
+  const { trackId } = await params; // await params
 
-  if (!projectId || projectId === "undefined") {
-    console.error("generateMetadata invalid projectId:", projectId);
+  if (!trackId || trackId === "undefined") {
+    console.error("generateMetadata invalid trackId:", trackId);
     return { title: "Project Review" };
   }
 
-  const { data: project } = await supabase
-    .from("projects")
-    .select("title")
-    .eq("id", projectId)
+  // Get project info from track
+  const { data: trackData } = await supabase
+    .from("project_tracks")
+    .select(
+      `
+      project:projects!inner(title)
+    `
+    )
+    .eq("id", trackId)
     .single();
 
   return {
-    title: project ? `Review: ${project.title}` : "Project Review",
+    title: trackData?.project
+      ? `Review: ${trackData.project.title}`
+      : "Project Review",
     description: "Review and provide feedback on the project deliverable.",
     robots: { index: false, follow: false },
   };
@@ -43,18 +49,13 @@ export async function generateMetadata({
 export default async function ReviewPageWrapper({
   params,
 }: {
-  params: { id: string; trackId: string };
+  params: { trackId: string };
 }) {
-  const { id: projectId, trackId } = params; // Use params.id
+  const { trackId } = await params; // await params
   const supabase = await createClient();
 
-  if (
-    !projectId ||
-    projectId === "undefined" ||
-    !trackId ||
-    trackId === "undefined"
-  ) {
-    console.error("ReviewPageWrapper received invalid params:", params);
+  if (!trackId || trackId === "undefined") {
+    console.error("ReviewPageWrapper received invalid trackId:", trackId);
     return notFound();
   }
 
@@ -64,7 +65,7 @@ export default async function ReviewPageWrapper({
     error: userError,
   } = await supabase.auth.getUser();
   if (userError || !user) {
-    const redirectUrl = `/projects/${projectId}/review/${trackId}`;
+    const redirectUrl = `/review/${trackId}`;
     redirect(
       `/login?message=Please log in to view review.&redirectTo=${encodeURIComponent(redirectUrl)}`
     );
@@ -90,7 +91,6 @@ export default async function ReviewPageWrapper({
     `
     )
     .eq("id", trackId)
-    .eq("project_id", projectId)
     .single();
 
   if (
@@ -105,6 +105,8 @@ export default async function ReviewPageWrapper({
     );
     return notFound();
   }
+
+  const projectId = trackData.project_id;
 
   // Authorization Check (Logged-in user vs Client email)
   if (trackData.project.client.email !== user.email) {
@@ -125,7 +127,7 @@ export default async function ReviewPageWrapper({
   if (!deliverableLink) {
     // Deliverable not ready message
     return (
-      <div className="container mx-auto py-6 mt-24 text-center">
+      <div className="container mx-auto py-6 text-center">
         <h1 className="text-2xl font-bold mb-4">Review Not Ready</h1>
         <p className="text-muted-foreground">
           The deliverable for Round {trackData.round_number} is not yet
@@ -138,10 +140,10 @@ export default async function ReviewPageWrapper({
     );
   }
 
-  // Fetch Comments (Simplified - No user join needed)
+  // Fetch Comments
   const { data: commentsData, error: commentsError } = await supabase
     .from("review_comments")
-    .select(` id, timestamp, comment, created_at `)
+    .select(`id, timestamp, comment, created_at`)
     .eq("track_id", trackId)
     .order("timestamp", { ascending: true });
 
@@ -166,13 +168,12 @@ export default async function ReviewPageWrapper({
 
   // Render Client Component, passing data and actions
   return (
-    <div className="container mx-auto py-6 mt-20 md:mt-24 flex justify-center">
+    <div className="container mx-auto py-6 flex justify-center">
       <ReviewPage
-        // Pass client display name (no user email needed here anymore)
         clientDisplayName={clientDisplayName}
         track={{
           id: trackData.id,
-          projectId: trackData.project_id,
+          projectId: projectId,
           roundNumber: trackData.round_number,
           clientDecision: trackData.client_decision as
             | "pending"
