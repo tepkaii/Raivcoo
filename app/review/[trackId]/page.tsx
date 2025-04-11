@@ -18,7 +18,7 @@ export async function generateMetadata({
   params: { trackId: string };
 }): Promise<Metadata> {
   const supabase = await createClient();
-  const { trackId } = await params; // await params
+  const { trackId } = await params;
 
   if (!trackId || trackId === "undefined") {
     console.error("generateMetadata invalid trackId:", trackId);
@@ -51,7 +51,7 @@ export default async function ReviewPageWrapper({
 }: {
   params: { trackId: string };
 }) {
-  const { trackId } = await params; // await params
+  const { trackId } = await params;
   const supabase = await createClient();
 
   if (!trackId || trackId === "undefined") {
@@ -116,12 +116,8 @@ export default async function ReviewPageWrapper({
     return notFound();
   }
 
-  // Data Preparation (Deliverable Link)
-  const finishStep = Array.isArray(trackData.steps)
-    ? trackData.steps.find(
-        (step: any) => step.name === "Finish" && step.deliverable_link
-      )
-    : null;
+  const steps = Array.isArray(trackData.steps) ? trackData.steps : [];
+  const finishStep = steps.find((step: any) => step.is_final);
   const deliverableLink = finishStep?.deliverable_link;
 
   if (!deliverableLink) {
@@ -140,30 +136,32 @@ export default async function ReviewPageWrapper({
     );
   }
 
-  // Fetch Comments
+  // Fetch Comments - Updated for JSONB structure
   const { data: commentsData, error: commentsError } = await supabase
     .from("review_comments")
-    .select(`id, timestamp, comment, created_at`)
+    .select(`id, comment, created_at`) // Select the JSONB field
     .eq("track_id", trackId)
-    .order("timestamp", { ascending: true });
+    // Corrected order clause for JSONB field
+    .order("comment->timestamp", { ascending: true });
 
   if (commentsError) {
     console.error(
       `Error fetching comments for track ${trackId}:`,
       commentsError
     );
-    // Continue without comments if fetch fails, page will show "No comments"
+    // Continue without comments if fetch fails
   }
 
   // Use the Client's name for all comments on this page
-  const clientDisplayName = trackData.project.client.name || user.email; // Fallback to email
+  const clientDisplayName = trackData.project.client.name || user.email;
 
+  // Format comments with proper JSONB structure
   const comments = (commentsData || []).map((comment: any) => ({
     id: comment.id,
-    timestamp: comment.timestamp,
-    comment: comment.comment,
     created_at: comment.created_at,
-    commenter_display_name: clientDisplayName, // Use the project's client name
+    comment: comment.comment,
+    commenter_display_name: clientDisplayName,
+    isOwnComment: true,
   }));
 
   // Render Client Component, passing data and actions

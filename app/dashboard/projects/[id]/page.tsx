@@ -1,3 +1,4 @@
+// app/dashboard/projects/[id]/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -16,7 +17,12 @@ import {
 } from "lucide-react";
 import { Metadata } from "next";
 import TrackManager from "./TrackManager";
-import { updateProjectTrackStepStatus, updateTrackStructure } from "../actions";
+import {
+  updateProjectTrackStepStatus,
+  updateStepContent,
+  updateTrackStructure,
+} from "../actions";
+import { ProjectCommentsSection } from "./ProjectCommentsSection";
 
 export async function generateMetadata({
   params,
@@ -36,11 +42,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProjectDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function page({ params }: { params: { id: string } }) {
   const supabase = await createClient();
   const { id } = await params;
 
@@ -91,15 +93,28 @@ export default async function ProjectDetailPage({
   if (tracksError) {
     console.error(`Error fetching tracks for project ${id}:`, tracksError);
   }
-
   const tracksWithComments = await Promise.all(
     (tracks || []).map(async (track) => {
       const { data: comments } = await supabase
         .from("review_comments")
-        .select("id, timestamp, comment, created_at")
+        .select("id, comment, created_at") // Select the JSONB field directly
         .eq("track_id", track.id)
-        .order("timestamp", { ascending: true });
-      return { ...track, comments: comments || [] };
+        .order("comment->timestamp", { ascending: true });
+
+      // Transform comments to match expected structure
+      const formattedComments = (comments || []).map((comment: any) => ({
+        id: comment.id,
+        created_at: comment.created_at,
+        comment: {
+          text: comment.comment.text || "",
+          timestamp: comment.comment.timestamp || 0,
+          images: comment.comment.images || [],
+          links: comment.comment.links || [],
+        },
+        commenter_display_name: "Client", // Default name since we don't fetch client info here
+      }));
+
+      return { ...track, comments: formattedComments };
     })
   );
 
@@ -233,6 +248,7 @@ export default async function ProjectDetailPage({
               track={latestTrack}
               updateProjectTrackStepStatus={updateProjectTrackStepStatus}
               updateTrackStructure={updateTrackStructure}
+              updateStepContent={updateStepContent}
             />
 
             {latestTrack.client_decision !== "pending" && (
@@ -262,27 +278,7 @@ export default async function ProjectDetailPage({
                       <p className="text-sm font-medium mb-2">
                         Client Feedback:
                       </p>
-                      <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2">
-                        {latestTrack.comments.map((comment: any) => (
-                          <div
-                            key={comment.id}
-                            className="text-sm p-2 rounded bg-background border"
-                          >
-                            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                              <span>At {comment.timestamp || "N/A"}</span>
-                              <span>
-                                {new Date(comment.created_at).toLocaleString(
-                                  [],
-                                  { dateStyle: "short", timeStyle: "short" }
-                                )}
-                              </span>
-                            </div>
-                            <p className="whitespace-pre-wrap">
-                              {comment.comment}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
+                      <ProjectCommentsSection comments={latestTrack.comments} />
                     </div>
                   )}
                   {(!latestTrack.comments ||
@@ -347,34 +343,7 @@ export default async function ProjectDetailPage({
 
                     {track.comments && track.comments.length > 0 && (
                       <CardContent className="pt-0 pb-3 px-4">
-                        <div className="border-t pt-3 mt-2">
-                          <p className="text-xs font-medium mb-1 uppercase text-muted-foreground">
-                            Client Feedback:
-                          </p>
-                          <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-2">
-                            {track.comments.map((comment: any) => (
-                              <div
-                                key={comment.id}
-                                className="text-xs p-1.5 rounded bg-background border"
-                              >
-                                <div className="flex justify-between text-[10px] text-muted-foreground/80 mb-0.5">
-                                  <span>At {comment.timestamp || "N/A"}</span>
-                                  <span>
-                                    {new Date(
-                                      comment.created_at
-                                    ).toLocaleString([], {
-                                      dateStyle: "short",
-                                      timeStyle: "short",
-                                    })}
-                                  </span>
-                                </div>
-                                <p className="whitespace-pre-wrap text-sm">
-                                  {comment.comment}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <ProjectCommentsSection comments={track.comments} />
                       </CardContent>
                     )}
                     {track.client_decision === "revisions_requested" &&

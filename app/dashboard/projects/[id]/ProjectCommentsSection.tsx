@@ -1,16 +1,11 @@
-// app/projects/[projectId]/review/[trackId]/components/CommentsSection.tsx
+// components/ProjectCommentsSection.tsx
 "use client";
 
 import React from "react";
-import { formatTime } from "../../lib/utils";
-import {
-  MessageSquareWarning,
-  Play,
-  ExternalLink,
-  ImageIcon,
-} from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import Image from "next/image";
+import { CommentTextWithLinks } from "./CommentRenderer";
+import { formatTime } from "@/app/review/lib/utils";
 
 interface Comment {
   id: string;
@@ -19,30 +14,17 @@ interface Comment {
     text: string;
     timestamp: number;
     images?: string[];
+    links?: { url: string; text: string }[];
   };
   commenter_display_name: string;
-  isOwnComment?: boolean;
-}
-interface CommentsSectionProps {
-  comments: Comment[];
-  isVideoFile: boolean;
-  isAudioFile: boolean;
-  jumpToTime: (time: number) => void;
-  renderCommentText?: (comment: Comment) => React.ReactNode; // ✅ add this
-}
-interface CommentsSectionProps {
-  comments: Comment[];
-  isVideoFile: boolean;
-  isAudioFile: boolean;
-  jumpToTime: (time: number) => void;
 }
 
-export const CommentsSection: React.FC<CommentsSectionProps> = ({
+interface ProjectCommentsSectionProps {
+  comments: Comment[];
+}
+
+export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
   comments,
-  isVideoFile,
-  isAudioFile,
-  jumpToTime,
-  renderCommentText,
 }) => {
   return (
     <Card>
@@ -52,34 +34,19 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
       <CardContent>
         {comments.length === 0 ? (
           <p className="text-center text-muted-foreground py-6">
-            No feedback comments yet for this round.
+            No feedback comments yet.
           </p>
         ) : (
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-3">
             {comments.map((comment) => (
-              <div
-                key={comment.id}
-                className={`p-3 border rounded-md ${
-                  comment.isOwnComment ? "" : ""
-                }`}
-              >
+              <div key={comment.id} className="p-3 border rounded-md">
                 <div className="flex justify-between items-start gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm">
                       {comment.commenter_display_name}
-                      {comment.isOwnComment ? "(You)" : ""}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       at {formatTime(comment.comment.timestamp)}
-                      {(isVideoFile || isAudioFile) && (
-                        <button
-                          onClick={() => jumpToTime(comment.comment.timestamp)}
-                          className="ml-2 inline-flex items-center text-primary hover:underline text-xs"
-                          title={`Jump to ${formatTime(comment.comment.timestamp)}`}
-                        >
-                          <Play className="h-3 w-3 mr-1" /> Jump
-                        </button>
-                      )}
                     </p>
                   </div>
                   <span
@@ -94,9 +61,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 </div>
                 {comment.comment.text && (
                   <div className="mt-2 text-sm whitespace-pre-wrap">
-                    {renderCommentText
-                      ? renderCommentText(comment) // ✅ use custom render
-                      : comment.comment.text}
+                    <CommentTextWithLinks
+                      text={comment.comment.text}
+                      links={comment.comment.links}
+                    />
                   </div>
                 )}
                 {comment.comment.images &&
