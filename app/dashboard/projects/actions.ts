@@ -8,15 +8,18 @@ import { Buffer } from "buffer"; // Needed for Buffer.from
 
 // --- Helper Types (Ensure Step type is consistent if not already defined here) ---
 interface Step {
-  name: string;
   status: "pending" | "completed";
+  is_final?: boolean;
   deliverable_link?: string | null;
   metadata?: {
-    links?: { url: string; text: string }[];
+    type: "comment" | "general_revision";
+    comment_id?: string;
+    text?: string;
+    timestamp?: number;
     images?: string[];
-    full_text?: string;
-    created_at?: string; // From original comment
-    original_comment_id?: string; // From original comment
+    links?: { url: string; text: string }[];
+    created_at?: string;
+    step_index?: number;
   };
 }
 
@@ -109,6 +112,8 @@ interface Step {
   };
 }
 
+// app/projects/actions.ts (updated createProject)
+// app/projects/actions.ts
 export async function createProject(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -128,27 +133,10 @@ export async function createProject(formData: FormData) {
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const deadline = formData.get("deadline") as string;
-  const stepsJson = formData.get("steps") as string;
+  const commentsData = formData.get("comments") as string;
 
-  if (!clientId || !title)
-    throw new Error("Client and project title are required");
-
-  let stepNames: string[];
-  try {
-    stepNames = JSON.parse(stepsJson);
-    if (!Array.isArray(stepNames) || stepNames.length === 0)
-      throw new Error("Steps must be a non-empty array.");
-    if (
-      !stepNames.every((name) => typeof name === "string" && name.trim() !== "")
-    ) {
-      throw new Error("Each step must have a non-empty name.");
-    }
-  } catch (error) {
-    console.error("Error parsing steps JSON:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Invalid steps format provided."
-    );
-  }
+  if (!clientId || !title || !commentsData)
+    throw new Error("Client, project title, and work steps are required");
 
   // Verify client belongs to editor
   const { data: client, error: clientError } = await supabase
@@ -163,6 +151,12 @@ export async function createProject(formData: FormData) {
     );
 
   try {
+    // Parse comments data
+    const comments = JSON.parse(commentsData) as {
+      text: string;
+      images: string[];
+    }[];
+
     // Create the project
     const { data: project, error: projectError } = await supabase
       .from("projects")
@@ -178,23 +172,55 @@ export async function createProject(formData: FormData) {
       .single();
     if (projectError) throw projectError;
 
-    // Create initial track with new step structure
-    const steps: Step[] = stepNames.map((name) => ({
-      status: "pending",
-      metadata: {
-        type: "general_revision",
-        text: name,
-        created_at: new Date().toISOString(),
-      },
-    }));
+    // Process images and create steps
+    const steps: Step[] = [];
 
-    // Add final delivery step
+    for (const [index, comment] of comments.entries()) {
+      let imageUrls: string[] = [];
+
+      // Upload images if they exist
+      if (comment.images && comment.images.length > 0) {
+        const uploadPromises = comment.images.map(
+          async (fileName, imgIndex) => {
+            const fileKey = `image_${index}_${imgIndex}`;
+            const file = formData.get(fileKey) as File;
+            if (!file) return null;
+
+            const buffer = Buffer.from(await file.arrayBuffer());
+            return await uploadImageToImgBB(buffer, file.name, file.type);
+          }
+        );
+
+        const results = await Promise.all(uploadPromises);
+        imageUrls = results.filter((url): url is string => url !== null);
+      }
+
+      // Detect and extract links from text
+      const { processedText, links } = detectAndExtractLinks(comment.text);
+
+      steps.push({
+        name: `Step ${index + 1}`,
+        status: "pending" as const,
+        metadata: {
+          type: "comment",
+          text: processedText,
+          images: imageUrls,
+          links: links,
+          created_at: new Date().toISOString(),
+          step_index: index,
+        },
+      });
+    }
+
+    // Add final step (but marked as pending)
     steps.push({
+      name: "Finish",
       is_final: true,
-      status: "pending",
+      status: "pending" as const,
       deliverable_link: null,
     });
 
+    // Create initial track with the steps
     const { error: trackError } = await supabase.from("project_tracks").insert({
       project_id: project.id,
       round_number: 1,
@@ -209,10 +235,12 @@ export async function createProject(formData: FormData) {
       throw new Error("Failed to create the initial workflow track.");
     }
 
-    console.log(`Project ${project.id} created successfully.`);
+    console.log(
+      `Project ${project.id} created successfully with initial steps.`
+    );
     revalidatePath("/projects");
     revalidatePath(`/clients/${clientId}`);
-    return { message: "Project created successfully", project };
+    return { message: "Project created successfully with work steps", project };
   } catch (error) {
     console.error("Full error during project creation:", error);
     throw error instanceof Error
@@ -573,4 +601,200 @@ export async function updateStepContent(formData: FormData) {
       ? error
       : new Error("An unexpected error occurred while updating step content.");
   }
+}
+// app/projects/actions.ts
+export async function deliverInitialRound(
+  trackId: string,
+  deliverableLink: string,
+  comments: {
+    text: string;
+    images?: File[];
+    links?: { url: string; text: string }[];
+  }[]
+) {
+  const supabase = await createClient();
+
+  // 1. Verify track exists and is round 1
+  const { data: track, error: trackError } = await supabase
+    .from("project_tracks")
+    .select("id, project_id, round_number, steps")
+    .eq("id", trackId)
+    .eq("round_number", 1)
+    .single();
+
+  if (trackError || !track) {
+    throw new Error(trackError?.message || "Initial track not found");
+  }
+
+  // 2. Upload images and prepare steps
+  const steps: Step[] = [];
+
+  for (const comment of comments) {
+    let imageUrls: string[] = [];
+
+    // Upload images if they exist
+    if (comment.images && comment.images.length > 0) {
+      try {
+        const uploadPromises = comment.images.map(async (file) => {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          return await uploadImageToImgBB(buffer, file.name, file.type);
+        });
+        imageUrls = await Promise.all(uploadPromises);
+      } catch (error) {
+        console.error("Error uploading images:", error);
+        throw new Error("Failed to upload one or more images");
+      }
+    }
+
+    // Detect and extract links from text
+    const { processedText, links } = detectAndExtractLinks(comment.text);
+
+    steps.push({
+      status: "completed" as const,
+      metadata: {
+        type: "comment",
+        text: processedText,
+        images: imageUrls,
+        links: links,
+        created_at: new Date().toISOString(),
+        step_index: steps.length,
+      },
+    });
+  }
+
+  // Add final delivery step
+  steps.push({
+    is_final: true,
+    status: "completed" as const,
+    deliverable_link: deliverableLink,
+  });
+
+  // 3. Update the track
+  const { error: updateError } = await supabase
+    .from("project_tracks")
+    .update({
+      steps: steps,
+      status: "in_review",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", trackId);
+
+  if (updateError) {
+    throw new Error(updateError.message || "Failed to deliver initial round");
+  }
+
+  // 4. Revalidate paths
+  revalidatePath(`/projects/${track.project_id}`);
+  revalidatePath(`/dashboard/projects/${track.project_id}`);
+
+  return { message: "Initial round delivered successfully" };
+}
+
+// Helper function to detect and extract links (same as in the form)
+function detectAndExtractLinks(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const links: { url: string; text: string }[] = [];
+  let processedText = text;
+  let match;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    links.push({
+      url: match[0],
+      text: match[0],
+    });
+    processedText = processedText.replace(
+      match[0],
+      `[LINK:${links.length - 1}]`
+    );
+  }
+
+  return { processedText, links };
+}
+export async function createInitialRound(
+  projectId: string,
+  trackId: string,
+  comments: {
+    text: string;
+    images?: File[];
+    links?: { url: string; text: string }[];
+  }[]
+) {
+  const supabase = await createClient();
+
+  // 1. Verify track exists and is round 1
+  const { data: track, error: trackError } = await supabase
+    .from("project_tracks")
+    .select("id, project_id, round_number, steps")
+    .eq("id", trackId)
+    .eq("round_number", 1)
+    .single();
+
+  if (trackError || !track) {
+    throw new Error(trackError?.message || "Initial track not found");
+  }
+
+  // 2. Upload images and prepare steps
+  const steps: Step[] = [];
+
+  for (const comment of comments) {
+    let imageUrls: string[] = [];
+
+    // Upload images if they exist
+    if (comment.images && comment.images.length > 0) {
+      try {
+        const uploadPromises = comment.images.map(async (file) => {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          return await uploadImageToImgBB(buffer, file.name, file.type);
+        });
+        imageUrls = await Promise.all(uploadPromises);
+      } catch (error) {
+        console.error("Error uploading images:", error);
+        throw new Error("Failed to upload one or more images");
+      }
+    }
+
+    // Detect and extract links from text
+    const { processedText, links } = detectAndExtractLinks(comment.text);
+
+    steps.push({
+      name: `Step ${steps.length + 1}`,
+      status: "pending" as const, // Steps start as pending!
+      metadata: {
+        type: "comment",
+        text: processedText,
+        images: imageUrls,
+        links: links,
+        created_at: new Date().toISOString(),
+        step_index: steps.length,
+      },
+    });
+  }
+
+  // Add final step (but marked as pending)
+  steps.push({
+    name: "Finish",
+    is_final: true,
+    status: "pending" as const,
+    deliverable_link: null,
+  });
+
+  // 3. Update the track
+  const { error: updateError } = await supabase
+    .from("project_tracks")
+    .update({
+      steps: steps,
+      status: "in_progress", // Not ready for review yet!
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", trackId);
+
+  if (updateError) {
+    throw new Error(updateError.message || "Failed to create initial round");
+  }
+
+  // 4. Revalidate paths
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/dashboard/projects/${projectId}`);
+
+  return { message: "Initial round created successfully" };
 }

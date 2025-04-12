@@ -121,7 +121,7 @@ export function ClientManageDialog({ client }: ClientManageDialogProps) {
       {/* Action Buttons Group */}
       <div className="flex items-center gap-2">
         {/* Link to create a new project for THIS client */}
-        <Link href={`/projects/new?client=${client.id}`} passHref>
+        <Link href={`/dashboard/projects/new?client=${client.id}`} passHref>
           <Button variant="success" size="sm">
             <PlusCircle className="mr-2 h-4 w-4" />
             New Project

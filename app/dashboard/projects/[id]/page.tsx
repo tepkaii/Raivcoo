@@ -159,6 +159,7 @@ export default async function page({ params }: { params: { id: string } }) {
           <Link href="/projects" className="hover:underline flex items-center">
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
           </Link>
+
           {project.client && (
             <>
               {" • "}
@@ -189,6 +190,12 @@ export default async function page({ params }: { params: { id: string } }) {
       <div className="flex items-center gap-2 text-muted-foreground mb-4 text-sm">
         <Link href="/projects" className="hover:underline flex items-center">
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
+        </Link>
+        <Link
+          href={`/dashboard/projects/${id}/deliver`}
+          className="hover:underline flex items-center"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" /> make round one
         </Link>
         {project.client && (
           <>

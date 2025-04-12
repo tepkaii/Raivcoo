@@ -7,9 +7,20 @@ import { Buffer } from "buffer"; // Needed for Buffer.from
 
 // --- Helper Types ---
 interface Step {
-  name: string;
   status: "pending" | "completed";
+  is_final?: boolean;
   deliverable_link?: string | null;
+  metadata?: {
+    type: "manual_step" | "comment" | "general_revision";
+    text?: string;
+    timestamp?: number;
+    images?: string[];
+    links?: { url: string; text: string }[];
+    created_at?: string;
+    step_index?: number;
+    comment_id?: string;
+  };
+  name?: string; // Only for manual steps
 }
 
 // Define the structure for the JSONB comment data
@@ -341,8 +352,7 @@ export async function addReviewComment(formData: FormData) {
   }
 }
 
-// --- Client Requests Revisions for a Track (Updated) ---
-// --- Client Requests Revisions for a Track (Full Implementation) ---
+// app/projects/actions.ts (updated clientRequestRevisions)
 export async function clientRequestRevisions(trackId: string) {
   const supabase = await createClient();
 
@@ -375,36 +385,25 @@ export async function clientRequestRevisions(trackId: string) {
 
   if (commentsError) throw new Error("Could not retrieve feedback comments.");
 
-  // 5. Prepare steps - NO NAMES, JUST DATA
-  const nextRoundSteps =
-    commentsData?.length > 0
-      ? [
-          ...commentsData.map((comment) => ({
-            status: "pending" as const,
-            metadata: {
-              type: "comment",
-              comment_id: comment.id,
-              ...comment.comment,
-              created_at: comment.created_at,
-            },
-          })),
-          {
-            status: "pending" as const,
-            is_final: true,
-            deliverable_link: null,
-          },
-        ]
-      : [
-          {
-            status: "pending" as const,
-            metadata: { type: "general_revision" },
-          },
-          {
-            status: "pending" as const,
-            is_final: true,
-            deliverable_link: null,
-          },
-        ];
+  // 5. Prepare steps from comments
+  const nextRoundSteps = (commentsData || []).map((comment, index) => ({
+    status: "pending" as const,
+    metadata: {
+      type: "comment",
+      comment_id: comment.id,
+      text: comment.comment.text,
+      ...comment.comment,
+      created_at: comment.created_at,
+      step_index: index,
+    },
+  }));
+
+  // Add final step
+  nextRoundSteps.push({
+    status: "pending" as const,
+    is_final: true,
+    deliverable_link: null,
+  });
 
   // 6. Execute revision request
   try {
@@ -414,7 +413,7 @@ export async function clientRequestRevisions(trackId: string) {
         p_current_track_id: trackId,
         p_project_id: currentTrack.project_id,
         p_current_round_number: currentTrack.round_number,
-        p_next_round_steps: nextRoundSteps, // Automatically converted to jsonb
+        p_next_round_steps: nextRoundSteps,
       }
     );
 

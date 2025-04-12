@@ -251,7 +251,7 @@ export default function ClientDetailPageClient({
                 const statusIcon = getStatusIcon(project.status);
                 const statusVariant = getStatusVariant(project.status);
                 const projectIcon = getProjectIcon(project.title);
-                const liveTrackUrl = `/projects/${project.id}/live-track`;
+                const liveTrackUrl = `/dashboard/projects/${project.id}/live-track`;
 
                 return (
                   <Card
@@ -265,104 +265,119 @@ export default function ClientDetailPageClient({
                       }`}
                     />
 
-                    <Link href={`/projects/${project.id}`} className="block">
-                      <CardContent className="p-5">
-                        <div className="flex items-start">
-                          {/* Main Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
-                                  {project.title}
-                                </h3>
-                                {latestRound > 0 && (
-                                  <Badge
-                                    variant="outline"
-                                    className="flex items-center gap-1 py-0 h-5"
-                                  >
-                                    <Layers className="h-3 w-3" />
-                                    <span>Round {latestRound}</span>
-                                  </Badge>
-                                )}
+                    <div className="flex">
+                      {/* Main clickable content area */}
+                      <Link
+                        href={`/dashboard/projects/${project.id}`}
+                        className="flex-1 min-w-0 hover:bg-muted/10 transition-colors"
+                      >
+                        <CardContent className="p-5">
+                          <div className="flex items-start">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
+                                    {project.title}
+                                  </h3>
+                                  {latestRound > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="flex items-center gap-1 py-0 h-5"
+                                    >
+                                      <Layers className="h-3 w-3" />
+                                      <span>Round {latestRound}</span>
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
 
-                              {/* PROJECT Actions Dropdown - Now aligned with title */}
-                              <ProjectActionsDropdown
-                                project={projectForActions}
-                              />
-                            </div>
+                              {/* Status badge with icon */}
+                              <div className="flex items-center gap-2 mt-2 mb-3">
+                                <Badge
+                                  variant={statusVariant}
+                                  className="flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium"
+                                >
+                                  {statusIcon}
+                                  {formatStatus(project.status)}
+                                </Badge>
+                              </div>
 
-                            {/* Status badge with icon */}
-                            <div className="flex items-center gap-2 mt-2 mb-3">
-                              <Badge
-                                variant={statusVariant}
-                                className="flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium"
-                              >
-                                {statusIcon}
-                                {formatStatus(project.status)}
-                              </Badge>
-                            </div>
+                              {/* Description */}
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 min-h-[2.5rem]">
+                                {project.description || (
+                                  <span className="italic">
+                                    No description provided
+                                  </span>
+                                )}
+                              </p>
 
-                            {/* Description */}
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3 min-h-[2.5rem]">
-                              {project.description || (
-                                <span className="italic">
-                                  No description provided
-                                </span>
-                              )}
-                            </p>
+                              {/* Footer with dates and action buttons */}
+                              <div className="flex justify-between items-center mt-auto pt-2 border-t border-border/50 text-xs flex-wrap gap-y-2">
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  <div className="flex items-center gap-1 text-muted-foreground">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>
+                                      {formatDate(project.created_at)}
+                                    </span>
+                                  </div>
 
-                            {/* Footer with dates and action buttons */}
-                            <div className="flex justify-between items-center mt-auto pt-2 border-t border-border/50 text-xs flex-wrap gap-y-2">
-                              <div className="flex items-center gap-4 flex-wrap">
-                                <div className="flex items-center gap-1 text-muted-foreground">
-                                  <Calendar className="h-3.5 w-3.5" />
-                                  <span>{formatDate(project.created_at)}</span>
+                                  {project.deadline && (
+                                    <div className="flex items-center gap-1 text-muted-foreground">
+                                      <Clock className="h-3.5 w-3.5" />
+                                      <span>
+                                        {formatDate(project.deadline)}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
 
-                                {project.deadline && (
-                                  <div className="flex items-center gap-1 text-muted-foreground">
-                                    <Clock className="h-3.5 w-3.5" />
-                                    <span>{formatDate(project.deadline)}</span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <Link
-                                  href={liveTrackUrl}
-                                  className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                                  title="Live Track Link"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Link2 className="h-4 w-4" />
-                                  <span className="text-xs hidden sm:inline">
-                                    Live Link
-                                  </span>
-                                </Link>
-                                <button
-                                  className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                                  title="Copy Live Track Link"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    navigator.clipboard.writeText(
-                                      `${window.location.origin}${liveTrackUrl}`
-                                    );
-                                    // You could add a toast notification here
-                                  }}
-                                >
-                                  <Copy className="h-4 w-4" />
-                                  <span className="text-xs hidden sm:inline">
-                                    Copy
-                                  </span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    href={liveTrackUrl}
+                                    className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
+                                    title="Live Track Link"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Link2 className="h-4 w-4" />
+                                    <span className="text-xs hidden sm:inline">
+                                      Live Link
+                                    </span>
+                                  </Link>
+                                  <button
+                                    className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
+                                    title="Copy Live Track Link"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(
+                                        `${window.location.origin}${liveTrackUrl}`
+                                      );
+                                      // You could add a toast notification here
+                                    }}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                    <span className="text-xs hidden sm:inline">
+                                      Copy
+                                    </span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Link>
+                        </CardContent>
+                      </Link>
+
+                      {/* Actions area - separated from main clickable area */}
+                      <div
+                        className="p-2 flex items-center"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <ProjectActionsDropdown project={projectForActions} />
+                      </div>
+                    </div>
                   </Card>
                 );
               })}

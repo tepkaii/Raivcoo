@@ -42,7 +42,7 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
         </RevButtons>
 
         {/* New Project Button - Remains a Link */}
-        <Link href={`/projects/new?client=${client.id}`} passHref>
+        <Link href={`/dashboard/projects/new?client=${client.id}`} passHref>
           <RevButtons variant="success">
             <PlusCircle className="mr-2 h-4 w-4" />
             New Project

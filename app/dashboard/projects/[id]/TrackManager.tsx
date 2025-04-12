@@ -3,20 +3,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RevButtons } from "@/components/ui/RevButtons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
 import {
   CheckCircle,
   Clock,
@@ -28,16 +18,14 @@ import {
   Hourglass,
   ShieldCheck,
   ShieldX,
-  Edit,
-  Save,
-  XCircle,
   Settings,
-  PlusCircle,
-  Trash2,
+  Edit,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { formatTime } from "@/app/review/lib/utils";
+import { updateStepContent } from "../actions";
+import { StepCommentsSection } from "./StepCommentsSection";
 
 const CommentTextWithLinks = ({
   text,
@@ -62,7 +50,7 @@ const CommentTextWithLinks = ({
   return <div>{text}</div>;
 };
 
-interface Step {
+export interface Step {
   status: "pending" | "completed";
   is_final?: boolean;
   deliverable_link?: string | null;
@@ -102,79 +90,6 @@ interface TrackManagerProps {
   ) => Promise<any>;
 }
 
-const StepCommentsSection = ({
-  step,
-  isFinalStep,
-}: {
-  step: Step;
-  isFinalStep: boolean;
-}) => {
-  if (!step.metadata || step.metadata.type !== "comment") return null;
-
-  const commentData = {
-    id: step.metadata.comment_id || "no-id",
-    created_at: step.metadata.created_at || new Date().toISOString(),
-    comment: {
-      text: step.metadata.text || "",
-      timestamp: step.metadata.timestamp || 0,
-      images: step.metadata.images || [],
-      links: step.metadata.links || [],
-    },
-    commenter_display_name: "Client",
-  };
-
-  return (
-    <div className="pl-7 text-sm space-y-2">
-      <div className="p-2 border rounded bg-muted/20">
-        <div className="flex justify-between text-xs text-muted-foreground mb-1">
-          <span>
-            {commentData.commenter_display_name} at{" "}
-            {formatTime(commentData.comment.timestamp)}
-          </span>
-          {isFinalStep &&
-            commentData.comment.links &&
-            commentData.comment.links.length > 0 && (
-              <a
-                href={commentData.comment.links[0].url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                View Link
-              </a>
-            )}
-        </div>
-        <CommentTextWithLinks
-          text={commentData.comment.text}
-          links={commentData.comment.links}
-        />
-        {commentData.comment.images &&
-          commentData.comment.images.length > 0 && (
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {commentData.comment.images.map((imageUrl, idx) => (
-                <a
-                  key={idx}
-                  href={imageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="relative aspect-square rounded-md overflow-hidden border hover:border-primary transition-colors"
-                >
-                  <Image
-                    src={imageUrl}
-                    alt={`Comment image ${idx + 1}`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 50vw, 25vw"
-                  />
-                </a>
-              ))}
-            </div>
-          )}
-      </div>
-    </div>
-  );
-};
-
 export default function TrackManager({
   track,
   updateProjectTrackStepStatus,
@@ -184,7 +99,7 @@ export default function TrackManager({
   const [isSubmittingDeliverable, setIsSubmittingDeliverable] = useState(false);
   const [deliverableLink, setDeliverableLink] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
+  const [isCommentsEditMode, setIsCommentsEditMode] = useState(false);
   const steps = useMemo(() => track.steps || [], [track.steps]);
   const finalStepIndex = useMemo(
     () => steps.findIndex((step) => step.is_final),
@@ -208,7 +123,45 @@ export default function TrackManager({
         : steps.every((step) => step.status === "completed"),
     [steps, finalStepIndex]
   );
+  const handleEditStepContent = useCallback(
+    async (
+      stepIndex: number,
+      newText: string,
+      newLinks: { url: string; text: string }[]
+    ) => {
+      if (!updateStepContent) return;
 
+      try {
+        const formData = new FormData();
+        formData.append("trackId", track.id);
+        formData.append("stepIndex", stepIndex.toString());
+        formData.append("text", newText);
+        formData.append("links", JSON.stringify(newLinks));
+        formData.append(
+          "existingImages",
+          JSON.stringify(steps[stepIndex].metadata?.images || [])
+        );
+
+        await updateStepContent(formData);
+        toast({
+          title: "Success",
+          description: "Step content updated successfully",
+          variant: "success",
+        });
+      } catch (error) {
+        console.error("Error updating step content:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to update step content",
+          variant: "destructive",
+        });
+      }
+    },
+    [track.id, steps, updateStepContent]
+  );
   const isFinalStepCompleted = finalStep?.status === "completed";
   const isAwaitingClient =
     isFinalStepCompleted && track.client_decision === "pending";
@@ -352,16 +305,30 @@ export default function TrackManager({
             </Badge>
           </div>
           {updateTrackStructure && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1"
-              onClick={() => setIsEditDialogOpen(true)}
-              disabled={isClientActionDone}
-            >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Edit Steps</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+                onClick={() => setIsEditDialogOpen(true)}
+                disabled={isClientActionDone}
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Edit Steps</span>
+              </Button>
+
+              {/* Add Edit Comments button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+                onClick={() => setIsCommentsEditMode(!isCommentsEditMode)}
+                disabled={isClientActionDone}
+              >
+                <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Edit Comments</span>
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -408,6 +375,14 @@ export default function TrackManager({
                     <StepCommentsSection
                       step={step}
                       isFinalStep={isFinalStep}
+                      editable={
+                        isCommentsEditMode &&
+                        !isFinalStep &&
+                        !isClientActionDone
+                      }
+                      onSave={(newText, newLinks) =>
+                        handleEditStepContent(index, newText, newLinks)
+                      }
                     />
                   </div>
 

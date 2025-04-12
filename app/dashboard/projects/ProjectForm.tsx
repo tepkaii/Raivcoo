@@ -1,13 +1,20 @@
 // app/projects/ProjectForm.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { Loader2, PlusCircle, X, Edit, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  X,
+  Image as ImageIcon,
+  XCircle,
+  GripVertical,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -17,6 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Button } from "@/components/ui/button";
+
+const MAX_IMAGES_PER_COMMENT = 4;
+const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
 
 interface Client {
   id: string;
@@ -30,64 +42,95 @@ interface ProjectFormProps {
   ) => Promise<{ message: string; project: any }>;
 }
 
-interface WorkflowStep {
-  name: string;
-  description?: string;
-  files?: File[];
-}
-
 export default function ProjectForm({
   clients,
   createProject,
 }: ProjectFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedClient, setSelectedClient] = useState<string>("");
-  const [steps, setSteps] = useState<WorkflowStep[]>([
-    { name: "Get Clips" },
-    { name: "Edit/Cut" },
-    { name: "Color" },
-  ]);
-  const [newStepName, setNewStepName] = useState("");
+  const [comments, setComments] = useState<{ text: string; images?: File[] }[]>(
+    [{ text: "" }]
+  );
   const router = useRouter();
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const handleAddStep = () => {
-    if (!newStepName.trim()) {
-      toast({
-        title: "Error",
-        description: "Step name cannot be empty",
-        variant: "destructive",
-      });
-      return;
-    }
-    setSteps([...steps, { name: newStepName.trim() }]);
-    setNewStepName("");
+  const addComment = () => {
+    setComments([...comments, { text: "" }]);
   };
 
-  const handleRemoveStep = (index: number) => {
-    if (steps.length <= 1) {
-      toast({
-        title: "Error",
-        description: "Need at least one step",
-        variant: "destructive",
-      });
-      return;
-    }
-    setSteps(steps.filter((_, i) => i !== index));
+  const removeComment = (index: number) => {
+    if (comments.length <= 1) return;
+    setComments(comments.filter((_, i) => i !== index));
   };
 
-  const handleFileUpload = (index: number, files: FileList | null) => {
-    if (!files) return;
-    const newSteps = [...steps];
-    newSteps[index].files = Array.from(files);
-    setSteps(newSteps);
+  const updateComment = (index: number, text: string) => {
+    const newComments = [...comments];
+    newComments[index].text = text;
+    setComments(newComments);
+  };
+
+  const handleFileChange = (
+    index: number,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (event.target.files) {
+      const files = Array.from(event.target.files);
+      const totalFiles = (comments[index].images?.length || 0) + files.length;
+
+      if (totalFiles > MAX_IMAGES_PER_COMMENT) {
+        toast({
+          title: "Too many images",
+          description: `You can only select up to ${MAX_IMAGES_PER_COMMENT} images per comment.`,
+          variant: "warning",
+        });
+        return;
+      }
+
+      const newComments = [...comments];
+      newComments[index].images = [
+        ...(newComments[index].images || []),
+        ...files,
+      ];
+      setComments(newComments);
+    }
+  };
+
+  const removeImage = (commentIndex: number, imageIndex: number) => {
+    const newComments = [...comments];
+    newComments[commentIndex].images = newComments[commentIndex].images?.filter(
+      (_, i) => i !== imageIndex
+    );
+    setComments(newComments);
+  };
+
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(comments);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setComments(items);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedClient || steps.length === 0) {
+    if (!selectedClient) {
       toast({
         title: "Error",
-        description: "Fill required fields",
+        description: "Select a client",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validComments = comments.filter(
+      (c) => c.text.trim() !== "" || (c.images && c.images.length > 0)
+    );
+    if (validComments.length === 0) {
+      toast({
+        title: "Error",
+        description: "At least one work step with text or image is required",
         variant: "destructive",
       });
       return;
@@ -102,24 +145,22 @@ export default function ProjectForm({
       formData.set("deadline", e.currentTarget.deadline.value);
     }
 
-    // Add steps data
+    // Add comments data
     formData.set(
-      "steps",
+      "comments",
       JSON.stringify(
-        steps.map((step) => ({
-          name: step.name,
-          description: step.description,
+        validComments.map((c) => ({
+          text: c.text,
+          images: c.images?.map((f) => f.name) || [],
         }))
       )
     );
 
-    // Add files to form data
-    steps.forEach((step, index) => {
-      if (step.files) {
-        step.files.forEach((file, fileIndex) => {
-          formData.append(`step_${index}_files`, file);
-        });
-      }
+    // Add image files
+    validComments.forEach((comment, index) => {
+      comment.images?.forEach((file, fileIndex) => {
+        formData.append(`image_${index}_${fileIndex}`, file);
+      });
     });
 
     try {
@@ -129,7 +170,7 @@ export default function ProjectForm({
         description: result.message,
         variant: "success",
       });
-      router.push(`/projects/${result.project.id}`);
+      router.push(`/dashboard/projects/${result.project.id}`);
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -144,136 +185,177 @@ export default function ProjectForm({
   };
 
   return (
-    <Card className="max-w-2xl mx-auto">
+    <Card className="max-w-3xl mx-auto">
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Client, Title, Description fields remain the same */}
+          <div className="space-y-4">
+            <div>
+              <Label>Client</Label>
+              <Select
+                value={selectedClient}
+                onValueChange={setSelectedClient}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Workflow Steps Section */}
-          <div className="border-t pt-4">
-            <Label className="mb-2 block">Workflow Steps</Label>
-            <div className="space-y-4">
-              {steps.map((step, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <div className="space-y-2 flex-1">
-                      <Input
-                        name={`step_${index}_name`}
-                        value={step.name}
-                        onChange={(e) => {
-                          const newSteps = [...steps];
-                          newSteps[index].name = e.target.value;
-                          setSteps(newSteps);
-                        }}
-                        placeholder="Step name"
-                      />
-                      <Textarea
-                        name={`step_${index}_description`}
-                        value={step.description || ""}
-                        onChange={(e) => {
-                          const newSteps = [...steps];
-                          newSteps[index].description = e.target.value;
-                          setSteps(newSteps);
-                        }}
-                        placeholder="Step description (optional)"
-                        rows={2}
-                      />
-                      <div>
-                        <Label className="text-sm">Attachments</Label>
-                        <Input
-                          type="file"
-                          onChange={(e) =>
-                            handleFileUpload(index, e.target.files)
-                          }
-                          multiple
-                          className="mt-1"
-                        />
-                        {step.files?.map((file, i) => (
-                          <div
-                            key={i}
-                            className="flex items-center mt-1 text-sm"
-                          >
-                            <span className="truncate">{file.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newSteps = [...steps];
-                                newSteps[index].files = newSteps[
-                                  index
-                                ].files?.filter((_, idx) => idx !== i);
-                                setSteps(newSteps);
-                              }}
-                              className="ml-2 text-red-500"
+            <div>
+              <Label>Project Title</Label>
+              <Input name="title" placeholder="Project title" required />
+            </div>
+
+            <div>
+              <Label>Description (Optional)</Label>
+              <Textarea
+                name="description"
+                placeholder="Project description"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label>Deadline (Optional)</Label>
+              <Input name="deadline" type="date" />
+            </div>
+
+            <div className="space-y-4 pt-4">
+              <Label>Work Steps</Label>
+
+              <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="comments">
+                  {(provided) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className="space-y-6"
+                    >
+                      {comments.map((comment, index) => (
+                        <Draggable
+                          key={index}
+                          draggableId={`comment-${index}`}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className="relative"
                             >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex flex-col space-y-1 ml-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (index > 0) {
-                            const newSteps = [...steps];
-                            [newSteps[index - 1], newSteps[index]] = [
-                              newSteps[index],
-                              newSteps[index - 1],
-                            ];
-                            setSteps(newSteps);
-                          }
-                        }}
-                        disabled={index === 0}
-                        className="p-1 disabled:opacity-50"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (index < steps.length - 1) {
-                            const newSteps = [...steps];
-                            [newSteps[index], newSteps[index + 1]] = [
-                              newSteps[index + 1],
-                              newSteps[index],
-                            ];
-                            setSteps(newSteps);
-                          }
-                        }}
-                        disabled={index === steps.length - 1}
-                        className="p-1 disabled:opacity-50"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveStep(index)}
-                        className="p-1 text-red-500"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                              <div className="absolute left-4 top-4 flex items-center gap-1.5">
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className="p-1 rounded hover:bg-accent cursor-grab"
+                                >
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </div>
 
-              <div className="flex items-center gap-2">
-                <Input
-                  value={newStepName}
-                  onChange={(e) => setNewStepName(e.target.value)}
-                  placeholder="Add new step..."
-                  className="flex-1"
-                />
-                <RevButtons
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddStep}
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Step
-                </RevButtons>
-              </div>
+                              <div className="border rounded-lg p-4 space-y-3 bg-card pl-12">
+                                <div className="flex justify-between items-start gap-2">
+                                  <Textarea
+                                    value={comment.text}
+                                    onChange={(e) =>
+                                      updateComment(index, e.target.value)
+                                    }
+                                    placeholder="Describe this work step..."
+                                    className="flex-1 min-h-[80px]"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeComment(index)}
+                                    disabled={comments.length <= 1}
+                                    className="ml-2"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="space-y-2">
+                                  <label
+                                    htmlFor={`image-upload-${index}`}
+                                    className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-primary"
+                                  >
+                                    <ImageIcon className="h-4 w-4" /> Add
+                                    Reference Images (Optional)
+                                  </label>
+                                  <Input
+                                    id={`image-upload-${index}`}
+                                    ref={(el) =>
+                                      (fileInputRefs.current[index] = el)
+                                    }
+                                    type="file"
+                                    multiple
+                                    accept={ACCEPTED_IMAGE_TYPES_STRING}
+                                    onChange={(e) => handleFileChange(index, e)}
+                                    className="hidden"
+                                    disabled={
+                                      (comment.images?.length || 0) >=
+                                      MAX_IMAGES_PER_COMMENT
+                                    }
+                                  />
+
+                                  {comment.images &&
+                                    comment.images.length > 0 && (
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        {comment.images.map(
+                                          (file, imgIndex) => (
+                                            <div
+                                              key={imgIndex}
+                                              className="relative w-20 h-20"
+                                            >
+                                              <img
+                                                src={URL.createObjectURL(file)}
+                                                alt={`Preview ${imgIndex + 1}`}
+                                                className="w-full h-full object-cover rounded border"
+                                              />
+                                              <Button
+                                                variant="destructive"
+                                                size="icon"
+                                                className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1"
+                                                onClick={() =>
+                                                  removeImage(index, imgIndex)
+                                                }
+                                                title="Remove image"
+                                              >
+                                                <XCircle className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          )
+                                        )}
+                                      </div>
+                                    )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addComment}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Another Work Step
+              </Button>
             </div>
           </div>
 
@@ -286,10 +368,10 @@ export default function ProjectForm({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Creating Project...
               </>
             ) : (
-              "Create Project"
+              "Create Project with Work Steps"
             )}
           </RevButtons>
         </form>
