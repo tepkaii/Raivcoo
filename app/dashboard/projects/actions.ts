@@ -3,27 +3,9 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation"; // Keep if needed elsewhere
+
 import { Buffer } from "buffer"; // Needed for Buffer.from
 
-// --- Helper Types (Ensure Step type is consistent if not already defined here) ---
-interface Step {
-  status: "pending" | "completed";
-  is_final?: boolean;
-  deliverable_link?: string | null;
-  metadata?: {
-    type: "comment" | "general_revision";
-    comment_id?: string;
-    text?: string;
-    timestamp?: number;
-    images?: string[];
-    links?: { url: string; text: string }[];
-    created_at?: string;
-    step_index?: number;
-  };
-}
-
-// --- Constants for Image Upload ---
 const MAX_IMAGES_PER_COMMENT = 4; // Keep consistent with review page
 const IMAGE_MAX_SIZE_MB = 5; // 5MB limit for each image
 const IMAGE_MAX_SIZE_BYTES = IMAGE_MAX_SIZE_MB * 1024 * 1024;
@@ -98,22 +80,24 @@ async function uploadImageToImgBB(
     );
   }
 }
-// Interface for step objects (ensure consistency)
+
 interface Step {
-  name: string;
+  name?: string;
   status: "pending" | "completed";
+  is_final?: boolean;
   deliverable_link?: string | null;
   metadata?: {
-    links?: { url: string; text: string }[];
+    type: "comment" | "general_revision";
+    comment_id?: string;
+    text?: string; // Use 'text'
+    timestamp?: number;
     images?: string[];
-    full_text?: string;
+    links?: { url: string; text: string }[];
     created_at?: string;
-    original_comment_id?: string;
+    step_index?: number;
   };
 }
 
-// app/projects/actions.ts (updated createProject)
-// app/projects/actions.ts
 export async function createProject(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -314,126 +298,120 @@ export async function updateProjectTrackStepStatus(
   return { message: "Step status updated successfully" };
 }
 
-// --- NEW: Update Track STRUCTURE (Add/Delete/Rename/Reorder Steps) ---
 export async function updateTrackStructure(
   trackId: string,
-  newStepsStructure: Omit<Step, "deliverable_link" | "status">[] // Expecting just names in order from dialog [{name: 'Step 1'}, {name: 'Step 2'}]
+  // Expecting steps without status, link, is_final; they should retain comment_id if applicable
+  newStepsStructure: Omit<Step, "status" | "deliverable_link" | "is_final">[]
 ) {
-  if (
-    !trackId ||
-    !Array.isArray(newStepsStructure) ||
-    newStepsStructure.length === 0
-  ) {
-    throw new Error(
-      "Invalid parameters: Track ID and a non-empty steps array are required."
-    );
+  if (!trackId || !Array.isArray(newStepsStructure)) {
+    throw new Error("Invalid parameters: Track ID and steps array required.");
   }
-  if (
-    !newStepsStructure.every(
-      (s) => typeof s.name === "string" && s.name.trim() !== ""
-    )
-  ) {
-    throw new Error(
-      "Invalid step structure: All steps must have non-empty names."
-    );
-  }
-  if (
-    new Set(newStepsStructure.map((s) => s.name.trim())).size !==
-    newStepsStructure.length
-  ) {
-    throw new Error("Duplicate step names are not allowed.");
-  }
-  if (newStepsStructure.some((s) => s.name.trim() === "Finish")) {
-    throw new Error(
-      "The 'Finish' step cannot be managed via this editing dialog."
-    );
-  }
+  // Add more validation if needed (e.g., non-empty names, no duplicates)
 
   const supabase = await createClient();
   const {
     data: { user },
+    error: userAuthError,
   } = await supabase.auth.getUser();
-  if (!user) throw new Error("Editor not authenticated");
+  if (userAuthError || !user) throw new Error("Editor not authenticated");
+
+  const { data: editorProfile, error: profileError } = await supabase
+    .from("editor_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+  if (profileError || !editorProfile)
+    throw new Error("Editor profile not found.");
 
   try {
-    // 1. Fetch Track, Project, Editor Profile and verify ownership
     const { data: track, error: trackError } = await supabase
       .from("project_tracks")
       .select(
-        `id, project_id, steps, client_decision, project:projects!inner(id, editor_id, client_id)`
+        `id, project_id, steps, client_decision, project:projects!inner(id, editor_id)`
       )
       .eq("id", trackId)
       .single();
-    if (trackError || !track || !track.project)
-      throw new Error("Track or associated project not found.");
 
-    const { data: editorProfile, error: profileError } = await supabase
-      .from("editor_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-    if (
-      profileError ||
-      !editorProfile ||
-      track.project.editor_id !== editorProfile.id
-    ) {
+    if (trackError || !track || !track.project) {
+      throw new Error("Track or associated project not found.");
+    }
+    if (track.project.editor_id !== editorProfile.id) {
       throw new Error(
         "Unauthorized: Project track does not belong to this editor."
       );
     }
-
-    // 2. Check Client Decision
     if (track.client_decision !== "pending") {
       throw new Error(
-        `Client has already submitted their decision (${track.client_decision}). Cannot modify structure.`
+        `Client decision is '${track.client_decision}'. Cannot modify structure.`
       );
     }
 
-    // 3. Reconstruct the full steps array
-    const originalSteps = track.steps as Step[];
-    const originalFinishStep = originalSteps.find((s) => s.name === "Finish");
+    const originalSteps = (track.steps as Step[]) || [];
+    const originalFinishStep = originalSteps.find((s) => s.is_final);
+
     if (!originalFinishStep) {
-      // This should ideally not happen if projects are created correctly
       console.error(`Track ${trackId} is missing the 'Finish' step!`);
       throw new Error(
-        "Critical error: Track structure is missing the mandatory 'Finish' step."
+        "Critical error: Track is missing the mandatory 'Finish' step."
       );
     }
 
-    // Map old steps by name to preserve status
-    const oldStatusMap = new Map<string, "pending" | "completed">();
+    // Map old steps by a stable identifier (e.g., metadata.comment_id)
+    const oldStepMap = new Map<string, Step>();
     originalSteps.forEach((step) => {
-      if (step.name !== "Finish") {
-        // Exclude Finish step status from this map
-        oldStatusMap.set(step.name, step.status);
+      if (!step.is_final && step.metadata?.comment_id) {
+        oldStepMap.set(step.metadata.comment_id, step);
       }
     });
 
-    // Build the new steps array, preserving status where possible
-    const finalNewSteps: Step[] = newStepsStructure.map((newStepInfo) => ({
-      name: newStepInfo.name.trim(),
-      // Preserve old status if name matches, otherwise default to 'pending' for new steps
-      status: oldStatusMap.get(newStepInfo.name.trim()) || "pending",
-      // deliverable_link is only for the actual Finish step
-    }));
+    // Build the new steps array, preserving status and essential metadata
+    const finalNewSteps: Step[] = newStepsStructure.map(
+      (newStepInfo, index) => {
+        // Find corresponding old step using comment_id if available
+        const oldStep = newStepInfo.metadata?.comment_id
+          ? oldStepMap.get(newStepInfo.metadata.comment_id)
+          : undefined;
+
+        // Construct the merged step
+        return {
+          name: newStepInfo.name || `Step ${index + 1}`, // Use new name or generate
+          status: oldStep?.status || "pending", // Preserve status or default
+          is_final: false, // Explicitly not final
+          deliverable_link: null, // Explicitly null
+          // Merge metadata, prioritizing new data but keeping old if not overwritten
+          metadata: {
+            ...(oldStep?.metadata || {}), // Start with old metadata
+            ...(newStepInfo.metadata || {}), // Overwrite with any new metadata provided
+            type: oldStep?.metadata?.type || "comment", // Ensure type exists
+            comment_id:
+              oldStep?.metadata?.comment_id || newStepInfo.metadata?.comment_id, // Preserve stable ID
+          },
+        };
+      }
+    );
 
     // Append the original Finish step (preserving its status and link)
     finalNewSteps.push(originalFinishStep);
 
-    // 4. Update the database with the new full steps array
+    // Update the database
     const { error: updateError } = await supabase
       .from("project_tracks")
       .update({ steps: finalNewSteps, updated_at: new Date().toISOString() })
       .eq("id", trackId);
-    if (updateError)
+
+    if (updateError) {
+      console.error("Database error updating track structure:", updateError);
       throw new Error(
         `Database error updating track structure: ${updateError.message}`
       );
+    }
 
     console.log(`Track ${trackId} structure updated successfully.`);
 
-    // 5. Revalidate Cache
-    revalidatePath(`/projects/${track.project.id}`);
+    // Revalidate Cache
+    revalidatePath(`/dashboard/projects/${track.project_id}`);
+    revalidatePath(`/review/${trackId}`);
+    revalidatePath(`/projects/${track.project_id}/review/${trackId}`); // Live Track view
 
     return { message: "Workflow steps updated successfully." };
   } catch (error) {
@@ -457,10 +435,10 @@ export async function updateStepContent(formData: FormData) {
   // 1. Extract data
   const trackId = formData.get("trackId") as string;
   const stepIndexString = formData.get("stepIndex") as string;
-  const updatedText = formData.get("text") as string; // The full text content
-  const linksString = formData.get("links") as string; // JSON string of {url, text}[]
-  const existingImagesString = formData.get("existingImages") as string; // JSON string of URLs to keep
-  const newImageFiles = formData.getAll("newImages") as File[]; // New files to upload
+  // Get the text from the editor - IT CONTAINS PLAIN URLS NOW
+  const textFromEditor = ((formData.get("text") as string) || "").trim();
+  const existingImagesString = formData.get("existingImages") as string;
+  const newImageFiles = formData.getAll("newImages") as File[];
 
   if (trackId === null || stepIndexString === null) {
     throw new Error("Missing track ID or step index.");
@@ -470,29 +448,18 @@ export async function updateStepContent(formData: FormData) {
     throw new Error("Invalid step index.");
   }
 
-  let updatedLinks: { url: string; text: string }[] = [];
-  if (linksString) {
-    try {
-      updatedLinks = JSON.parse(linksString);
-    } catch (e) {
-      console.error("Failed to parse links JSON", e); /* handle appropriately */
-    }
-  }
-
   let imagesToKeep: string[] = [];
   if (existingImagesString) {
     try {
       imagesToKeep = JSON.parse(existingImagesString);
-      if (!Array.isArray(imagesToKeep)) imagesToKeep = []; // Basic validation
+      if (!Array.isArray(imagesToKeep)) imagesToKeep = [];
     } catch (e) {
-      console.error(
-        "Failed to parse existing images JSON",
-        e
-      ); /* handle appropriately */
+      console.error("Failed to parse existing images JSON", e);
+      imagesToKeep = [];
     }
   }
 
-  // 2. Fetch Track, Project, Editor Profile and verify ownership (reuse pattern)
+  // 2. Fetch Track and verify ownership
   const { data: track, error: trackError } = await supabase
     .from("project_tracks")
     .select(
@@ -503,6 +470,7 @@ export async function updateStepContent(formData: FormData) {
   if (trackError || !track || !track.project)
     throw new Error("Track or associated project not found.");
 
+  // Verify editor owns the project
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
     .select("id")
@@ -526,32 +494,43 @@ export async function updateStepContent(formData: FormData) {
   }
 
   // 4. Validate step index and get current steps
-  let steps = track.steps as Step[];
+  let steps = track.steps as Step[] | null;
   if (!Array.isArray(steps) || stepIndex >= steps.length) {
+    console.error(`Invalid step index ${stepIndex} for steps array:`, steps);
     throw new Error("Invalid step index or steps format issue.");
   }
   const stepToUpdate = steps[stepIndex];
-  if (!stepToUpdate?.metadata) {
-    // Should only be editing steps derived from comments, which have metadata
-    throw new Error("Cannot edit content for a step without metadata.");
+
+  // Prevent editing the final step's content this way
+  if (stepToUpdate.is_final) {
+    throw new Error(
+      "The final deliverable step content cannot be edited directly."
+    );
   }
 
-  // 5. Upload New Images (if any) - Reuse uploadImageToImgBB
+  // --- SERVER-SIDE PROCESSING ---
+  // Process the text received from the editor to extract links and create placeholders
+  const { processedText, links } = detectAndExtractLinks(textFromEditor);
+  // 'processedText' now contains [LINK:X] placeholders
+  // 'links' is the array of extracted { url: string, text: string } objects
+  // --- END SERVER-SIDE PROCESSING ---
+
+  // 5. Upload New Images (No changes needed here)
   const uploadedNewImageUrls: string[] = [];
   if (newImageFiles.length > 0) {
     const totalImages = imagesToKeep.length + newImageFiles.length;
     if (totalImages > MAX_IMAGES_PER_COMMENT) {
-      // Reuse constant
       throw new Error(
         `Cannot exceed ${MAX_IMAGES_PER_COMMENT} images in total.`
       );
     }
     try {
-      const uploadPromises = newImageFiles.map(async (file) => {
-        if (file.size === 0) return null;
-        const buffer = Buffer.from(await file.arrayBuffer());
-        return await uploadImageToImgBB(buffer, file.name, file.type); // Ensure uploadImageToImgBB is accessible
-      });
+      const uploadPromises = newImageFiles
+        .filter((file) => file.size > 0)
+        .map(async (file) => {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          return await uploadImageToImgBB(buffer, file.name, file.type);
+        });
       const results = await Promise.all(uploadPromises);
       uploadedNewImageUrls.push(
         ...results.filter((url): url is string => url !== null)
@@ -564,24 +543,28 @@ export async function updateStepContent(formData: FormData) {
     }
   }
 
-  // 6. Construct the new metadata
+  // 6. Construct the new metadata using the PROCESSED text and links
   const finalImageUrls = [...imagesToKeep, ...uploadedNewImageUrls];
-  const updatedMetadata = {
-    ...stepToUpdate.metadata, // Keep existing metadata like original_comment_id, created_at
-    full_text: updatedText.trim(),
-    links: updatedLinks,
-    images: finalImageUrls,
+
+  const currentMetadata = stepToUpdate.metadata || {
+    type: "comment",
+    created_at: new Date().toISOString(),
   };
 
-  // 7. Update the step in the steps array
+  const updatedMetadata = {
+    ...currentMetadata, // Keep existing base metadata like type, comment_id
+    text: processedText, // SAVE the text WITH [LINK:X] placeholders
+    links: links, // SAVE the NEWLY generated links array
+    images: finalImageUrls, // Update images
+  };
+
+  // 7. Update the step in the local array
   steps[stepIndex] = {
     ...stepToUpdate,
     metadata: updatedMetadata,
-    // OPTIONAL: You might want to update the step *name* based on the new text too
-    // name: `Revise: ${updatedText.substring(0, 47)}... [${finalImageUrls.length} image(s)] (...)` // Reconstruct name similarly to clientRequestRevisions
   };
 
-  // 8. Update the database
+  // 8. Save updated steps back to the database
   try {
     const { error: updateError } = await supabase
       .from("project_tracks")
@@ -592,11 +575,13 @@ export async function updateStepContent(formData: FormData) {
     console.log(`Step ${stepIndex} content updated for track ${trackId}.`);
 
     // 9. Revalidate Cache
-    revalidatePath(`/projects/${track.project.id}`); // Revalidate the project page
+    revalidatePath(`/dashboard/projects/${track.project_id}`);
+    revalidatePath(`/review/${trackId}`);
+    revalidatePath(`/projects/${track.project_id}/review/${trackId}`);
 
     return { message: "Step content updated successfully." };
   } catch (error) {
-    console.error("Full error in updateStepContent:", error);
+    console.error("Full error in updateStepContent database update:", error);
     throw error instanceof Error
       ? error
       : new Error("An unexpected error occurred while updating step content.");
@@ -690,26 +675,49 @@ export async function deliverInitialRound(
   return { message: "Initial round delivered successfully" };
 }
 
-// Helper function to detect and extract links (same as in the form)
 function detectAndExtractLinks(text: string) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  // Regex to find URLs (http, https) that are not already part of a [LINK:X] tag
+  // This regex tries to avoid matching URLs immediately following "[LINK:"
+  const urlRegex = /(?<!\[LINK:)(\bhttps?:\/\/[^\s<>"]+)/g;
+  // More robust regex might be needed depending on edge cases
+
   const links: { url: string; text: string }[] = [];
   let processedText = text;
   let match;
 
-  while ((match = urlRegex.exec(text)) !== null) {
-    links.push({
-      url: match[0],
-      text: match[0],
-    });
-    processedText = processedText.replace(
-      match[0],
-      `[LINK:${links.length - 1}]`
-    );
-  }
+  // Find all URLs first and store them
+  const urlMatches = Array.from(text.matchAll(urlRegex));
+
+  urlMatches.forEach((match) => {
+    const url = match[0];
+    // Check if this URL is already in our links array to avoid duplicates
+    // and handle multiple occurrences of the same URL consistently.
+    let existingLinkIndex = links.findIndex((link) => link.url === url);
+
+    if (existingLinkIndex === -1) {
+      // New URL, add it to the links array
+      links.push({
+        url: url,
+        text: url, // Default link text is the URL itself
+      });
+      existingLinkIndex = links.length - 1; // Its new index
+    }
+
+    // Replace *this specific occurrence* of the URL with the placeholder
+    // Using replaceAll directly here can be tricky if the URL appears multiple times.
+    // A safer approach involves iterating or using string indices, but
+    // for simplicity, we'll use replace first, acknowledging potential limitations.
+    // Consider a more robust replacement strategy if identical links cause issues.
+    processedText = processedText.replace(url, `[LINK:${existingLinkIndex}]`);
+  });
+
+  // If the initial text already contained [LINK:X] placeholders from a previous save,
+  // this function should ideally preserve them if the regex is correct.
+  // However, mixing manual [LINK:X] editing with automatic URL detection is complex.
 
   return { processedText, links };
 }
+
 export async function createInitialRound(
   projectId: string,
   trackId: string,

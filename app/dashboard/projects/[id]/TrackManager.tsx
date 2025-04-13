@@ -1,6 +1,8 @@
+// app/dashboard/projects/[id]/TrackManager.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,46 +13,28 @@ import {
   CheckCircle,
   Clock,
   Loader2,
-  ExternalLink,
   ArrowLeft,
   Eye,
   Copy,
   Hourglass,
   ShieldCheck,
   ShieldX,
-  Settings,
   Edit,
+  GripVertical,
+  Save,
 } from "lucide-react";
-import Link from "next/link";
-import Image from "next/image";
-import { formatTime } from "@/app/review/lib/utils";
-import { updateStepContent } from "../actions";
+
 import { StepCommentsSection } from "./StepCommentsSection";
-
-const CommentTextWithLinks = ({
-  text,
-  links,
-}: {
-  text: string;
-  links?: { url: string; text: string }[];
-}) => {
-  if (!text) return null;
-
-  if (text.includes("[LINK:")) {
-    let result = text;
-    links?.forEach((link, index) => {
-      result = result.replace(
-        `[LINK:${index}]`,
-        `<a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">${link.text}</a>`
-      );
-    });
-    return <div dangerouslySetInnerHTML={{ __html: result }} />;
-  }
-
-  return <div>{text}</div>;
-};
+import { EditableComment } from "./EditableComment";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
 
 export interface Step {
+  name?: string;
   status: "pending" | "completed";
   is_final?: boolean;
   deliverable_link?: string | null;
@@ -62,6 +46,7 @@ export interface Step {
     images?: string[];
     links?: { url: string; text: string }[];
     created_at?: string;
+    step_index?: number;
   };
 }
 
@@ -84,97 +69,76 @@ interface TrackManagerProps {
     status: "pending" | "completed",
     linkValue?: string
   ) => Promise<any>;
-  updateTrackStructure?: (
+  updateTrackStructure: (
     trackId: string,
-    newStepsStructure: { name: string }[]
+    newStepsStructure: Omit<Step, "status" | "deliverable_link" | "is_final">[]
   ) => Promise<any>;
+  updateStepContent: (formData: FormData) => Promise<any>;
 }
 
 export default function TrackManager({
   track,
   updateProjectTrackStepStatus,
   updateTrackStructure,
+  updateStepContent,
 }: TrackManagerProps) {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<number | null>(null);
   const [isSubmittingDeliverable, setIsSubmittingDeliverable] = useState(false);
   const [deliverableLink, setDeliverableLink] = useState("");
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCommentsEditMode, setIsCommentsEditMode] = useState(false);
-  const steps = useMemo(() => track.steps || [], [track.steps]);
-  const finalStepIndex = useMemo(
-    () => steps.findIndex((step) => step.is_final),
-    [steps]
+  const [editableSteps, setEditableSteps] = useState<Step[]>([]);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+
+  const originalSteps = useMemo(() => track.steps || [], [track.steps]);
+
+  useEffect(() => {
+    setEditableSteps(originalSteps);
+  }, [originalSteps]);
+
+  const finalStepIndexOriginal = useMemo(
+    () => originalSteps.findIndex((step) => step.is_final),
+    [originalSteps]
   );
-  const finalStep = useMemo(
-    () => (finalStepIndex !== -1 ? steps[finalStepIndex] : null),
-    [steps, finalStepIndex]
+  const finalStepOriginal = useMemo(
+    () =>
+      finalStepIndexOriginal !== -1
+        ? originalSteps[finalStepIndexOriginal]
+        : null,
+    [originalSteps, finalStepIndexOriginal]
   );
 
   useEffect(() => {
-    setDeliverableLink(finalStep?.deliverable_link || "");
-  }, [finalStep?.deliverable_link]);
+    setDeliverableLink(finalStepOriginal?.deliverable_link || "");
+  }, [finalStepOriginal?.deliverable_link]);
 
-  const allOtherStepsCompleted = useMemo(
+  const allOtherStepsCompletedOriginal = useMemo(
     () =>
-      finalStepIndex !== -1
-        ? steps
-            .filter((_, i) => i !== finalStepIndex)
+      finalStepIndexOriginal !== -1
+        ? originalSteps
+            .filter((_, i) => i !== finalStepIndexOriginal)
             .every((step) => step.status === "completed")
-        : steps.every((step) => step.status === "completed"),
-    [steps, finalStepIndex]
+        : originalSteps.every((step) => step.status === "completed"),
+    [originalSteps, finalStepIndexOriginal]
   );
-  const handleEditStepContent = useCallback(
-    async (
-      stepIndex: number,
-      newText: string,
-      newLinks: { url: string; text: string }[]
-    ) => {
-      if (!updateStepContent) return;
 
-      try {
-        const formData = new FormData();
-        formData.append("trackId", track.id);
-        formData.append("stepIndex", stepIndex.toString());
-        formData.append("text", newText);
-        formData.append("links", JSON.stringify(newLinks));
-        formData.append(
-          "existingImages",
-          JSON.stringify(steps[stepIndex].metadata?.images || [])
-        );
-
-        await updateStepContent(formData);
-        toast({
-          title: "Success",
-          description: "Step content updated successfully",
-          variant: "success",
-        });
-      } catch (error) {
-        console.error("Error updating step content:", error);
-        toast({
-          title: "Error",
-          description:
-            error instanceof Error
-              ? error.message
-              : "Failed to update step content",
-          variant: "destructive",
-        });
-      }
-    },
-    [track.id, steps, updateStepContent]
-  );
-  const isFinalStepCompleted = finalStep?.status === "completed";
+  const isFinalStepCompletedOriginal =
+    finalStepOriginal?.status === "completed";
   const isAwaitingClient =
-    isFinalStepCompleted && track.client_decision === "pending";
+    isFinalStepCompletedOriginal && track.client_decision === "pending";
   const isClientActionDone = track.client_decision !== "pending";
 
   const handleUpdateStepStatus = useCallback(
     async (stepIndex: number, newStatus: "pending" | "completed") => {
       if (isClientActionDone) return;
-
-      const stepToUpdate = steps[stepIndex];
+      const stepToUpdate = originalSteps[stepIndex];
+      if (!stepToUpdate) return;
       const isFinal = stepToUpdate.is_final;
 
-      if (isFinal && newStatus === "completed" && !allOtherStepsCompleted) {
+      if (
+        isFinal &&
+        newStatus === "completed" &&
+        !allOtherStepsCompletedOriginal
+      ) {
         toast({
           title: "Action Required",
           description: "All other steps must be complete first.",
@@ -218,8 +182,8 @@ export default function TrackManager({
     },
     [
       isClientActionDone,
-      steps,
-      allOtherStepsCompleted,
+      originalSteps,
+      allOtherStepsCompletedOriginal,
       deliverableLink,
       updateProjectTrackStepStatus,
       track.id,
@@ -229,7 +193,7 @@ export default function TrackManager({
   const handleSubmitDeliverable = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      if (finalStepIndex === -1 || isClientActionDone) return;
+      if (finalStepIndexOriginal === -1 || isClientActionDone) return;
       if (!deliverableLink.trim()) {
         toast({
           title: "Error",
@@ -238,7 +202,7 @@ export default function TrackManager({
         });
         return;
       }
-      if (!allOtherStepsCompleted) {
+      if (!allOtherStepsCompletedOriginal) {
         toast({
           title: "Error",
           description: "Complete all other steps first",
@@ -248,28 +212,128 @@ export default function TrackManager({
       }
 
       setIsSubmittingDeliverable(true);
-      await handleUpdateStepStatus(finalStepIndex, "completed");
+      await handleUpdateStepStatus(finalStepIndexOriginal, "completed");
       setIsSubmittingDeliverable(false);
     },
     [
-      finalStepIndex,
+      finalStepIndexOriginal,
       isClientActionDone,
       deliverableLink,
-      allOtherStepsCompleted,
+      allOtherStepsCompletedOriginal,
       handleUpdateStepStatus,
     ]
   );
 
   const copyReviewLink = useCallback((projectId: string, trackId: string) => {
     if (!projectId || !trackId) return;
-    const reviewUrl = `${window.location.origin}/projects/${projectId}/review/${trackId}`;
+    const reviewUrl = `${window.location.origin}/review/${trackId}`;
     navigator.clipboard.writeText(reviewUrl);
     toast({
       title: "Review link copied!",
-      description: "Client needs to log in to view.",
+      description: "Share this link with your client.",
       variant: "success",
     });
   }, []);
+
+  const handleSaveStepContent = useCallback(
+    async (formData: FormData) => {
+      if (!updateStepContent || isClientActionDone) return;
+      try {
+        await updateStepContent(formData);
+        toast({
+          title: "Success",
+          description: "Step content updated.",
+          variant: "success",
+        });
+        // Data refreshes via revalidation
+      } catch (error) {
+        console.error("Error updating step content:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to update step content",
+          variant: "destructive",
+        });
+        throw error; // Allow EditableComment to handle its state
+      }
+    },
+    [updateStepContent, track.id, isClientActionDone] // Include track.id dependency
+  );
+
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination } = result;
+    if (!destination || destination.index === source.index) return;
+
+    const sourceStep = editableSteps[source.index];
+    const nonFinalStepsCount = editableSteps.filter((s) => !s.is_final).length;
+
+    if (sourceStep.is_final) {
+      toast({
+        title: "Action Denied",
+        description: "The 'Final Deliverable' step cannot be reordered.",
+        variant: "warning",
+      });
+      return;
+    }
+    if (destination.index >= nonFinalStepsCount) {
+      toast({
+        title: "Action Denied",
+        description:
+          "Steps cannot be placed after the 'Final Deliverable' step.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    const items = Array.from(editableSteps);
+    const [reorderedItem] = items.splice(source.index, 1);
+    items.splice(destination.index, 0, reorderedItem);
+    setEditableSteps(items);
+  };
+
+  const handleSaveOrder = async () => {
+    if (!updateTrackStructure || !isCommentsEditMode || isClientActionDone)
+      return;
+    setIsSavingOrder(true);
+    try {
+      // Prepare structure excluding the final step for the action
+      const newStructure = editableSteps
+        .filter((step) => !step.is_final)
+        .map((step) => ({
+          name: step.name, // Pass existing name
+          metadata: {
+            // Pass relevant metadata, esp. comment_id
+            comment_id: step.metadata?.comment_id,
+            text: step.metadata?.text,
+            images: step.metadata?.images,
+            links: step.metadata?.links,
+            type: step.metadata?.type,
+            created_at: step.metadata?.created_at,
+            // DO NOT PASS status, is_final, deliverable_link
+          },
+        }));
+
+      await updateTrackStructure(track.id, newStructure);
+      toast({
+        title: "Success",
+        description: "Workflow order updated.",
+        variant: "success",
+      });
+      setIsCommentsEditMode(false); // Exit edit mode on success
+    } catch (error) {
+      console.error("Error saving order:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to save order",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
 
   let displayStatus = "In Progress";
   let statusVariant: "warning" | "success" | "info" | "destructive" = "warning";
@@ -288,10 +352,13 @@ export default function TrackManager({
     StatusIcon = ShieldX;
   }
 
+  const stepsToRender = isCommentsEditMode ? editableSteps : originalSteps;
+  const draggableIdPrefix = `step-${track.id}`; // Base for draggable IDs
+
   return (
     <Card>
       <CardHeader className="pb-4">
-        <div className="flex justify-between items-center gap-2">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-3 flex-wrap border p-2 rounded-xl">
             <CardTitle className="text-lg sm:text-xl">
               Round {track.round_number}
@@ -304,60 +371,136 @@ export default function TrackManager({
               {displayStatus}
             </Badge>
           </div>
-          {updateTrackStructure && (
+          {!isClientActionDone && (
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-                onClick={() => setIsEditDialogOpen(true)}
-                disabled={isClientActionDone}
-              >
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Edit Steps</span>
-              </Button>
-
-              {/* Add Edit Comments button */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-                onClick={() => setIsCommentsEditMode(!isCommentsEditMode)}
-                disabled={isClientActionDone}
-              >
-                <Edit className="h-4 w-4" />
-                <span className="hidden sm:inline">Edit Comments</span>
-              </Button>
+              {isCommentsEditMode ? (
+                <>
+                  <Button
+                    variant="success"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={handleSaveOrder}
+                    disabled={isSavingOrder}
+                  >
+                    {isSavingOrder ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">Save Order</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => {
+                      setIsCommentsEditMode(false);
+                      setEditableSteps(originalSteps);
+                    }}
+                    disabled={isSavingOrder}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => {
+                    setEditableSteps([...originalSteps]);
+                    setIsCommentsEditMode(true);
+                  }}
+                  disabled={isClientActionDone}
+                >
+                  <Edit className="h-4 w-4" />
+                  <span className="hidden sm:inline">Edit Steps</span>
+                </Button>
+              )}
             </div>
           )}
         </div>
       </CardHeader>
       <CardContent>
-        {steps.length > 0 ? (
-          <div className="space-y-3">
-            {steps.map((step, index) => {
-              const isCompleted = step.status === "completed";
-              const isFinalStep = step.is_final;
-              const isLoadingStatus = isUpdatingStatus === index;
-              const canInteract = !isClientActionDone;
-              const canRevert = isCompleted && canInteract;
-              const canComplete = !isCompleted && canInteract && !isFinalStep;
+        {stepsToRender.length > 0 ? (
+          isCommentsEditMode ? (
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Droppable droppableId={`steps-${track.id}`}>
+                {(provided) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="space-y-3"
+                  >
+                    {stepsToRender.map((step, index) => {
+                      const isFinalStep = step.is_final;
+                      // Use comment_id for stability if available, otherwise index
+                      const draggableId = `${draggableIdPrefix}-${step.metadata?.comment_id || `index-${index}`}`;
+                      const isDragDisabled = isFinalStep;
 
-              const displayText =
-                step.metadata?.type === "comment"
-                  ? step.metadata.text?.substring(0, 50) +
-                    (step.metadata.text?.length > 50 ? "..." : "")
-                  : isFinalStep
-                    ? "Final Delivery"
-                    : "Revision Task";
+                      return (
+                        <Draggable
+                          key={draggableId}
+                          draggableId={draggableId}
+                          index={index}
+                          isDragDisabled={isDragDisabled}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`flex items-start gap-2 p-1 rounded ${snapshot.isDragging ? "bg-muted shadow-md" : ""} ${isFinalStep ? "opacity-70 bg-muted/30 pl-8" : ""}`}
+                            >
+                              {!isFinalStep && (
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className="p-2 cursor-grab hover:bg-accent rounded mt-8"
+                                >
+                                  <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="flex-1">
+                                {isFinalStep ? (
+                                  <div className="border rounded-lg p-4 h-[180px] flex items-center justify-center text-muted-foreground italic bg-card">
+                                    Final Deliverable Step (Cannot be edited
+                                    here)
+                                  </div>
+                                ) : (
+                                  <EditableComment
+                                    trackId={track.id}
+                                    step={step}
+                                    index={index}
+                                    onSave={handleSaveStepContent}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          ) : (
+            <div className="space-y-3">
+              {stepsToRender.map((step, index) => {
+                const isCompleted = step.status === "completed";
+                const isFinalStep = step.is_final;
+                const isLoadingStatus = isUpdatingStatus === index;
+                const canInteract = !isClientActionDone;
+                const canRevert = isCompleted && canInteract;
+                const canComplete = !isCompleted && canInteract && !isFinalStep;
+                const viewKey = `step-view-${track.id}-${step.metadata?.comment_id || index}`;
 
-              return (
-                <div
-                  key={`step-${track.id}-${index}`}
-                  className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 border rounded-md transition-opacity ${isClientActionDone ? "bg-muted/50 opacity-75" : ""}`}
-                >
-                  <div className="flex-1 flex flex-col gap-2 w-full">
-                    <div className="flex items-center gap-2 min-w-0">
+                return (
+                  <div
+                    key={viewKey}
+                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 border rounded-md transition-opacity ${isClientActionDone ? "bg-muted/50 opacity-75" : ""}`}
+                  >
+                    <div className="flex-shrink-0 pt-1 sm:pt-0">
                       {isCompleted ? (
                         <CheckCircle className="text-green-500 h-5 w-5 flex-shrink-0" />
                       ) : (
@@ -365,107 +508,91 @@ export default function TrackManager({
                           className={`h-5 w-5 flex-shrink-0 ${!isClientActionDone ? "text-blue-500" : "text-gray-400"}`}
                         />
                       )}
-                      <span
-                        className="font-medium truncate"
-                        title={displayText}
-                      >
-                        {displayText}
-                      </span>
                     </div>
-                    <StepCommentsSection
-                      step={step}
-                      isFinalStep={isFinalStep}
-                      editable={
-                        isCommentsEditMode &&
-                        !isFinalStep &&
-                        !isClientActionDone
-                      }
-                      onSave={(newText, newLinks) =>
-                        handleEditStepContent(index, newText, newLinks)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1.5 flex-wrap justify-end w-full sm:w-auto pl-7 sm:pl-0">
-                    {isCompleted && isFinalStep && step.deliverable_link && (
-                      <a
-                        href={step.deliverable_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-blue-600 hover:underline text-sm p-1 mr-1"
-                        title="View submitted deliverable"
-                      >
-                        <ExternalLink className="h-4 w-4" /> View Link
-                      </a>
-                    )}
-                    {canRevert && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleUpdateStepStatus(index, "pending")}
-                        disabled={isLoadingStatus}
-                        title="Revert to pending"
-                        className={
-                          isLoadingStatus ? "cursor-not-allowed opacity-50" : ""
-                        }
-                      >
-                        {isLoadingStatus ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <ArrowLeft className="h-4 w-4 mr-1" />
-                        )}
-                        <span className="hidden sm:inline">Revert</span>
-                      </Button>
-                    )}
-                    {canComplete && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() =>
-                          handleUpdateStepStatus(index, "completed")
-                        }
-                        disabled={isLoadingStatus}
-                        title="Mark as complete"
-                        className={
-                          isLoadingStatus ? "cursor-not-allowed opacity-50" : ""
-                        }
-                      >
-                        {isLoadingStatus ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                            ...
-                          </>
-                        ) : (
-                          "Mark Complete"
-                        )}
-                      </Button>
-                    )}
-                    {!isCompleted &&
-                      isFinalStep &&
-                      !allOtherStepsCompleted &&
-                      canInteract && (
-                        <Badge
+                    <div className="flex-1 min-w-0 pl-2 sm:pl-0">
+                      <StepCommentsSection
+                        step={step}
+                        isFinalStep={isFinalStep}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end w-full sm:w-auto pl-7 sm:pl-0 mt-2 sm:mt-0">
+                      {canRevert && (
+                        <Button
+                          size="sm"
                           variant="outline"
-                          className="text-xs font-normal px-2 py-0.5"
+                          onClick={() =>
+                            handleUpdateStepStatus(index, "pending")
+                          }
+                          disabled={isLoadingStatus}
+                          title="Revert to pending"
+                          className={
+                            isLoadingStatus
+                              ? "cursor-not-allowed opacity-50"
+                              : ""
+                          }
                         >
-                          Waiting for other steps
-                        </Badge>
+                          {isLoadingStatus ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ArrowLeft className="h-4 w-4 mr-1" />
+                          )}
+                          <span className="hidden sm:inline">Revert</span>
+                        </Button>
                       )}
+                      {canComplete && (
+                        <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() =>
+                            handleUpdateStepStatus(index, "completed")
+                          }
+                          disabled={isLoadingStatus}
+                          title="Mark as complete"
+                          className={
+                            isLoadingStatus
+                              ? "cursor-not-allowed opacity-50"
+                              : ""
+                          }
+                        >
+                          {isLoadingStatus ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                              ...
+                            </>
+                          ) : (
+                            "Mark Complete"
+                          )}
+                        </Button>
+                      )}
+                      {!isCompleted &&
+                        isFinalStep &&
+                        !allOtherStepsCompletedOriginal &&
+                        canInteract && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs font-normal px-2 py-0.5"
+                          >
+                            {" "}
+                            Waiting for other steps{" "}
+                          </Badge>
+                        )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )
         ) : (
           <div className="py-10 text-center text-muted-foreground">
             This track has no defined steps.
           </div>
         )}
 
-        {steps.length > 0 &&
-          !isFinalStepCompleted &&
-          finalStepIndex !== -1 &&
-          allOtherStepsCompleted &&
+        {!isCommentsEditMode &&
+          stepsToRender.length > 0 &&
+          !isFinalStepCompletedOriginal &&
+          finalStepIndexOriginal !== -1 &&
+          allOtherStepsCompletedOriginal &&
           !isClientActionDone && (
             <form
               onSubmit={handleSubmitDeliverable}
@@ -490,7 +617,7 @@ export default function TrackManager({
                 />
                 <Button
                   type="submit"
-                  variant="destructive"
+                  variant="success"
                   className="h-10"
                   disabled={!deliverableLink.trim() || isSubmittingDeliverable}
                   title="Submit and Complete Round"
@@ -504,48 +631,46 @@ export default function TrackManager({
             </form>
           )}
 
-        <div className="mt-6 border-t pt-4 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Link href={`/review/${track.id}`} passHref className="flex-1">
-              <Button className="w-full" variant="outline">
-                <Eye className="h-4 w-4 mr-2" /> View Review Page
+        {!isCommentsEditMode && (
+          <div className="mt-6 border-t pt-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Link href={`/review/${track.id}`} passHref className="flex-1">
+                <Button className="w-full" variant="outline">
+                  <Eye className="h-4 w-4 mr-2" /> View Client Review Page
+                </Button>
+              </Link>
+              <Button
+                className="flex-1"
+                variant="outline"
+                onClick={() => copyReviewLink(track.project_id, track.id)}
+              >
+                <Copy className="h-4 w-4 mr-2" /> Copy Client Review Link
               </Button>
-            </Link>
-            <Button
-              className="flex-1"
-              variant="outline"
-              onClick={() => copyReviewLink(track.project_id, track.id)}
-            >
-              <Copy className="h-4 w-4 mr-2" /> Copy Review Link
-            </Button>
+            </div>
+            {isAwaitingClient && (
+              <div className="text-center text-sm text-muted-foreground p-3 bg-blue-50 rounded-md border border-blue-200 flex items-center justify-center gap-2">
+                <Hourglass className="h-4 w-4 text-blue-600" /> Waiting for
+                client feedback...
+              </div>
+            )}
+            {isClientActionDone && (
+              <div
+                className={`text-center text-sm p-3 rounded-md border flex items-center justify-center gap-2 ${track.client_decision === "approved" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}
+              >
+                {track.client_decision === "approved" ? (
+                  <ShieldCheck className="h-4 w-4" />
+                ) : (
+                  <ShieldX className="h-4 w-4" />
+                )}
+                Client decision:{" "}
+                <span className="font-medium">
+                  {track.client_decision.replace("_", " ")}
+                </span>
+                .
+              </div>
+            )}
           </div>
-          {isAwaitingClient && (
-            <div className="text-center text-sm text-muted-foreground p-3 bg-blue-50 rounded-md border border-blue-200 flex items-center justify-center gap-2">
-              <Hourglass className="h-4 w-4 text-blue-600" /> Waiting for client
-              feedback...
-            </div>
-          )}
-          {isClientActionDone && (
-            <div
-              className={`text-center text-sm p-3 rounded-md border flex items-center justify-center gap-2 ${
-                track.client_decision === "approved"
-                  ? "bg-green-50 border-green-200 text-green-800"
-                  : "bg-red-50 border-red-200 text-red-800"
-              }`}
-            >
-              {track.client_decision === "approved" ? (
-                <ShieldCheck className="h-4 w-4" />
-              ) : (
-                <ShieldX className="h-4 w-4" />
-              )}
-              Client decision:{" "}
-              <span className="font-medium">
-                {track.client_decision.replace("_", " ")}
-              </span>
-              .
-            </div>
-          )}
-        </div>
+        )}
       </CardContent>
     </Card>
   );

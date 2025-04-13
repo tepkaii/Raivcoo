@@ -1,230 +1,272 @@
-// app/components/EditableComment.tsx
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LinkIcon, Edit, XCircle, PlusCircle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { toast } from "@/hooks/use-toast";
+import { Loader2, Image as ImageIcon, XCircle, Save } from "lucide-react";
+import { Step } from "./TrackManager"; // Assuming Step type is exported
+import Image from "next/image";
 
-export function detectAndExtractLinks(text: string) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const links: { url: string; text: string }[] = [];
-  let processedText = text;
-  let match;
-
-  while ((match = urlRegex.exec(text)) !== null) {
-    links.push({
-      url: match[0],
-      text: match[0],
-    });
-    processedText = processedText.replace(
-      match[0],
-      `[LINK:${links.length - 1}]`
-    );
-  }
-
-  return { processedText, links };
-}
-
-function replaceLinkPlaceholders(
-  text: string,
-  links: { url: string; text: string }[]
-) {
-  let result = text;
-  links.forEach((link, index) => {
-    result = result.replace(new RegExp(`\\[LINK:${index}\\]`, "g"), link.url);
-  });
-  return result;
-}
+const MAX_IMAGES_PER_COMMENT = 4;
+const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
 
 interface EditableCommentProps {
-  initialText: string;
-  initialLinks: { url: string; text: string }[];
-  initialImages?: string[];
-  onSave: (text: string, links: { url: string; text: string }[]) => void;
-  onImagesChange?: (images: File[]) => void;
-  editable?: boolean;
+  trackId: string;
+  step: Step;
+  index: number;
+  onSave: (formData: FormData) => Promise<void>;
+  onCancel?: () => void;
+}
+
+// Helper function to replace [LINK:X] placeholders with actual URL strings
+function renderPlainTextWithUrls(
+  rawText: string | undefined,
+  links: { url: string; text: string }[] | undefined
+): string {
+  if (!rawText) return "";
+  if (!links || links.length === 0) {
+    return rawText;
+  }
+  let renderedText = rawText;
+  renderedText = renderedText.replace(/\[LINK:(\d+)\]/g, (match, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    if (links[index] && links[index].url) {
+      return links[index].url; // Replace with URL string
+    }
+    return match; // Keep placeholder if link data is missing
+  });
+  return renderedText;
 }
 
 export function EditableComment({
-  initialText,
-  initialLinks,
-  initialImages = [],
+  trackId,
+  step,
+  index,
   onSave,
-  onImagesChange,
-  editable = false,
+  onCancel,
 }: EditableCommentProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [text, setText] = useState(
-    replaceLinkPlaceholders(initialText, initialLinks)
+  const [editedText, setEditedText] = useState(() =>
+    renderPlainTextWithUrls(step.metadata?.text, step.metadata?.links)
   );
-  const [links, setLinks] = useState(initialLinks);
-  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-  const [images, setImages] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>(
+    step.metadata?.images || []
+  );
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleSave = () => {
-    const { processedText, links: detectedLinks } = detectAndExtractLinks(text);
-    const allLinks = [...links, ...detectedLinks];
-    onSave(processedText, allLinks);
-    setIsEditing(false);
-  };
+  useEffect(() => {
+    // Update state if the underlying step prop changes
+    setEditedText(
+      renderPlainTextWithUrls(step.metadata?.text, step.metadata?.links)
+    );
+    setExistingImageUrls(step.metadata?.images || []);
+    setNewImageFiles([]);
+  }, [step]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newImages = Array.from(e.target.files);
-      setImages([...images, ...newImages]);
-      if (onImagesChange) {
-        onImagesChange([...images, ...newImages]);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const files = Array.from(event.target.files);
+      const currentTotal = existingImageUrls.length + newImageFiles.length;
+      const availableSlots = MAX_IMAGES_PER_COMMENT - currentTotal;
+
+      if (files.length > availableSlots) {
+        toast({
+          title: "Too many images selected",
+          description: `You can add ${availableSlots > 0 ? `up to ${availableSlots} more` : "no more"} image(s). Max ${MAX_IMAGES_PER_COMMENT} total.`,
+          variant: "warning",
+        });
+        files.splice(availableSlots);
+      }
+
+      const validFiles = files.filter((file) => {
+        if (!ACCEPTED_IMAGE_TYPES_STRING.split(",").includes(file.type)) {
+          toast({
+            title: "Invalid File Type",
+            description: `File "${file.name}" has an unsupported type. Only JPG, PNG, WebP allowed.`,
+            variant: "warning",
+          });
+          return false;
+        }
+        // Add size validation if needed
+        return true;
+      });
+
+      setNewImageFiles((prev) => [...prev, ...validFiles]);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
     }
   };
 
-  const displayText = replaceLinkPlaceholders(initialText, initialLinks);
+  const removeExistingImage = (imgIndex: number) => {
+    setExistingImageUrls((prev) => prev.filter((_, i) => i !== imgIndex));
+  };
+
+  const removeNewImage = (fileIndex: number) => {
+    setNewImageFiles((prev) => prev.filter((_, i) => i !== fileIndex));
+  };
+
+  const handleSave = async () => {
+    // WARNING: Saving 'editedText' (which contains URLs as strings) will require
+    // significant changes in the server action ('updateStepContent') to parse
+    // these URLs and correctly reconstruct the structured [LINK:X] format and 'links' array.
+    // This approach is complex and error-prone for saving.
+
+    if (
+      !editedText.trim() &&
+      existingImageUrls.length === 0 &&
+      newImageFiles.length === 0
+    ) {
+      toast({
+        title: "Cannot Save Empty Step",
+        description: "Please add text or an image to the step.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    const formData = new FormData();
+    formData.append("trackId", trackId);
+    formData.append("stepIndex", index.toString());
+    formData.append("text", editedText.trim()); // Sends text with URLs as strings
+    formData.append("existingImages", JSON.stringify(existingImageUrls));
+    newImageFiles.forEach((file, i) => {
+      formData.append("newImages", file, file.name);
+    });
+
+    try {
+      await onSave(formData);
+      // Parent component should handle revalidation/feedback
+      setNewImageFiles([]); // Clear staged files after successful save attempt
+    } catch (error) {
+      console.error("Save failed in EditableComment:", error);
+      // Error is usually handled/displayed by the parent/action caller
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const totalImages = existingImageUrls.length + newImageFiles.length;
+  const canAddMoreImages = totalImages < MAX_IMAGES_PER_COMMENT;
 
   return (
-    <div className="space-y-3">
-      {isEditing ? (
-        <>
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="min-h-[100px]"
-          />
+    <div className="border rounded-lg p-4 space-y-3 bg-card relative">
+      {/* Optional Cancel Button Logic */}
+      {/* {onCancel && ( <Button ... onClick={onCancel} ... /> )} */}
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsLinkDialogOpen(true)}
-            >
-              <LinkIcon className="h-4 w-4 mr-2" />
-              Manage Links
-            </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleSave}
+        disabled={isSaving}
+        className="absolute top-2 right-2 flex items-center gap-1"
+        title="Save Changes for this Step"
+      >
+        {isSaving ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Save className="h-4 w-4" />
+        )}
+        <span className="hidden sm:inline">Save</span>
+      </Button>
 
-            <Label
-              htmlFor="comment-images"
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <PlusCircle className="h-4 w-4" />
-              Add Images
-              <Input
-                id="comment-images"
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-            </Label>
-          </div>
+      <Textarea
+        value={editedText} // Displays text with URL strings
+        onChange={(e) => setEditedText(e.target.value)}
+        placeholder="Describe this work step..."
+        className="min-h-[80px] mt-8"
+        disabled={isSaving}
+      />
 
-          <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Manage Links</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                {links.map((link, index) => (
-                  <div key={index} className="flex items-start gap-2">
-                    <div className="flex-1 grid gap-2">
-                      <Input
-                        type="url"
-                        placeholder="URL"
-                        value={link.url}
-                        onChange={(e) => {
-                          const newLinks = [...links];
-                          newLinks[index].url = e.target.value;
-                          setLinks(newLinks);
-                        }}
-                      />
-                      <Input
-                        placeholder="Link text"
-                        value={link.text}
-                        onChange={(e) => {
-                          const newLinks = [...links];
-                          newLinks[index].text = e.target.value;
-                          setLinks(newLinks);
-                        }}
-                      />
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => {
-                        const newLinks = [...links];
-                        newLinks.splice(index, 1);
-                        setLinks(newLinks);
-                      }}
-                      className="mt-1"
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+      <div className="space-y-2 pt-2">
+        <Label
+          htmlFor={`image-upload-${index}`}
+          className={`text-sm font-medium flex items-center gap-2 ${
+            canAddMoreImages
+              ? "text-muted-foreground cursor-pointer hover:text-primary"
+              : "text-muted-foreground/50 cursor-not-allowed"
+          }`}
+        >
+          <ImageIcon className="h-4 w-4" /> Add Reference Images ({totalImages}/
+          {MAX_IMAGES_PER_COMMENT})
+        </Label>
+        <Input
+          id={`image-upload-${index}`}
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={ACCEPTED_IMAGE_TYPES_STRING}
+          onChange={handleFileChange}
+          className="hidden"
+          disabled={!canAddMoreImages || isSaving}
+        />
+
+        {(existingImageUrls.length > 0 || newImageFiles.length > 0) && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {/* Existing Images */}
+            {existingImageUrls.map((url, imgIndex) => (
+              <div
+                key={`existing-${url}-${imgIndex}`}
+                className="relative w-20 h-20 group"
+              >
+                <Image
+                  src={url}
+                  alt={`Existing image ${imgIndex + 1}`}
+                  width={80}
+                  height={80}
+                  className="w-full h-full object-cover rounded border"
+                />
                 <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setLinks([...links, { url: "", text: "" }])}
-                  className="w-full"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => removeExistingImage(imgIndex)}
+                  title="Remove image"
+                  disabled={isSaving}
                 >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Link
+                  <XCircle className="h-4 w-4" />
                 </Button>
               </div>
-              <DialogFooter>
-                <Button onClick={() => setIsLinkDialogOpen(false)}>Done</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditing(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>Save Changes</Button>
+            ))}
+            {/* New Image Previews */}
+            {newImageFiles.map((file, fileIndex) => (
+              <div
+                key={`new-${file.name}-${fileIndex}`}
+                className="relative w-20 h-20 group"
+              >
+                <Image
+                  src={URL.createObjectURL(file)} // Use temporary URL for preview
+                  alt={`Preview ${file.name}`}
+                  width={80}
+                  height={80}
+                  className="w-full h-full object-cover rounded border"
+                  // Important: Revoke object URL on unmount or when file is removed
+                  // This basic revoke might cause issues if component re-renders before unmount.
+                  // Proper effect cleanup is better if issues arise.
+                  onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => removeNewImage(fileIndex)}
+                  title="Remove image"
+                  disabled={isSaving}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
           </div>
-        </>
-      ) : (
-        <div className="relative">
-          {editable && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-2 right-2 h-8 w-8 p-0"
-              onClick={() => setIsEditing(true)}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          <p className="whitespace-pre-line">{displayText}</p>
-          {links.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {links.map((link, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm">
-                  <LinkIcon className="h-3 w-3 text-muted-foreground" />
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline break-all"
-                  >
-                    {link.text}
-                  </a>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

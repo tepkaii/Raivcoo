@@ -251,12 +251,12 @@ export default function ClientDetailPageClient({
                 const statusIcon = getStatusIcon(project.status);
                 const statusVariant = getStatusVariant(project.status);
                 const projectIcon = getProjectIcon(project.title);
-                const liveTrackUrl = `/dashboard/projects/${project.id}/live-track`;
+                const liveTrackUrl = `/live-track/${project.id}`;
 
                 return (
                   <Card
                     key={project.id}
-                    className="relative group overflow-hidden transition-all duration-200 hover:shadow-lg border-muted/80 hover:border-primary/20 bg-gradient-to-br from-background to-background/50"
+                    className="relative group overflow-hidden rounded-md"
                   >
                     {/* Status indicator line */}
                     <div
