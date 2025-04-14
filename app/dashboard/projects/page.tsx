@@ -23,7 +23,7 @@ import { useEffect, useState } from "react";
 import {
   ProjectActionsDropdown,
   ProjectDataForActions,
-} from "../clients/[id]/ProjectActionsDropdown";
+} from "../clients/[id]/components/project/ProjectActionsDropdown";
 import { RevButtons } from "@/components/ui/RevButtons";
 
 type ProjectData = {
@@ -114,10 +114,12 @@ export default function AllProjectsPageClient() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-8 ">
+    <div className="min-h-screen py-6 space-y-8 ">
       <div className="flex justify-between items-center gap-4 flex-wrap border-b pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">All Projects</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+            All Projects
+          </h1>
           <p className="text-lg text-muted-foreground">
             View and manage your projects
           </p>
@@ -154,7 +156,8 @@ export default function AllProjectsPageClient() {
               return (
                 <Card
                   key={project.id}
-                  className="relative group overflow-hidden transition-all duration-200 hover:shadow-lg border-muted/80 hover:border-primary/20 bg-gradient-to-br from-background to-background/50"
+                  className="relative group overflow-hidden border-[2px] border-[#3F3F3F] bg-primary-foreground
+"
                 >
                   {/* Status indicator line */}
                   <div

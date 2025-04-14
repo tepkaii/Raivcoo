@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2,
   Send,
-  Play,
   Check,
   Edit,
   ThumbsUp,
@@ -89,7 +88,6 @@ export interface CommentsSectionProps {
   comments: Comment[];
   isVideoFile: boolean;
   isAudioFile: boolean;
-  jumpToTime: (time: number) => void;
   renderCommentText?: (comment: Comment) => React.ReactNode; // ✅ add this
 }
 export const CommentTextWithLinks = ({
@@ -199,17 +197,6 @@ export default function ReviewPage({
     }
 
     return { processedText, links };
-  };
-
-  const jumpToTime = (time: number) => {
-    if (videoRef.current && typeof videoRef.current.currentTime === "number") {
-      videoRef.current.currentTime = time;
-      videoRef.current.play().catch(console.error);
-    } else {
-      console.warn(
-        "Cannot programmatically jump to time for the current player type"
-      );
-    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -463,23 +450,21 @@ export default function ReviewPage({
 
           {isDecisionMade && (
             <div
-              className={`p-4 rounded-md border ${track.clientDecision === "approved" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
+              className={`p-4 border-[2px] border-dashed border-[#3F3F3F] rounded-md  ${track.clientDecision === "approved" ? "bg-[#10B981]" : "bg-[#F43F5E]"}`}
             >
               <div className="flex items-center gap-2">
                 {track.clientDecision === "approved" ? (
-                  <ThumbsUp className="h-5 w-5 text-green-600" />
+                  <ThumbsUp className="h-5 w-5 " />
                 ) : (
-                  <ShieldAlert className="h-5 w-5 text-red-600" />
+                  <ShieldAlert className="h-5 w-5 " />
                 )}
-                <p
-                  className={`font-semibold ${track.clientDecision === "approved" ? "text-green-800" : "text-red-800"}`}
-                >
+                <p className={`font-semibold `}>
                   {track.clientDecision === "approved"
                     ? "Project Approved"
                     : "Revisions Requested"}
                 </p>
               </div>
-              <p className="text-sm text-muted-foreground mt-1 pl-7">
+              <p className="text-sm text-primary/90 mt-1 pl-7">
                 {track.clientDecision === "approved"
                   ? "Thank you! No further action needed for this project."
                   : "The editor has been notified. A new round will address your feedback."}
@@ -590,7 +575,6 @@ export default function ReviewPage({
           !!dropboxDirectUrl
         }
         isAudioFile={isAudio}
-        jumpToTime={jumpToTime}
         renderCommentText={(comment) => (
           <CommentTextWithLinks
             text={comment.comment.text}

@@ -34,6 +34,7 @@ import {
   User,
   FolderPlus,
   UserPlus,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -51,9 +52,9 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b py-2 border-[#3F3F3F] bg-primary-foreground">
-        <div className="flex items-center px-2 gap-2">
-          <Avatar className="h-8 w-8 rounded-lg border-[1.8px]">
+      <SidebarHeader className="border-b p-0 m-0 border-[#3F3F3F] bg-primary-foreground">
+        <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3  h-[49px]">
+          <Avatar className="h-8 w-8 rounded-lg  border-2">
             <AvatarImage
               src={initialPortfolio?.avatar_url || ""}
               alt={initialPortfolio?.display_name || "User"}
@@ -77,12 +78,6 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
               </SidebarMenuAction>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href="/account" className="flex items-center">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Account</span>
-                </Link>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/" className="flex items-center">
@@ -109,9 +104,30 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="space-y-[-20px]">
         <SidebarGroup>
-          <SidebarGroupLabel>Clients</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <Users2 />
+                  <span>Main</span>
+                </SidebarMenuButton>
+                <SidebarMenuSub>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
+                      href="/dashboard"
+                      isActive={pathname === "/dashboard"}
+                    >
+                      Main
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -143,7 +159,6 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -166,6 +181,59 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
                       isActive={pathname === "/dashboard/projects/new"}
                     >
                       New Project
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <User />
+                  <span>Account</span>
+                </SidebarMenuButton>
+                <SidebarMenuSub>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
+                      href="/dashboard/account"
+                      isActive={pathname === "/dashboard/account"}
+                    >
+                      Profile
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
+                      href="/dashboard/password"
+                      isActive={pathname === "/dashboard/password"}
+                    >
+                      Password
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <MessageCircle />
+                  <span>Message</span>
+                </SidebarMenuButton>
+                <SidebarMenuSub>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
+                      href="/dashboard/chat"
+                      isActive={pathname === "/dashboard/chat"}
+                    >
+                      Chat
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 </SidebarMenuSub>

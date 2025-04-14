@@ -9,10 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
-import { ProjectEditDialog, ProjectDataForEdit } from "./ProjectEditDialog"; // Import Edit dialog and its type
+import { ProjectEditDialog, ProjectDataForEdit } from "./ProjectEditDialog";
 import { ProjectDeleteDialog } from "./ProjectDeleteDialog"; // Import Delete dialog
+import { RevButtons } from "@/components/ui/RevButtons";
 
 // Define the shape of the project data needed
 export type ProjectDataForActions = ProjectDataForEdit; // Use the type from edit dialog
@@ -34,8 +35,8 @@ export function ProjectActionsDropdown({
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
+          <RevButtons
+            variant="outline"
             size="icon"
             className="h-8 w-8 data-[state=open]:bg-muted"
           >
@@ -43,7 +44,7 @@ export function ProjectActionsDropdown({
             {/* Added open state style */}
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Project Actions</span>
-          </Button>
+          </RevButtons>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
@@ -57,7 +58,7 @@ export function ProjectActionsDropdown({
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="text-red-500 focus:text-red-500 "
+            className="text-red-500"
             onSelect={(e) => {
               handleSelect(e);
               setIsDeleteDialogOpen(true);

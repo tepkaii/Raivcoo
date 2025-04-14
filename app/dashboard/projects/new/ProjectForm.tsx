@@ -260,7 +260,7 @@ export default function ProjectForm({
                                 </div>
                               </div>
 
-                              <div className="border rounded-lg p-4 space-y-3 bg-card pl-12">
+                              <div className=" rounded-lg p-4 space-y-3 border-[2px] border-[#3F3F3F] pl-12">
                                 <div className="flex justify-between items-start gap-2">
                                   <Textarea
                                     value={comment.text}
@@ -270,16 +270,16 @@ export default function ProjectForm({
                                     placeholder="Describe this work step..."
                                     className="flex-1 min-h-[80px]"
                                   />
-                                  <Button
+                                  <RevButtons
                                     type="button"
-                                    variant="ghost"
+                                    variant="outline"
                                     size="icon"
                                     onClick={() => removeComment(index)}
                                     disabled={comments.length <= 1}
                                     className="ml-2"
                                   >
                                     <X className="h-4 w-4" />
-                                  </Button>
+                                  </RevButtons>
                                 </div>
                                 <div className="space-y-2">
                                   <label
@@ -319,7 +319,7 @@ export default function ProjectForm({
                                                 alt={`Preview ${imgIndex + 1}`}
                                                 className="w-full h-full object-cover rounded border"
                                               />
-                                              <Button
+                                              <RevButtons
                                                 variant="destructive"
                                                 size="icon"
                                                 className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1"
@@ -329,7 +329,7 @@ export default function ProjectForm({
                                                 title="Remove image"
                                               >
                                                 <XCircle className="h-4 w-4" />
-                                              </Button>
+                                              </RevButtons>
                                             </div>
                                           )
                                         )}
@@ -347,7 +347,7 @@ export default function ProjectForm({
                 </Droppable>
               </DragDropContext>
 
-              <Button
+              <RevButtons
                 type="button"
                 variant="outline"
                 onClick={addComment}
@@ -355,7 +355,7 @@ export default function ProjectForm({
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Another Work Step
-              </Button>
+              </RevButtons>
             </div>
           </div>
 

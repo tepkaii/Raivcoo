@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Image as ImageIcon, XCircle, Save } from "lucide-react";
 import { Step } from "./TrackManager"; // Assuming Step type is exported
 import Image from "next/image";
+import { RevButtons } from "@/components/ui/RevButtons";
 
 const MAX_IMAGES_PER_COMMENT = 4;
 const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
@@ -156,11 +157,11 @@ export function EditableComment({
   const canAddMoreImages = totalImages < MAX_IMAGES_PER_COMMENT;
 
   return (
-    <div className="border rounded-lg p-4 space-y-3 bg-card relative">
+    <div className=" rounded-lg p-4 space-y-3 border-2 border-[#3F3F3F] border-dashed bg-[#1F1F1F]  relative">
       {/* Optional Cancel Button Logic */}
       {/* {onCancel && ( <Button ... onClick={onCancel} ... /> )} */}
 
-      <Button
+      <RevButtons
         type="button"
         variant="outline"
         size="sm"
@@ -175,7 +176,7 @@ export function EditableComment({
           <Save className="h-4 w-4" />
         )}
         <span className="hidden sm:inline">Save</span>
-      </Button>
+      </RevButtons>
 
       <Textarea
         value={editedText} // Displays text with URL strings
@@ -223,7 +224,7 @@ export function EditableComment({
                   height={80}
                   className="w-full h-full object-cover rounded border"
                 />
-                <Button
+                <RevButtons
                   variant="destructive"
                   size="icon"
                   className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -232,7 +233,7 @@ export function EditableComment({
                   disabled={isSaving}
                 >
                   <XCircle className="h-4 w-4" />
-                </Button>
+                </RevButtons>
               </div>
             ))}
             {/* New Image Previews */}
@@ -252,7 +253,7 @@ export function EditableComment({
                   // Proper effect cleanup is better if issues arise.
                   onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
                 />
-                <Button
+                <RevButtons
                   variant="destructive"
                   size="icon"
                   className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -261,7 +262,7 @@ export function EditableComment({
                   disabled={isSaving}
                 >
                   <XCircle className="h-4 w-4" />
-                </Button>
+                </RevButtons>
               </div>
             ))}
           </div>

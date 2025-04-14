@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { deleteProject } from "./actions"; // Assumes actions.ts is in the same folder
+import { deleteProject } from "../../actions"; // Assumes actions.ts is in the same folder
 
 interface ProjectDeleteDialogProps {
   projectId: string;

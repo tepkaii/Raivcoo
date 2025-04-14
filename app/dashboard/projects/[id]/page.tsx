@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import {
   Calendar,
   Clock,
@@ -12,8 +12,7 @@ import {
   ShieldCheck,
   ShieldX,
   Hourglass,
-  ThumbsUp,
-  MessageSquareWarning,
+  RotateCcw,
 } from "lucide-react";
 import { Metadata } from "next";
 import TrackManager from "./TrackManager";
@@ -125,7 +124,7 @@ export default async function page({ params }: { params: { id: string } }) {
 
   if (!latestTrack && !tracksError && project) {
     return (
-      <div className="container mx-auto py-6 space-y-6 mt-24">
+      <div className="container mx-auto py-6 space-y-6">
         <div className="flex items-center gap-2 text-muted-foreground mb-4 text-sm">
           <Link href="/projects" className="hover:underline flex items-center">
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
@@ -186,33 +185,31 @@ export default async function page({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6 ">
-      <div className="flex items-center gap-2 text-muted-foreground mb-4 text-sm">
-        <Link href="/projects" className="hover:underline flex items-center">
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
-        </Link>
-        <Link
-          href={`/dashboard/projects/${id}/deliver`}
-          className="hover:underline flex items-center"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" /> make round one
-        </Link>
-        {project.client && (
-          <>
-            {" • "}
-            <Link
-              href={`/clients/${project.client.id}`}
-              className="hover:underline"
-            >
-              {project.client.name || "Client Details"}
-            </Link>
-          </>
-        )}
-      </div>
-
+    <div className="min-h-screen  py-6 space-y-6 ">
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{project.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold  tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+              {project.title}
+            </h1>{" "}
+            |{" "}
+            <span
+              className={`text-sm   ${
+                project.status === "completed"
+                  ? " text-green-500"
+                  : project.status === "active"
+                    ? " text-yellow-500"
+                    : " text-gray-500"
+              }`}
+            >
+              {project.status === "completed"
+                ? "Completed"
+                : project.status === "active"
+                  ? "Active"
+                  : project.status}
+            </span>
+          </div>
+
           <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
             <span className="flex items-center">
               <Calendar className="h-4 w-4 mr-1.5" />
@@ -226,43 +223,35 @@ export default async function page({ params }: { params: { id: string } }) {
             )}
           </div>
         </div>
-        <Badge
-          variant={project.status === "completed" ? "success" : "warning"}
-          className="text-sm px-3 py-1"
-        >
-          {project.status === "completed"
-            ? "Completed"
-            : project.status === "active"
-              ? "Active"
-              : project.status}
-        </Badge>
       </div>
 
       {project.description && (
-        <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground whitespace-pre-line">
+        <Card className="space-y-3 p-2">
+          <CardTitle className="">Description</CardTitle>
+
+          <CardContent className="pt-6 p-0 text-sm text-muted-foreground whitespace-pre-line">
             {project.description}
           </CardContent>
         </Card>
       )}
 
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold">Project Workflow</h2>
-
+      <div className="space-y-2">
         {latestTrack && (
           <>
-            <TrackManager
-              track={latestTrack}
-              updateProjectTrackStepStatus={updateProjectTrackStepStatus}
-              updateTrackStructure={updateTrackStructure}
-              updateStepContent={updateStepContent}
-            />
-
+            <h2 className="text-xl font-semibold ">Project Workflow</h2>
+            <div className="mb-4">
+              <TrackManager
+                track={latestTrack}
+                updateProjectTrackStepStatus={updateProjectTrackStepStatus}
+                updateTrackStructure={updateTrackStructure}
+                updateStepContent={updateStepContent}
+              />
+            </div>
             {latestTrack.client_decision !== "pending" && (
-              <Card className="mt-4">
-                <CardContent className="pt-6">
-                  <div
-                    className={`p-3 mb-4 rounded-md text-sm ${latestTrack.client_decision === "approved" ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}
+              <Card className="mt-6 border-0 bg-transparent mx-0 px-0 py-6">
+                <CardContent className="pt-6 p-0 m-0">
+                  {/* <div
+                    className={`p-3 mb-4 rounded-md text-sm ${latestTrack.client_decision === "approved" ? "bg-[#10B981] " : "bg-[#F43F5E]"}`}
                   >
                     <div className="flex items-center gap-2">
                       {latestTrack.client_decision === "approved" ? (
@@ -278,10 +267,10 @@ export default async function page({ params }: { params: { id: string } }) {
                         this round.
                       </span>
                     </div>
-                  </div>
+                  </div> */}
 
                   {latestTrack.comments && latestTrack.comments.length > 0 && (
-                    <div className="border-t pt-4">
+                    <div>
                       <p className="text-sm font-medium mb-2">
                         Client Feedback:
                       </p>
@@ -303,8 +292,14 @@ export default async function page({ params }: { params: { id: string } }) {
         )}
 
         {tracksWithComments.length > 1 && (
-          <div className="mt-10 space-y-4">
-            <h3 className="text-lg font-semibold">Previous Rounds History</h3>
+          <div className="mt-16 ">
+            <div className="text-lg font-semibold mt-6 mb-4">
+              <span className="inline-flex items-center gap-2 border-2 border-[#3F3F3F] border-dashed p-2 rounded-xl">
+                Previous Rounds History{" "}
+                <RotateCcw className="h-4 w-4" size={32} strokeWidth={2.25} />
+              </span>
+            </div>
+
             {tracksWithComments
               .filter((track) => track.id !== latestTrack?.id)
               .sort((a, b) => b.round_number - a.round_number)
@@ -325,20 +320,24 @@ export default async function page({ params }: { params: { id: string } }) {
                 }
 
                 return (
-                  <Card key={track.id} className="bg-muted/40">
-                    <CardHeader className="py-3 px-4">
-                      <div className="flex flex-wrap justify-between items-center gap-2">
-                        <CardTitle className="text-base font-medium">
+                  <Card
+                    key={track.id}
+                    className="border-0 p-0 m-0 bg-transparent"
+                  >
+                    <CardHeader className="p-0 m-0">
+                      <div className="flex flex-wrap mb-2 justify-between items-center gap-2">
+                        <CardTitle className=" font-medium">
                           Round {track.round_number}
                         </CardTitle>
                         <div className="flex items-center gap-2">
-                          <Badge
+                          <RevButtons
+                            size="sm"
                             variant={decisionVariant}
                             className="flex items-center gap-1 text-xs px-2 py-0.5"
                           >
                             <DecisionIcon className="h-3.5 w-3.5" />
                             {decisionText}
-                          </Badge>
+                          </RevButtons>
                           <Link href={`/review/${track.id}`} passHref>
                             <RevButtons variant="secondary" size="sm">
                               View History
@@ -346,10 +345,11 @@ export default async function page({ params }: { params: { id: string } }) {
                           </Link>
                         </div>
                       </div>
+                      <hr />
                     </CardHeader>
 
                     {track.comments && track.comments.length > 0 && (
-                      <CardContent className="pt-0 pb-3 px-4">
+                      <CardContent className="p-0 m-0 mt-3">
                         <ProjectCommentsSection comments={track.comments} />
                       </CardContent>
                     )}

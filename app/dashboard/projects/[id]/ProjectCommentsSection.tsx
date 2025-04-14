@@ -31,15 +31,18 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
       <CardHeader>
         <CardTitle>Feedback History ({comments.length})</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="">
         {comments.length === 0 ? (
           <p className="text-center text-muted-foreground py-6">
             No feedback comments yet.
           </p>
         ) : (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-3">
+          <div className="space-y-4 max-h-[60vh]  overflow-y-auto pr-3">
             {comments.map((comment) => (
-              <div key={comment.id} className="p-3 border rounded-md">
+              <div
+                key={comment.id}
+                className="p-3 bg-[#1F1F1F] rounded-md border-[2px] border-dashed border-[#3F3F3F]"
+              >
                 <div className="flex justify-between items-start gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm">

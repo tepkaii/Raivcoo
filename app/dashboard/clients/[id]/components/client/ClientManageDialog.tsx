@@ -41,8 +41,9 @@ import {
   Loader2,
   PlusCircle,
 } from "lucide-react";
-import { updateClient, deleteClient } from "../actions"; // Import actions from the new file
+import { updateClient, deleteClient } from "../../../actions"; // Import actions from the new file
 import Link from "next/link"; // Import Link for New Project button
+import { RevButtons } from "@/components/ui/RevButtons";
 
 // Define the shape of the client data needed
 type ClientData = {
@@ -163,7 +164,7 @@ export function ClientManageDialog({ client }: ClientManageDialogProps) {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="p-6 w-full">
           <DialogHeader>
             <DialogTitle>Edit Client Details</DialogTitle>
             <DialogDescription>
@@ -242,20 +243,24 @@ export function ClientManageDialog({ client }: ClientManageDialogProps) {
 
             <DialogFooter>
               <DialogClose asChild>
-                <Button
+                <RevButtons
                   type="button"
                   variant="outline"
                   disabled={isEditPending}
                 >
                   Cancel
-                </Button>
+                </RevButtons>
               </DialogClose>
-              <Button type="submit" disabled={isEditPending}>
+              <RevButtons
+                variant={"success"}
+                type="submit"
+                disabled={isEditPending}
+              >
                 {isEditPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}{" "}
                 Save Changes
-              </Button>
+              </RevButtons>
             </DialogFooter>
           </form>
         </DialogContent>

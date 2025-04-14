@@ -12,13 +12,14 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { updateProject } from "./actions";
+import { updateProject } from "../../actions";
+import { RevButtons } from "@/components/ui/RevButtons";
 
 // Type for project data needed for editing
 export type ProjectDataForEdit = {
@@ -71,7 +72,7 @@ export function ProjectEditDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="p-3">
         <DialogHeader>
           <DialogTitle>Edit Project Details</DialogTitle>
           <DialogDescription>
@@ -121,14 +122,14 @@ export function ProjectEditDialog({
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isPending}>
+              <RevButtons type="button" variant="outline" disabled={isPending}>
                 Cancel
-              </Button>
+              </RevButtons>
             </DialogClose>
-            <Button type="submit" disabled={isPending}>
+            <RevButtons type="submit" variant={"success"} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{" "}
               Save Changes
-            </Button>
+            </RevButtons>
           </DialogFooter>
         </form>
       </DialogContent>

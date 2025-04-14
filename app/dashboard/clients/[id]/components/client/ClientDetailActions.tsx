@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ClientEditForm } from "./ClientEditForm"; // Import the form
+import { ClientEditForm } from "./ClientEditForm";
 
 // Type for the client data passed from the page
 type ClientData = {
@@ -52,7 +52,7 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="p-5">
           <DialogHeader>
             <DialogTitle>Edit Client: {client.name}</DialogTitle>
             <DialogDescription>

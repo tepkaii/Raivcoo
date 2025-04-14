@@ -28,5 +28,9 @@ export default async function AccountPage() {
     .eq("user_id", user.id)
     .single();
 
-  return <AccountForm Account={Account} updateAccount={updateAccount} />;
+  return (
+    <div className="p-3">
+      <AccountForm Account={Account} updateAccount={updateAccount} />;
+    </div>
+  );
 }

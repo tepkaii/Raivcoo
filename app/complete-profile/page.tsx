@@ -2,9 +2,8 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { updateAccount } from "../account/actions";
+import { updateAccount } from "../dashboard/account/actions";
 import { Metadata } from "next";
-import { GridPatternLinearGradientBg } from "../components/backgrounds/backgrounds";
 import StepByStepProfileForm from "./steps";
 
 export const metadata: Metadata = {
@@ -30,8 +29,6 @@ export default async function ProfilePage() {
     .single();
 
   return (
-    <GridPatternLinearGradientBg>
-      <StepByStepProfileForm profile={profile} updateProfile={updateAccount} />
-    </GridPatternLinearGradientBg>
+    <StepByStepProfileForm profile={profile} updateProfile={updateAccount} />
   );
 }

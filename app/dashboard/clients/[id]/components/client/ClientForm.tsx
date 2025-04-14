@@ -35,7 +35,7 @@ interface ClientFormProps {
   }[];
 }
 
-export default function ClientForm({
+export function ClientForm({
   createClient,
   initialData,
   updateClient,
@@ -92,7 +92,7 @@ export default function ClientForm({
         );
       }
 
-      router.push("/clients");
+      router.push("/dashboard/clients");
       router.refresh();
     } catch (error) {
       console.error("Error:", error);
@@ -128,8 +128,8 @@ export default function ClientForm({
         <form id="client-form" onSubmit={handleSubmit} className="space-y-4">
           {!isEditing && (
             <div className="relative">
-              <div className="flex items-center border rounded-md px-3">
-                <Search className="h-4 w-4 text-muted-foreground" />
+              <div className="flex gap-2 items-center border rounded-md ">
+                <Search className="h-4 w-4 text-muted-foreground ml-2" />
                 <Input
                   type="text"
                   placeholder="Search editor profiles..."
@@ -149,11 +149,14 @@ export default function ClientForm({
                 )}
               </div>
               {showSearchResults && searchResults.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border max-h-60 overflow-auto">
+                <div
+                  className="absolute z-10 mt-1 w-full border-[2px] border-[#3F3F3F] 
+bg-[#1F1F1F]  rounded-md  max-h-60 overflow-auto"
+                >
                   {searchResults.map((editor) => (
                     <div
                       key={editor.id}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                      className="px-4 py-2 hover:bg-primary-foreground/60 cursor-pointer flex justify-between items-center"
                       onClick={() => handleEditorSelect(editor)}
                     >
                       <span>{editor.full_name}</span>

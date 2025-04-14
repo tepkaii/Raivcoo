@@ -1,4 +1,4 @@
-//  app/dashboard/page.tsx
+// app/clients/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -6,8 +6,9 @@ import { RevButtons } from "@/components/ui/RevButtons";
 import { Card, CardContent } from "@/components/ui/card";
 import { PlusCircle, Users } from "lucide-react"; // Removed MoreVertical
 import { Metadata } from "next";
-
 import { ClientCard } from "./clients/ClientCard";
+
+// Import the new ClientCard component
 
 export const metadata: Metadata = {
   title: "Clients - Video Editor Dashboard",
@@ -34,10 +35,12 @@ export default async function page() {
 
   if (profileError || !editorProfile) {
     console.error("Editor profile error or not found:", profileError);
-
-    redirect("/profile?error=Editor profile not found");
+    // Redirect to profile setup or show an error state
+    redirect("/profile?error=Editor profile not found"); // Example redirect with query param
   }
 
+  // Fetch clients - Runs on the server
+  // Define the type explicitly for better clarity
   type ClientWithProjects = {
     id: string;
     name: string;
@@ -65,16 +68,22 @@ export default async function page() {
 
   if (clientsError) {
     console.error("Error fetching clients:", clientsError);
-    // Handle error - maybe show an error message component
-    // For now, we'll let it render the empty state or potentially crash if severe
   }
 
   // ClientCard component is now defined in its own file and imported
-
   return (
-    <div className="container mx-auto py-6 space-y-6 ">
+    <div className="min-h-screen  py-6 space-y-6 ">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">My Clients</h1>
+        <div className="flex justify-between items-center gap-4 flex-wrap  pb-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+              My Clients
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              View and manage your Clients
+            </p>
+          </div>
+        </div>
         <Link href="/dashboard/clients/new" passHref>
           <RevButtons variant="success">
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -111,7 +120,7 @@ export default async function page() {
             <p className="text-muted-foreground mb-4">
               Add your first client to get started
             </p>
-            <Link href="/clients/new" passHref>
+            <Link href="/dashboard/clients/new" passHref>
               <RevButtons variant="success">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add New Client

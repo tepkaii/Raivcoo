@@ -35,7 +35,7 @@ import {
   countries,
   videoEditingSoftware,
 } from "../../utils/ProfileOptions";
-import { validateDisplayName } from "../account/displayNameValidation";
+import { validateDisplayName } from "../dashboard/account/displayNameValidation";
 import { Switch } from "@/components/ui/switch";
 import Image from "next/image";
 import {

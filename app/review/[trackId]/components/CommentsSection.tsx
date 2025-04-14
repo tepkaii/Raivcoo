@@ -3,19 +3,15 @@
 
 import React from "react";
 import { formatTime } from "../../lib/utils";
-import {
-  MessageSquareWarning,
-  Play,
-  ExternalLink,
-  ImageIcon,
-} from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import Image from "next/image";
+import { CommentTextWithLinks } from "../ReviewPage";
 
 interface Comment {
   id: string;
   created_at: string;
   comment: {
+    links(links: any): { url: string; text: string }[] | undefined;
     text: string;
     timestamp: number;
     images?: string[];
@@ -27,21 +23,16 @@ interface CommentsSectionProps {
   comments: Comment[];
   isVideoFile: boolean;
   isAudioFile: boolean;
-  jumpToTime: (time: number) => void;
   renderCommentText?: (comment: Comment) => React.ReactNode; // ✅ add this
 }
 interface CommentsSectionProps {
   comments: Comment[];
   isVideoFile: boolean;
   isAudioFile: boolean;
-  jumpToTime: (time: number) => void;
 }
 
 export const CommentsSection: React.FC<CommentsSectionProps> = ({
   comments,
-  isVideoFile,
-  isAudioFile,
-  jumpToTime,
   renderCommentText,
 }) => {
   return (
@@ -59,27 +50,15 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             {comments.map((comment) => (
               <div
                 key={comment.id}
-                className={`p-3 border rounded-md ${
-                  comment.isOwnComment ? "" : ""
-                }`}
+                className="p-3 bg-[#1F1F1F] rounded-md border-[2px] border-dashed border-[#3F3F3F]"
               >
                 <div className="flex justify-between items-start gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm">
                       {comment.commenter_display_name}
-                      {comment.isOwnComment ? "(You)" : ""}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       at {formatTime(comment.comment.timestamp)}
-                      {(isVideoFile || isAudioFile) && (
-                        <button
-                          onClick={() => jumpToTime(comment.comment.timestamp)}
-                          className="ml-2 inline-flex items-center text-primary hover:underline text-xs"
-                          title={`Jump to ${formatTime(comment.comment.timestamp)}`}
-                        >
-                          <Play className="h-3 w-3 mr-1" /> Jump
-                        </button>
-                      )}
                     </p>
                   </div>
                   <span
@@ -94,9 +73,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 </div>
                 {comment.comment.text && (
                   <div className="mt-2 text-sm whitespace-pre-wrap">
-                    {renderCommentText
-                      ? renderCommentText(comment) // ✅ use custom render
-                      : comment.comment.text}
+                    <CommentTextWithLinks
+                      text={comment.comment.text}
+                      links={comment.comment.links}
+                    />
                   </div>
                 )}
                 {comment.comment.images &&

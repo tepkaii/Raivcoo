@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
@@ -32,6 +31,7 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
+import { RevButtons } from "@/components/ui/RevButtons";
 
 export interface Step {
   name?: string;
@@ -340,7 +340,7 @@ export default function TrackManager({
   let StatusIcon = Clock;
   if (isAwaitingClient) {
     displayStatus = "Awaiting Client Review";
-    statusVariant = "info";
+    statusVariant = "warning";
     StatusIcon = Hourglass;
   } else if (track.client_decision === "approved") {
     displayStatus = "Client Approved";
@@ -359,7 +359,7 @@ export default function TrackManager({
     <Card>
       <CardHeader className="pb-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-3 flex-wrap border p-2 rounded-xl">
+          <div className="flex items-center gap-3 flex-wrap border-2 border-[#3F3F3F] border-dashed p-2 rounded-xl">
             <CardTitle className="text-lg sm:text-xl">
               Round {track.round_number}
             </CardTitle>
@@ -375,7 +375,7 @@ export default function TrackManager({
             <div className="flex items-center gap-2">
               {isCommentsEditMode ? (
                 <>
-                  <Button
+                  <RevButtons
                     variant="success"
                     size="sm"
                     className="flex items-center gap-1"
@@ -388,8 +388,8 @@ export default function TrackManager({
                       <Save className="h-4 w-4" />
                     )}
                     <span className="hidden sm:inline">Save Order</span>
-                  </Button>
-                  <Button
+                  </RevButtons>
+                  <RevButtons
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1"
@@ -400,11 +400,11 @@ export default function TrackManager({
                     disabled={isSavingOrder}
                   >
                     Cancel
-                  </Button>
+                  </RevButtons>
                 </>
               ) : (
-                <Button
-                  variant="outline"
+                <RevButtons
+                  variant="info"
                   size="sm"
                   className="flex items-center gap-1"
                   onClick={() => {
@@ -415,12 +415,13 @@ export default function TrackManager({
                 >
                   <Edit className="h-4 w-4" />
                   <span className="hidden sm:inline">Edit Steps</span>
-                </Button>
+                </RevButtons>
               )}
             </div>
           )}
         </div>
       </CardHeader>
+      <hr className="mb-4" />
       <CardContent>
         {stepsToRender.length > 0 ? (
           isCommentsEditMode ? (
@@ -449,7 +450,7 @@ export default function TrackManager({
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
-                              className={`flex items-start gap-2 p-1 rounded ${snapshot.isDragging ? "bg-muted shadow-md" : ""} ${isFinalStep ? "opacity-70 bg-muted/30 pl-8" : ""}`}
+                              className={`flex items-start gap-2 p-1 rounded ${snapshot.isDragging ? "" : ""} ${isFinalStep ? "opacity-70 bg-muted/30 pl-8" : ""}`}
                             >
                               {!isFinalStep && (
                                 <div
@@ -461,10 +462,7 @@ export default function TrackManager({
                               )}
                               <div className="flex-1">
                                 {isFinalStep ? (
-                                  <div className="border rounded-lg p-4 h-[180px] flex items-center justify-center text-muted-foreground italic bg-card">
-                                    Final Deliverable Step (Cannot be edited
-                                    here)
-                                  </div>
+                                  <div className="border rounded-lg p-4 h-[180px] flex items-center justify-center text-muted-foreground italic bg-card"></div>
                                 ) : (
                                   <EditableComment
                                     trackId={track.id}
@@ -496,88 +494,83 @@ export default function TrackManager({
                 const viewKey = `step-view-${track.id}-${step.metadata?.comment_id || index}`;
 
                 return (
-                  <div
-                    key={viewKey}
-                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 border rounded-md transition-opacity ${isClientActionDone ? "bg-muted/50 opacity-75" : ""}`}
-                  >
-                    <div className="flex-shrink-0 pt-1 sm:pt-0">
-                      {isCompleted ? (
-                        <CheckCircle className="text-green-500 h-5 w-5 flex-shrink-0" />
-                      ) : (
-                        <Clock
-                          className={`h-5 w-5 flex-shrink-0 ${!isClientActionDone ? "text-blue-500" : "text-gray-400"}`}
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pl-2 sm:pl-0">
-                      <StepCommentsSection
-                        step={step}
-                        isFinalStep={isFinalStep}
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap justify-end w-full sm:w-auto pl-7 sm:pl-0 mt-2 sm:mt-0">
-                      {canRevert && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleUpdateStepStatus(index, "pending")
-                          }
-                          disabled={isLoadingStatus}
-                          title="Revert to pending"
-                          className={
-                            isLoadingStatus
-                              ? "cursor-not-allowed opacity-50"
-                              : ""
-                          }
-                        >
-                          {isLoadingStatus ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <ArrowLeft className="h-4 w-4 mr-1" />
+                  <>
+                    <div
+                      key={viewKey}
+                      className={`flex flex-col y ${isClientActionDone ? "bg-muted/50 opacity-75" : ""}`}
+                    >
+                      <div className="flex justify-end items-end w-full mb-3">
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end w-full sm:w-auto pl-7 sm:pl-0 mt-2 sm:mt-0">
+                          {canRevert && (
+                            <RevButtons
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                handleUpdateStepStatus(index, "pending")
+                              }
+                              disabled={isLoadingStatus}
+                              title="Revert to pending"
+                              className={
+                                isLoadingStatus
+                                  ? "cursor-not-allowed opacity-50"
+                                  : ""
+                              }
+                            >
+                              {isLoadingStatus ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <ArrowLeft className="h-4 w-4 mr-1" />
+                              )}
+                              <span className="hidden sm:inline">Revert</span>
+                            </RevButtons>
                           )}
-                          <span className="hidden sm:inline">Revert</span>
-                        </Button>
-                      )}
-                      {canComplete && (
-                        <Button
-                          size="sm"
-                          variant="success"
-                          onClick={() =>
-                            handleUpdateStepStatus(index, "completed")
-                          }
-                          disabled={isLoadingStatus}
-                          title="Mark as complete"
-                          className={
-                            isLoadingStatus
-                              ? "cursor-not-allowed opacity-50"
-                              : ""
-                          }
-                        >
-                          {isLoadingStatus ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                              ...
-                            </>
-                          ) : (
-                            "Mark Complete"
+                          {canComplete && (
+                            <RevButtons
+                              size="sm"
+                              variant="success"
+                              onClick={() =>
+                                handleUpdateStepStatus(index, "completed")
+                              }
+                              disabled={isLoadingStatus}
+                              title="Mark as complete"
+                              className={
+                                isLoadingStatus
+                                  ? "cursor-not-allowed opacity-50"
+                                  : ""
+                              }
+                            >
+                              {isLoadingStatus ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                  ...
+                                </>
+                              ) : (
+                                "Mark Complete"
+                              )}
+                            </RevButtons>
                           )}
-                        </Button>
-                      )}
-                      {!isCompleted &&
-                        isFinalStep &&
-                        !allOtherStepsCompletedOriginal &&
-                        canInteract && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs font-normal px-2 py-0.5"
-                          >
-                            {" "}
-                            Waiting for other steps{" "}
-                          </Badge>
-                        )}
+                        </div>
+                      </div>
+
+                      <div className="flex  gap-2">
+                        <div className="">
+                          {isCompleted ? (
+                            <CheckCircle className="text-green-500 h-5 w-5 flex-shrink-0" />
+                          ) : (
+                            <Clock
+                              className={`h-5 w-5 flex-shrink-0 ${!isClientActionDone ? "text-blue-500" : "text-gray-400"}`}
+                            />
+                          )}
+                        </div>
+                        <div className="p-3 border-2 border-dashed bg-[#1F1F1F] border-muted-foreground/30 rounded-md text-sm">
+                          <StepCommentsSection
+                            step={step}
+                            isFinalStep={isFinalStep}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </>
                 );
               })}
             </div>
@@ -615,7 +608,7 @@ export default function TrackManager({
                   required
                   disabled={isSubmittingDeliverable}
                 />
-                <Button
+                <RevButtons
                   type="submit"
                   variant="success"
                   className="h-10"
@@ -626,7 +619,7 @@ export default function TrackManager({
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : null}
                   Submit & Complete Round
-                </Button>
+                </RevButtons>
               </div>
             </form>
           )}
@@ -635,27 +628,27 @@ export default function TrackManager({
           <div className="mt-6 border-t pt-4 space-y-3">
             <div className="flex flex-col sm:flex-row gap-2">
               <Link href={`/review/${track.id}`} passHref className="flex-1">
-                <Button className="w-full" variant="outline">
+                <RevButtons className="w-full" variant="outline">
                   <Eye className="h-4 w-4 mr-2" /> View Client Review Page
-                </Button>
+                </RevButtons>
               </Link>
-              <Button
+              <RevButtons
                 className="flex-1"
-                variant="outline"
+                variant="info"
                 onClick={() => copyReviewLink(track.project_id, track.id)}
               >
                 <Copy className="h-4 w-4 mr-2" /> Copy Client Review Link
-              </Button>
+              </RevButtons>
             </div>
             {isAwaitingClient && (
-              <div className="text-center text-sm text-muted-foreground p-3 bg-blue-50 rounded-md border border-blue-200 flex items-center justify-center gap-2">
-                <Hourglass className="h-4 w-4 text-blue-600" /> Waiting for
-                client feedback...
+              <div className="text-center text-sm  p-3 bg-[#F59E0B] rounded-md  border-[2px] border-[#3F3F3F] flex items-center justify-center gap-2">
+                <Hourglass className="h-4 w-4 " /> Waiting for client
+                feedback...
               </div>
             )}
             {isClientActionDone && (
               <div
-                className={`text-center text-sm p-3 rounded-md border flex items-center justify-center gap-2 ${track.client_decision === "approved" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}
+                className={`text-center text-sm p-3 border-[2px] border-[#3F3F3F] rounded-md  flex items-center justify-center gap-2 ${track.client_decision === "approved" ? "bg-[#10B981] " : "bg-[#F43F5E]"}`}
               >
                 {track.client_decision === "approved" ? (
                   <ShieldCheck className="h-4 w-4" />
@@ -666,7 +659,6 @@ export default function TrackManager({
                 <span className="font-medium">
                   {track.client_decision.replace("_", " ")}
                 </span>
-                .
               </div>
             )}
           </div>

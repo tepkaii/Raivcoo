@@ -7,6 +7,7 @@ import Image from "next/image";
 import { CommentTextWithLinks } from "@/app/review/[trackId]/ReviewPage"; // Adjust path if needed
 import { ExternalLink } from "lucide-react";
 import { Step } from "./TrackManager"; // Assuming Step type is exported from TrackManager or a shared types file
+import { TextShimmer } from "@/components/ui/text-shimmer";
 
 interface StepCommentsSectionProps {
   step: Step;
@@ -20,24 +21,26 @@ export function StepCommentsSection({
   const metadata = step.metadata;
 
   return (
-    <div className="flex-1 w-full space-y-3">
+    <div className="flex-1 w-full ">
       {/* Display Step Name/Title - Consistent with TrackManager */}
       <span
         className={`font-medium text-sm sm:text-base truncate ${step.status === "completed" ? "line-through text-muted-foreground" : ""}`}
         title={metadata?.text || ""} // Show full text on hover if truncated
       >
-        {metadata?.text ? (
-          <span className="font-normal">{metadata.text}</span>
-        ) : (
-          <span className="text-muted-foreground italic">
-            {isFinalStep ? "Final Deliverable Step" : "No description"}
-          </span>
+        {metadata?.text ? null : (
+          <>
+            <TextShimmer className="text-sm" duration={2}>
+              {isFinalStep
+                ? "Final Deliverable Step - Waiting for other steps"
+                : "No description"}
+            </TextShimmer>
+          </>
         )}
       </span>
 
       {/* Display Text and Links - Mimics LiveTrackClient */}
       {metadata?.text && (
-        <div className="p-3 bg-muted/20 border border-dashed border-muted-foreground/30 rounded-md text-sm">
+        <div className="">
           <CommentTextWithLinks text={metadata.text} links={metadata.links} />
         </div>
       )}

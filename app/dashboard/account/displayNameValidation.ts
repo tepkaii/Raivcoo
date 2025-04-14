@@ -1,7 +1,7 @@
 // utils/displayNameValidation.ts
 "use server";
 import { createClient } from "@/utils/supabase/server";
-import { profanityList } from "../../utils/ProfileOptions";
+import { profanityList } from "../../../utils/ProfileOptions";
 
 interface ValidationResult {
   isValid: boolean;

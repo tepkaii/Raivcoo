@@ -3,14 +3,13 @@
 
 import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { updateClient } from "../actions";
+import { updateClient } from "../../../actions";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { RevButtons } from "@/components/ui/RevButtons";
 
 // Type for the client data needed for the form
-// Should match the structure provided to 'initialData'
 type ClientData = {
   id: string;
   name: string;
@@ -166,20 +165,21 @@ export function ClientEditForm({
       <div className="flex justify-end gap-2 mt-5">
         {" "}
         {/* Use standard div for footer */}
-        <Button
+        <RevButtons
           type="button"
           variant="outline"
           onClick={onCancel} // Call cancel callback
           disabled={updateState.loading}
         >
           Cancel
-        </Button>
-        <Button
+        </RevButtons>
+        <RevButtons
           type="submit"
+          variant={"success"}
           disabled={updateState.loading || !editFormData.name}
         >
           {updateState.loading ? "Saving..." : "Save Changes"}
-        </Button>
+        </RevButtons>
       </div>
     </form>
   );
