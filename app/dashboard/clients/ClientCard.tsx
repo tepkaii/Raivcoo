@@ -182,7 +182,7 @@ export function ClientCard({ client }: ClientCardProps) {
   return (
     <div className="relative group">
       {/* Card Content and Link */}
-      <Card className="h-full hover:shadow-md transition-shadow">
+      <Card className="h-full border-2 hover:shadow-md transition-shadow">
         {/* Link should ideally navigate to a dedicated client page */}
         {/* Or remove the Link wrapper if all actions are via dropdown */}
         <Link

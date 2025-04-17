@@ -1,7 +1,13 @@
-//  ./ReviewPage.tsx
+// app/review/[trackId]/ReviewPage.tsx
 "use client";
 
-import React, { useState, useRef, useTransition, useEffect } from "react";
+import React, {
+  useState,
+  useRef,
+  useTransition,
+  useEffect,
+  useCallback,
+} from "react";
 import {
   Card,
   CardContent,
@@ -30,7 +36,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+
 import { YouTubePlayer } from "./components/YouTubePlayer";
+import { GoogleDrivePlayer } from "./components/GoogleDrivePlayer";
+import { VimeoPlayer } from "./components/VimeoPlayer";
 import { CommentsSection } from "./components/CommentsSection";
 import {
   formatTime,
@@ -44,12 +53,7 @@ import {
   getGoogleDriveEmbedUrl,
   isDropboxLink,
   getDropboxDirectUrl,
-} from "../lib/utils";
-import { GoogleDrivePlayer } from "./components/GoogleDrivePlayer";
-import { VimeoPlayer } from "./components/VimeoPlayer";
-
-const MAX_IMAGES_PER_COMMENT = 4;
-const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
+} from "../lib/utils"; // Ensure path is correct
 
 interface Comment {
   id: string;
@@ -72,10 +76,7 @@ interface ReviewPageProps {
     roundNumber: number;
     clientDecision: "pending" | "approved" | "revisions_requested";
   };
-  project: {
-    id: string;
-    title: string;
-  };
+  project: { id: string; title: string };
   deliverableLink: string;
   initialComments: Comment[];
   addCommentAction: (
@@ -83,70 +84,49 @@ interface ReviewPageProps {
   ) => Promise<{ message: string; comment: Comment }>;
   approveProjectAction: (projectId: string, trackId: string) => Promise<any>;
   requestRevisionsAction: (trackId: string) => Promise<any>;
+  updateCommentAction: (
+    formData: FormData
+  ) => Promise<{ message: string; comment: Comment }>;
+  deleteCommentAction: (commentId: string) => Promise<{ message: string }>;
 }
-export interface CommentsSectionProps {
-  comments: Comment[];
-  isVideoFile: boolean;
-  isAudioFile: boolean;
-  renderCommentText?: (comment: Comment) => React.ReactNode; // ✅ add this
+
+// --- Helpers ---
+function renderPlainTextWithUrls(
+  rawText: string | undefined,
+  links: { url: string; text: string }[] | undefined
+): string {
+  if (!rawText) return "";
+  if (!links || links.length === 0) return rawText;
+  let renderedText = rawText;
+  renderedText = renderedText.replace(/\[LINK:(\d+)\]/g, (match, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    return links[index]?.url || match;
+  });
+  return renderedText;
 }
-export const CommentTextWithLinks = ({
-  text,
-  links = [],
-}: {
-  text: string;
-  links?: { url: string; text: string }[];
-}) => {
-  if (!links || links.length === 0) {
-    return <p className="whitespace-pre-wrap">{text}</p>;
-  }
-
-  // Create a regex pattern that matches all link placeholders
-  const linkPattern = /\[LINK:(\d+)\]/g;
-  let lastIndex = 0;
-  const parts = [];
-  let match;
-
-  // Find all link placeholders and build an array of text and link elements
-  while ((match = linkPattern.exec(text)) !== null) {
-    // Add text before the link
-    if (match.index > lastIndex) {
-      parts.push(
-        <span key={`text-${lastIndex}`}>
-          {text.substring(lastIndex, match.index)}
-        </span>
-      );
+function detectAndExtractLinks(text: string) {
+  const urlRegex = /(https?:\/\/[^\s<>"]+)/g;
+  const links: { url: string; text: string }[] = [];
+  let processedText = text;
+  const urlMatches = Array.from(text.matchAll(urlRegex));
+  urlMatches.forEach((match) => {
+    const url = match[0];
+    if (text.substring(match.index - 6, match.index) === "[LINK:") return;
+    let existingLinkIndex = links.findIndex((link) => link.url === url);
+    if (existingLinkIndex === -1) {
+      links.push({ url: url, text: url });
+      existingLinkIndex = links.length - 1;
     }
+    processedText = processedText.replace(url, `[LINK:${existingLinkIndex}]`);
+  });
+  return { processedText, links };
+}
 
-    // Extract link index and add the link element
-    const linkIndex = parseInt(match[1], 10);
-    if (links[linkIndex]) {
-      parts.push(
-        <a
-          key={`link-${linkIndex}`}
-          href={links[linkIndex].url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-400 hover:underline break-all"
-        >
-          {links[linkIndex].text || links[linkIndex].url}
-        </a>
-      );
-    } else {
-      // If link doesn't exist, just show the placeholder
-      parts.push(<span key={`missing-${linkIndex}`}>{match[0]}</span>);
-    }
+// --- Constants ---
+const MAX_IMAGES_PER_COMMENT = 4;
+const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
 
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add any remaining text after the last link
-  if (lastIndex < text.length) {
-    parts.push(<span key={`text-end`}>{text.substring(lastIndex)}</span>);
-  }
-
-  return <p className="whitespace-pre-wrap">{parts}</p>;
-};
+// --- Component ---
 export default function ReviewPage({
   clientDisplayName,
   track,
@@ -156,85 +136,92 @@ export default function ReviewPage({
   addCommentAction,
   approveProjectAction,
   requestRevisionsAction,
+  updateCommentAction,
+  deleteCommentAction,
 }: ReviewPageProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isAddPending, startAddTransition] = useTransition();
+  const [isDecisionPending, startDecisionTransition] = useTransition();
+  const [isEditDeletePending, startEditDeleteTransition] = useTransition();
+
   const [comments, setComments] = useState<Comment[]>(initialComments);
-  const [commentText, setCommentText] = useState("");
+  const [commentText, setCommentText] = useState(""); // New comment text
   const [currentTime, setCurrentTime] = useState(0);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]); // New comment images
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]); // New comment previews
+
+  // State for Editing Comments
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editedCommentText, setEditedCommentText] = useState<string>("");
+  const [editingExistingImageUrls, setEditingExistingImageUrls] = useState<
+    string[]
+  >([]); // Existing images for the comment being edited
+  const [editingNewImageFiles, setEditingNewImageFiles] = useState<File[]>([]); // New files added *during* edit
+  const [editingNewImagePreviews, setEditingNewImagePreviews] = useState<
+    string[]
+  >([]); // Previews for new files added during edit
+
+  const videoRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // For new comment input
 
   const isDecisionMade = track.clientDecision !== "pending";
+  const isAnyActionPending =
+    isAddPending || isDecisionPending || isEditDeletePending;
 
   useEffect(() => {
     setComments(initialComments);
   }, [initialComments]);
-
   useEffect(() => {
     const previews = imageFiles.map((file) => URL.createObjectURL(file));
     setImagePreviews(previews);
-    return () => previews.forEach((url) => URL.revokeObjectURL(url));
+    return () => previews.forEach(URL.revokeObjectURL);
   }, [imageFiles]);
-
-  const detectAndExtractLinks = (text: string) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const links: { url: string; text: string }[] = [];
-    let processedText = text;
-    let match;
-
-    while ((match = urlRegex.exec(text)) !== null) {
-      links.push({
-        url: match[0],
-        text: match[0],
-      });
-      processedText = processedText.replace(
-        match[0],
-        `[LINK:${links.length - 1}]`
-      );
-    }
-
-    return { processedText, links };
-  };
+  // Effect for generating/revoking previews for *editing* images
+  useEffect(() => {
+    const previews = editingNewImageFiles.map((file) =>
+      URL.createObjectURL(file)
+    );
+    setEditingNewImagePreviews(previews);
+    return () => previews.forEach(URL.revokeObjectURL);
+  }, [editingNewImageFiles]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const files = Array.from(event.target.files);
-      const totalFiles = imageFiles.length + files.length;
-
-      if (totalFiles > MAX_IMAGES_PER_COMMENT) {
+      const currentTotal = imageFiles.length + files.length;
+      if (currentTotal > MAX_IMAGES_PER_COMMENT) {
         toast({
           title: "Too many images",
-          description: `You can only select up to ${MAX_IMAGES_PER_COMMENT} images in total.`,
+          description: `Max ${MAX_IMAGES_PER_COMMENT} total.`,
           variant: "warning",
         });
-        return;
+        files.splice(MAX_IMAGES_PER_COMMENT - imageFiles.length);
       }
-      setImageFiles((prevFiles) => [...prevFiles, ...files]);
+      const validFiles = files.filter((file) =>
+        ACCEPTED_IMAGE_TYPES_STRING.includes(file.type)
+      );
+      if (validFiles.length !== files.length) {
+        toast({
+          title: "Invalid File Type",
+          description: "Some files ignored.",
+          variant: "warning",
+        });
+      }
+      setImageFiles((prev) => [...prev, ...validFiles]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-
   const removeImage = (indexToRemove: number) => {
-    setImageFiles((prevFiles) =>
-      prevFiles.filter((_, index) => index !== indexToRemove)
-    );
+    setImageFiles((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
 
-  const handleSubmitComment = async () => {
+  const handleSubmitComment = useCallback(async () => {
+    if (editingCommentId || isAnyActionPending || isDecisionMade) return;
     if (!commentText.trim() && imageFiles.length === 0) {
-      toast({
-        title: "Empty Comment",
-        description: "Please enter text or add an image.",
-        variant: "warning",
-      });
+      toast({ title: "Empty Comment", variant: "warning" });
       return;
     }
-    if (isPending || isDecisionMade) return;
-
     const { processedText, links } = detectAndExtractLinks(commentText);
-
     const formData = new FormData();
     formData.append("trackId", track.id);
     formData.append("timestamp", currentTime.toString());
@@ -245,91 +232,274 @@ export default function ReviewPage({
     imageFiles.forEach((file) => {
       formData.append("images", file);
     });
-
-    startTransition(async () => {
+    startAddTransition(async () => {
       try {
         const result = await addCommentAction(formData);
-        toast({
-          title: "Success",
-          description: result.message || "Comment added successfully!",
-          variant: "success",
-        });
+        setComments((prev) => [...prev, result.comment]);
         setCommentText("");
         setImageFiles([]);
         setImagePreviews([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        setComments((prevComments) => [...prevComments, result.comment]);
+        toast({ title: "Success", variant: "success" });
       } catch (error: any) {
-        console.error("Error submitting comment:", error);
         toast({
-          title: "Error Adding Comment",
-          description: error.message || "Failed to add comment.",
+          title: "Error Adding",
+          description: error.message,
           variant: "destructive",
         });
       }
     });
-  };
+  }, [
+    commentText,
+    imageFiles,
+    track.id,
+    currentTime,
+    addCommentAction,
+    isAnyActionPending,
+    isDecisionMade,
+    editingCommentId,
+  ]);
 
-  const handleApprove = () => {
-    if (isPending || isDecisionMade) return;
-    if (
-      !confirm(
-        `Are you sure you want to approve the entire project "${project.title}"?`
-      )
-    )
+  // --- Edit/Delete Handlers ---
+  const handleEditComment = useCallback(
+    (commentId: string) => {
+      if (isDecisionMade || isAnyActionPending) return;
+      const commentToEdit = comments.find((c) => c.id === commentId);
+      if (commentToEdit) {
+        setEditedCommentText(
+          renderPlainTextWithUrls(
+            commentToEdit.comment.text,
+            commentToEdit.comment.links
+          )
+        );
+        setEditingExistingImageUrls(commentToEdit.comment.images || []); // <<<<<<<<<<<<<<< Populate existing images
+        setEditingNewImageFiles([]); // <<<<<<<<<<<<<<< Reset new files for this edit session
+        setEditingNewImagePreviews([]); // <<<<<<<<<<<<<<< Reset previews
+        setEditingCommentId(commentId);
+        setCommentText("");
+        setImageFiles([]); // Clear new comment form
+      }
+    },
+    [comments, isDecisionMade, isAnyActionPending]
+  );
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCommentId(null);
+    setEditedCommentText("");
+    setEditingExistingImageUrls([]);
+    setEditingNewImageFiles([]);
+    setEditingNewImagePreviews([]); // <<<< Reset image edit state
+  }, []);
+
+  // Handlers for managing images *during* edit
+  const handleRemoveExistingImage = useCallback((indexToRemove: number) => {
+    setEditingExistingImageUrls((prev) =>
+      prev.filter((_, i) => i !== indexToRemove)
+    );
+  }, []);
+  const handleRemoveNewImage = useCallback((indexToRemove: number) => {
+    setEditingNewImageFiles((prev) =>
+      prev.filter((_, i) => i !== indexToRemove)
+    );
+  }, []);
+  const handleEditFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files) {
+        const files = Array.from(event.target.files);
+        const currentTotal =
+          editingExistingImageUrls.length +
+          editingNewImageFiles.length +
+          files.length;
+        const availableSlots =
+          MAX_IMAGES_PER_COMMENT -
+          (editingExistingImageUrls.length + editingNewImageFiles.length);
+
+        if (currentTotal > MAX_IMAGES_PER_COMMENT) {
+          toast({
+            title: "Too many images",
+            description: `You can add ${availableSlots > 0 ? `${availableSlots} more` : "no more"}. Max ${MAX_IMAGES_PER_COMMENT}.`,
+            variant: "warning",
+          });
+          files.splice(availableSlots); // Keep only allowed number
+        }
+        const validFiles = files.filter((file) => {
+          if (!ACCEPTED_IMAGE_TYPES_STRING.includes(file.type)) {
+            toast({
+              title: "Invalid File Type",
+              description: `"${file.name}" ignored.`,
+              variant: "warning",
+            });
+            return false;
+          }
+          // Add size validation if needed
+          return true;
+        });
+
+        setEditingNewImageFiles((prev) => [...prev, ...validFiles]);
+        // Reset the file input visually after selection
+        if (event.target) event.target.value = "";
+      }
+    },
+    [editingExistingImageUrls, editingNewImageFiles]
+  );
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingCommentId || isAnyActionPending || isDecisionMade) return;
+    const totalImages =
+      editingExistingImageUrls.length + editingNewImageFiles.length;
+    // Prevent saving if BOTH text is empty AND there are no images
+    if (!editedCommentText.trim() && totalImages === 0) {
+      toast({
+        title: "Cannot Save Empty Comment",
+        description: "Please add text or an image.",
+        variant: "warning",
+      });
       return;
+    }
 
-    startTransition(async () => {
+    // Optional: Check if anything actually changed (more complex with images)
+    // const originalComment = comments.find(c => c.id === editingCommentId); ... compare text and image arrays ...
+
+    const formData = new FormData();
+    formData.append("commentId", editingCommentId);
+    formData.append("newCommentText", editedCommentText); // Send plain text
+    formData.append("existingImages", JSON.stringify(editingExistingImageUrls)); // <<<< Send remaining existing image URLs
+    editingNewImageFiles.forEach((file) => {
+      // <<<< Send new files
+      formData.append("newImages", file);
+    });
+
+    startEditDeleteTransition(async () => {
+      try {
+        const result = await updateCommentAction(formData);
+        setComments((prev) =>
+          prev.map((c) => (c.id === editingCommentId ? result.comment : c))
+        );
+        handleCancelEdit(); // Reset edit state
+        toast({
+          title: "Success",
+          description: result.message,
+          variant: "success",
+        });
+      } catch (error: any) {
+        toast({
+          title: "Error Updating Comment",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    });
+  }, [
+    editingCommentId,
+    editedCommentText,
+    editingExistingImageUrls,
+    editingNewImageFiles,
+    updateCommentAction,
+    isAnyActionPending,
+    isDecisionMade,
+    handleCancelEdit,
+    comments /* add comments if needed for change detection */,
+  ]);
+
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      if (isAnyActionPending || isDecisionMade) return;
+      if (!confirm("Delete this comment permanently?")) {
+        return;
+      }
+      startEditDeleteTransition(async () => {
+        try {
+          const result = await deleteCommentAction(commentId);
+          setComments((prev) => prev.filter((c) => c.id !== commentId));
+          if (editingCommentId === commentId) {
+            handleCancelEdit();
+          }
+          toast({
+            title: "Success",
+            description: result.message,
+            variant: "success",
+          });
+        } catch (error: any) {
+          toast({
+            title: "Error Deleting",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      });
+    },
+    [
+      deleteCommentAction,
+      isAnyActionPending,
+      isDecisionMade,
+      editingCommentId,
+      handleCancelEdit,
+    ]
+  );
+
+  const handleApprove = useCallback(() => {
+    if (isAnyActionPending || isDecisionMade || editingCommentId) return;
+    if (!confirm(`Approve project "${project.title}"?`)) return;
+    startDecisionTransition(async () => {
       try {
         await approveProjectAction(project.id, track.id);
-        toast({
-          title: "Project Approved!",
-          description: "Thank you! The editor has been notified.",
-          variant: "success",
-        });
+        toast({ title: "Project Approved!", variant: "success" });
         router.refresh();
       } catch (error: any) {
-        console.error("Error approving project:", error);
         toast({
           title: "Approval Failed",
-          description: error.message || "Could not approve the project.",
+          description: error.message,
           variant: "destructive",
         });
       }
     });
-  };
+  }, [
+    project.id,
+    track.id,
+    project.title,
+    approveProjectAction,
+    isAnyActionPending,
+    isDecisionMade,
+    router,
+    editingCommentId,
+  ]);
 
-  const handleRequestRevisions = () => {
-    if (isPending || isDecisionMade) return;
-
+  const handleRequestRevisions = useCallback(() => {
+    if (isAnyActionPending || isDecisionMade || editingCommentId) return;
     if (
       comments.length === 0 &&
-      !confirm("You haven't left any feedback comments. Are you sure?")
+      !confirm("No feedback added. Request revisions anyway?")
     )
       return;
-    else if (!confirm(`Request revisions for Round ${track.roundNumber}?`))
+    if (
+      comments.length > 0 &&
+      !confirm(`Request revisions based on ${comments.length} comment(s)?`)
+    )
       return;
-
-    startTransition(async () => {
+    startDecisionTransition(async () => {
       try {
         await requestRevisionsAction(track.id);
-        toast({
-          title: "Revisions Requested",
-          description: `Round ${track.roundNumber + 1} has been initiated.`,
-          variant: "success",
-        });
+        toast({ title: "Revisions Requested", variant: "success" });
         router.refresh();
       } catch (error: any) {
-        console.error("Error requesting revisions:", error);
         toast({
           title: "Request Failed",
-          description: error.message || "Could not request revisions.",
+          description: error.message,
           variant: "destructive",
         });
       }
     });
-  };
+  }, [
+    track.id,
+    comments.length,
+    requestRevisionsAction,
+    isAnyActionPending,
+    isDecisionMade,
+    router,
+    editingCommentId,
+  ]);
 
+  // --- Media Player Logic ---
   const googleDriveEmbedUrl = isGoogleDriveLink(deliverableLink)
     ? getGoogleDriveEmbedUrl(deliverableLink)
     : null;
@@ -339,163 +509,152 @@ export default function ReviewPage({
   const vimeoEmbedUrl = isVimeoLink(deliverableLink)
     ? getVimeoEmbedUrl(deliverableLink)
     : null;
-  const isVideo = isVideoFile(deliverableLink);
-  const isAudio = isAudioFile(deliverableLink);
   const dropboxDirectUrl = isDropboxLink(deliverableLink)
     ? getDropboxDirectUrl(deliverableLink)
     : null;
-
-  const canInteractWithCommentForm = !isPending && !isDecisionMade;
+  const isVideo = isVideoFile(deliverableLink);
+  const isAudio = isAudioFile(deliverableLink);
+  const isVideoPlayerNeeded =
+    isVideo ||
+    !!youtubeEmbedUrl ||
+    !!vimeoEmbedUrl ||
+    !!googleDriveEmbedUrl ||
+    !!dropboxDirectUrl;
+  const isAudioPlayerNeeded = isAudio && !isVideoPlayerNeeded;
+  const canInteractWithAddForm =
+    !isAnyActionPending && !isDecisionMade && !editingCommentId;
+  const handleTimeUpdate = useCallback(() => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  }, []);
 
   return (
     <div className="space-y-6 w-full max-w-5xl px-2">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl md:text-3xl">
+          <CardTitle className="text-2xl md:text-3xl tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             {project.title} - Round {track.roundNumber} Review
           </CardTitle>
           <CardDescription>
-            Deliverable review for {clientDisplayName || "Reviewer"}. Please
-            provide feedback below.
+            Deliverable review for {clientDisplayName || "Reviewer"}.
           </CardDescription>
         </CardHeader>
       </Card>
 
       <Card>
         <CardContent className="pt-6 space-y-5">
-          <div className="rounded-lg overflow-hidden border bg-black">
+          <div className="rounded-lg overflow-hidden border bg-black aspect-video relative">
             {youtubeEmbedUrl ? (
               <YouTubePlayer
                 youtubeEmbedUrl={youtubeEmbedUrl}
-                currentTime={currentTime}
                 setCurrentTime={setCurrentTime}
               />
-            ) : dropboxDirectUrl ? (
-              <>
-                <video
-                  ref={videoRef}
-                  className="w-full aspect-video block"
-                  controls
-                  preload="metadata"
-                  onTimeUpdate={() =>
-                    videoRef.current &&
-                    setCurrentTime(videoRef.current.currentTime)
-                  }
-                  onError={(e) => {
-                    console.error("Dropbox video error:", e);
-                    toast({
-                      title: "Playback Error",
-                      description: "Could not load the Dropbox video.",
-                      variant: "destructive",
-                    });
-                  }}
-                >
-                  <source src={dropboxDirectUrl} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-              </>
             ) : googleDriveEmbedUrl ? (
               <GoogleDrivePlayer
                 googleDriveEmbedUrl={googleDriveEmbedUrl}
-                currentTime={currentTime}
                 setCurrentTime={setCurrentTime}
               />
             ) : vimeoEmbedUrl ? (
               <VimeoPlayer
                 vimeoEmbedUrl={vimeoEmbedUrl}
-                currentTime={currentTime}
                 setCurrentTime={setCurrentTime}
               />
+            ) : dropboxDirectUrl ? (
+              <video
+                ref={videoRef as React.RefObject<HTMLVideoElement>}
+                className="w-full h-full block"
+                controls
+                onTimeUpdate={handleTimeUpdate}
+              >
+                <source src={dropboxDirectUrl} type="video/mp4" />
+                Your browser does not support video.
+              </video>
             ) : isVideo ? (
               <video
-                ref={videoRef}
-                className="w-full aspect-video block"
+                ref={videoRef as React.RefObject<HTMLVideoElement>}
+                className="w-full h-full block"
                 controls
-                onTimeUpdate={() =>
-                  videoRef.current &&
-                  setCurrentTime(videoRef.current.currentTime)
-                }
+                onTimeUpdate={handleTimeUpdate}
                 src={deliverableLink}
-              />
+              >
+                Your browser does not support video.
+              </video>
             ) : isAudio ? (
-              <div className="p-4 bg-gray-800">
+              <div className="p-4 bg-gray-800 h-full flex items-center">
                 <audio
-                  ref={videoRef as any}
+                  ref={videoRef as React.RefObject<HTMLAudioElement>}
                   className="w-full"
                   controls
-                  onTimeUpdate={() =>
-                    videoRef.current &&
-                    setCurrentTime(videoRef.current.currentTime)
-                  }
+                  onTimeUpdate={handleTimeUpdate}
                   src={deliverableLink}
-                />
+                >
+                  Your browser does not support audio.
+                </audio>
               </div>
             ) : (
-              <div className="p-6 bg-secondary flex flex-col items-center text-center min-h-[200px] sm:min-h-[300px] justify-center">
-                <MessageSquareWarning className="w-10 h-10 text-muted-foreground mb-3" />
-                <p className="text-secondary-foreground font-medium mb-1">
-                  Cannot preview this deliverable directly.
-                </p>
+              <div className="p-6 bg-secondary flex flex-col items-center text-center justify-center h-full">
+                {" "}
+                <MessageSquareWarning className="w-10 h-10 text-muted-foreground mb-3" />{" "}
+                <p className="font-medium mb-1">Cannot preview.</p>{" "}
                 <a
                   href={deliverableLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline font-medium text-sm inline-flex items-center gap-1"
                 >
-                  View/Download Deliverable <ExternalLink className="h-4 w-4" />
-                </a>
+                  View/Download <ExternalLink className="h-4 w-4" />
+                </a>{" "}
               </div>
             )}
           </div>
 
           {isDecisionMade && (
             <div
-              className={`p-4 border-[2px] border-dashed border-[#3F3F3F] rounded-md  ${track.clientDecision === "approved" ? "bg-[#10B981]" : "bg-[#F43F5E]"}`}
+              className={`p-4 border-2 border-dashed rounded-md ${track.clientDecision === "approved" ? "bg-green-600 border-green-700 text-primary-foreground" : "bg-red-600 border-red-700 text-primary-foreground"}`}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 font-semibold">
                 {track.clientDecision === "approved" ? (
-                  <ThumbsUp className="h-5 w-5 " />
+                  <ThumbsUp className="h-5 w-5" />
                 ) : (
-                  <ShieldAlert className="h-5 w-5 " />
+                  <ShieldAlert className="h-5 w-5" />
                 )}
-                <p className={`font-semibold `}>
-                  {track.clientDecision === "approved"
-                    ? "Project Approved"
-                    : "Revisions Requested"}
-                </p>
-              </div>
-              <p className="text-sm text-primary/90 mt-1 pl-7">
                 {track.clientDecision === "approved"
-                  ? "Thank you! No further action needed for this project."
-                  : "The editor has been notified. A new round will address your feedback."}
+                  ? "Project Approved"
+                  : "Revisions Requested"}
+              </div>
+              <p className="text-sm opacity-90 mt-1 pl-7">
+                {track.clientDecision === "approved"
+                  ? "No further action needed."
+                  : "The editor has been notified."}
               </p>
             </div>
           )}
 
-          {!isDecisionMade && (
+          {!isDecisionMade && !editingCommentId && (
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Clock className="h-4 w-4" /> Add feedback at:{" "}
-                {formatTime(currentTime)}
+                {isVideoPlayerNeeded || isAudioPlayerNeeded
+                  ? formatTime(currentTime)
+                  : "N/A"}
               </div>
-
               <Textarea
                 placeholder="Enter your feedback here..."
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 className="flex-1"
                 rows={3}
-                disabled={!canInteractWithCommentForm}
+                disabled={!canInteractWithAddForm || isAddPending}
                 required={imageFiles.length === 0}
               />
-
               <div className="space-y-2">
                 <label
                   htmlFor="image-upload"
-                  className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-primary"
+                  className={`text-sm font-medium flex items-center gap-2 cursor-pointer ${!canInteractWithAddForm || imageFiles.length >= MAX_IMAGES_PER_COMMENT ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-primary"}`}
                 >
-                  <ImageIcon className="h-4 w-4" /> Add Images (Optional, up to{" "}
-                  {MAX_IMAGES_PER_COMMENT})
+                  <ImageIcon className="h-4 w-4" /> Add Images (
+                  {imageFiles.length}/{MAX_IMAGES_PER_COMMENT})
                 </label>
                 <Input
                   id="image-upload"
@@ -506,53 +665,46 @@ export default function ReviewPage({
                   onChange={handleFileChange}
                   className="hidden"
                   disabled={
-                    !canInteractWithCommentForm ||
+                    !canInteractWithAddForm ||
                     imageFiles.length >= MAX_IMAGES_PER_COMMENT
                   }
                 />
-                {imageFiles.length >= MAX_IMAGES_PER_COMMENT && (
-                  <p className="text-xs text-muted-foreground">
-                    Maximum number of images reached.
-                  </p>
-                )}
-
                 {imagePreviews.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {imagePreviews.map((previewUrl, index) => (
-                      <div key={index} className="relative w-20 h-20">
+                    {imagePreviews.map((url, i) => (
+                      <div key={i} className="relative w-20 h-20 group">
                         <img
-                          src={previewUrl}
-                          alt={`Preview ${index + 1}`}
+                          src={url}
+                          alt={`Preview ${i + 1}`}
                           className="w-full h-full object-cover rounded border"
                         />
-                        {canInteractWithCommentForm && (
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1"
-                            onClick={() => removeImage(index)}
-                            title="Remove image"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeImage(i)}
+                          title="Remove image"
+                          disabled={!canInteractWithAddForm}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-
               <div className="flex justify-end">
                 <RevButtons
                   onClick={handleSubmitComment}
                   variant="default"
                   size="lg"
                   disabled={
-                    !canInteractWithCommentForm ||
+                    !canInteractWithAddForm ||
+                    isAddPending ||
                     (!commentText.trim() && imageFiles.length === 0)
                   }
                 >
-                  {isPending ? (
+                  {isAddPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Send className="h-4 w-4" />
@@ -567,24 +719,26 @@ export default function ReviewPage({
 
       <CommentsSection
         comments={comments}
-        isVideoFile={
-          isVideo ||
-          !!youtubeEmbedUrl ||
-          !!vimeoEmbedUrl ||
-          !!googleDriveEmbedUrl ||
-          !!dropboxDirectUrl
-        }
-        isAudioFile={isAudio}
-        renderCommentText={(comment) => (
-          <CommentTextWithLinks
-            text={comment.comment.text}
-            links={
-              typeof comment.comment.links === "string"
-                ? JSON.parse(comment.comment.links)
-                : comment.comment.links
-            }
-          />
-        )}
+        isVideoFile={isVideoPlayerNeeded}
+        isAudioFile={isAudioPlayerNeeded}
+        isDecisionMade={isDecisionMade}
+        editingCommentId={editingCommentId}
+        editedCommentText={editedCommentText}
+        onEdit={handleEditComment}
+        onCancelEdit={handleCancelEdit}
+        onSaveEdit={handleSaveEdit}
+        onDelete={handleDeleteComment}
+        onTextChange={setEditedCommentText}
+        isEditDeletePending={isEditDeletePending}
+        // Pass image state/handlers for edit mode
+        existingImageUrls={editingExistingImageUrls}
+        newImageFiles={editingNewImageFiles}
+        newImagePreviews={editingNewImagePreviews}
+        onRemoveExistingImage={handleRemoveExistingImage}
+        onRemoveNewImage={handleRemoveNewImage}
+        onFileChange={handleEditFileChange} // Use the specific handler for edits
+        maxImages={MAX_IMAGES_PER_COMMENT}
+        acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
       />
 
       {!isDecisionMade && (
@@ -592,8 +746,7 @@ export default function ReviewPage({
           <CardHeader>
             <CardTitle>Submit Your Decision</CardTitle>
             <CardDescription>
-              Once you have finished reviewing and adding feedback, please
-              submit your decision for Round {track.roundNumber}.
+              Submit your decision for Round {track.roundNumber}.
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col sm:flex-row gap-4">
@@ -601,35 +754,34 @@ export default function ReviewPage({
               variant="destructive"
               className="flex-1"
               onClick={handleRequestRevisions}
-              disabled={isPending || isDecisionMade}
+              disabled={isAnyActionPending || !!editingCommentId}
             >
-              {isPending && track.clientDecision === "pending" ? (
+              {isDecisionPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <Edit className="h-4 w-4 mr-2" />
               )}
-              Request Revisions (New Round)
+              Request Revisions
             </RevButtons>
-
             <RevButtons
               variant="success"
               className="flex-1"
               onClick={handleApprove}
-              disabled={isPending || isDecisionMade}
+              disabled={isAnyActionPending || !!editingCommentId}
             >
-              {isPending && track.clientDecision === "pending" ? (
+              {isDecisionPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <Check className="h-4 w-4 mr-2" />
               )}
-              Approve Final Project
+              Approve Project
             </RevButtons>
           </CardFooter>
           <CardContent className="text-xs text-muted-foreground flex items-start gap-2">
             <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <span>
-              Approving the project marks it as complete. Requesting revisions
-              will start a new round based on the feedback provided above.
+              Approving marks the project complete. Requesting revisions starts
+              a new round.
             </span>
           </CardContent>
         </Card>

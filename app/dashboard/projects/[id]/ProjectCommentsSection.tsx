@@ -27,7 +27,7 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
   comments,
 }) => {
   return (
-    <Card>
+    <Card className=" border-2">
       <CardHeader>
         <CardTitle>Feedback History ({comments.length})</CardTitle>
       </CardHeader>
@@ -41,7 +41,7 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
             {comments.map((comment) => (
               <div
                 key={comment.id}
-                className="p-3 bg-[#1F1F1F] rounded-md border-[2px] border-dashed border-[#3F3F3F]"
+                className="p-3  rounded-md border-[2px] border-dashed "
               >
                 <div className="flex justify-between items-start gap-2 flex-wrap">
                   <div className="flex items-center gap-2">

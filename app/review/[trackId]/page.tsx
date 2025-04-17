@@ -2,72 +2,64 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { Metadata } from "next";
-import ReviewPage from "./ReviewPage"; // Client component
+import ReviewPage from "./ReviewPage";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
 import {
   addReviewComment,
   clientApproveProject,
   clientRequestRevisions,
+  updateReviewComment, // Action for update
+  deleteReviewComment, // Action for delete
 } from "./actions";
 
-// Generate metadata
 export async function generateMetadata({
   params,
 }: {
   params: { trackId: string };
 }): Promise<Metadata> {
   const supabase = await createClient();
-  const { trackId } = await params;
-
+  const { trackId } = params;
   if (!trackId || trackId === "undefined") {
-    console.error("generateMetadata invalid trackId:", trackId);
-    return { title: "Project Review" };
+    return { title: "Project Review", robots: { index: false, follow: false } };
   }
-
-  // Get project info from track
-  const { data: trackData } = await supabase
-    .from("project_tracks")
-    .select(
-      `
-      project:projects!inner(title)
-    `
-    )
-    .eq("id", trackId)
-    .single();
-
-  return {
-    title: trackData?.project
-      ? `Review: ${trackData.project.title}`
-      : "Project Review",
-    description: "Review and provide feedback on the project deliverable.",
-    robots: { index: false, follow: false },
-  };
+  try {
+    const { data: trackData } = await supabase
+      .from("project_tracks")
+      .select(`project:projects!inner(title)`)
+      .eq("id", trackId)
+      .maybeSingle();
+    return {
+      title: trackData?.project
+        ? `Review: ${trackData.project.title}`
+        : "Project Review",
+      description: "Review project deliverable.",
+      robots: { index: false, follow: false },
+    };
+  } catch (error) {
+    return { title: "Project Review", robots: { index: false, follow: false } };
+  }
 }
 
-// Server component wrapper
 export default async function ReviewPageWrapper({
   params,
 }: {
   params: { trackId: string };
 }) {
-  const { trackId } = await params;
+  const { trackId } = params;
   const supabase = await createClient();
 
   if (!trackId || trackId === "undefined") {
-    console.error("ReviewPageWrapper received invalid trackId:", trackId);
     return notFound();
   }
 
-  // Authentication
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
   if (userError || !user) {
-    const redirectUrl = `/review/${trackId}`;
     redirect(
-      `/login?message=Please log in to view review.&redirectTo=${encodeURIComponent(redirectUrl)}`
+      `/login?message=Please log in to view review.&redirectTo=${encodeURIComponent(`/review/${trackId}`)}`
     );
   }
   if (!user.email) {
@@ -78,20 +70,13 @@ export default async function ReviewPageWrapper({
     );
   }
 
-  // Data Fetching (Track, Project, Client Name & Email)
   const { data: trackData, error: trackFetchError } = await supabase
     .from("project_tracks")
     .select(
-      `
-        id, project_id, round_number, steps, client_decision,
-        project:projects!inner(
-            id, title,
-            client:clients!inner( id, name, email )
-        )
-    `
+      `id, project_id, round_number, steps, client_decision, project:projects!inner(id, title, client:clients!inner(id, name, email))`
     )
     .eq("id", trackId)
-    .single();
+    .maybeSingle();
 
   if (
     trackFetchError ||
@@ -100,15 +85,12 @@ export default async function ReviewPageWrapper({
     !trackData.project.client
   ) {
     console.error(
-      `Error fetching track/project/client data for track ${trackId}:`,
-      trackFetchError?.message || "Data structure invalid"
+      `Error fetching review data for track ${trackId}:`,
+      trackFetchError?.message || "Not found/Invalid data"
     );
     return notFound();
   }
 
-  const projectId = trackData.project_id;
-
-  // Authorization Check (Logged-in user vs Client email)
   if (trackData.project.client.email !== user.email) {
     console.warn(
       `AUTH FAILED: User ${user.email} accessing review for client ${trackData.project.client.email}`
@@ -121,13 +103,11 @@ export default async function ReviewPageWrapper({
   const deliverableLink = finishStep?.deliverable_link;
 
   if (!deliverableLink) {
-    // Deliverable not ready message
     return (
-      <div className="container mx-auto py-6 text-center">
-        <h1 className="text-2xl font-bold mb-4">Review Not Ready</h1>
+      <div className="container mx-auto py-6 text-center mt-10">
+        <h1 className="text-2xl font-bold mb-4">Review Not Ready Yet</h1>
         <p className="text-muted-foreground">
-          The deliverable for Round {trackData.round_number} is not yet
-          available.
+          Deliverable for Round {trackData.round_number} not submitted.
         </p>
         <Link href="/projects" className="mt-4 inline-block">
           <RevButtons variant="outline">Back to Projects</RevButtons>
@@ -136,59 +116,61 @@ export default async function ReviewPageWrapper({
     );
   }
 
-  // Fetch Comments - Updated for JSONB structure
   const { data: commentsData, error: commentsError } = await supabase
     .from("review_comments")
-    .select(`id, comment, created_at`) // Select the JSONB field
+    .select(`id, comment, created_at`)
     .eq("track_id", trackId)
-    // Corrected order clause for JSONB field
-    .order("comment->timestamp", { ascending: true });
+    .order("comment->>timestamp", { ascending: true });
 
   if (commentsError) {
     console.error(
       `Error fetching comments for track ${trackId}:`,
       commentsError
     );
-    // Continue without comments if fetch fails
   }
 
-  // Use the Client's name for all comments on this page
   const clientDisplayName = trackData.project.client.name || user.email;
-
-  // Format comments with proper JSONB structure
-  const comments = (commentsData || []).map((comment: any) => ({
-    id: comment.id,
-    created_at: comment.created_at,
-    comment: comment.comment,
+  const comments = (commentsData || []).map((c: any) => ({
+    id: c.id,
+    created_at: c.created_at,
+    comment: c.comment as Comment["comment"],
     commenter_display_name: clientDisplayName,
     isOwnComment: true,
   }));
 
-  // Render Client Component, passing data and actions
   return (
     <div className="container mx-auto py-6 flex justify-center">
       <ReviewPage
         clientDisplayName={clientDisplayName}
         track={{
           id: trackData.id,
-          projectId: projectId,
+          projectId: trackData.project_id,
           roundNumber: trackData.round_number,
-          clientDecision: trackData.client_decision as
-            | "pending"
-            | "approved"
-            | "revisions_requested",
+          clientDecision: trackData.client_decision as any,
         }}
-        project={{
-          id: trackData.project.id,
-          title: trackData.project.title,
-        }}
+        project={{ id: trackData.project.id, title: trackData.project.title }}
         deliverableLink={deliverableLink}
         initialComments={comments}
-        // Pass server actions
         addCommentAction={addReviewComment}
         approveProjectAction={clientApproveProject}
         requestRevisionsAction={clientRequestRevisions}
+        updateCommentAction={updateReviewComment} // Pass update action
+        deleteCommentAction={deleteReviewComment} // Pass delete action
       />
     </div>
   );
+}
+
+// Define Comment type locally if not imported globally
+interface Comment {
+  id: string;
+  comment: {
+    text: string;
+    timestamp: number;
+    images?: string[];
+    links?: { url: string; text: string }[];
+  };
+  created_at: string;
+  commenter_display_name: string;
+  isOwnComment?: boolean;
 }

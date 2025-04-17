@@ -4,19 +4,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "border-[2px] border-[#3F3F3F] inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none",
+  "border-2 inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none",
   {
     variants: {
       variant: {
-        default: "bg-[#8B5CF6] text-white hover:bg-[#8B5CF6]/90",
-        destructive: "bg-[#F43F5E] text-white hover:bg-[#F43F5E]/90",
+        default: "bg-[#4C1D95]/40 text-purple-500 hover:bg-[#4C1D95]/60",
+        destructive: "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60",
         outline: "bg-[#1F1F1F] hover:bg-[#2D2D2D] hover:text-white",
-        secondary: "bg-[#A78BFA] text-white hover:bg-[#A78BFA]/80",
+        secondary: "bg-[#5B21B6]/40 text-[#A78BFA] hover:bg-[#5B21B6]/60",
         ghost: "bg-transparent hover:bg-[#2D2D2D] hover:text-white",
         link: "bg-transparent text-[#8B5CF6] underline-offset-4 hover:underline border-transparent",
         success: "bg-[#10B981] text-white hover:bg-[#10B981]/90",
-        info: "bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90",
-        warning: "bg-[#F59E0B] text-white hover:bg-[#F59E0B]/90",
+        info: "bg-[#1E40AF]/40 text-blue-500 hover:bg-[#1E40AF]/60",
+        warning: "bg-[#78350F]/40 text-yellow-500 hover:bg-[#78350F]/60",
         edit: "bg-[#6366F1] text-white hover:bg-[#6366F1]/90",
         settings: "bg-[#64748B] text-white hover:bg-[#64748B]/90",
         cyan: "bg-[#06B6D4] text-white hover:bg-[#06B6D4]/90",

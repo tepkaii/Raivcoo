@@ -3,9 +3,9 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { Buffer } from "buffer"; // Needed for Buffer.from
+import { Buffer } from "buffer";
 
-// --- Helper Types ---
+// --- Types ---
 interface Step {
   status: "pending" | "completed";
   is_final?: boolean;
@@ -20,10 +20,9 @@ interface Step {
     step_index?: number;
     comment_id?: string;
   };
-  name?: string; // Only for manual steps
+  name?: string;
 }
 
-// Define the structure for the JSONB comment data
 interface CommentData {
   text: string;
   timestamp: number;
@@ -31,83 +30,82 @@ interface CommentData {
   links?: { url: string; text: string }[];
 }
 
-// --- Constants for Image Upload ---
+// --- Constants ---
 const MAX_IMAGES_PER_COMMENT = 4;
-const IMAGE_MAX_SIZE_MB = 5; // 5MB limit for each image
+const IMAGE_MAX_SIZE_MB = 5;
 const IMAGE_MAX_SIZE_BYTES = IMAGE_MAX_SIZE_MB * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-// --- Image Upload Helper (using ImgBB) ---
+// --- Helpers ---
+function detectAndExtractLinks(text: string) {
+  const urlRegex = /(https?:\/\/[^\s<>"]+)/g;
+  const links: { url: string; text: string }[] = [];
+  let processedText = text;
+  const urlMatches = Array.from(text.matchAll(urlRegex));
+  urlMatches.forEach((match) => {
+    const url = match[0];
+    if (text.substring(match.index - 6, match.index) === "[LINK:") {
+      return;
+    }
+    let existingLinkIndex = links.findIndex((link) => link.url === url);
+    if (existingLinkIndex === -1) {
+      links.push({ url: url, text: url });
+      existingLinkIndex = links.length - 1;
+    }
+    processedText = processedText.replace(url, `[LINK:${existingLinkIndex}]`);
+  });
+  return { processedText, links };
+}
+
 async function uploadImageToImgBB(
   fileBuffer: Buffer,
   fileName: string,
   contentType: string
 ): Promise<string> {
-  // Validate file size
-  if (fileBuffer.length > IMAGE_MAX_SIZE_BYTES) {
+  if (fileBuffer.length > IMAGE_MAX_SIZE_BYTES)
     throw new Error(
       `File "${fileName}" size exceeds ${IMAGE_MAX_SIZE_MB}MB limit.`
     );
-  }
-
-  // Validate file type
-  if (!ACCEPTED_IMAGE_TYPES.includes(contentType)) {
+  if (!ACCEPTED_IMAGE_TYPES.includes(contentType))
     throw new Error(
-      `File "${fileName}" has an invalid type (${contentType}). Only JPEG, PNG, and WebP are supported.`
+      `File "${fileName}" has an invalid type. Only JPEG, PNG, WebP allowed.`
     );
-  }
 
   const formData = new FormData();
-  // ImgBB expects a Blob, create one from the Buffer
   formData.append("image", new Blob([fileBuffer], { type: contentType }));
-  // Optionally send the original filename, ImgBB might use it or generate its own
-  formData.append("name", fileName);
 
-  // Ensure the API key is set in your environment variables
   const apiKey = process.env.IMGBB_API_KEY;
   if (!apiKey) {
-    console.error("IMGBB_API_KEY environment variable is not set.");
-    throw new Error("Image upload service is not configured.");
+    console.error("IMGBB_API_KEY missing.");
+    throw new Error("Image upload service not configured.");
   }
 
   try {
     const response = await fetch(
       `https://api.imgbb.com/1/upload?key=${apiKey}`,
-      {
-        method: "POST",
-        body: formData,
-      }
+      { method: "POST", body: formData }
     );
-
     if (!response.ok) {
       const errorData = await response.json();
       console.error("ImgBB API Error:", errorData);
       throw new Error(
-        `Upload failed for "${fileName}": ${response.status} ${response.statusText} - ${errorData?.error?.message || "Unknown ImgBB error"}`
+        `Upload failed: ${response.statusText} - ${errorData?.error?.message || "ImgBB error"}`
       );
     }
-
     const data = await response.json();
-
     if (!data.data?.url) {
-      console.error("Invalid response structure from ImgBB:", data);
-      throw new Error(
-        `Invalid response from ImgBB after uploading "${fileName}".`
-      );
+      console.error("Invalid ImgBB response:", data);
+      throw new Error(`Invalid ImgBB response.`);
     }
-
-    console.log(`Successfully uploaded ${fileName} to ${data.data.url}`);
     return data.data.url;
   } catch (error) {
     console.error(`Error uploading ${fileName} to ImgBB:`, error);
-    // Re-throw a more specific error
     throw new Error(
-      `Failed to upload image "${fileName}": ${error instanceof Error ? error.message : String(error)}`
+      `Image upload failed: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }
 
-// --- Authorization Helper (Keep as is) ---
 async function verifyClientAuthorization(
   projectId: string
 ): Promise<{ user: any; client: any; project: any; error: string | null }> {
@@ -116,58 +114,49 @@ async function verifyClientAuthorization(
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
-
-  if (userError || !user) {
+  if (userError || !user)
     return {
       user: null,
       client: null,
       project: null,
       error: "Not authenticated.",
     };
-  }
-  if (!user.email) {
+  if (!user.email)
     return {
       user: null,
       client: null,
       project: null,
-      error: "User email not available for verification.",
+      error: "User email missing.",
     };
-  }
 
-  // Fetch project and its associated client's email
   const { data: projectData, error: projectError } = await supabase
     .from("projects")
-    .select(` id, client:clients (id, email) `) // Select client email via relationship
+    .select(`id, client:clients (id, email, name)`)
     .eq("id", projectId)
     .single();
-
   if (projectError || !projectData || !projectData.client) {
     console.error(
-      `Error fetching project ${projectId} or its client for auth check:`,
+      `Error fetching project ${projectId} or client:`,
       projectError
     );
     return {
       user,
       client: null,
       project: null,
-      error: "Project or client not found.",
+      error: "Project/Client not found.",
     };
   }
-
-  // Compare logged-in user's email with the client's email
   if (projectData.client.email !== user.email) {
     console.warn(
-      `Authorization Failed: User ${user.email} attempted action on project ${projectId} assigned to client ${projectData.client.email}`
+      `Auth Fail: User ${user.email} project ${projectId} client ${projectData.client.email}`
     );
     return {
       user,
       client: projectData.client,
       project: projectData,
-      error: "Unauthorized: You are not the assigned client for this project.",
+      error: "Unauthorized.",
     };
   }
-
-  // Authorized
   return {
     user,
     client: projectData.client,
@@ -176,52 +165,71 @@ async function verifyClientAuthorization(
   };
 }
 
-// --- EDITOR ACTIONS (Keep stubs as is) ---
+// --- EDITOR ACTIONS ---
 export async function createProject(formData: FormData) {
-  console.log("Placeholder for createProject");
-  return { message: "Project created " };
+  // NOTE: This function seems partially implemented in the original prompt reference
+  // It relies on editor_profiles and client verification not shown in full client-side auth helper
+  // Assuming it should be fully implemented elsewhere or is just a placeholder here.
+  console.log("Placeholder/Incomplete createProject called");
+  return { message: "Project created (placeholder)" };
 }
-export async function updateProjectTrack(
+
+export async function updateProjectTrackStepStatus(
   trackId: string,
   stepIndex: number,
   newStatus: "pending" | "completed",
   linkValue?: string
 ) {
-  console.log("Placeholder for updateProjectTrack");
-  return { message: "Track updated " };
+  // NOTE: Needs full implementation for editor context (auth, fetching track, updating steps array)
+  console.log("Placeholder updateProjectTrackStepStatus called");
+  return { message: "Step status updated (placeholder)" };
 }
+
+export async function updateStepContent(formData: FormData) {
+  // NOTE: Needs full implementation for editor context (auth, fetching track, processing text/links/images, updating steps array)
+  console.log("Placeholder updateStepContent called");
+  return { message: "Step content updated (placeholder)" };
+}
+
+export async function updateTrackStructure(
+  trackId: string,
+  newStepsStructure: Omit<Step, "status" | "deliverable_link" | "is_final">[]
+) {
+  // NOTE: Needs full implementation for editor context (auth, fetching track, merging old/new steps, updating steps array)
+  console.log("Placeholder updateTrackStructure called");
+  return { message: "Track structure updated (placeholder)" };
+}
+
 export async function completeTrackAndCreateNewRound(trackId: string) {
-  const message = `DEPRECATION/SECURITY WARNING: Editor attempted to call completeTrackAndCreateNewRound for track ${trackId}. This action must be initiated by the client.`;
+  const message = `DEPRECATION/SECURITY WARNING: Editor attempted to call completeTrackAndCreateNewRound for track ${trackId}. Client must initiate revisions.`;
   console.error(message);
   throw new Error(
-    "Operation not permitted for editor. Client must request revisions via the review page."
-  );
-}
-export async function completeProject(projectId: string) {
-  const message = `DEPRECATION/SECURITY WARNING: Editor attempted to call completeProject for project ${projectId}. This action must be initiated by the client.`;
-  console.error(message);
-  throw new Error(
-    "Operation not permitted for editor. Client must approve the project via the review page."
+    "Operation not permitted for editor. Client must request revisions."
   );
 }
 
-// --- CLIENT ACTIONS (Revised Implementations) ---
+export async function completeProject(projectId: string) {
+  const message = `DEPRECATION/SECURITY WARNING: Editor attempted to call completeProject for project ${projectId}. Client must approve.`;
+  console.error(message);
+  throw new Error(
+    "Operation not permitted for editor. Client must approve the project."
+  );
+}
+
+// --- CLIENT ACTIONS ---
 
 export async function addReviewComment(formData: FormData) {
   const supabase = await createClient();
-
-  // 1. Get User (Still needed for auth check)
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
   if (userError || !user) throw new Error("Not authenticated");
 
-  // 2. Extract data from FormData
   const trackId = formData.get("trackId") as string;
   const timestampString = formData.get("timestamp") as string;
-  const commentText = formData.get("commentText") as string;
-  const imageFiles = formData.getAll("images") as File[]; // Get all files attached
+  const commentText = formData.get("commentText") as string; // Contains placeholders from client
+  const imageFiles = formData.getAll("images") as File[];
   const linksString = formData.get("links") as string;
   let links;
   if (linksString) {
@@ -231,31 +239,21 @@ export async function addReviewComment(formData: FormData) {
       console.error("Error parsing links JSON:", e);
     }
   }
-  if (!trackId) throw new Error("Track ID is missing.");
-  if (!timestampString) throw new Error("Timestamp is missing.");
-  if (!commentText?.trim() && imageFiles.length === 0) {
-    throw new Error("Comment cannot be empty without images.");
-  }
+
+  if (!trackId || !timestampString) throw new Error("Required data missing.");
+  if (!commentText?.trim() && imageFiles.length === 0)
+    throw new Error("Comment cannot be empty.");
 
   const timestamp = parseFloat(timestampString);
-  if (isNaN(timestamp) || timestamp < 0) {
-    throw new Error("Invalid timestamp value.");
-  }
+  if (isNaN(timestamp) || timestamp < 0) throw new Error("Invalid timestamp.");
+  if (imageFiles.length > MAX_IMAGES_PER_COMMENT)
+    throw new Error(`Max ${MAX_IMAGES_PER_COMMENT} images.`);
 
-  // Limit number of images
-  if (imageFiles.length > MAX_IMAGES_PER_COMMENT) {
-    throw new Error(
-      `You can upload a maximum of ${MAX_IMAGES_PER_COMMENT} images per comment.`
-    );
-  }
-
-  // 3. Get Track and Project ID, then Verify Authorization
   const { data: trackData, error: trackError } = await supabase
     .from("project_tracks")
     .select("id, project_id, client_decision")
     .eq("id", trackId)
     .single();
-
   if (trackError || !trackData) throw new Error("Track not found.");
 
   const { client, error: authError } = await verifyClientAuthorization(
@@ -263,151 +261,277 @@ export async function addReviewComment(formData: FormData) {
   );
   if (authError || !client)
     throw new Error(authError || "Authorization failed.");
+  if (trackData.client_decision !== "pending")
+    throw new Error(`Decision (${trackData.client_decision}) submitted.`);
 
-  // 4. Prevent adding comments if decision already made
-  if (trackData.client_decision !== "pending") {
-    throw new Error(
-      `Cannot add comment: Decision (${trackData.client_decision}) already submitted.`
-    );
-  }
-
-  // 5. Upload Images (if any)
   const uploadedImageUrls: string[] = [];
   if (imageFiles.length > 0) {
-    console.log(`Attempting to upload ${imageFiles.length} images...`);
     try {
       const uploadPromises = imageFiles.map(async (file) => {
-        if (file.size === 0) {
-          // Skip empty file objects if they appear
-          console.warn(`Skipping empty file input: ${file.name}`);
-          return null;
-        }
-        // Convert File to Buffer
+        if (file.size === 0) return null;
         const buffer = Buffer.from(await file.arrayBuffer());
-        // Call the upload helper
         return await uploadImageToImgBB(buffer, file.name, file.type);
       });
-
       const results = await Promise.all(uploadPromises);
-      // Filter out null results (skipped files) and add valid URLs
       uploadedImageUrls.push(
         ...results.filter((url): url is string => url !== null)
       );
-      console.log(`Successfully uploaded ${uploadedImageUrls.length} images.`);
     } catch (uploadError) {
-      console.error("Error during image upload batch:", uploadError);
-      // Throw the specific error from uploadImageToImgBB or a general one
       throw uploadError instanceof Error
         ? uploadError
-        : new Error("Failed to upload one or more images.");
+        : new Error("Image upload failed.");
     }
   }
 
-  // 6. Prepare JSONB Comment Data
-  const commentData: CommentData = {
+  const commentDataToSave: CommentData = {
     text: commentText.trim(),
     timestamp: timestamp,
-    ...(uploadedImageUrls.length > 0 && { images: uploadedImageUrls }), // Conditionally add images array
-    ...(links && { links: links }), // Add links array if it exists
+    ...(uploadedImageUrls.length > 0 && { images: uploadedImageUrls }),
+    ...(links && links.length > 0 && { links: links }),
   };
 
-  // 7. Insert Comment into Supabase
   try {
     const { data: newCommentData, error: insertError } = await supabase
       .from("review_comments")
-      .insert({
-        track_id: trackId,
-        comment: commentData, // Insert the JSONB object
-        // timestamp column is removed
-      })
-      .select(`id, created_at, comment`) // Select needed fields, including the inserted comment JSONB
+      .insert({ track_id: trackId, comment: commentDataToSave })
+      .select(`id, created_at, comment`)
       .single();
+    if (insertError) throw new Error("Database error saving comment.");
 
-    if (insertError) {
-      console.error("Supabase error creating comment:", insertError);
-      throw new Error("Database error: Could not save comment.");
-    }
-
-    // 8. Revalidate the review page path
     revalidatePath(`/projects/${trackData.project_id}/review/${trackId}`);
-    // Potentially revalidate the main project page too if needed
-    // revalidatePath(`/projects/${trackData.project_id}`);
 
-    // Return the structured comment data as inserted
     return {
       message: "Comment added successfully",
       comment: {
-        // Reconstruct the full comment object for the client
         id: newCommentData.id,
         created_at: newCommentData.created_at,
-        comment: newCommentData.comment as CommentData, // Cast to CommentData type
-        commenter_display_name: client.name || user.email, // Assuming client has 'name' property
-        isOwnComment: true, // Mark as own comment for immediate display
+        comment: newCommentData.comment as CommentData,
+        commenter_display_name: client.name || user.email,
+        isOwnComment: true,
       },
     };
   } catch (error) {
-    console.error("Error in addReviewComment action:", error);
-    // Ensure error is propagated correctly
     throw error instanceof Error ? error : new Error("Failed to add comment.");
   }
 }
 
-// app/projects/actions.ts (updated clientRequestRevisions)
+export async function updateReviewComment(formData: FormData) {
+  const supabase = await createClient();
+  const commentId = formData.get("commentId") as string;
+  const newCommentText = formData.get("newCommentText") as string; // Plain text
+  const existingImagesString = formData.get("existingImages") as string; // JSON string array of URLs to keep
+  const newImageFiles = formData.getAll("newImages") as File[]; // New files to upload
+
+  if (!commentId || newCommentText === null || !existingImagesString)
+    throw new Error("Required data missing.");
+
+  let imagesToKeep: string[] = [];
+  try {
+    imagesToKeep = JSON.parse(existingImagesString);
+    if (!Array.isArray(imagesToKeep))
+      throw new Error("Invalid existing images format.");
+  } catch (e) {
+    throw new Error("Failed to parse existing images.");
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
+  const { data: commentData, error: commentError } = await supabase
+    .from("review_comments")
+    .select(
+      `id, comment, track_id, track:project_tracks!inner (id, project_id, client_decision)`
+    )
+    .eq("id", commentId)
+    .single();
+  if (commentError || !commentData || !commentData.track)
+    throw new Error("Comment/track not found.");
+
+  const { track } = commentData;
+  const { client, error: authError } = await verifyClientAuthorization(
+    track.project_id
+  );
+  if (authError || !client)
+    throw new Error(authError || "Authorization failed.");
+  if (track.client_decision !== "pending")
+    throw new Error(`Decision (${track.client_decision}) submitted.`);
+
+  // Upload New Images
+  const uploadedNewImageUrls: string[] = [];
+  if (newImageFiles.length > 0) {
+    const totalPotentialImages = imagesToKeep.length + newImageFiles.length;
+    if (totalPotentialImages > MAX_IMAGES_PER_COMMENT) {
+      // MAX_IMAGES_PER_COMMENT defined earlier
+      throw new Error(
+        `Cannot save comment: Exceeds maximum of ${MAX_IMAGES_PER_COMMENT} images.`
+      );
+    }
+    try {
+      const uploadPromises = newImageFiles
+        .filter((f) => f.size > 0)
+        .map(async (file) => {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          // Re-use existing upload helper
+          return await uploadImageToImgBB(buffer, file.name, file.type);
+        });
+      const results = await Promise.all(uploadPromises);
+      uploadedNewImageUrls.push(
+        ...results.filter((url): url is string => url !== null)
+      );
+    } catch (uploadError) {
+      console.error("Error uploading new images during update:", uploadError);
+      throw uploadError instanceof Error
+        ? uploadError
+        : new Error("Failed to upload one or more new images.");
+    }
+  }
+
+  // Combine image lists
+  const finalImageUrls = [...imagesToKeep, ...uploadedNewImageUrls];
+
+  // Process Text
+  const { processedText, links } = detectAndExtractLinks(newCommentText.trim());
+  const existingCommentJson = commentData.comment as CommentData;
+
+  // Create final JSONB, now including updated images array
+  const updatedCommentJsonb: CommentData = {
+    ...existingCommentJson,
+    text: processedText,
+    links: links,
+    images: finalImageUrls, // <<<<<<<<<<<< Use the combined list
+  };
+
+  // Prevent saving completely empty comment (no text, no images)
+  if (
+    !updatedCommentJsonb.text &&
+    (!updatedCommentJsonb.images || updatedCommentJsonb.images.length === 0)
+  ) {
+    throw new Error("Cannot save comment with no text and no images.");
+  }
+
+  // Update DB
+  try {
+    const { data: updatedData, error: updateError } = await supabase
+      .from("review_comments")
+      .update({ comment: updatedCommentJsonb })
+      .eq("id", commentId)
+      .select(`id, created_at, comment`)
+      .single();
+    if (updateError) throw new Error("Database error updating comment.");
+
+    revalidatePath(`/projects/${track.project_id}/review/${track.id}`);
+
+    return {
+      message: "Comment updated successfully",
+      comment: {
+        id: updatedData.id,
+        created_at: updatedData.created_at,
+        comment: updatedData.comment as CommentData,
+        commenter_display_name: client.name || user.email,
+        isOwnComment: true,
+      },
+    };
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to update comment.");
+  }
+}
+
+export async function deleteReviewComment(commentId: string) {
+  const supabase = await createClient();
+  if (!commentId) throw new Error("Comment ID missing.");
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Not authenticated");
+
+  const { data: commentData, error: commentError } = await supabase
+    .from("review_comments")
+    .select(
+      `id, track_id, track:project_tracks!inner (id, project_id, client_decision)`
+    )
+    .eq("id", commentId)
+    .single();
+  if (commentError || !commentData || !commentData.track) {
+    console.warn("Comment not found for delete:", commentError);
+    throw new Error("Comment/track not found.");
+  }
+
+  const { track } = commentData;
+  const { error: authError } = await verifyClientAuthorization(
+    track.project_id
+  );
+  if (authError) throw new Error(authError || "Authorization failed.");
+  if (track.client_decision !== "pending")
+    throw new Error(`Decision (${track.client_decision}) submitted.`);
+
+  try {
+    const { error: deleteError } = await supabase
+      .from("review_comments")
+      .delete()
+      .eq("id", commentId);
+    if (deleteError) throw new Error("Database error deleting comment.");
+
+    revalidatePath(`/projects/${track.project_id}/review/${track.id}`);
+    return { message: "Comment deleted successfully" };
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to delete comment.");
+  }
+}
+
 export async function clientRequestRevisions(trackId: string) {
   const supabase = await createClient();
-
-  // 1. Get Track & Project ID
   const { data: currentTrack, error: trackError } = await supabase
     .from("project_tracks")
     .select("id, project_id, round_number, client_decision")
     .eq("id", trackId)
     .single();
-
   if (trackError || !currentTrack) throw new Error("Track not found.");
 
-  // 2. Authorize Client
   const { error: authError } = await verifyClientAuthorization(
     currentTrack.project_id
   );
   if (authError) throw new Error(authError);
+  if (currentTrack.client_decision !== "pending")
+    throw new Error(`Decision already submitted.`);
 
-  // 3. Check if decision is pending
-  if (currentTrack.client_decision !== "pending") {
-    throw new Error(`Action not allowed: Decision already submitted.`);
-  }
-
-  // 4. Fetch comments
   const { data: commentsData, error: commentsError } = await supabase
     .from("review_comments")
     .select("id, comment, created_at")
     .eq("track_id", trackId)
     .order("comment->>timestamp", { ascending: true });
+  if (commentsError) throw new Error("Could not retrieve comments.");
 
-  if (commentsError) throw new Error("Could not retrieve feedback comments.");
-
-  // 5. Prepare steps from comments
-  const nextRoundSteps = (commentsData || []).map((comment, index) => ({
-    status: "pending" as const,
+  const nextRoundSteps: Step[] = (commentsData || []).map((c, i) => ({
+    status: "pending",
     metadata: {
       type: "comment",
-      comment_id: comment.id,
-      text: comment.comment.text,
-      ...comment.comment,
-      created_at: comment.created_at,
-      step_index: index,
+      comment_id: c.id,
+      text: c.comment.text,
+      timestamp: c.comment.timestamp,
+      images: c.comment.images || [],
+      links: c.comment.links || [],
+      created_at: c.created_at,
+      step_index: i,
     },
   }));
-
-  // Add final step
   nextRoundSteps.push({
-    status: "pending" as const,
+    name: "Finish Revisions",
+    status: "pending",
     is_final: true,
     deliverable_link: null,
   });
 
-  // 6. Execute revision request
   try {
-    const { data, error: rpcError } = await supabase.rpc(
+    const { error: rpcError } = await supabase.rpc(
       "handle_client_revision_request_v3",
       {
         p_current_track_id: trackId,
@@ -416,30 +540,23 @@ export async function clientRequestRevisions(trackId: string) {
         p_next_round_steps: nextRoundSteps,
       }
     );
-
     if (rpcError) throw rpcError;
-
-    // 7. Revalidate paths
     revalidatePath(`/projects/${currentTrack.project_id}`);
     revalidatePath(`/projects/${currentTrack.project_id}/review/${trackId}`);
-
+    revalidatePath(`/dashboard/projects/${currentTrack.project_id}`);
     return {
       success: true,
       message: `Revisions requested. Round ${currentTrack.round_number + 1} created.`,
     };
   } catch (error) {
-    console.error("Error in clientRequestRevisions:", error);
     throw new Error(
       error instanceof Error ? error.message : "Failed to request revisions"
     );
   }
 }
 
-// --- Client Approves the Final Project (Keep as is) ---
 export async function clientApproveProject(projectId: string, trackId: string) {
   const supabase = await createClient();
-
-  // 1. Authorize Client
   const {
     user,
     client,
@@ -448,49 +565,29 @@ export async function clientApproveProject(projectId: string, trackId: string) {
   if (authError || !client || !user)
     throw new Error(authError || "Authorization failed.");
 
-  // 2. Get current track's decision status
   const { data: trackData, error: trackError } = await supabase
     .from("project_tracks")
-    .select("id, client_decision, round_number")
+    .select("id, client_decision")
     .eq("id", trackId)
     .eq("project_id", projectId)
     .single();
+  if (trackError || !trackData) throw new Error("Track not found or invalid.");
+  if (trackData.client_decision !== "pending")
+    throw new Error(`Decision already submitted.`);
 
-  if (trackError || !trackData)
-    throw new Error("Track not found or doesn't belong to project.");
-  if (trackData.client_decision !== "pending") {
-    throw new Error(
-      `Action not allowed: Decision (${trackData.client_decision}) already submitted.`
-    );
-  }
-
-  // 4. Use Transaction (via RPC function is recommended)
   try {
     const { error: rpcError } = await supabase.rpc(
-      "handle_client_approval_v2", // Ensure this RPC function exists
-      {
-        p_project_id: projectId,
-        p_track_id: trackId,
-      }
+      "handle_client_approval_v2",
+      { p_project_id: projectId, p_track_id: trackId }
     );
-
-    if (rpcError) {
-      console.error("RPC error approving project:", rpcError);
-      throw new Error(`Database error: ${rpcError.message}`);
-    }
-
-    // 5. Revalidate paths
+    if (rpcError) throw new Error(`Database error: ${rpcError.message}`);
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/review/${trackId}`);
     revalidatePath("/projects");
+    revalidatePath(`/dashboard/projects/${projectId}`);
     if (client.id) revalidatePath(`/clients/${client.id}`);
-
-    console.log(
-      `Client ${user.email} approved project ${projectId} via track ${trackId}.`
-    );
     return { message: "Project approved successfully." };
   } catch (error) {
-    console.error("Error in clientApproveProject action:", error);
     throw error instanceof Error
       ? error
       : new Error("Failed to approve project.");

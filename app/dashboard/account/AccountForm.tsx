@@ -268,6 +268,19 @@ export default function AccountForm({
             )}
           </div>
           <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              type="password"
+              name="password"
+              id="password"
+              placeholder="Enter a new password"
+              className="mt-2"
+            />
+            <p className="text-sm text-muted-foreground mt-1">
+              Set a password for logging into the desktop app.
+            </p>
+          </div>
+          <div>
             <Label htmlFor="display_name">Display Name</Label>
             <div className="flex flex-col space-y-2">
               <div className="flex items-center space-x-2">

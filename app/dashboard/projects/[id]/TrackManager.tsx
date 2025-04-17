@@ -356,10 +356,10 @@ export default function TrackManager({
   const draggableIdPrefix = `step-${track.id}`; // Base for draggable IDs
 
   return (
-    <Card>
+    <Card className="border-2">
       <CardHeader className="pb-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-3 flex-wrap border-2 border-[#3F3F3F] border-dashed p-2 rounded-xl">
+          <div className="flex items-center gap-3 flex-wrap   rounded-xl">
             <CardTitle className="text-lg sm:text-xl">
               Round {track.round_number}
             </CardTitle>
@@ -562,7 +562,7 @@ export default function TrackManager({
                             />
                           )}
                         </div>
-                        <div className="p-3 border-2 border-dashed bg-[#1F1F1F] border-muted-foreground/30 rounded-md text-sm">
+                        <div className="p-3 border-2 border-dashed border-muted-foreground/30 rounded-md text-sm">
                           <StepCommentsSection
                             step={step}
                             isFinalStep={isFinalStep}

@@ -51,6 +51,7 @@
     "@vercel/speed-insights": "^1.0.12",
     "@vimeo/player": "^2.26.0",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cobe": "^0.6.3",
@@ -61,14 +62,14 @@
     "input-otp": "^1.2.4",
     "lucide-react": "^0.446.0",
     "motion": "^11.18.2",
-    "next": "^15.2.2",
+    "next": "15.3.0",
     "next-themes": "^0.3.0",
     "posthog-js": "^1.210.2",
     "process": "^0.11.10",
     "puppeteer": "^23.4.1",
-    "react": "^19.0.0",
+    "react": "19.1.0",
     "react-beautiful-dnd": "^13.1.1",
-    "react-dom": "^19.0.0",
+    "react-dom": "19.1.0",
     "react-easy-crop": "^5.2.0",
     "react-hook-form": "^7.53.0",
     "recharts": "^2.15.1",
@@ -79,13 +80,13 @@
     "uuid": "^11.0.5"
   },
   "devDependencies": {
-    "@next/eslint-plugin-next": "^15.2.2",
+    "@next/eslint-plugin-next": "15.3.0",
     "@types/bcrypt": "^5.0.2",
     "@types/lodash": "^4.17.10",
     "@types/node": "^20",
-    "@types/react": "19.0.10",
+    "@types/react": "19.1.2",
     "@types/react-beautiful-dnd": "^13.1.8",
-    "@types/react-dom": "19.0.4",
+    "@types/react-dom": "19.1.2",
     "@types/sharp": "^0.32.0",
     "@types/youtube": "^0.1.0",
     "eslint": "^9.22.0",
@@ -97,7 +98,7 @@
     "typescript": "^5"
   },
   "overrides": {
-    "@types/react": "19.0.10",
-    "@types/react-dom": "19.0.4"
+    "@types/react": "19.1.2",
+    "@types/react-dom": "19.1.2"
   }
 }

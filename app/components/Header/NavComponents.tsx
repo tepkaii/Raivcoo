@@ -7,13 +7,8 @@ import { FlaskConical } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/dashboard", label: "dashboard" },
-  // { href: "/feed", label: "Feed", icon: MessageSquare },
-  // { href: "/post", label: "Community", icon: Users },
-  // { href: "/links/edit", label: "Links page", icon: LinkIcon },
-  // { href: "/tools", label: "Tools" },
-  // { href: "/templates", label: "Templates" },
-  { href: "/membership", label: "pro", icon: FlaskConical },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/pricing", label: "Pricing", icon: FlaskConical },
 ];
 
 export function NavLinks() {

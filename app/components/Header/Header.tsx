@@ -174,14 +174,6 @@ function UserMenuItems({ account }: { account: any }) {
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild></DropdownMenuItem>
-      {account?.is_published && (
-        <DropdownMenuItem asChild>
-          <Link href={`/analytics`} className="flex items-center">
-            <ChartLine className="mr-2 h-4 w-4" />
-            <span>Analytics</span>
-          </Link>
-        </DropdownMenuItem>
-      )}
       <DropdownMenuSeparator />
       <DropdownMenuItem>
         <form action="/auth/signout" method="post" className="w-full">

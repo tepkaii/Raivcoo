@@ -157,10 +157,7 @@ export function EditableComment({
   const canAddMoreImages = totalImages < MAX_IMAGES_PER_COMMENT;
 
   return (
-    <div className=" rounded-lg p-4 space-y-3 border-2 border-[#3F3F3F] border-dashed bg-[#1F1F1F]  relative">
-      {/* Optional Cancel Button Logic */}
-      {/* {onCancel && ( <Button ... onClick={onCancel} ... /> )} */}
-
+    <div className=" rounded-lg p-4 space-y-3 border-2   relative">
       <RevButtons
         type="button"
         variant="outline"

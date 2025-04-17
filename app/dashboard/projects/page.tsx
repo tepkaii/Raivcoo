@@ -156,7 +156,7 @@ export default function AllProjectsPageClient() {
               return (
                 <Card
                   key={project.id}
-                  className="relative group overflow-hidden border-[2px] border-[#3F3F3F] bg-primary-foreground
+                  className="relative group overflow-hidden border-[2px] 
 "
                 >
                   {/* Status indicator line */}

@@ -6,7 +6,6 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
 import { BorderTrail } from "@/components/ui/border-trail";
 
 function AnimatedSection({ children, className }: any) {
@@ -72,10 +71,8 @@ const PricingCard = ({
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background text-foreground relative">
-      <GridBackground />
-      <Spotlight />
-      <div className="relative z-50">
+    <div className="min-h-screen bg-background text-foreground ">
+      <div className="">
         {/* Hero Section */}
         <section className="pt-32 pb-20 px-4 text-center container mx-auto">
           <motion.h1
@@ -103,20 +100,12 @@ export default function HomePage() {
             className="flex flex-col md:flex-row gap-4 justify-center mt-8"
           >
             <Link href="/signup">
-              <RevButtons
-                size="lg"
-                variant="default"
-                className="px-8 py-6 text-lg font-medium"
-              >
+              <RevButtons size="lg" variant="default">
                 Try Free – Just $3.99/mo
               </RevButtons>
             </Link>
             <Link href="/demo">
-              <RevButtons
-                size="lg"
-                variant="outline"
-                className="px-8 py-6 text-lg font-medium"
-              >
+              <RevButtons size="lg" variant="outline">
                 Explore Demo <ArrowRight className="ml-2 h-5 w-5" />
               </RevButtons>
             </Link>
@@ -482,11 +471,7 @@ export default function HomePage() {
                 extensions. 14-day free trial — no credit card required.
               </p>
               <Link href="/signup">
-                <RevButtons
-                  size="lg"
-                  variant="default"
-                  className="px-10 py-6 text-lg font-medium"
-                >
+                <RevButtons size="lg" variant="default">
                   Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </RevButtons>

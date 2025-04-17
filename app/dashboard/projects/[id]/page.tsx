@@ -294,10 +294,10 @@ export default async function page({ params }: { params: { id: string } }) {
         {tracksWithComments.length > 1 && (
           <div className="mt-16 ">
             <div className="text-lg font-semibold mt-6 mb-4">
-              <span className="inline-flex items-center gap-2 border-2 border-[#3F3F3F] border-dashed p-2 rounded-xl">
+              <span className="inline-flex items-center ">
                 Previous Rounds History{" "}
-                <RotateCcw className="h-4 w-4" size={32} strokeWidth={2.25} />
               </span>
+              <hr className="mt-4" />
             </div>
 
             {tracksWithComments
@@ -345,7 +345,6 @@ export default async function page({ params }: { params: { id: string } }) {
                           </Link>
                         </div>
                       </div>
-                      <hr />
                     </CardHeader>
 
                     {track.comments && track.comments.length > 0 && (

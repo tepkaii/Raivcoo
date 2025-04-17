@@ -4,7 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CommentTextWithLinks } from "@/app/review/[trackId]/ReviewPage"; // Adjust path if needed
+import { CommentTextWithLinks } from "./CommentRenderer";
 import { ExternalLink } from "lucide-react";
 import { Step } from "./TrackManager"; // Assuming Step type is exported from TrackManager or a shared types file
 import { TextShimmer } from "@/components/ui/text-shimmer";

@@ -38,13 +38,13 @@ export default async function DashboardLayout({
         <AppSidebar portfolio={portfolio} />
         <main className=" w-full">
           {" "}
-          <header className="border-[#3F3F3F] bg-primary-foreground border-b px-3  h-[50px]   flex justify-between items-center sticky top-0 z-1">
+          <header className="bg-background border-b px-3  h-[50px]   flex justify-between items-center sticky top-0 z-1">
             {" "}
-            <span className="border-[2px] border-[#3F3F3F] flex items-center justify-center rounded-md">
+            <span className="border-2 flex items-center justify-center rounded-md">
               <SidebarTrigger />{" "}
             </span>
           </header>
-          <div className="px-4 bg-muted/30">{children}</div>
+          <div className="px-4 bg-background">{children}</div>
         </main>
       </div>
     </SidebarProvider>

@@ -1,34 +1,14 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
 
 // RegExp for public files
 const PUBLIC_FILE = /\.(.*)$/;
 
-// Function to get valid subdomain
-function getValidSubdomain(host: string): string | null {
-  let subdomain: string | null = null;
-  const hostParts = host.split(".");
-
-  if (hostParts.length > 2) {
-    subdomain = hostParts[0];
-    // Add your reserved subdomains here
-    const reservedSubdomains = ["www", "app", "api", "admin"];
-    if (reservedSubdomains.includes(subdomain)) {
-      subdomain = null;
-    }
-  }
-
-  return subdomain;
-}
-//
 export async function middleware(req: NextRequest) {
   // Handle Supabase session update
   const res = await updateSession(req);
 
   const url = req.nextUrl.clone();
-  const host = req.headers.get("host") || "";
-  const subdomain = getValidSubdomain(host);
 
   // Skip public files and API routes
   if (
@@ -39,21 +19,7 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // Handle www subdomain
-  if (subdomain === "www") {
-    return res;
-  }
-
-  // Handle valid subdomains
-  if (subdomain) {
-    const newUrl = new URL(
-      `https://www.raivcoo.com/editors/${subdomain}${url.pathname}`
-    );
-    console.log(`>>> Redirecting: ${url.toString()} to ${newUrl.toString()}`);
-    return NextResponse.redirect(newUrl);
-  }
-
-  // Pass through for invalid or no subdomains
+  // Just return the updated session response
   return res;
 }
 
