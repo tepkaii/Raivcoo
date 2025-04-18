@@ -2,9 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons"; // Assuming this is your custom button
-import { Edit, PlusCircle } from "lucide-react";
+import { Edit } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,14 +39,6 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
           <Edit className="mr-2 h-4 w-4" />
           Edit Client
         </RevButtons>
-
-        {/* New Project Button - Remains a Link */}
-        <Link href={`/dashboard/projects/new?client=${client.id}`} passHref>
-          <RevButtons variant="success">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Project
-          </RevButtons>
-        </Link>
       </div>
 
       {/* Edit Dialog */}

@@ -19,7 +19,7 @@ export async function generateMetadata({
   params: { trackId: string };
 }): Promise<Metadata> {
   const supabase = await createClient();
-  const { trackId } = params;
+  const { trackId } = await params;
   if (!trackId || trackId === "undefined") {
     return { title: "Project Review", robots: { index: false, follow: false } };
   }
@@ -46,7 +46,7 @@ export default async function ReviewPageWrapper({
 }: {
   params: { trackId: string };
 }) {
-  const { trackId } = params;
+  const { trackId } = await params;
   const supabase = await createClient();
 
   if (!trackId || trackId === "undefined") {

@@ -278,12 +278,12 @@ export async function updateProjectTrackStepStatus(
   const updatedSteps = [...steps];
   updatedSteps[stepIndex] = updatedStep;
 
-  // 5. Save to database
+  // 5. Save to database with current timestamp for updated_at
   const { error: updateError } = await supabase
     .from("project_tracks")
     .update({
       steps: updatedSteps,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(), // Ensures updated_at is refreshed on each change
     })
     .eq("id", trackId);
 

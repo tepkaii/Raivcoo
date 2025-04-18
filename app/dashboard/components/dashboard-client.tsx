@@ -1,4 +1,3 @@
-// app/dashboard/dashboard-client.tsx
 "use client";
 
 import {
@@ -17,9 +16,9 @@ import {
   CheckCircle2,
   CircleDot,
   ChevronRight,
-  Layers,
-  CheckCircle,
   Circle,
+  Truck,
+  FolderOpenDot,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +48,7 @@ interface ProjectTrack {
   client_decision: string;
   steps: Step[];
   created_at: string;
+  updated_at: string;
 }
 
 interface Project {
@@ -58,12 +58,14 @@ interface Project {
   status: string;
   deadline?: string;
   created_at: string;
+  updated_at: string;
   client?: {
     id: string;
     name: string;
   };
   project_tracks?: ProjectTrack[];
   latestTrack?: ProjectTrack | null;
+  latestTrackUpdate?: string;
 }
 
 interface Client {
@@ -74,11 +76,11 @@ interface Client {
 }
 
 export function DashboardClient({
-  lastProject,
+  recentProjects,
   recentClients,
   stats,
 }: {
-  lastProject: Project | null;
+  recentProjects: Project[];
   recentClients: Client[];
   stats: {
     activeProjects: number;
@@ -87,7 +89,7 @@ export function DashboardClient({
     totalClients: number;
   };
 }) {
-  // Calculate progress for the latest track
+  // Calculate progress for a track
   const calculateTrackProgress = (track: ProjectTrack | undefined | null) => {
     if (!track || !track.steps?.length) return 0;
 
@@ -97,36 +99,29 @@ export function DashboardClient({
     return Math.round((completedSteps / track.steps.length) * 100);
   };
 
-  const trackProgress = lastProject?.latestTrack
-    ? calculateTrackProgress(lastProject.latestTrack)
+  // Get the most recent project (for the main card)
+  const mostRecentProject =
+    recentProjects.length > 0 ? recentProjects[0] : null;
+  const trackProgress = mostRecentProject?.latestTrack
+    ? calculateTrackProgress(mostRecentProject.latestTrack)
     : 0;
 
   const hasNewRound =
-    lastProject?.latestTrack &&
-    lastProject.latestTrack.steps?.length > 0 &&
-    lastProject.latestTrack.steps.every((step) => step.status === "pending");
+    mostRecentProject?.latestTrack &&
+    mostRecentProject.latestTrack.steps?.length > 0 &&
+    mostRecentProject.latestTrack.steps.every(
+      (step) => step.status === "pending"
+    );
 
   return (
     <div className="min-h-screen p-6 space-y-6">
       {/* Header and quick actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex  items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+            Dashboard
+          </h1>
           <p className="text-muted-foreground">Your video editing workspace</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/projects/new">
-            <RevButtons>
-              <Film className="mr-2 h-4 w-4" />
-              New Project
-            </RevButtons>
-          </Link>
-          <Link href="/dashboard/clients/new">
-            <RevButtons variant="outline">
-              <Users className="mr-2 h-4 w-4" />
-              Add Client
-            </RevButtons>
-          </Link>
         </div>
       </div>
 
@@ -160,136 +155,189 @@ export function DashboardClient({
 
       {/* Main Content Area */}
       <div className="grid gap-6">
-        {/* Last Project Section */}
-        <Card className="border-[2px] ">
+        {/* Recent Projects Section */}
+        <Card className="border-[2px]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Film className="h-5 w-5" />
-              {lastProject ? "Current Project" : "No Active Projects"}
+              Recent Projects
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {lastProject ? (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl  font-semibold">
-                      {lastProject.title}
-                    </h3>
-                    <span className="text-muted-foreground">|</span>
-                    <Badge variant={getStatusVariant(lastProject.status)}>
-                      {formatStatus(lastProject.status)}
-                    </Badge>
-                  </div>
-                  <Link href={`/dashboard/projects/${lastProject.id}`}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-
-                {/* Project Progress */}
-                {lastProject.latestTrack && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm font-medium">
-                          Round {lastProject.latestTrack.round_number}{" "}
-                          <span className="text-muted-foreground">|</span>
-                        </span>
-                        {hasNewRound ? (
-                          <Circle className="size-2 text-green-500" />
-                        ) : (
-                          <span className="text-muted-foreground text-sm">
-                            {" "}
-                            {lastProject.latestTrack.steps?.filter(
-                              (s) => s.status === "completed"
-                            ).length || 0}
-                            /{lastProject.latestTrack.steps?.length || 0} steps
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-sm font-medium">
-                        {trackProgress}%
-                      </span>
-                    </div>
-                    <Progress
-                      value={trackProgress}
-                      className="h-2"
-                      indicatorColor={
-                        lastProject.status === "completed"
-                          ? "bg-green-500"
-                          : lastProject.latestTrack.client_decision ===
-                              "approved"
-                            ? "bg-blue-500"
-                            : lastProject.latestTrack.client_decision ===
-                                "revisions_requested"
-                              ? "bg-yellow-500"
-                              : "bg-primary"
-                      }
-                    />
-                  </div>
-                )}
-
-                {/* Project Metadata */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 ">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">Created |</p>
-                    </div>
-                    <p>{formatFullDate(lastProject.created_at)}</p>
-                  </div>
-                  {lastProject.deadline && (
+          <CardContent className="space-y-6">
+            {mostRecentProject ? (
+              <>
+                {/* Main Project Card */}
+                <div className="space-y-4 p-4 border-2 border-dashed rounded-lg">
+                  <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-muted-foreground">Deadline</p>
-                        <p
-                          className={
-                            isDeadlineApproaching(lastProject.deadline)
-                              ? "text-orange-500"
-                              : ""
-                          }
-                        >
-                          {formatFullDate(lastProject.deadline)}
-                        </p>
+                      {/* <Badge>
+                        {mostRecentProject.status === "completed"
+                          ? "completed"
+                          : mostRecentProject.latestTrack.client_decision ===
+                              "approved"
+                            ? "approved"
+                            : mostRecentProject.latestTrack.client_decision ===
+                                "revisions_requested"
+                              ? "revisions_requested"
+                              : mostRecentProject.latestTrack
+                                    .client_decision === "pending"
+                                ? "pending"
+                                : ""}
+                      </Badge> */}
+                      <h3 className="text-xl font-semibold">
+                        {mostRecentProject.title}
+                      </h3>
+                      <span className="text-muted-foreground">|</span>
+                      <Badge
+                        variant={getStatusVariant(mostRecentProject.status)}
+                      >
+                        {formatStatus(mostRecentProject.status)}
+                      </Badge>
+                    </div>
+                    <Link href={`/dashboard/projects/${mostRecentProject.id}`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+
+                  {/* Project Progress */}
+                  {mostRecentProject.latestTrack && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-medium">
+                            Round {mostRecentProject.latestTrack.round_number}{" "}
+                            <span className="text-muted-foreground">|</span>
+                          </span>
+                          {hasNewRound ? (
+                            <Circle className="size-2 text-green-500" />
+                          ) : (
+                            <span className="text-muted-foreground text-sm">
+                              {mostRecentProject.latestTrack.steps?.filter(
+                                (s) => s.status === "completed"
+                              ).length || 0}
+                              /
+                              {mostRecentProject.latestTrack.steps?.length || 0}{" "}
+                              steps
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium">
+                          {trackProgress}%
+                        </span>
                       </div>
+                      <Progress value={trackProgress} />
                     </div>
                   )}
-                </div>
 
-                {/* Description */}
-                {lastProject.description && (
-                  <div className="pt-2">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {lastProject.description}
-                    </p>
+                  {/* Project Metadata */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-muted-foreground">Created |</p>
+                      </div>
+                      <p>{formatFullDate(mostRecentProject.created_at)}</p>
+                    </div>
+                    {mostRecentProject.deadline && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-muted-foreground">Deadline</p>
+                          <p
+                            className={
+                              isDeadlineApproaching(mostRecentProject.deadline)
+                                ? "text-orange-500"
+                                : ""
+                            }
+                          >
+                            {formatFullDate(mostRecentProject.deadline)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {/* Quick Actions */}
-                <div className="flex gap-2 pt-4">
-                  <Link href={`/dashboard/projects/${lastProject.id}`}>
-                    <RevButtons variant="outline" size="sm" className="gap-1">
-                      <Layers className="h-4 w-4" />
-                      View Project
-                    </RevButtons>
-                  </Link>
-                  {lastProject.latestTrack && (
-                    <Link href={`/review/${lastProject.latestTrack.id}`}>
+                  {/* Quick Actions */}
+                  <div className="flex gap-2 pt-4">
+                    <Link href={`/dashboard/projects/${mostRecentProject.id}`}>
                       <RevButtons variant="outline" size="sm" className="gap-1">
-                        <CheckCircle className="h-4 w-4" />
-                        Review
+                        <FolderOpenDot className="h-4 w-4" />
+                        View Project
                       </RevButtons>
                     </Link>
-                  )}
+                    {/* {mostRecentProject.latestTrack && (
+                      <Link
+                        href={`/review/${mostRecentProject.latestTrack.id}`}
+                      >
+                        <RevButtons
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Review
+                        </RevButtons>
+                      </Link>
+                    )} */}
+                    <Link href={`/live-track/${mostRecentProject.id}`}>
+                      <RevButtons variant="outline" size="sm" className="gap-1">
+                        <Truck className="h-4 w-4" />
+                        Live Track
+                      </RevButtons>
+                    </Link>
+                  </div>
                 </div>
-              </div>
+
+                {/* Additional Projects List */}
+                {recentProjects.length > 1 && (
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">
+                      Other Recent Projects
+                    </h4>
+                    {recentProjects.slice(1).map((project) => (
+                      <div
+                        key={project.id}
+                        className="flex items-center justify-between px-1 py-3 hover:bg-muted/50 rounded-lg transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium">{project.title}</h4>
+                            </div>
+
+                            <div className="flex items-center mt-2 gap-2 text-sm">
+                              {project.latestTrack && (
+                                <span className="text-muted-foreground">
+                                  Round {project.latestTrack.round_number}
+                                </span>
+                              )}
+                              <span className="text-muted-foreground">|</span>
+                              <Badge variant={getStatusVariant(project.status)}>
+                                {formatStatus(project.status)}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <Link href={`/dashboard/projects/${project.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 space-y-2">
                 <Film className="h-8 w-8 text-muted-foreground" />
@@ -300,10 +348,17 @@ export function DashboardClient({
               </div>
             )}
           </CardContent>
+          <CardFooter className="border-t pt-4">
+            <Link href="/dashboard/projects" className="w-full">
+              <RevButtons variant="outline" className="w-full">
+                View All Projects
+              </RevButtons>
+            </Link>
+          </CardFooter>
         </Card>
 
         {/* Recent Clients Section */}
-        <Card className="border-[2px] ">
+        <Card className="border-[2px]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -370,7 +425,7 @@ export function DashboardClient({
   );
 }
 
-// StatCard component
+// StatCard component (unchanged)
 function StatCard({
   title,
   value,
@@ -402,11 +457,12 @@ function StatCard({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className="text-2xl font-bold">{value}</p>
           </div>
           <div
             className={`rounded-[5px] flex items-center border-2 justify-center size-8 ${iconClasses[variant]}`}
           >
-            <h3 className="font-bold ">{value}</h3>
+            {icon}
           </div>
         </div>
       </CardContent>
@@ -414,7 +470,7 @@ function StatCard({
   );
 }
 
-// Helper functions
+// Helper functions (unchanged)
 function formatStatus(status: string): string {
   if (!status) return "Unknown";
   return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());

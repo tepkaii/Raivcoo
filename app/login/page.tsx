@@ -35,7 +35,7 @@ export default async function LoginPage() {
 
     // Now correctly redirect based on condition
     if (isProfileIncomplete) {
-      redirect("/complete-profile");
+      redirect("/token-copy-page");
     } else {
       redirect("/"); // Changed from "/complete-profile" to "/"
     }

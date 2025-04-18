@@ -74,7 +74,7 @@ export default async function page() {
   return (
     <div className="min-h-screen  py-6 space-y-6 ">
       <div className="flex justify-between items-center">
-        <div className="flex justify-between items-center gap-4 flex-wrap  pb-4">
+        <div className="flex justify-between items-center w-full gap-4 flex-wrap border-b pb-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
               My Clients
@@ -84,16 +84,10 @@ export default async function page() {
             </p>
           </div>
         </div>
-        <Link href="/dashboard/clients/new" passHref>
-          <RevButtons variant="success">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Client
-          </RevButtons>
-        </Link>
       </div>
 
       {clients && clients.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1  gap-4">
           {/* Use the imported ClientCard component */}
           {clients.map((client) => (
             <ClientCard key={client.id} client={client} />

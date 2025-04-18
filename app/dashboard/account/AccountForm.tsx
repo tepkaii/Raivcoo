@@ -7,7 +7,6 @@ import { RevButtons } from "@/components/ui/RevButtons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -41,6 +40,7 @@ const MAX_FULL_NAME_LENGTH = 30;
 const MIN_DISPLAY_NAME_LENGTH = 3;
 const MAX_DISPLAY_NAME_LENGTH = 20;
 //
+
 export default function AccountForm({
   Account,
   updateAccount,
@@ -193,8 +193,8 @@ export default function AccountForm({
     <form onSubmit={handleSubmit} className="min-h-screen">
       <Card className="border-0 bg-transparent">
         <CardContent className="space-y-4 mt-4">
-          <div className="flex flex-col border-[2px] border-[#3F3F3F] bg-primary-foreground  sm:flex-row items-center justify-between p-4 rounded-lg sm:p-6 gap-4 sm:gap-4">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full sm:w-auto">
+          <div className="flex flex-col   justify-between p-4 rounded-lg sm:p-6 gap-4 sm:gap-4">
+            <div className="flex flex-col  items-center  gap-4 sm:gap-6 w-full ">
               {/* Avatar Section */}
               <div
                 className={`relative group cursor-pointer rounded-full  `}
@@ -203,7 +203,7 @@ export default function AccountForm({
                 }
               >
                 <div className="relative">
-                  <Avatar className="h-24 w-24 sm:h-20 sm:w-20 rounded-lg border-2">
+                  <Avatar className="h-24 w-24  rounded-lg border-2">
                     <AvatarImage
                       src={previewAvatarUrl || Account.avatar_url}
                       loading="lazy"
@@ -235,17 +235,13 @@ export default function AccountForm({
               </div>
 
               {/* User Info Section */}
-              <div className="flex flex-col items-center mt-0 sm:mt-4 sm:items-start text-center sm:text-left">
-                <h2 className="sm:text-xl text-2xl font-semibold">
-                  {Account.full_name}
-                </h2>
+              <div className="flex flex-col items-center mt-0 text-center">
+                <h2 className=" text-2xl font-semibold">{Account.full_name}</h2>
                 <p className="sm:text-sm text-base text-muted-foreground mt-1">
                   @{Account.display_name}
                 </p>
               </div>
             </div>
-
-            {/* Availability Switch */}
           </div>
           <div>
             <Label htmlFor="full_name">Full Name</Label>

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { CreateClient as createClientAction } from "../actions";
 import { Metadata } from "next";
-import { ClientForm } from "../[id]/components/client/ClientForm";
+import { ClientForm } from "../[id]/components/ClientForm";
 
 export const metadata: Metadata = {
   title: "Add New Client - Video Editor Dashboard",

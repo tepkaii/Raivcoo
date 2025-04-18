@@ -14,7 +14,7 @@ const badgeVariants = cva(
         secondary: "bg-[#5B21B6]/40 text-[#A78BFA] hover:bg-[#5B21B6]/60",
         ghost: "bg-transparent hover:bg-[#2D2D2D] hover:text-white",
         link: "bg-transparent text-[#8B5CF6] underline-offset-4 hover:underline border-transparent",
-        success: "bg-[#10B981] text-white hover:bg-[#10B981]/90",
+        success: "bg-[#064E3B]/40 text-green-500 hover:bg-[#064E3B]/60",
         info: "bg-[#1E40AF]/40 text-blue-500 hover:bg-[#1E40AF]/60",
         warning: "bg-[#78350F]/40 text-yellow-500 hover:bg-[#78350F]/60",
         edit: "bg-[#6366F1] text-white hover:bg-[#6366F1]/90",

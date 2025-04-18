@@ -640,27 +640,6 @@ export default function TrackManager({
                 <Copy className="h-4 w-4 mr-2" /> Copy Client Review Link
               </RevButtons>
             </div>
-            {isAwaitingClient && (
-              <div className="text-center text-sm  p-3 bg-[#F59E0B] rounded-md  border-[2px] border-[#3F3F3F] flex items-center justify-center gap-2">
-                <Hourglass className="h-4 w-4 " /> Waiting for client
-                feedback...
-              </div>
-            )}
-            {isClientActionDone && (
-              <div
-                className={`text-center text-sm p-3 border-[2px] border-[#3F3F3F] rounded-md  flex items-center justify-center gap-2 ${track.client_decision === "approved" ? "bg-[#10B981] " : "bg-[#F43F5E]"}`}
-              >
-                {track.client_decision === "approved" ? (
-                  <ShieldCheck className="h-4 w-4" />
-                ) : (
-                  <ShieldX className="h-4 w-4" />
-                )}
-                Client decision:{" "}
-                <span className="font-medium">
-                  {track.client_decision.replace("_", " ")}
-                </span>
-              </div>
-            )}
           </div>
         )}
       </CardContent>

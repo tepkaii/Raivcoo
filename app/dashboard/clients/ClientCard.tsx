@@ -242,7 +242,7 @@ export function ClientCard({ client }: ClientCardProps) {
                 setDeleteState({ loading: false, error: null });
                 setShowDeleteDialog(true);
               }}
-              className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer"
+              className="text-red-600 focus:text-red-700 cursor-pointer"
             >
               Delete Client
             </DropdownMenuItem>

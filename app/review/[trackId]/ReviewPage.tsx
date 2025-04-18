@@ -611,9 +611,9 @@ export default function ReviewPage({
 
           {isDecisionMade && (
             <div
-              className={`p-4 border-2 border-dashed rounded-md ${track.clientDecision === "approved" ? "bg-green-600 border-green-700 text-primary-foreground" : "bg-red-600 border-red-700 text-primary-foreground"}`}
+              className={`p-4 border-2 border-dashed rounded-md ${track.clientDecision === "approved" ? "bg-[#064E3B]/40 hover:bg-[#064E3B]/60 text-green-500 " : "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60"}`}
             >
-              <div className="flex items-center gap-2 font-semibold">
+              <div className="flex items-center  gap-2 font-semibold">
                 {track.clientDecision === "approved" ? (
                   <ThumbsUp className="h-5 w-5" />
                 ) : (
@@ -623,7 +623,7 @@ export default function ReviewPage({
                   ? "Project Approved"
                   : "Revisions Requested"}
               </div>
-              <p className="text-sm opacity-90 mt-1 pl-7">
+              <p className="text-sm   opacity-90 mt-1 pl-7">
                 {track.clientDecision === "approved"
                   ? "No further action needed."
                   : "The editor has been notified."}

@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { updateProject } from "../../actions";
+import { updateProject } from "../../clients/[id]/actions";
 import { RevButtons } from "@/components/ui/RevButtons";
 
 // Type for project data needed for editing

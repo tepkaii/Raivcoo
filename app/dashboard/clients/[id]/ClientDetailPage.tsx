@@ -1,7 +1,17 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Progress } from "@/components/ui/progress";
 import {
   Mail,
   Phone,
@@ -18,42 +28,134 @@ import {
   Clapperboard,
   Link2,
   Copy,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  ChevronRight,
+  FolderOpenDot,
+  Truck,
+  Circle,
 } from "lucide-react";
-import Link from "next/link";
-import { ClientDetailActions } from "./components/client/ClientDetailActions";
-import {
-  ProjectActionsDropdown,
-  type ProjectDataForActions,
-} from "./components/project/ProjectActionsDropdown";
+import { ClientDetailActions } from "./components/ClientDetailActions";
+import { ProjectEditDialog } from "../../projects/components/ProjectEditDialog";
+import { ProjectDeleteDialog } from "../../projects/components/ProjectDeleteDialog";
 
-type ClientData = {
+interface Step {
+  name: string;
+  status: "pending" | "completed";
+  is_final?: boolean;
+  deliverable_link?: string;
+  metadata?: {
+    text?: string;
+    type?: string;
+    links?: any[];
+    images?: string[];
+    created_at?: string;
+    step_index?: number;
+  };
+}
+
+interface ProjectTrack {
+  id: string;
+  round_number: number;
+  status: string;
+  client_decision: string;
+  steps: Step[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface Project {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  deadline?: string;
+  created_at: string;
+  updated_at: string;
+  client?: {
+    id: string;
+    name: string;
+  };
+  project_tracks?: ProjectTrack[];
+  latestTrack?: ProjectTrack | null;
+  latestTrackUpdate?: string | null;
+}
+
+interface ClientData {
   id: string;
   name: string;
   company: string | null;
   email: string | null;
   phone: string | null;
   notes: string | null;
-};
+}
 
-type ProjectWithTracksForClientPage = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string | null;
-  deadline: string | null;
-  created_at: string;
-  project_tracks: { round_number: number }[] | null;
-};
+type BadgeVariant =
+  | "default"
+  | "secondary"
+  | "destructive"
+  | "outline"
+  | "success"
+  | "warning"
+  | "info";
 
 export default function ClientDetailPage({
   client,
   projects,
 }: {
   client: ClientData;
-  projects: ProjectWithTracksForClientPage[];
+  projects: Project[];
 }) {
+  const [editDialogState, setEditDialogState] = useState<{
+    isOpen: boolean;
+    project: Project | null;
+  }>({ isOpen: false, project: null });
+
+  const [deleteDialogState, setDeleteDialogState] = useState<{
+    isOpen: boolean;
+    projectId: string;
+    projectTitle: string;
+  }>({ isOpen: false, projectId: "", projectTitle: "" });
+
+  const handleSelect = (event: Event) => event.preventDefault();
+
+  // Calculate progress for a track
+  const calculateTrackProgress = (track: ProjectTrack | undefined | null) => {
+    if (!track || !track.steps?.length) return 0;
+    const completedSteps = track.steps.filter(
+      (step) => step.status === "completed"
+    ).length;
+    return Math.round((completedSteps / track.steps.length) * 100);
+  };
+
+  // Check if it's a new round (all steps pending)
+  const isNewRound = (track: ProjectTrack | undefined | null) => {
+    if (!track || !track.steps?.length) return false;
+    return track.steps.every((step) => step.status === "pending");
+  };
+
   return (
     <div className="min-h-screen py-6 space-y-8">
+      {/* Dialogs */}
+      {editDialogState.project && (
+        <ProjectEditDialog
+          project={editDialogState.project}
+          isOpen={editDialogState.isOpen}
+          setIsOpen={(isOpen) =>
+            setEditDialogState({ ...editDialogState, isOpen })
+          }
+        />
+      )}
+      <ProjectDeleteDialog
+        projectId={deleteDialogState.projectId}
+        projectTitle={deleteDialogState.projectTitle}
+        isOpen={deleteDialogState.isOpen}
+        setIsOpen={(isOpen) =>
+          setDeleteDialogState({ ...deleteDialogState, isOpen })
+        }
+      />
+
       <Link
         href="/dashboard/clients"
         className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 mb-2 group"
@@ -145,20 +247,8 @@ export default function ClientDetailPage({
           {projects.length > 0 ? (
             <div className="grid gap-4">
               {projects.map((project) => {
-                const latestRound =
-                  project.project_tracks?.length > 0
-                    ? Math.max(
-                        ...project.project_tracks.map((t) => t.round_number)
-                      )
-                    : 0;
-
-                const projectForActions: ProjectDataForActions = {
-                  id: project.id,
-                  title: project.title,
-                  description: project.description,
-                  deadline: project.deadline,
-                };
-
+                const trackProgress = calculateTrackProgress(project.latestTrack);
+                const newRound = isNewRound(project.latestTrack);
                 const statusIcon = getStatusIcon(project.status);
                 const statusVariant = getStatusVariant(project.status);
                 const liveTrackUrl = `/live-track/${project.id}`;
@@ -166,121 +256,207 @@ export default function ClientDetailPage({
                 return (
                   <Card
                     key={project.id}
-                    className="relative group overflow-hidden rounded-md"
+                    className="relative group overflow-hidden border-[2px]"
                   >
                     <div
-                      className={`absolute left-0 top-0 bottom-0 w-1 bg-${
-                        statusVariant === "default" ? "primary" : statusVariant
+                      className={`absolute left-0 top-0 bottom-0 w-1 ${
+                        statusVariant === "default"
+                          ? "bg-primary"
+                          : `bg-${statusVariant}`
                       }`}
                     />
 
-                    <div className="flex">
-                      <Link
-                        href={`/dashboard/projects/${project.id}`}
-                        className="flex-1 min-w-0 hover:bg-muted/10 transition-colors"
-                      >
-                        <CardContent className="p-5">
-                          <div className="flex items-start">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
-                                    {project.title}
-                                  </h3>
-                                  {latestRound > 0 && (
-                                    <Badge
-                                      variant="outline"
-                                      className="flex items-center gap-1 py-0 h-5"
-                                    >
-                                      <Layers className="h-3 w-3" />
-                                      <span>Round {latestRound}</span>
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 mt-2 mb-3">
+                    <CardContent className="p-5">
+                      <div className="flex items-start">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Link
+                                href={`/dashboard/projects/${project.id}`}
+                                className="font-semibold text-lg truncate group-hover:text-primary transition-colors"
+                              >
+                                {project.title}
+                              </Link>
+                              {project.latestTrack?.round_number && (
                                 <Badge
-                                  variant={statusVariant}
-                                  className="flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium"
+                                  variant="outline"
+                                  className="flex items-center gap-1 py-0 h-5"
                                 >
-                                  {statusIcon}
-                                  {formatStatus(project.status)}
-                                </Badge>
-                              </div>
-
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 min-h-[2.5rem]">
-                                {project.description || (
-                                  <span className="italic">
-                                    No description provided
+                                  <Layers className="h-3 w-3" />
+                                  <span>
+                                    Round {project.latestTrack.round_number}
                                   </span>
-                                )}
-                              </p>
+                                </Badge>
+                              )}
+                            </div>
 
-                              <div className="flex justify-between items-center mt-auto pt-2 border-t border-border/50 text-xs flex-wrap gap-y-2">
-                                <div className="flex items-center gap-4 flex-wrap">
-                                  <div className="flex items-center gap-1 text-muted-foreground">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    <span>
-                                      {formatDate(project.created_at)}
-                                    </span>
-                                  </div>
-
-                                  {project.deadline && (
-                                    <div className="flex items-center gap-1 text-muted-foreground">
-                                      <Clock className="h-3.5 w-3.5" />
-                                      <span>
-                                        {formatDate(project.deadline)}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-2">
+                            <DropdownMenu modal={false}>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 data-[state=open]:bg-muted"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">
+                                    Project Actions
+                                  </span>
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    handleSelect(e);
+                                    setEditDialogState({
+                                      isOpen: true,
+                                      project,
+                                    });
+                                  }}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  <span>Edit Details</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={handleSelect} asChild>
+                                  <Link
+                                    href={`/dashboard/projects/${project.id}`}
+                                    className="flex items-center"
+                                  >
+                                    <FolderOpenDot className="mr-2 h-4 w-4" />
+                                    <span>View Project</span>
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={handleSelect} asChild>
                                   <Link
                                     href={liveTrackUrl}
-                                    className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                                    title="Live Track Link"
-                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex items-center"
                                   >
-                                    <Link2 className="h-4 w-4" />
-                                    <span className="text-xs hidden sm:inline">
-                                      Live Link
-                                    </span>
+                                    <Truck className="mr-2 h-4 w-4" />
+                                    <span>Live Track</span>
                                   </Link>
-                                  <button
-                                    className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                                    title="Copy Live Track Link"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      navigator.clipboard.writeText(
-                                        `${window.location.origin}${liveTrackUrl}`
-                                      );
-                                    }}
-                                  >
-                                    <Copy className="h-4 w-4" />
-                                    <span className="text-xs hidden sm:inline">
-                                      Copy
-                                    </span>
-                                  </button>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-500"
+                                  onSelect={(e) => {
+                                    handleSelect(e);
+                                    setDeleteDialogState({
+                                      isOpen: true,
+                                      projectId: project.id,
+                                      projectTitle: project.title,
+                                    });
+                                  }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  <span>Delete Project</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-2 mb-3">
+                            <Badge
+                              variant={statusVariant}
+                              className="flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium"
+                            >
+                              {statusIcon}
+                              {formatStatus(project.status)}
+                            </Badge>
+                          </div>
+
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3 min-h-[2.5rem]">
+                            {project.description || (
+                              <span className="italic">
+                                No description provided
+                              </span>
+                            )}
+                          </p>
+
+                          {/* Progress bar for projects with tracks */}
+                          {project.latestTrack && (
+                            <div className="space-y-2 mb-4">
+                              <div className="flex w-full justify-between items-center">
+                                <div className="flex w-full justify-between items-center gap-2">
+                                  <span className="text-sm font-medium">
+                                    {newRound ? (
+                                      <div className=" flex items-center gap-1">
+                                        <span className="text-muted-foreground text-sm">
+                                          {
+                                            project.latestTrack.steps.filter(
+                                              (s) => s.status === "completed"
+                                            ).length
+                                          }
+                                          /{project.latestTrack.steps.length}{" "}
+                                          steps
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                          <Circle className="size-2 text-green-500" />
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">
+                                        {
+                                          project.latestTrack.steps.filter(
+                                            (s) => s.status === "completed"
+                                          ).length
+                                        }
+                                        /{project.latestTrack.steps.length} steps
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="text-sm font-medium">
+                                    {trackProgress}%
+                                  </span>
                                 </div>
                               </div>
+                              <Progress value={trackProgress} />
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center mt-auto pt-2 border-t border-border/50 text-xs flex-wrap gap-y-2">
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>{formatDate(project.created_at)}</span>
+                              </div>
+
+                              {project.deadline && (
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  <span>{formatDate(project.deadline)}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Link
+                                href={liveTrackUrl}
+                                className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
+                                title="Live Track Link"
+                              >
+                                <Link2 className="h-4 w-4" />
+                                <span className="text-xs hidden sm:inline">
+                                  Live Link
+                                </span>
+                              </Link>
+                              <button
+                                className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
+                                title="Copy Live Track Link"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    `${window.location.origin}${liveTrackUrl}`
+                                  );
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                                <span className="text-xs hidden sm:inline">
+                                  Copy
+                                </span>
+                              </button>
                             </div>
                           </div>
-                        </CardContent>
-                      </Link>
-
-                      <div
-                        className="p-2 flex items-center"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                      >
-                        <ProjectActionsDropdown project={projectForActions} />
+                        </div>
                       </div>
-                    </div>
+                    </CardContent>
                   </Card>
                 );
               })}
@@ -303,12 +479,12 @@ export default function ClientDetailPage({
 }
 
 // Helper functions
-function formatStatus(status: string | null): string {
+function formatStatus(status: string | undefined | null): string {
   if (!status) return "Unknown";
   return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function formatDate(dateString: string | null): string {
+function formatDate(dateString: string | undefined | null): string {
   if (!dateString) return "N/A";
   return new Date(dateString).toLocaleDateString(undefined, {
     year: "numeric",
@@ -317,7 +493,7 @@ function formatDate(dateString: string | null): string {
   });
 }
 
-function getStatusIcon(status: string | null) {
+function getStatusIcon(status: string | undefined | null) {
   switch (status?.toLowerCase()) {
     case "completed":
       return <CheckCircle2 className="h-3 w-3" />;
@@ -333,16 +509,7 @@ function getStatusIcon(status: string | null) {
   }
 }
 
-type BadgeVariant =
-  | "default"
-  | "secondary"
-  | "destructive"
-  | "outline"
-  | "success"
-  | "warning"
-  | "info";
-
-function getStatusVariant(status: string | null): BadgeVariant {
+function getStatusVariant(status: string | undefined | null): BadgeVariant {
   switch (status?.toLowerCase()) {
     case "completed":
       return "success";

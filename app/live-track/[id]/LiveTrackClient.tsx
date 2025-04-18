@@ -10,8 +10,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import {
-  Calendar,
-  Clock,
   ExternalLink,
   ShieldCheck,
   ShieldX,
@@ -19,8 +17,9 @@ import {
   Flag,
 } from "lucide-react";
 import Image from "next/image";
-import { CommentTextWithLinks } from "@/app/review/[trackId]/ReviewPage";
+import { CommentTextWithLinks } from "@/app/dashboard/projects/[id]/CommentRenderer";
 import { TextShimmer } from "@/components/ui/text-shimmer";
+import { Badge } from "@/components/ui/badge";
 
 interface Project {
   id: string;
@@ -77,7 +76,7 @@ export default function LiveTrackClient({
   formattedComments: Comment[];
 }) {
   return (
-    <div className=" p-6 min-h-screen bg-primary-foreground">
+    <div className=" p-6 min-h-screen ">
       <div className="mb-3">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold">{project.title}</h1>
@@ -119,14 +118,14 @@ export default function LiveTrackClient({
               </CardDescription>
             </div>
             {activeTrack.client_decision && (
-              <span
-                className={`flex items-center gap-1 px-3 py-1 rounded-[5px] text-xs font-medium ${
+              <Badge
+                variant={
                   activeTrack.client_decision === "approved"
-                    ? "bg-green-100 text-green-800"
+                    ? "success"
                     : activeTrack.client_decision === "revisions_requested"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-blue-100 text-blue-800"
-                }`}
+                      ? "destructive"
+                      : "info"
+                }
               >
                 {activeTrack.client_decision === "approved" ? (
                   <ShieldCheck className="h-4 w-4" />
@@ -140,7 +139,7 @@ export default function LiveTrackClient({
                   : activeTrack.client_decision === "revisions_requested"
                     ? "Revisions Requested"
                     : "Pending Review"}
-              </span>
+              </Badge>
             )}
           </div>
         </CardHeader>
@@ -167,12 +166,7 @@ export default function LiveTrackClient({
                 const isFinalStep = index === activeTrack.steps.length - 1;
 
                 return (
-                  <div
-                    key={index}
-                    className={`p-4  border-2 rounded-md ${
-                      step.status === "completed" ? "bg-muted/10" : ""
-                    }`}
-                  >
+                  <Card key={index} className={`p-4 `}>
                     <div className="flex flex-col items-start gap-2">
                       <RevButtons
                         variant={
@@ -195,7 +189,7 @@ export default function LiveTrackClient({
                       </RevButtons>
                       <div className="flex-1 w-full ">
                         {isFinalStep && (
-                          <div className=" p-4 mt-2 bg-[#1F1F1F] border-2 border-dashed rounded-md text-sm">
+                          <div className=" p-4 mt-2  border-2 border-dashed rounded-md text-sm">
                             <div className="flex items-center gap-2">
                               <Flag className="h-4 w-4" />
                               <h3 className="font-medium">Round Completion</h3>
@@ -229,7 +223,7 @@ export default function LiveTrackClient({
                         {step.metadata && (
                           <div className="mt-2 space-y-3">
                             {step.metadata.text && (
-                              <div className="p-3 bg-[#1F1F1F] border-2 border-dashed rounded-md text-sm">
+                              <div className="p-3  border-2 border-dashed rounded-md text-sm">
                                 <CommentTextWithLinks
                                   text={step.metadata.text}
                                   links={step.metadata.links}
@@ -285,7 +279,7 @@ export default function LiveTrackClient({
                         )}
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
           </div>
@@ -362,15 +356,16 @@ export default function LiveTrackClient({
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           {track.client_decision && (
-                            <span
-                              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            <RevButtons
+                              size="sm"
+                              variant={
                                 track.client_decision === "approved"
-                                  ? "bg-green-100 text-green-800"
+                                  ? "success"
                                   : track.client_decision ===
                                       "revisions_requested"
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-blue-100 text-blue-800"
-                              }`}
+                                    ? "destructive"
+                                    : "info"
+                              }
                             >
                               {track.client_decision === "approved"
                                 ? "Approved"
@@ -378,7 +373,7 @@ export default function LiveTrackClient({
                                     "revisions_requested"
                                   ? "Revisions"
                                   : "Pending"}
-                            </span>
+                            </RevButtons>
                           )}
                           {finalStep?.deliverable_link && (
                             <Link

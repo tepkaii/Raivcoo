@@ -41,7 +41,7 @@ import {
   Loader2,
   PlusCircle,
 } from "lucide-react";
-import { updateClient, deleteClient } from "../../../actions"; // Import actions from the new file
+import { updateClient, deleteClient } from "../../actions"; // Import actions from the new file
 import Link from "next/link"; // Import Link for New Project button
 import { RevButtons } from "@/components/ui/RevButtons";
 
