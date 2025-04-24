@@ -1,4 +1,3 @@
-// app/dashboard/projects/[id]/TrackManager.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
@@ -6,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,20 +19,15 @@ import {
   ShieldCheck,
   ShieldX,
   Edit,
-  GripVertical,
-  Save,
+  Video,
+  Image as ImageIcon,
 } from "lucide-react";
 
 import { StepCommentsSection } from "./StepCommentsSection";
-import { EditableComment } from "./EditableComment";
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from "@hello-pangea/dnd";
+import { EditableStepsList } from "../EditableStepsList";
 import { RevButtons } from "@/components/ui/RevButtons";
 
+// --- Interfaces ---
 export interface Step {
   name?: string;
   status: "pending" | "completed";
@@ -59,6 +54,7 @@ interface Track {
   steps: Step[];
   created_at: string;
   updated_at: string;
+  final_deliverable_media_type?: "video" | "image" | null;
 }
 
 interface TrackManagerProps {
@@ -67,7 +63,8 @@ interface TrackManagerProps {
     trackId: string,
     stepIndex: number,
     status: "pending" | "completed",
-    linkValue?: string
+    linkValue?: string,
+    finalMediaType?: "video" | "image"
   ) => Promise<any>;
   updateTrackStructure: (
     trackId: string,
@@ -76,6 +73,7 @@ interface TrackManagerProps {
   updateStepContent: (formData: FormData) => Promise<any>;
 }
 
+// --- Component ---
 export default function TrackManager({
   track,
   updateProjectTrackStepStatus,
@@ -85,6 +83,9 @@ export default function TrackManager({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<number | null>(null);
   const [isSubmittingDeliverable, setIsSubmittingDeliverable] = useState(false);
   const [deliverableLink, setDeliverableLink] = useState("");
+  const [deliverableMediaType, setDeliverableMediaType] = useState<
+    "video" | "image" | ""
+  >("");
   const [isCommentsEditMode, setIsCommentsEditMode] = useState(false);
   const [editableSteps, setEditableSteps] = useState<Step[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
@@ -109,7 +110,8 @@ export default function TrackManager({
 
   useEffect(() => {
     setDeliverableLink(finalStepOriginal?.deliverable_link || "");
-  }, [finalStepOriginal?.deliverable_link]);
+    setDeliverableMediaType(track.final_deliverable_media_type || "");
+  }, [finalStepOriginal?.deliverable_link, track.final_deliverable_media_type]);
 
   const allOtherStepsCompletedOriginal = useMemo(
     () =>
@@ -120,19 +122,40 @@ export default function TrackManager({
         : originalSteps.every((step) => step.status === "completed"),
     [originalSteps, finalStepIndexOriginal]
   );
-
   const isFinalStepCompletedOriginal =
     finalStepOriginal?.status === "completed";
   const isAwaitingClient =
     isFinalStepCompletedOriginal && track.client_decision === "pending";
   const isClientActionDone = track.client_decision !== "pending";
+  const isTrackComplete =
+    allOtherStepsCompletedOriginal && isFinalStepCompletedOriginal;
 
   const handleUpdateStepStatus = useCallback(
-    async (stepIndex: number, newStatus: "pending" | "completed") => {
+    async (
+      stepIndex: number,
+      newStatus: "pending" | "completed",
+      linkValueOverride?: string,
+      mediaTypeValueOverride?: "video" | "image"
+    ) => {
       if (isClientActionDone) return;
       const stepToUpdate = originalSteps[stepIndex];
       if (!stepToUpdate) return;
       const isFinal = stepToUpdate.is_final;
+
+      // Only allow updating the final step if all other steps are completed
+      // or allow reverting a completed step to pending
+      if (!isFinal && isTrackComplete && newStatus === "completed") {
+        toast({
+          title: "Action Not Allowed",
+          description: "You must revert the final submission first.",
+        });
+        return;
+      }
+
+      const linkForCheck = isFinal ? deliverableLink : linkValueOverride;
+      const typeForCheck = isFinal
+        ? deliverableMediaType
+        : mediaTypeValueOverride;
 
       if (
         isFinal &&
@@ -142,35 +165,52 @@ export default function TrackManager({
         toast({
           title: "Action Required",
           description: "All other steps must be complete first.",
-          variant: "default",
         });
         return;
       }
-      if (isFinal && newStatus === "completed" && !deliverableLink.trim()) {
+      if (isFinal && newStatus === "completed" && !linkForCheck?.trim()) {
         toast({
           title: "Action Required",
           description: "Please provide the deliverable link.",
-          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        isFinal &&
+        newStatus === "completed" &&
+        linkForCheck?.trim() &&
+        !typeForCheck
+      ) {
+        toast({
+          title: "Action Required",
+          description: "Please select the deliverable media type.",
         });
         return;
       }
 
       setIsUpdatingStatus(stepIndex);
       try {
-        const linkParam =
+        const finalLinkParam =
           isFinal && newStatus === "completed" ? deliverableLink : undefined;
+        const finalTypeParam =
+          isFinal && newStatus === "completed"
+            ? deliverableMediaType
+            : undefined;
+
         await updateProjectTrackStepStatus(
           track.id,
           stepIndex,
           newStatus,
-          linkParam
+          finalLinkParam,
+          finalTypeParam as "video" | "image" | undefined
         );
-        if (isFinal && newStatus === "pending") setDeliverableLink("");
+
+        if (isFinal && newStatus === "pending") {
+          setDeliverableLink("");
+          setDeliverableMediaType("");
+        }
       } catch (error: any) {
-        console.error(
-          `Error updating step ${stepIndex} to ${newStatus}:`,
-          error
-        );
+        console.error(`Error updating step ${stepIndex}:`, error);
         toast({
           title: "Error",
           description: error.message || `Failed to update step`,
@@ -185,8 +225,10 @@ export default function TrackManager({
       originalSteps,
       allOtherStepsCompletedOriginal,
       deliverableLink,
+      deliverableMediaType,
       updateProjectTrackStepStatus,
       track.id,
+      isTrackComplete,
     ]
   );
 
@@ -198,6 +240,14 @@ export default function TrackManager({
         toast({
           title: "Error",
           description: "Please provide a deliverable link",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!deliverableMediaType) {
+        toast({
+          title: "Error",
+          description: "Please select the deliverable media type.",
           variant: "destructive",
         });
         return;
@@ -219,6 +269,7 @@ export default function TrackManager({
       finalStepIndexOriginal,
       isClientActionDone,
       deliverableLink,
+      deliverableMediaType,
       allOtherStepsCompletedOriginal,
       handleUpdateStepStatus,
     ]
@@ -245,7 +296,6 @@ export default function TrackManager({
           description: "Step content updated.",
           variant: "success",
         });
-        // Data refreshes via revalidation
       } catch (error) {
         console.error("Error updating step content:", error);
         toast({
@@ -256,84 +306,52 @@ export default function TrackManager({
               : "Failed to update step content",
           variant: "destructive",
         });
-        throw error; // Allow EditableComment to handle its state
+        throw error;
       }
     },
-    [updateStepContent, track.id, isClientActionDone] // Include track.id dependency
+    [updateStepContent, isClientActionDone]
   );
 
-  const onDragEnd = (result: DropResult) => {
-    const { source, destination } = result;
-    if (!destination || destination.index === source.index) return;
+  const handleSaveStepsChanges = useCallback(
+    async (updatedSteps: Step[]) => {
+      if (!updateTrackStructure || isClientActionDone) return;
+      setIsSavingOrder(true);
+      try {
+        const newStructure = updatedSteps
+          .filter((step) => !step.is_final)
+          .map((step) => ({
+            name: step.name,
+            metadata: {
+              comment_id: step.metadata?.comment_id,
+              text: step.metadata?.text,
+              images: step.metadata?.images,
+              links: step.metadata?.links,
+              type: step.metadata?.type,
+              created_at: step.metadata?.created_at,
+            },
+          }));
 
-    const sourceStep = editableSteps[source.index];
-    const nonFinalStepsCount = editableSteps.filter((s) => !s.is_final).length;
-
-    if (sourceStep.is_final) {
-      toast({
-        title: "Action Denied",
-        description: "The 'Final Deliverable' step cannot be reordered.",
-        variant: "warning",
-      });
-      return;
-    }
-    if (destination.index >= nonFinalStepsCount) {
-      toast({
-        title: "Action Denied",
-        description:
-          "Steps cannot be placed after the 'Final Deliverable' step.",
-        variant: "warning",
-      });
-      return;
-    }
-
-    const items = Array.from(editableSteps);
-    const [reorderedItem] = items.splice(source.index, 1);
-    items.splice(destination.index, 0, reorderedItem);
-    setEditableSteps(items);
-  };
-
-  const handleSaveOrder = async () => {
-    if (!updateTrackStructure || !isCommentsEditMode || isClientActionDone)
-      return;
-    setIsSavingOrder(true);
-    try {
-      // Prepare structure excluding the final step for the action
-      const newStructure = editableSteps
-        .filter((step) => !step.is_final)
-        .map((step) => ({
-          name: step.name, // Pass existing name
-          metadata: {
-            // Pass relevant metadata, esp. comment_id
-            comment_id: step.metadata?.comment_id,
-            text: step.metadata?.text,
-            images: step.metadata?.images,
-            links: step.metadata?.links,
-            type: step.metadata?.type,
-            created_at: step.metadata?.created_at,
-            // DO NOT PASS status, is_final, deliverable_link
-          },
-        }));
-
-      await updateTrackStructure(track.id, newStructure);
-      toast({
-        title: "Success",
-        description: "Workflow order updated.",
-        variant: "success",
-      });
-      setIsCommentsEditMode(false); // Exit edit mode on success
-    } catch (error) {
-      console.error("Error saving order:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to save order",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingOrder(false);
-    }
-  };
+        await updateTrackStructure(track.id, newStructure);
+        toast({
+          title: "Success",
+          description: "Workflow steps updated.",
+          variant: "success",
+        });
+        setIsCommentsEditMode(false);
+      } catch (error) {
+        console.error("Error saving steps:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error ? error.message : "Failed to save steps",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSavingOrder(false);
+      }
+    },
+    [updateTrackStructure, track.id, isClientActionDone]
+  );
 
   let displayStatus = "In Progress";
   let statusVariant: "warning" | "success" | "info" | "destructive" = "warning";
@@ -353,13 +371,30 @@ export default function TrackManager({
   }
 
   const stepsToRender = isCommentsEditMode ? editableSteps : originalSteps;
-  const draggableIdPrefix = `step-${track.id}`; // Base for draggable IDs
+
+  // Determine if we should show links section (only when track not complete or final step not submitted)
+  const shouldShowLinks = !isTrackComplete || isClientActionDone;
+
+  // Determine if we should show final step submission section
+  const shouldShowFinalSubmission =
+    !isCommentsEditMode &&
+    finalStepOriginal &&
+    !isFinalStepCompletedOriginal &&
+    allOtherStepsCompletedOriginal &&
+    !isClientActionDone;
+
+  // Determine if we should show completed deliverable section with revert option
+  const shouldShowDeliverableCompleted =
+    !isCommentsEditMode &&
+    finalStepOriginal &&
+    isFinalStepCompletedOriginal &&
+    !isClientActionDone;
 
   return (
     <Card className="border-2">
       <CardHeader className="pb-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-3 flex-wrap   rounded-xl">
+          <div className="flex items-center gap-3 flex-wrap rounded-xl">
             <CardTitle className="text-lg sm:text-xl">
               Round {track.round_number}
             </CardTitle>
@@ -374,34 +409,18 @@ export default function TrackManager({
           {!isClientActionDone && (
             <div className="flex items-center gap-2">
               {isCommentsEditMode ? (
-                <>
-                  <RevButtons
-                    variant="success"
-                    size="sm"
-                    className="flex items-center gap-1"
-                    onClick={handleSaveOrder}
-                    disabled={isSavingOrder}
-                  >
-                    {isSavingOrder ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">Save Order</span>
-                  </RevButtons>
-                  <RevButtons
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
-                    onClick={() => {
-                      setIsCommentsEditMode(false);
-                      setEditableSteps(originalSteps);
-                    }}
-                    disabled={isSavingOrder}
-                  >
-                    Cancel
-                  </RevButtons>
-                </>
+                <RevButtons
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => {
+                    setIsCommentsEditMode(false);
+                    setEditableSteps(originalSteps);
+                  }}
+                  disabled={isSavingOrder}
+                >
+                  Cancel Editing
+                </RevButtons>
               ) : (
                 <RevButtons
                   variant="info"
@@ -411,7 +430,7 @@ export default function TrackManager({
                     setEditableSteps([...originalSteps]);
                     setIsCommentsEditMode(true);
                   }}
-                  disabled={isClientActionDone}
+                  disabled={isClientActionDone || isTrackComplete}
                 >
                   <Edit className="h-4 w-4" />
                   <span className="hidden sm:inline">Edit Steps</span>
@@ -425,152 +444,104 @@ export default function TrackManager({
       <CardContent>
         {stepsToRender.length > 0 ? (
           isCommentsEditMode ? (
-            <DragDropContext onDragEnd={onDragEnd}>
-              <Droppable droppableId={`steps-${track.id}`}>
-                {(provided) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className="space-y-3"
-                  >
-                    {stepsToRender.map((step, index) => {
-                      const isFinalStep = step.is_final;
-                      // Use comment_id for stability if available, otherwise index
-                      const draggableId = `${draggableIdPrefix}-${step.metadata?.comment_id || `index-${index}`}`;
-                      const isDragDisabled = isFinalStep;
-
-                      return (
-                        <Draggable
-                          key={draggableId}
-                          draggableId={draggableId}
-                          index={index}
-                          isDragDisabled={isDragDisabled}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              className={`flex items-start gap-2 p-1 rounded ${snapshot.isDragging ? "" : ""} ${isFinalStep ? "opacity-70 bg-muted/30 pl-8" : ""}`}
-                            >
-                              {!isFinalStep && (
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className="p-2 cursor-grab hover:bg-accent rounded mt-8"
-                                >
-                                  <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                              )}
-                              <div className="flex-1">
-                                {isFinalStep ? (
-                                  <div className="border rounded-lg p-4 h-[180px] flex items-center justify-center text-muted-foreground italic bg-card"></div>
-                                ) : (
-                                  <EditableComment
-                                    trackId={track.id}
-                                    step={step}
-                                    index={index}
-                                    onSave={handleSaveStepContent}
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      );
-                    })}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+            <EditableStepsList
+              trackId={track.id}
+              steps={editableSteps}
+              onSave={handleSaveStepsChanges}
+              onCancel={() => {
+                setIsCommentsEditMode(false);
+                setEditableSteps(originalSteps);
+              }}
+              updateStepContent={handleSaveStepContent}
+              isSaving={isSavingOrder}
+            />
           ) : (
             <div className="space-y-3">
               {stepsToRender.map((step, index) => {
+                if (step.is_final) return null; // Skip final step rendering here
+
                 const isCompleted = step.status === "completed";
-                const isFinalStep = step.is_final;
                 const isLoadingStatus = isUpdatingStatus === index;
-                const canInteract = !isClientActionDone;
-                const canRevert = isCompleted && canInteract;
-                const canComplete = !isCompleted && canInteract && !isFinalStep;
+                const canInteract =
+                  !isClientActionDone && (!isTrackComplete || !isCompleted);
+                const canRevert =
+                  isCompleted && canInteract && !isTrackComplete;
+                const canComplete = !isCompleted && canInteract;
+
                 const viewKey = `step-view-${track.id}-${step.metadata?.comment_id || index}`;
 
                 return (
-                  <>
-                    <div
-                      key={viewKey}
-                      className={`flex flex-col y ${isClientActionDone ? "bg-muted/50 opacity-75" : ""}`}
-                    >
-                      <div className="flex justify-end items-end w-full mb-3">
-                        <div className="flex items-center gap-1.5 flex-wrap justify-end w-full sm:w-auto pl-7 sm:pl-0 mt-2 sm:mt-0">
-                          {canRevert && (
-                            <RevButtons
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                handleUpdateStepStatus(index, "pending")
-                              }
-                              disabled={isLoadingStatus}
-                              title="Revert to pending"
-                              className={
-                                isLoadingStatus
-                                  ? "cursor-not-allowed opacity-50"
-                                  : ""
-                              }
-                            >
-                              {isLoadingStatus ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <ArrowLeft className="h-4 w-4 mr-1" />
-                              )}
-                              <span className="hidden sm:inline">Revert</span>
-                            </RevButtons>
-                          )}
-                          {canComplete && (
-                            <RevButtons
-                              size="sm"
-                              variant="success"
-                              onClick={() =>
-                                handleUpdateStepStatus(index, "completed")
-                              }
-                              disabled={isLoadingStatus}
-                              title="Mark as complete"
-                              className={
-                                isLoadingStatus
-                                  ? "cursor-not-allowed opacity-50"
-                                  : ""
-                              }
-                            >
-                              {isLoadingStatus ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                                  ...
-                                </>
-                              ) : (
-                                "Mark Complete"
-                              )}
-                            </RevButtons>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex  gap-2">
-                        <div className="">
-                          {isCompleted ? (
-                            <CheckCircle className="text-green-500 h-5 w-5 flex-shrink-0" />
-                          ) : (
-                            <Clock
-                              className={`h-5 w-5 flex-shrink-0 ${!isClientActionDone ? "text-blue-500" : "text-gray-400"}`}
-                            />
-                          )}
-                        </div>
-                        <div className="p-3 border-2 border-dashed border-muted-foreground/30 rounded-md text-sm">
-                          <StepCommentsSection
-                            step={step}
-                            isFinalStep={isFinalStep}
-                          />
-                        </div>
+                  <div
+                    key={viewKey}
+                    className={`flex flex-col ${isClientActionDone || (isTrackComplete && isCompleted) ? "bg-muted/50 opacity-75" : ""}`}
+                  >
+                    <div className="flex justify-end items-end w-full mb-3">
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end w-full sm:w-auto pl-7 sm:pl-0 mt-2 sm:mt-0">
+                        {canRevert && (
+                          <RevButtons
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleUpdateStepStatus(index, "pending")
+                            }
+                            disabled={isLoadingStatus}
+                            title="Revert to pending"
+                            className={
+                              isLoadingStatus
+                                ? "cursor-not-allowed opacity-50"
+                                : ""
+                            }
+                          >
+                            {isLoadingStatus ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <ArrowLeft className="h-4 w-4 mr-1" />
+                            )}
+                            <span className="hidden sm:inline">Revert</span>
+                          </RevButtons>
+                        )}
+                        {canComplete && (
+                          <RevButtons
+                            size="sm"
+                            variant="success"
+                            onClick={() =>
+                              handleUpdateStepStatus(index, "completed")
+                            }
+                            disabled={isLoadingStatus}
+                            title="Mark as complete"
+                            className={
+                              isLoadingStatus
+                                ? "cursor-not-allowed opacity-50"
+                                : ""
+                            }
+                          >
+                            {isLoadingStatus ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ...
+                              </>
+                            ) : (
+                              "Mark Complete"
+                            )}
+                          </RevButtons>
+                        )}
                       </div>
                     </div>
-                  </>
+                    <div className="flex gap-2">
+                      <div className="">
+                        {isCompleted ? (
+                          <CheckCircle className="text-green-500 h-5 w-5 flex-shrink-0" />
+                        ) : (
+                          <Clock
+                            className={`h-5 w-5 flex-shrink-0 ${!isClientActionDone ? "text-blue-500" : "text-gray-400"}`}
+                          />
+                        )}
+                      </div>
+                      <div className="flex-1 p-3 border-2 border-dashed border-muted-foreground/30 rounded-md text-sm">
+                        <StepCommentsSection step={step} isFinalStep={false} />
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -581,50 +552,135 @@ export default function TrackManager({
           </div>
         )}
 
-        {!isCommentsEditMode &&
-          stepsToRender.length > 0 &&
-          !isFinalStepCompletedOriginal &&
-          finalStepIndexOriginal !== -1 &&
-          allOtherStepsCompletedOriginal &&
-          !isClientActionDone && (
-            <form
-              onSubmit={handleSubmitDeliverable}
-              className="mt-5 pt-4 border-t"
-            >
+        {shouldShowFinalSubmission && (
+          <form
+            onSubmit={handleSubmitDeliverable}
+            className="mt-5 pt-4 border-t space-y-4"
+          >
+            <Label className="font-medium text-base block">
+              Submit Final Deliverable (Round {track.round_number})
+            </Label>
+            <div>
               <Label
                 htmlFor={`deliverable-link-${track.id}`}
-                className="font-medium mb-2 text-base block"
+                className="text-sm font-normal"
               >
-                Submit Deliverable Link (Final Step)
+                Deliverable Link
               </Label>
-              <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                <Input
-                  id={`deliverable-link-${track.id}`}
-                  type="url"
-                  placeholder="Paste shareable link..."
-                  value={deliverableLink}
-                  onChange={(e) => setDeliverableLink(e.target.value)}
-                  className="flex-1 h-10"
-                  required
-                  disabled={isSubmittingDeliverable}
-                />
-                <RevButtons
-                  type="submit"
-                  variant="success"
-                  className="h-10"
-                  disabled={!deliverableLink.trim() || isSubmittingDeliverable}
-                  title="Submit and Complete Round"
-                >
-                  {isSubmittingDeliverable ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                  ) : null}
-                  Submit & Complete Round
-                </RevButtons>
-              </div>
-            </form>
-          )}
+              <Input
+                id={`deliverable-link-${track.id}`}
+                type="url"
+                placeholder="Paste shareable video or image link..."
+                value={deliverableLink}
+                onChange={(e) => setDeliverableLink(e.target.value)}
+                className="flex-1 h-10"
+                required
+                disabled={isSubmittingDeliverable}
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-normal mb-2 block">
+                Media Type
+              </Label>
+              <RadioGroup
+                value={deliverableMediaType}
+                onValueChange={(value: "video" | "image") =>
+                  setDeliverableMediaType(value)
+                }
+                className="flex gap-4"
+                disabled={isSubmittingDeliverable}
+                required
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="video" id={`type-video-${track.id}`} />
+                  <Label
+                    htmlFor={`type-video-${track.id}`}
+                    className="flex items-center gap-1 cursor-pointer"
+                  >
+                    {" "}
+                    <Video className="h-4 w-4" /> Video
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="image" id={`type-image-${track.id}`} />
+                  <Label
+                    htmlFor={`type-image-${track.id}`}
+                    className="flex items-center gap-1 cursor-pointer"
+                  >
+                    {" "}
+                    <ImageIcon className="h-4 w-4" /> Image
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+            <div className="flex justify-end">
+              <RevButtons
+                type="submit"
+                variant="success"
+                className="h-10"
+                disabled={
+                  !deliverableLink.trim() ||
+                  !deliverableMediaType ||
+                  isSubmittingDeliverable
+                }
+                title="Submit and Complete Round"
+              >
+                {isSubmittingDeliverable && (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                )}
+                Submit & Complete Round
+              </RevButtons>
+            </div>
+          </form>
+        )}
 
-        {!isCommentsEditMode && (
+        {shouldShowDeliverableCompleted && (
+          <div className="mt-5 pt-4 border-t space-y-2">
+            <Label className="font-medium text-base block text-green-600">
+              Deliverable Submitted (Awaiting Client Review)
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Link:{" "}
+              <a
+                href={finalStepOriginal.deliverable_link || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline break-all"
+              >
+                {finalStepOriginal.deliverable_link}
+              </a>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Type:{" "}
+              <span className="capitalize">
+                {track.final_deliverable_media_type || "N/A"}
+              </span>
+            </p>
+            <RevButtons
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                handleUpdateStepStatus(finalStepIndexOriginal, "pending")
+              }
+              disabled={isUpdatingStatus === finalStepIndexOriginal}
+              title="Revert submission"
+              className={
+                isUpdatingStatus === finalStepIndexOriginal
+                  ? "cursor-not-allowed opacity-50"
+                  : ""
+              }
+            >
+              {isUpdatingStatus === finalStepIndexOriginal ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <ArrowLeft className="h-4 w-4 mr-1" />
+              )}
+              Revert Submission
+            </RevButtons>
+          </div>
+        )}
+
+        {!isCommentsEditMode && isTrackComplete && !isClientActionDone && (
           <div className="mt-6 border-t pt-4 space-y-3">
             <div className="flex flex-col sm:flex-row gap-2">
               <Link href={`/review/${track.id}`} passHref className="flex-1">

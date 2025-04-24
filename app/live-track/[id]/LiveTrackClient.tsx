@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   ExternalLink,
@@ -15,11 +16,16 @@ import {
   ShieldX,
   Hourglass,
   Flag,
+  Calendar,
+  Clock,
+  ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
 import { CommentTextWithLinks } from "@/app/dashboard/projects/[id]/CommentRenderer";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 interface Project {
   id: string;
@@ -75,47 +81,120 @@ export default function LiveTrackClient({
   activeTrack: Track;
   formattedComments: Comment[];
 }) {
-  return (
-    <div className=" p-6 min-h-screen ">
-      <div className="mb-3">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">{project.title}</h1>
-          <p className="text-muted-foreground">| Live Track View</p>
-        </div>
+  // Calculate track progress
+  const calculateTrackProgress = (track: Track) => {
+    if (!track || !track.steps?.length) return 0;
 
-        {/* <div className="flex items-center gap-4 mt-2 text-sm">
-          <span className="flex items-center text-muted-foreground">
-            <Calendar className="h-4 w-4 mr-1" />
-            Created {new Date(project.created_at).toLocaleDateString()}
-          </span>
-          {project.deadline && (
-            <span className="flex items-center text-muted-foreground">
-              <Clock className="h-4 w-4 mr-1" />
-              Due {new Date(project.deadline).toLocaleDateString()}
-            </span>
-          )}
-          <span
-            className={`px-2 py-1 rounded-[5px] text-xs font-medium ${
-              project.status === "completed"
-                ? "bg-green-100 text-green-800"
-                : "bg-amber-100 text-amber-800"
-            }`}
-          >
-            {project.status === "completed" ? "Completed" : "Active"}
-          </span>
-        </div> */}
+    const completedSteps = track.steps.filter(
+      (step) => step.status === "completed"
+    ).length;
+    return Math.round((completedSteps / track.steps.length) * 100);
+  };
+
+  const trackProgress = calculateTrackProgress(activeTrack);
+
+  // Format date function
+  const formatFullDate = (dateString: string | undefined | null): string => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+
+    // For consistent formatting across locales including Arabic
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }).format(date);
+    } catch (error) {
+      // Fallback to basic formatting if Intl fails
+      return `${date.toDateString()} ${date.toTimeString().substring(0, 5)}`;
+    }
+  };
+
+  // Check if deadline is approaching
+  const isDeadlineApproaching = (
+    deadline: string | undefined | null
+  ): boolean => {
+    if (!deadline) return false;
+    const deadlineDate = new Date(deadline);
+    const now = new Date();
+    const diffDays = Math.ceil(
+      (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return diffDays <= 3;
+  };
+
+  // Get status variant
+  const getStatusVariant = (status: string | undefined | null) => {
+    switch (status?.toLowerCase()) {
+      case "completed":
+        return "success";
+      case "active":
+        return "info";
+      case "in_progress":
+        return "warning";
+      case "on_hold":
+        return "warning";
+      case "cancelled":
+        return "destructive";
+      default:
+        return "secondary";
+    }
+  };
+
+  // Format status
+  const formatStatus = (status: string): string => {
+    if (!status) return "Unknown";
+    return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  return (
+    <div className="min-h-screen p-6 space-y-6">
+      {/* Header with back button */}
+      <div className="mb-6">
+        {/* <Link
+          href={`/dashboard/projects/${project.id}`}
+          className="flex items-center text-muted-foreground hover:text-foreground mb-2"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to project
+        </Link> */}
+
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex gap-2 items-center">
+              <h1 className="text-3xl font-bold tracking-tight">
+                {project.title}
+              </h1>
+              <Badge variant={getStatusVariant(project.status)}>
+                {formatStatus(project.status)}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <p>Created: {formatFullDate(project.created_at)}</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <hr />
+
       {/* Current track progress */}
-      <Card className="mb-6 border-none p-0 m-0">
-        <CardHeader className="m-0 p-0 mb-3 mt-3">
-          <div className="flex justify-between  items-start">
-            <div className="space-y-2">
-              <CardTitle>Round {activeTrack.round_number}</CardTitle>
-              <CardDescription>
-                Last updated:{" "}
-                {new Date(activeTrack.updated_at).toLocaleString()}
-              </CardDescription>
+      <Card className="border-2">
+        <CardHeader className="border-b pb-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                Round {activeTrack.round_number}
+                <span className="text-muted-foreground text-sm">|</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Last updated: {formatFullDate(activeTrack.updated_at)}
+                </span>
+              </CardTitle>
             </div>
             {activeTrack.client_decision && (
               <Badge
@@ -126,13 +205,14 @@ export default function LiveTrackClient({
                       ? "destructive"
                       : "info"
                 }
+                className="px-3 py-1"
               >
                 {activeTrack.client_decision === "approved" ? (
-                  <ShieldCheck className="h-4 w-4" />
+                  <ShieldCheck className="h-4 w-4 mr-1" />
                 ) : activeTrack.client_decision === "revisions_requested" ? (
-                  <ShieldX className="h-4 w-4" />
+                  <ShieldX className="h-4 w-4 mr-1" />
                 ) : (
-                  <Hourglass className="h-4 w-4" />
+                  <Hourglass className="h-4 w-4 mr-1" />
                 )}
                 {activeTrack.client_decision === "approved"
                   ? "Approved"
@@ -142,54 +222,66 @@ export default function LiveTrackClient({
               </Badge>
             )}
           </div>
+
+          {/* Progress tracking bar */}
+          <div className="space-y-2 mt-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {activeTrack.steps?.filter(
+                    (step) => step.status === "completed"
+                  ).length || 0}
+                  /{activeTrack.steps?.length || 0} steps completed
+                </span>
+              </div>
+              <span className="text-sm font-medium">{trackProgress}%</span>
+            </div>
+            <Progress value={trackProgress} />
+          </div>
         </CardHeader>
-        <CardContent className="p-0 m-0 ">
-          {/* Progress bar */}
 
-          {/* <div className="w-full bg-gray-200 rounded-[3px] h-2.5 mb-6">
-            {activeTrack.steps && activeTrack.steps.length > 0 ? (
-              <div
-                className="bg-blue-600 h-2.5 rounded-[3px]"
-                style={{
-                  width: `${(activeTrack.steps.filter((step) => step.status === "completed").length / activeTrack.steps.length) * 100}%`,
-                }}
-              ></div>
-            ) : (
-              <div className="bg-gray-400 h-2.5 rounded-full w-0"></div>
-            )}
-          </div> */}
-
+        <CardContent className="pt-6 space-y-6">
           {/* Steps list */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             {activeTrack.steps &&
               activeTrack.steps.map((step, index) => {
                 const isFinalStep = index === activeTrack.steps.length - 1;
+                const isCompleted = step.status === "completed";
 
                 return (
-                  <Card key={index} className={`p-4 `}>
-                    <div className="flex flex-col items-start gap-2">
-                      <RevButtons
-                        variant={
-                          step.status === "completed" ? "success" : "outline"
-                        }
-                      >
-                        {step.status === "completed" ? (
-                          <>
-                            <span>Step {index + 1}</span> |{" "}
-                            <span>completed</span>
-                          </>
-                        ) : (
-                          <>
+                  <Card
+                    key={index}
+                    className={`p-4 border-2  border-dashed ${isCompleted ? "bg-muted/5 " : ""}`}
+                  >
+                    <div className="flex flex-col items-start gap-3">
+                      <div className="flex items-center justify-between w-full">
+                        <RevButtons
+                          variant={isCompleted ? "success" : "outline"}
+                          size="sm"
+                        >
+                          {isCompleted ? (
                             <>
-                              <span> Step {index + 1}</span>
+                              <span>Step {index + 1}</span> |{" "}
+                              <span>completed</span>
                             </>
-                            |<span>In Progress</span>
-                          </>
+                          ) : (
+                            <>
+                              <span>Step {index + 1}</span> |{" "}
+                              <span>In Progress</span>
+                            </>
+                          )}
+                        </RevButtons>
+
+                        {isCompleted && (
+                          <span className="text-xs text-muted-foreground">
+                            Updated: {formatFullDate(activeTrack.updated_at)}
+                          </span>
                         )}
-                      </RevButtons>
-                      <div className="flex-1 w-full ">
+                      </div>
+
+                      <div className="flex-1 w-full">
                         {isFinalStep && (
-                          <div className=" p-4 mt-2  border-2 border-dashed rounded-md text-sm">
+                          <div className="p-4 mb-4 border-2 border-dashed rounded-md text-sm">
                             <div className="flex items-center gap-2">
                               <Flag className="h-4 w-4" />
                               <h3 className="font-medium">Round Completion</h3>
@@ -221,9 +313,9 @@ export default function LiveTrackClient({
                         )}
 
                         {step.metadata && (
-                          <div className="mt-2 space-y-3">
+                          <div className="space-y-3">
                             {step.metadata.text && (
-                              <div className="p-3  border-2 border-dashed rounded-md text-sm">
+                              <div className="p-3 border-2 border-dashed rounded-md text-sm">
                                 <CommentTextWithLinks
                                   text={step.metadata.text}
                                   links={step.metadata.links}
@@ -264,7 +356,7 @@ export default function LiveTrackClient({
                           </div>
                         )}
 
-                        {isFinalStep && step.deliverable_link && (
+                        {step.deliverable_link && (
                           <div className="mt-3">
                             <Link
                               href={step.deliverable_link}
@@ -287,17 +379,17 @@ export default function LiveTrackClient({
           {/* Client feedback section */}
           {formattedComments.length > 0 && (
             <div className="mt-8 border-t pt-6">
-              <h3 className="font-medium mb-4">Client Feedback</h3>
+              <h3 className="font-medium text-lg mb-4">Client Feedback</h3>
               <div className="space-y-4">
                 {formattedComments.map((comment) => (
                   <div
                     key={comment.id}
-                    className="p-4 border rounded-md bg-muted/10"
+                    className="p-4 border-2 rounded-md bg-muted/5"
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-sm font-medium">Client</span>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(comment.created_at).toLocaleString()}
+                        {formatFullDate(comment.created_at)}
                       </span>
                     </div>
                     <div className="p-3 bg-muted/20 rounded-md text-sm">
@@ -335,29 +427,56 @@ export default function LiveTrackClient({
           )}
         </CardContent>
       </Card>
-
+      {project.deadline && (
+        <div className="flex items-center justify-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <p
+            className={
+              isDeadlineApproaching(project.deadline)
+                ? "text-orange-500 font-medium"
+                : ""
+            }
+          >
+            Deadline: {formatFullDate(project.deadline)}
+          </p>
+        </div>
+      )}
       {/* Previous rounds */}
       {tracks.length > 1 && (
-        <div className="mt-8">
-          <h2 className="text-xl font-medium mb-4">Previous Rounds</h2>
-          <div className="space-y-4">
+        <Card className="border-2">
+          <CardHeader>
+            <CardTitle className="text-xl">Previous Rounds</CardTitle>
+            <CardDescription>
+              History of previous revision rounds for this project
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             {tracks
               .filter((track) => track.id !== activeTrack.id)
               .map((track) => {
                 const finalStep = track.steps?.find(
                   (_, index) => index === track.steps.length - 1
                 );
+                const trackProgress = calculateTrackProgress(track);
+
                 return (
-                  <Card key={track.id}>
+                  <Card key={track.id} className="border">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center">
-                        <CardTitle className="text-base">
-                          Round {track.round_number}
-                        </CardTitle>
+                        <div>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            Round {track.round_number}
+                            <span className="text-muted-foreground text-sm">
+                              |
+                            </span>
+                            <span className="text-sm font-normal text-muted-foreground">
+                              {formatFullDate(track.updated_at)}
+                            </span>
+                          </CardTitle>
+                        </div>
                         <div className="flex items-center gap-2">
                           {track.client_decision && (
-                            <RevButtons
-                              size="sm"
+                            <Badge
                               variant={
                                 track.client_decision === "approved"
                                   ? "success"
@@ -373,39 +492,42 @@ export default function LiveTrackClient({
                                     "revisions_requested"
                                   ? "Revisions"
                                   : "Pending"}
-                            </RevButtons>
-                          )}
-                          {finalStep?.deliverable_link && (
-                            <Link
-                              href={`/projects/${project.id}/review/${track.id}`}
-                              passHref
-                            >
-                              <RevButtons variant="outline" size="sm">
-                                View Deliverable
-                              </RevButtons>
-                            </Link>
+                            </Badge>
                           )}
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>
-                          {track.steps?.filter((s) => s.status === "completed")
-                            .length || 0}{" "}
-                          of {track.steps?.length || 0} steps completed
-                        </span>
-                        <span>•</span>
-                        <span>
-                          {new Date(track.updated_at).toLocaleDateString()}
-                        </span>
+                    <CardContent className="pt-1">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">
+                            {track.steps?.filter(
+                              (s) => s.status === "completed"
+                            ).length || 0}{" "}
+                            of {track.steps?.length || 0} steps completed
+                          </span>
+                          <span>{trackProgress}%</span>
+                        </div>
+                        <Progress value={trackProgress} className="h-2" />
                       </div>
                     </CardContent>
+                    <CardFooter className="pt-2 border-t">
+                      {finalStep?.deliverable_link && (
+                        <Link
+                          href={`/projects/${project.id}/review/${track.id}`}
+                          className="flex items-center text-blue-600 hover:underline text-sm"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          View Deliverable
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Link>
+                      )}
+                    </CardFooter>
                   </Card>
                 );
               })}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

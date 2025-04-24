@@ -4,18 +4,18 @@
 import React, { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { deleteProject } from "../../clients/[id]/actions"; // Assumes actions.ts is in the same folder
+import { RevButtons } from "@/components/ui/RevButtons";
 
 interface ProjectDeleteDialogProps {
   projectId: string;
@@ -56,28 +56,34 @@ export function ProjectDeleteDialog({
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete Project?</AlertDialogTitle>
-          <AlertDialogDescription>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Project?</DialogTitle>
+          <DialogDescription>
             Permanently delete project{" "}
             <strong className="mx-1">"{projectTitle}"</strong> and all its data?
             This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <RevButtons
+            variant="outline"
+            onClick={() => setIsOpen(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </RevButtons>
+          <RevButtons
             onClick={handleDelete}
             disabled={isPending}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
           >
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{" "}
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Yes, Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </RevButtons>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

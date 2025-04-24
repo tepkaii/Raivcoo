@@ -226,15 +226,7 @@ export default function AllProjectsPageClient({
                                 <span>Edit Details</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={handleSelect} asChild>
-                                <Link
-                                  href={`/dashboard/projects/${project.id}`}
-                                  className="flex items-center"
-                                >
-                                  <FolderOpenDot className="mr-2 h-4 w-4" />
-                                  <span>View Project</span>
-                                </Link>
-                              </DropdownMenuItem>
+
                               <DropdownMenuItem onSelect={handleSelect} asChild>
                                 <Link
                                   href={liveTrackUrl}
@@ -351,29 +343,14 @@ export default function AllProjectsPageClient({
 
                           <div className="flex items-center gap-2">
                             <Link
-                              href={liveTrackUrl}
-                              className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                              title="Live Track Link"
+                              href={`/dashboard/projects/${project.id}`}
+                              className="flex items-center"
                             >
-                              <Link2 className="h-4 w-4" />
-                              <span className="text-xs hidden sm:inline">
-                                Live Link
-                              </span>
+                              <RevButtons variant={"outline"} size={"sm"}>
+                                <FolderOpenDot className="mr-2 h-4 w-4" />
+                                <span>View Project</span>
+                              </RevButtons>
                             </Link>
-                            <button
-                              className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                              title="Copy Live Track Link"
-                              onClick={() => {
-                                navigator.clipboard.writeText(
-                                  `${window.location.origin}${liveTrackUrl}`
-                                );
-                              }}
-                            >
-                              <Copy className="h-4 w-4" />
-                              <span className="text-xs hidden sm:inline">
-                                Copy
-                              </span>
-                            </button>
                           </div>
                         </div>
                       </div>

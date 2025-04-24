@@ -2,7 +2,6 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import bcrypt from "bcryptjs";
 
 const AVATAR_MAX_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -105,19 +104,12 @@ export async function updateAccount(formData: FormData) {
       }
     }
 
-    // Handle password
-    const plainPassword = formData.get("password") as string;
-
-    if (plainPassword && plainPassword.length >= 6) {
-      profileData.password_data = { plainPassword };
-    }
-
     // Validate required fields
     const requiredFields = [
       "full_name",
       "display_name",
       "country",
-      "biography",
+      "account_type", // Added this field as required
     ];
     for (const field of requiredFields) {
       if (!profileData[field]) {

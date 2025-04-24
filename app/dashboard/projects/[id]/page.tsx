@@ -84,7 +84,7 @@ export default async function page({ params }: { params: { id: string } }) {
   const { data: tracks, error: tracksError } = await supabase
     .from("project_tracks")
     .select(
-      `id, project_id, round_number, status, steps, created_at, updated_at, client_decision`
+      `id, project_id, round_number, status, steps, created_at, updated_at, client_decision, final_deliverable_media_type` // <-- ADDED HERE
     )
     .eq("project_id", id)
     .order("round_number", { ascending: true });

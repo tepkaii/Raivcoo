@@ -237,63 +237,90 @@ export async function updateProjectTrackStepStatus(
   trackId: string,
   stepIndex: number,
   newStatus: "pending" | "completed",
-  linkValue?: string
+  linkValue?: string, // Link specifically for the final step update in steps JSONB
+  finalMediaType?: "video" | "image" // Type specifically for the new DB column
 ) {
   const supabase = await createClient();
+  // --- Consider adding Editor Auth/Verification here ---
 
-  // 1. Get the current track data
+  // 1. Get current track data (including steps AND the new column)
   const { data: trackData, error: trackError } = await supabase
     .from("project_tracks")
-    .select("id, project_id, steps")
+    .select("id, project_id, steps, final_deliverable_media_type") // Select the new column
     .eq("id", trackId)
     .single();
 
   if (trackError || !trackData) {
+    console.error("Error fetching track for status update:", trackError);
     throw new Error(trackError?.message || "Track not found");
   }
 
-  // 2. Validate the step index
-  const steps = trackData.steps || [];
+  // --- Add check for client_decision if needed ---
+
+  // 2. Validate step index
+  const steps = (trackData.steps || []) as Step[]; // Cast to updated Step type
   if (stepIndex < 0 || stepIndex >= steps.length) {
     throw new Error(`Invalid step index: ${stepIndex}`);
   }
-
   const stepToUpdate = steps[stepIndex];
   if (!stepToUpdate) {
     throw new Error(`Step at index ${stepIndex} not found`);
   }
-
   const isFinalStep = stepToUpdate.is_final;
 
-  // 3. Prepare the updated step
-  const updatedStep = {
-    ...stepToUpdate,
-    status: newStatus,
-    ...(isFinalStep && newStatus === "completed" && linkValue
-      ? { deliverable_link: linkValue }
-      : {}),
+  // 3. Prepare updates
+  const updatedSteps = [...steps]; // Create a mutable copy
+  const updatedStep = { ...stepToUpdate, status: newStatus }; // Update status
+  updatedSteps[stepIndex] = updatedStep; // Place updated step back into the array
+
+  // Prepare the payload for the main track row update
+  const trackUpdatePayload: {
+    steps: Step[];
+    updated_at: string;
+    final_deliverable_media_type?: "video" | "image" | null;
+  } = {
+    steps: updatedSteps, // Base payload includes the array with the updated status
+    updated_at: new Date().toISOString(),
+    // Initially, assume the type column doesn't change unless it's the final step
+    final_deliverable_media_type: trackData.final_deliverable_media_type,
   };
 
-  // 4. Update the steps array
-  const updatedSteps = [...steps];
-  updatedSteps[stepIndex] = updatedStep;
+  // Modify payload and the step *within* the updatedSteps array for the final step
+  if (isFinalStep) {
+    if (newStatus === "completed" && linkValue && finalMediaType) {
+      // Update the link *inside* the step object within the array
+      updatedStep.deliverable_link = linkValue;
+      // Set the value for the dedicated column in the main payload
+      trackUpdatePayload.final_deliverable_media_type = finalMediaType;
+    } else if (newStatus === "pending") {
+      // Clear the link *inside* the step object within the array
+      updatedStep.deliverable_link = null;
+      // Clear the value for the dedicated column in the main payload
+      trackUpdatePayload.final_deliverable_media_type = null;
+    }
+    // Ensure the potentially modified updatedStep is in the array being sent
+    trackUpdatePayload.steps = updatedSteps;
+  }
 
-  // 5. Save to database with current timestamp for updated_at
+  // 5. Save updates to the database
   const { error: updateError } = await supabase
     .from("project_tracks")
-    .update({
-      steps: updatedSteps,
-      updated_at: new Date().toISOString(), // Ensures updated_at is refreshed on each change
-    })
+    .update(trackUpdatePayload) // Use the combined payload
     .eq("id", trackId);
 
   if (updateError) {
+    console.error("Error updating track status/type:", updateError);
     throw new Error(updateError.message || "Failed to update track");
   }
 
   // 6. Revalidate paths
-  revalidatePath(`/dashboard/projects/${trackData.project_id}`);
-  revalidatePath(`/projects/${trackData.project_id}/review/${trackId}`);
+  if (trackData.project_id) {
+    revalidatePath(`/dashboard/projects/${trackData.project_id}`);
+    revalidatePath(`/review/${trackId}`); // Adjust if review path includes project ID
+  } else {
+    revalidatePath(`/dashboard/projects/[id]`, "page");
+    revalidatePath("/review/[trackId]", "page");
+  }
 
   return { message: "Step status updated successfully" };
 }

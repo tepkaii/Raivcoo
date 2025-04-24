@@ -98,7 +98,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
               return (
                 <div
                   key={comment.id}
-                  className={`p-3 rounded-md border-2 border-dashed transition-colors duration-200 ${isCurrentlyEditing ? "border-primary bg-primary/5" : "border-muted-foreground/20 hover:border-muted-foreground/40"}`}
+                  className={`p-3 rounded-md border-2 border-dashed transition-colors duration-200 `}
                 >
                   {/* Comment Header: Info and Edit/Delete Buttons */}
                   <div className="flex justify-between items-start gap-2 flex-wrap mb-2">

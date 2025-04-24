@@ -28,6 +28,7 @@ interface AccountData {
   display_name: string;
   country: string;
   avatar_url: string;
+  account_type: "editor" | "client";
 }
 
 interface AccountFormProps {
@@ -59,6 +60,9 @@ export default function AccountForm({
   const [fullName, setFullName] = useState(Account.full_name);
   const [displayName, setDisplayName] = useState(Account.display_name);
   const [country, setCountry] = useState(Account.country);
+  const [accountType, setAccountType] = useState<"editor" | "client">(
+    Account.account_type || "editor"
+  );
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isDisplayNameValid, setIsDisplayNameValid] = useState(true);
@@ -114,6 +118,7 @@ export default function AccountForm({
       formData.set("full_name", fullName);
       formData.set("display_name", displayName.toLowerCase()); // Ensure lowercase when saving
       formData.set("country", country);
+      formData.set("account_type", accountType);
 
       // Submit form
       const result = await updateAccount(formData);
@@ -264,19 +269,6 @@ export default function AccountForm({
             )}
           </div>
           <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
-              type="password"
-              name="password"
-              id="password"
-              placeholder="Enter a new password"
-              className="mt-2"
-            />
-            <p className="text-sm text-muted-foreground mt-1">
-              Set a password for logging into the desktop app.
-            </p>
-          </div>
-          <div>
             <Label htmlFor="display_name">Display Name</Label>
             <div className="flex flex-col space-y-2">
               <div className="flex items-center space-x-2">
@@ -353,6 +345,30 @@ export default function AccountForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="account_type">Account Type</Label>
+            <Select
+              name="account_type"
+              value={accountType}
+              onValueChange={(value) =>
+                setAccountType(value as "editor" | "client")
+              }
+            >
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Select account type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="client">Client</SelectItem>
+                <SelectItem value="editor">Editor</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground mt-1">
+              {accountType === "client"
+                ? "As a client, you review videos and images sent by editors and decide whether to request revisions or approve them."
+                : "As an editor, you send videos and images to clients for review and feedback."}
+            </p>
           </div>
 
           <p className="text-sm text-muted-foreground flex flex-wrap gap-1">

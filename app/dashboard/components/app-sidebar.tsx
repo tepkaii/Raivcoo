@@ -8,36 +8,29 @@ import {
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-import {
-  Home,
   Users2,
-  ChevronDown,
   LogOut,
   User,
   FolderOpenDot,
   SquareUser,
   LayoutDashboard,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 import { EditorProfile } from "@/app/types/editorProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useLinkStatus } from "next/link";
+import Image from "next/image";
 
 interface ProfileShowProps {
   portfolio: EditorProfile;
@@ -80,6 +73,7 @@ function LinkStatus({ href }: { href: string }) {
 
 export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
   const pathname = usePathname();
+  const isClient = initialPortfolio?.account_type === "client";
 
   // Check if we're in a specific section (more precise than just startsWith)
   const isActiveSection = (path: string) => {
@@ -94,56 +88,28 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
 
   return (
     <Sidebar collapsible="icon">
+      {/* Logo/Website Header - Top */}
       <SidebarHeader className="border-b p-0 m-0 border-[#3F3F3F] bg-background">
-        <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3  h-[49px]">
-          <Avatar className="h-8 w-8 rounded-lg  border-2">
-            <AvatarImage
-              src={initialPortfolio?.avatar_url || ""}
-              alt={initialPortfolio?.display_name || "User"}
-            />
-            <AvatarFallback>
-              <User className="h-4 w-4" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-medium truncate">
-              {initialPortfolio?.display_name || "User"}
-            </span>
-            <span className="text-xs text-muted-foreground truncate">
-              {initialPortfolio?.email || "user@example.com"}
-            </span>
+        <Link href="/" className="w-full">
+          <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] cursor-pointer">
+            <div className="h-8 w-8 rounded-lg border-2 flex items-center justify-center overflow-hidden">
+              {/* Replace with your logo */}
+              <Image
+                src="/avif/user-profile-avatar.avif"
+                alt="Raivcoo"
+                width={32}
+                height={32}
+                className="object-cover"
+              />
+            </div>
+            <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
+              <span className="text-sm font-medium truncate">Raivcoo</span>
+              <span className="text-xs text-muted-foreground truncate">
+                Video Review Platform
+              </span>
+            </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuAction className="right-4 mt-2 flex justify-center items-center opacity-100 sm:opacity-100">
-                <ChevronDown className="h-4 w-4" />
-              </SidebarMenuAction>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/" className="flex items-center ">
-                  <Home className="mr-2 h-4 w-4" />
-                  <span>Home</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <form action="/auth/signout" method="post" className="w-full">
-                  <div className="w-full">
-                    <RevButtons
-                      type="submit"
-                      variant="destructive"
-                      className="w-full text-left flex items-center"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" /> Sign out
-                    </RevButtons>
-                  </div>
-                </form>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent className="space-y-[-15px]">
@@ -177,59 +143,119 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* 🔵 CLIENTS */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/dashboard/clients" className="w-full">
-                  <SidebarMenuButton
-                    className={cn(
-                      "flex items-center w-full group-data-[collapsible=icon]:justify-center  ",
-                      isActiveSection("/dashboard/clients") && "bg-muted"
-                    )}
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#1E3A8A]/40 text-[#3B82F6] shrink-0">
-                      <Users2 className="w-4 h-4" />
-                    </div>
-                    <span className="group-data-[collapsible=icon]:hidden">
-                      Clients
-                    </span>
-                    <LinkStatus href="/dashboard/clients" />
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* FOR EDITORS ONLY - CLIENTS SECTION */}
+        {!isClient && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link href="/dashboard/clients" className="w-full">
+                    <SidebarMenuButton
+                      className={cn(
+                        "flex items-center w-full group-data-[collapsible=icon]:justify-center  ",
+                        isActiveSection("/dashboard/clients") && "bg-muted"
+                      )}
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#1E3A8A]/40 text-[#3B82F6] shrink-0">
+                        <Users2 className="w-4 h-4" />
+                      </div>
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        Clients
+                      </span>
+                      <LinkStatus href="/dashboard/clients" />
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-        {/* 🟢 PROJECTS */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/dashboard/projects" className="w-full">
-                  <SidebarMenuButton
-                    className={cn(
-                      "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
-                      isActiveSection("/dashboard/projects") && "bg-muted"
-                    )}
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#064E3B]/40 text-[#10B981] shrink-0">
-                      <FolderOpenDot className="w-4 h-4" />
-                    </div>
-                    <span className="group-data-[collapsible=icon]:hidden">
-                      Projects
-                    </span>
-                    <LinkStatus href="/dashboard/projects" />
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* FOR EDITORS ONLY - PROJECTS SECTION */}
+        {!isClient && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link href="/dashboard/projects" className="w-full">
+                    <SidebarMenuButton
+                      className={cn(
+                        "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
+                        isActiveSection("/dashboard/projects") && "bg-muted"
+                      )}
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#064E3B]/40 text-[#10B981] shrink-0">
+                        <FolderOpenDot className="w-4 h-4" />
+                      </div>
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        Projects
+                      </span>
+                      <LinkStatus href="/dashboard/projects" />
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-        {/* 🟣 ACCOUNT */}
+        {/* FOR CLIENTS ONLY - MY REVIEWS SECTION */}
+        {isClient && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link href="/dashboard/reviews" className="w-full">
+                    <SidebarMenuButton
+                      className={cn(
+                        "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
+                        isActiveSection("/dashboard/reviews") && "bg-muted"
+                      )}
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#064E3B]/40 text-[#10B981] shrink-0">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        My Reviews
+                      </span>
+                      <LinkStatus href="/dashboard/reviews" />
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* FOR CLIENTS ONLY - PENDING SECTION */}
+        {isClient && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link href="/dashboard/pending" className="w-full">
+                    <SidebarMenuButton
+                      className={cn(
+                        "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
+                        isActiveSection("/dashboard/pending") && "bg-muted"
+                      )}
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#783F04]/40 text-[#F59E0B] shrink-0">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        Pending
+                      </span>
+                      <LinkStatus href="/dashboard/pending" />
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ACCOUNT SECTION - FOR BOTH */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -255,6 +281,44 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* User Footer - This is the new bottom section */}
+      <SidebarFooter className="mt-auto border-t p-0 m-0 border-[#3F3F3F] bg-background">
+        <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
+          <Avatar className="h-8 w-8 rounded-lg border-2">
+            <AvatarImage
+              src={initialPortfolio?.avatar_url || ""}
+              alt={initialPortfolio?.display_name || "User"}
+            />
+            <AvatarFallback>
+              <User className="h-4 w-4" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
+            <span className="text-sm font-medium truncate">
+              {initialPortfolio?.display_name || "User"}
+            </span>
+            <span className="text-xs text-muted-foreground truncate">
+              {initialPortfolio?.email || "user@example.com"}
+            </span>
+          </div>
+
+          <form
+            action="/auth/signout"
+            method="post"
+            className="absolute group-data-[collapsible=icon]:hidden  right-3 top-1/2 -translate-y-1/2"
+          >
+            <RevButtons
+              size={"icon"}
+              variant={"destructive"}
+              type="submit"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </RevButtons>
+          </form>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

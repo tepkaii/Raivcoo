@@ -1,4 +1,3 @@
-// app/review/[trackId]/ReviewPage.tsx
 "use client";
 
 import React, {
@@ -8,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -22,6 +22,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Loader2,
   Send,
   Check,
@@ -32,15 +41,14 @@ import {
   Info,
   Clock,
   ExternalLink,
-  Image as ImageIcon,
+  Image as ImageIconLucide,
   XCircle,
+  Building,
+  Mail,
+  Phone,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { YouTubePlayer } from "./components/YouTubePlayer";
-import { GoogleDrivePlayer } from "./components/GoogleDrivePlayer";
-import { VimeoPlayer } from "./components/VimeoPlayer";
-import { CommentsSection } from "./components/CommentsSection";
 import {
   formatTime,
   getVimeoEmbedUrl,
@@ -53,8 +61,13 @@ import {
   getGoogleDriveEmbedUrl,
   isDropboxLink,
   getDropboxDirectUrl,
-} from "../lib/utils"; // Ensure path is correct
+} from "../lib/utils";
+import { VimeoPlayer } from "./components/VimeoPlayer";
+import { CommentsSection } from "./components/CommentsSection";
+import { YouTubePlayer } from "./components/YouTubePlayer";
+import { GoogleDrivePlayer } from "./components/GoogleDrivePlayer";
 
+// --- Interfaces ---
 interface Comment {
   id: string;
   comment: {
@@ -68,8 +81,16 @@ interface Comment {
   isOwnComment?: boolean;
 }
 
+interface ClientInfo {
+  name: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
 interface ReviewPageProps {
   clientDisplayName: string | null;
+  clientInfo?: ClientInfo;
   track: {
     id: string;
     projectId: string;
@@ -78,6 +99,7 @@ interface ReviewPageProps {
   };
   project: { id: string; title: string };
   deliverableLink: string;
+  deliverableMediaType?: "video" | "image" | null;
   initialComments: Comment[];
   addCommentAction: (
     formData: FormData
@@ -104,14 +126,16 @@ function renderPlainTextWithUrls(
   });
   return renderedText;
 }
+
 function detectAndExtractLinks(text: string) {
   const urlRegex = /(https?:\/\/[^\s<>"]+)/g;
   const links: { url: string; text: string }[] = [];
   let processedText = text;
   const urlMatches = Array.from(text.matchAll(urlRegex));
+
   urlMatches.forEach((match) => {
     const url = match[0];
-    if (text.substring(match.index - 6, match.index) === "[LINK:") return;
+    if (text.substring(match.index! - 6, match.index!) === "[LINK:") return;
     let existingLinkIndex = links.findIndex((link) => link.url === url);
     if (existingLinkIndex === -1) {
       links.push({ url: url, text: url });
@@ -119,6 +143,7 @@ function detectAndExtractLinks(text: string) {
     }
     processedText = processedText.replace(url, `[LINK:${existingLinkIndex}]`);
   });
+
   return { processedText, links };
 }
 
@@ -129,9 +154,11 @@ const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
 // --- Component ---
 export default function ReviewPage({
   clientDisplayName,
+  clientInfo,
   track,
   project,
   deliverableLink,
+  deliverableMediaType,
   initialComments,
   addCommentAction,
   approveProjectAction,
@@ -145,24 +172,27 @@ export default function ReviewPage({
   const [isEditDeletePending, startEditDeleteTransition] = useTransition();
 
   const [comments, setComments] = useState<Comment[]>(initialComments);
-  const [commentText, setCommentText] = useState(""); // New comment text
+  const [commentText, setCommentText] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
-  const [imageFiles, setImageFiles] = useState<File[]>([]); // New comment images
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]); // New comment previews
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
-  // State for Editing Comments
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editedCommentText, setEditedCommentText] = useState<string>("");
   const [editingExistingImageUrls, setEditingExistingImageUrls] = useState<
     string[]
-  >([]); // Existing images for the comment being edited
-  const [editingNewImageFiles, setEditingNewImageFiles] = useState<File[]>([]); // New files added *during* edit
+  >([]);
+  const [editingNewImageFiles, setEditingNewImageFiles] = useState<File[]>([]);
   const [editingNewImagePreviews, setEditingNewImagePreviews] = useState<
     string[]
-  >([]); // Previews for new files added during edit
+  >([]);
+
+  // Dialog control
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null); // For new comment input
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDecisionMade = track.clientDecision !== "pending";
   const isAnyActionPending =
@@ -171,12 +201,13 @@ export default function ReviewPage({
   useEffect(() => {
     setComments(initialComments);
   }, [initialComments]);
+
   useEffect(() => {
     const previews = imageFiles.map((file) => URL.createObjectURL(file));
     setImagePreviews(previews);
     return () => previews.forEach(URL.revokeObjectURL);
   }, [imageFiles]);
-  // Effect for generating/revoking previews for *editing* images
+
   useEffect(() => {
     const previews = editingNewImageFiles.map((file) =>
       URL.createObjectURL(file)
@@ -211,6 +242,7 @@ export default function ReviewPage({
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
   const removeImage = (indexToRemove: number) => {
     setImageFiles((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
@@ -260,7 +292,6 @@ export default function ReviewPage({
     editingCommentId,
   ]);
 
-  // --- Edit/Delete Handlers ---
   const handleEditComment = useCallback(
     (commentId: string) => {
       if (isDecisionMade || isAnyActionPending) return;
@@ -272,12 +303,12 @@ export default function ReviewPage({
             commentToEdit.comment.links
           )
         );
-        setEditingExistingImageUrls(commentToEdit.comment.images || []); // <<<<<<<<<<<<<<< Populate existing images
-        setEditingNewImageFiles([]); // <<<<<<<<<<<<<<< Reset new files for this edit session
-        setEditingNewImagePreviews([]); // <<<<<<<<<<<<<<< Reset previews
+        setEditingExistingImageUrls(commentToEdit.comment.images || []);
+        setEditingNewImageFiles([]);
+        setEditingNewImagePreviews([]);
         setEditingCommentId(commentId);
         setCommentText("");
-        setImageFiles([]); // Clear new comment form
+        setImageFiles([]);
       }
     },
     [comments, isDecisionMade, isAnyActionPending]
@@ -288,20 +319,21 @@ export default function ReviewPage({
     setEditedCommentText("");
     setEditingExistingImageUrls([]);
     setEditingNewImageFiles([]);
-    setEditingNewImagePreviews([]); // <<<< Reset image edit state
+    setEditingNewImagePreviews([]);
   }, []);
 
-  // Handlers for managing images *during* edit
   const handleRemoveExistingImage = useCallback((indexToRemove: number) => {
     setEditingExistingImageUrls((prev) =>
       prev.filter((_, i) => i !== indexToRemove)
     );
   }, []);
+
   const handleRemoveNewImage = useCallback((indexToRemove: number) => {
     setEditingNewImageFiles((prev) =>
       prev.filter((_, i) => i !== indexToRemove)
     );
   }, []);
+
   const handleEditFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       if (event.target.files) {
@@ -317,10 +349,12 @@ export default function ReviewPage({
         if (currentTotal > MAX_IMAGES_PER_COMMENT) {
           toast({
             title: "Too many images",
-            description: `You can add ${availableSlots > 0 ? `${availableSlots} more` : "no more"}. Max ${MAX_IMAGES_PER_COMMENT}.`,
+            description: `You can add ${
+              availableSlots > 0 ? `${availableSlots} more` : "no more"
+            }. Max ${MAX_IMAGES_PER_COMMENT}.`,
             variant: "warning",
           });
-          files.splice(availableSlots); // Keep only allowed number
+          files.splice(availableSlots);
         }
         const validFiles = files.filter((file) => {
           if (!ACCEPTED_IMAGE_TYPES_STRING.includes(file.type)) {
@@ -331,12 +365,10 @@ export default function ReviewPage({
             });
             return false;
           }
-          // Add size validation if needed
           return true;
         });
 
         setEditingNewImageFiles((prev) => [...prev, ...validFiles]);
-        // Reset the file input visually after selection
         if (event.target) event.target.value = "";
       }
     },
@@ -347,7 +379,6 @@ export default function ReviewPage({
     if (!editingCommentId || isAnyActionPending || isDecisionMade) return;
     const totalImages =
       editingExistingImageUrls.length + editingNewImageFiles.length;
-    // Prevent saving if BOTH text is empty AND there are no images
     if (!editedCommentText.trim() && totalImages === 0) {
       toast({
         title: "Cannot Save Empty Comment",
@@ -357,15 +388,11 @@ export default function ReviewPage({
       return;
     }
 
-    // Optional: Check if anything actually changed (more complex with images)
-    // const originalComment = comments.find(c => c.id === editingCommentId); ... compare text and image arrays ...
-
     const formData = new FormData();
     formData.append("commentId", editingCommentId);
-    formData.append("newCommentText", editedCommentText); // Send plain text
-    formData.append("existingImages", JSON.stringify(editingExistingImageUrls)); // <<<< Send remaining existing image URLs
+    formData.append("newCommentText", editedCommentText);
+    formData.append("existingImages", JSON.stringify(editingExistingImageUrls));
     editingNewImageFiles.forEach((file) => {
-      // <<<< Send new files
       formData.append("newImages", file);
     });
 
@@ -375,7 +402,7 @@ export default function ReviewPage({
         setComments((prev) =>
           prev.map((c) => (c.id === editingCommentId ? result.comment : c))
         );
-        handleCancelEdit(); // Reset edit state
+        handleCancelEdit();
         toast({
           title: "Success",
           description: result.message,
@@ -398,15 +425,12 @@ export default function ReviewPage({
     isAnyActionPending,
     isDecisionMade,
     handleCancelEdit,
-    comments /* add comments if needed for change detection */,
   ]);
 
   const handleDeleteComment = useCallback(
     async (commentId: string) => {
       if (isAnyActionPending || isDecisionMade) return;
-      if (!confirm("Delete this comment permanently?")) {
-        return;
-      }
+
       startEditDeleteTransition(async () => {
         try {
           const result = await deleteCommentAction(commentId);
@@ -439,7 +463,8 @@ export default function ReviewPage({
 
   const handleApprove = useCallback(() => {
     if (isAnyActionPending || isDecisionMade || editingCommentId) return;
-    if (!confirm(`Approve project "${project.title}"?`)) return;
+    setApproveDialogOpen(false);
+
     startDecisionTransition(async () => {
       try {
         await approveProjectAction(project.id, track.id);
@@ -456,7 +481,6 @@ export default function ReviewPage({
   }, [
     project.id,
     track.id,
-    project.title,
     approveProjectAction,
     isAnyActionPending,
     isDecisionMade,
@@ -466,16 +490,8 @@ export default function ReviewPage({
 
   const handleRequestRevisions = useCallback(() => {
     if (isAnyActionPending || isDecisionMade || editingCommentId) return;
-    if (
-      comments.length === 0 &&
-      !confirm("No feedback added. Request revisions anyway?")
-    )
-      return;
-    if (
-      comments.length > 0 &&
-      !confirm(`Request revisions based on ${comments.length} comment(s)?`)
-    )
-      return;
+    setRevisionDialogOpen(false);
+
     startDecisionTransition(async () => {
       try {
         await requestRevisionsAction(track.id);
@@ -491,7 +507,6 @@ export default function ReviewPage({
     });
   }, [
     track.id,
-    comments.length,
     requestRevisionsAction,
     isAnyActionPending,
     isDecisionMade,
@@ -499,7 +514,6 @@ export default function ReviewPage({
     editingCommentId,
   ]);
 
-  // --- Media Player Logic ---
   const googleDriveEmbedUrl = isGoogleDriveLink(deliverableLink)
     ? getGoogleDriveEmbedUrl(deliverableLink)
     : null;
@@ -514,15 +528,17 @@ export default function ReviewPage({
     : null;
   const isVideo = isVideoFile(deliverableLink);
   const isAudio = isAudioFile(deliverableLink);
-  const isVideoPlayerNeeded =
+  const isVideoPlayerNeededByURL =
     isVideo ||
     !!youtubeEmbedUrl ||
     !!vimeoEmbedUrl ||
     !!googleDriveEmbedUrl ||
     !!dropboxDirectUrl;
-  const isAudioPlayerNeeded = isAudio && !isVideoPlayerNeeded;
+  const isAudioPlayerNeededByURL = isAudio && !isVideoPlayerNeededByURL;
+
   const canInteractWithAddForm =
     !isAnyActionPending && !isDecisionMade && !editingCommentId;
+
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
@@ -531,89 +547,192 @@ export default function ReviewPage({
 
   return (
     <div className="space-y-6 w-full max-w-5xl px-2">
-      <Card>
-        <CardHeader>
+      <Card className="border-2">
+        <CardHeader className="pb-4">
           <CardTitle className="text-2xl md:text-3xl tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             {project.title} - Round {track.roundNumber} Review
           </CardTitle>
-          <CardDescription>
-            Deliverable review for {clientDisplayName || "Reviewer"}.
+          <CardDescription className="text-base">
+            {clientInfo?.company && (
+              <div className="flex items-center gap-2 mb-2">
+                <Building className="h-4 w-4 text-muted-foreground" />
+                <span>{clientInfo.company}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span>
+                {clientInfo?.email || clientDisplayName || "Reviewer"}
+              </span>
+            </div>
+            {clientInfo?.phone && (
+              <div className="flex items-center gap-2 mt-2">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <span>{clientInfo.phone}</span>
+              </div>
+            )}
           </CardDescription>
         </CardHeader>
       </Card>
 
       <Card>
         <CardContent className="pt-6 space-y-5">
-          <div className="rounded-lg overflow-hidden border bg-black aspect-video relative">
-            {youtubeEmbedUrl ? (
-              <YouTubePlayer
-                youtubeEmbedUrl={youtubeEmbedUrl}
-                setCurrentTime={setCurrentTime}
-              />
-            ) : googleDriveEmbedUrl ? (
-              <GoogleDrivePlayer
-                googleDriveEmbedUrl={googleDriveEmbedUrl}
-                setCurrentTime={setCurrentTime}
-              />
-            ) : vimeoEmbedUrl ? (
-              <VimeoPlayer
-                vimeoEmbedUrl={vimeoEmbedUrl}
-                setCurrentTime={setCurrentTime}
-              />
-            ) : dropboxDirectUrl ? (
-              <video
-                ref={videoRef as React.RefObject<HTMLVideoElement>}
-                className="w-full h-full block"
-                controls
-                onTimeUpdate={handleTimeUpdate}
-              >
-                <source src={dropboxDirectUrl} type="video/mp4" />
-                Your browser does not support video.
-              </video>
-            ) : isVideo ? (
-              <video
-                ref={videoRef as React.RefObject<HTMLVideoElement>}
-                className="w-full h-full block"
-                controls
-                onTimeUpdate={handleTimeUpdate}
-                src={deliverableLink}
-              >
-                Your browser does not support video.
-              </video>
-            ) : isAudio ? (
-              <div className="p-4 bg-gray-800 h-full flex items-center">
-                <audio
-                  ref={videoRef as React.RefObject<HTMLAudioElement>}
-                  className="w-full"
-                  controls
-                  onTimeUpdate={handleTimeUpdate}
-                  src={deliverableLink}
-                >
-                  Your browser does not support audio.
-                </audio>
-              </div>
-            ) : (
-              <div className="p-6 bg-secondary flex flex-col items-center text-center justify-center h-full">
-                {" "}
-                <MessageSquareWarning className="w-10 h-10 text-muted-foreground mb-3" />{" "}
-                <p className="font-medium mb-1">Cannot preview.</p>{" "}
+          <div className="rounded-lg overflow-hidden border bg-muted/10 relative">
+            {deliverableMediaType === "image" ? (
+              <div className="p-2 flex justify-center items-center bg-black">
                 <a
                   href={deliverableLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline font-medium text-sm inline-flex items-center gap-1"
+                  title="View full image"
                 >
-                  View/Download <ExternalLink className="h-4 w-4" />
-                </a>{" "}
+                  <Image
+                    src={deliverableLink}
+                    alt={`Deliverable for ${project.title} - Round ${track.roundNumber}`}
+                    width={1280}
+                    height={720}
+                    style={{
+                      maxWidth: "100%",
+                      height: "auto",
+                      display: "block",
+                    }}
+                    priority
+                  />
+                </a>
+              </div>
+            ) : deliverableMediaType === "video" ? (
+              <div className="aspect-video bg-black">
+                {youtubeEmbedUrl ? (
+                  <YouTubePlayer
+                    youtubeEmbedUrl={youtubeEmbedUrl}
+                    setCurrentTime={setCurrentTime}
+                  />
+                ) : googleDriveEmbedUrl ? (
+                  <GoogleDrivePlayer
+                    googleDriveEmbedUrl={googleDriveEmbedUrl}
+                    setCurrentTime={setCurrentTime}
+                  />
+                ) : vimeoEmbedUrl ? (
+                  <VimeoPlayer
+                    vimeoEmbedUrl={vimeoEmbedUrl}
+                    setCurrentTime={setCurrentTime}
+                    currentTime={0}
+                  />
+                ) : dropboxDirectUrl ? (
+                  <video
+                    ref={videoRef as React.RefObject<HTMLVideoElement>}
+                    className="w-full h-full block"
+                    controls
+                    onTimeUpdate={handleTimeUpdate}
+                  >
+                    <source src={dropboxDirectUrl} type="video/mp4" /> Your
+                    browser does not support video.
+                  </video>
+                ) : isVideo ? (
+                  <video
+                    ref={videoRef as React.RefObject<HTMLVideoElement>}
+                    className="w-full h-full block"
+                    controls
+                    onTimeUpdate={handleTimeUpdate}
+                    src={deliverableLink}
+                  >
+                    Your browser does not support video.
+                  </video>
+                ) : (
+                  <div className="p-6 bg-secondary flex flex-col items-center text-center justify-center h-full aspect-video">
+                    <MessageSquareWarning className="w-10 h-10 text-muted-foreground mb-3" />
+                    <p className="font-medium mb-1">Cannot preview video.</p>
+                    <a
+                      href={deliverableLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium text-sm inline-flex items-center gap-1"
+                    >
+                      View/Download Video <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="aspect-video bg-black">
+                {isVideoPlayerNeededByURL ? (
+                  <>
+                    {youtubeEmbedUrl ? (
+                      <YouTubePlayer
+                        youtubeEmbedUrl={youtubeEmbedUrl}
+                        setCurrentTime={setCurrentTime}
+                      />
+                    ) : googleDriveEmbedUrl ? (
+                      <GoogleDrivePlayer
+                        googleDriveEmbedUrl={googleDriveEmbedUrl}
+                        setCurrentTime={setCurrentTime}
+                      />
+                    ) : vimeoEmbedUrl ? (
+                      <VimeoPlayer
+                        vimeoEmbedUrl={vimeoEmbedUrl}
+                        setCurrentTime={setCurrentTime}
+                      />
+                    ) : dropboxDirectUrl ? (
+                      <video
+                        ref={videoRef as React.RefObject<HTMLVideoElement>}
+                        className="w-full h-full block"
+                        controls
+                        onTimeUpdate={handleTimeUpdate}
+                      >
+                        <source src={dropboxDirectUrl} type="video/mp4" /> Your
+                        browser does not support video.
+                      </video>
+                    ) : isVideo ? (
+                      <video
+                        ref={videoRef as React.RefObject<HTMLVideoElement>}
+                        className="w-full h-full block"
+                        controls
+                        onTimeUpdate={handleTimeUpdate}
+                        src={deliverableLink}
+                      >
+                        Your browser does not support video.
+                      </video>
+                    ) : null}
+                  </>
+                ) : isAudioPlayerNeededByURL ? (
+                  <div className="p-4 bg-gray-800 h-full flex items-center">
+                    <audio
+                      ref={videoRef as React.RefObject<HTMLAudioElement>}
+                      className="w-full"
+                      controls
+                      onTimeUpdate={handleTimeUpdate}
+                      src={deliverableLink}
+                    >
+                      Your browser does not support audio.
+                    </audio>
+                  </div>
+                ) : (
+                  <div className="p-6 bg-secondary flex flex-col items-center text-center justify-center h-full aspect-video">
+                    <MessageSquareWarning className="w-10 h-10 text-muted-foreground mb-3" />
+                    <p className="font-medium mb-1">Cannot preview content.</p>
+                    <a
+                      href={deliverableLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium text-sm inline-flex items-center gap-1"
+                    >
+                      View/Download <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {isDecisionMade && (
             <div
-              className={`p-4 border-2 border-dashed rounded-md ${track.clientDecision === "approved" ? "bg-[#064E3B]/40 hover:bg-[#064E3B]/60 text-green-500 " : "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60"}`}
+              className={`p-4 border-2 border-dashed rounded-md ${
+                track.clientDecision === "approved"
+                  ? "bg-[#064E3B]/40 hover:bg-[#064E3B]/60 text-green-500 "
+                  : "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60"
+              }`}
             >
-              <div className="flex items-center  gap-2 font-semibold">
+              <div className="flex items-center gap-2 font-semibold">
                 {track.clientDecision === "approved" ? (
                   <ThumbsUp className="h-5 w-5" />
                 ) : (
@@ -623,10 +742,10 @@ export default function ReviewPage({
                   ? "Project Approved"
                   : "Revisions Requested"}
               </div>
-              <p className="text-sm   opacity-90 mt-1 pl-7">
+              <p className="text-sm opacity-90 mt-1 pl-7">
                 {track.clientDecision === "approved"
-                  ? "No further action needed."
-                  : "The editor has been notified."}
+                  ? "You have approved this round. No further action is needed on this review page."
+                  : "The editor has been notified about your revision request."}
               </p>
             </div>
           )}
@@ -635,7 +754,7 @@ export default function ReviewPage({
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Clock className="h-4 w-4" /> Add feedback at:{" "}
-                {isVideoPlayerNeeded || isAudioPlayerNeeded
+                {isVideoPlayerNeededByURL || isAudioPlayerNeededByURL
                   ? formatTime(currentTime)
                   : "N/A"}
               </div>
@@ -651,9 +770,14 @@ export default function ReviewPage({
               <div className="space-y-2">
                 <label
                   htmlFor="image-upload"
-                  className={`text-sm font-medium flex items-center gap-2 cursor-pointer ${!canInteractWithAddForm || imageFiles.length >= MAX_IMAGES_PER_COMMENT ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-primary"}`}
+                  className={`text-sm font-medium flex items-center gap-2 cursor-pointer ${
+                    !canInteractWithAddForm ||
+                    imageFiles.length >= MAX_IMAGES_PER_COMMENT
+                      ? "text-muted-foreground/50 cursor-not-allowed"
+                      : "text-muted-foreground hover:text-primary"
+                  }`}
                 >
-                  <ImageIcon className="h-4 w-4" /> Add Images (
+                  <ImageIconLucide className="h-4 w-4" /> Add Images (
                   {imageFiles.length}/{MAX_IMAGES_PER_COMMENT})
                 </label>
                 <Input
@@ -717,71 +841,150 @@ export default function ReviewPage({
         </CardContent>
       </Card>
 
-      <CommentsSection
-        comments={comments}
-        isVideoFile={isVideoPlayerNeeded}
-        isAudioFile={isAudioPlayerNeeded}
-        isDecisionMade={isDecisionMade}
-        editingCommentId={editingCommentId}
-        editedCommentText={editedCommentText}
-        onEdit={handleEditComment}
-        onCancelEdit={handleCancelEdit}
-        onSaveEdit={handleSaveEdit}
-        onDelete={handleDeleteComment}
-        onTextChange={setEditedCommentText}
-        isEditDeletePending={isEditDeletePending}
-        // Pass image state/handlers for edit mode
-        existingImageUrls={editingExistingImageUrls}
-        newImageFiles={editingNewImageFiles}
-        newImagePreviews={editingNewImagePreviews}
-        onRemoveExistingImage={handleRemoveExistingImage}
-        onRemoveNewImage={handleRemoveNewImage}
-        onFileChange={handleEditFileChange} // Use the specific handler for edits
-        maxImages={MAX_IMAGES_PER_COMMENT}
-        acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
-      />
+      {/* Only show comments section when there are comments or when editing */}
+      {(comments.length > 0 || editingCommentId) && (
+        <CommentsSection
+          comments={comments}
+          isVideoFile={
+            deliverableMediaType === "video" || isVideoPlayerNeededByURL
+          }
+          isAudioFile={
+            deliverableMediaType !== "video" &&
+            !isVideoPlayerNeededByURL &&
+            isAudioPlayerNeededByURL
+          }
+          isDecisionMade={isDecisionMade}
+          editingCommentId={editingCommentId}
+          editedCommentText={editedCommentText}
+          onEdit={handleEditComment}
+          onCancelEdit={handleCancelEdit}
+          onSaveEdit={handleSaveEdit}
+          onDelete={handleDeleteComment}
+          onTextChange={setEditedCommentText}
+          isEditDeletePending={isEditDeletePending}
+          existingImageUrls={editingExistingImageUrls}
+          newImageFiles={editingNewImageFiles}
+          newImagePreviews={editingNewImagePreviews}
+          onRemoveExistingImage={handleRemoveExistingImage}
+          onRemoveNewImage={handleRemoveNewImage}
+          onFileChange={handleEditFileChange}
+          maxImages={MAX_IMAGES_PER_COMMENT}
+          acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
+        />
+      )}
 
       {!isDecisionMade && (
         <Card>
           <CardHeader>
             <CardTitle>Submit Your Decision</CardTitle>
             <CardDescription>
-              Submit your decision for Round {track.roundNumber}.
+              Once you submit your decision for Round {track.roundNumber}, you
+              cannot add or edit feedback on this page.
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col sm:flex-row gap-4">
-            <RevButtons
-              variant="destructive"
-              className="flex-1"
-              onClick={handleRequestRevisions}
-              disabled={isAnyActionPending || !!editingCommentId}
+            {/* Revision Request Dialog */}
+            <Dialog
+              open={revisionDialogOpen}
+              onOpenChange={setRevisionDialogOpen}
             >
-              {isDecisionPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Edit className="h-4 w-4 mr-2" />
-              )}
-              Request Revisions
-            </RevButtons>
-            <RevButtons
-              variant="success"
-              className="flex-1"
-              onClick={handleApprove}
-              disabled={isAnyActionPending || !!editingCommentId}
+              <DialogTrigger asChild>
+                <RevButtons
+                  variant="destructive"
+                  className="flex-1"
+                  disabled={isAnyActionPending || !!editingCommentId}
+                >
+                  {isDecisionPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Edit className="h-4 w-4 mr-2" />
+                  )}
+                  Request Revisions
+                </RevButtons>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Request Revisions</DialogTitle>
+                  <DialogDescription>
+                    {comments.length === 0
+                      ? "You haven't added any feedback. Are you sure you want to request revisions without specific comments?"
+                      : `Request revisions based on your ${comments.length} comment(s)?`}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="mt-4">
+                  <RevButtons
+                    variant="outline"
+                    onClick={() => setRevisionDialogOpen(false)}
+                  >
+                    Cancel
+                  </RevButtons>
+                  <RevButtons
+                    variant="destructive"
+                    onClick={handleRequestRevisions}
+                    disabled={isDecisionPending}
+                  >
+                    {isDecisionPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Confirm Revision Request
+                  </RevButtons>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Approval Dialog */}
+            <Dialog
+              open={approveDialogOpen}
+              onOpenChange={setApproveDialogOpen}
             >
-              {isDecisionPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Check className="h-4 w-4 mr-2" />
-              )}
-              Approve Project
-            </RevButtons>
+              <DialogTrigger asChild>
+                <RevButtons
+                  variant="success"
+                  className="flex-1"
+                  disabled={isAnyActionPending || !!editingCommentId}
+                >
+                  {isDecisionPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Check className="h-4 w-4 mr-2" />
+                  )}
+                  Approve Project
+                </RevButtons>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Approve Project</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to approve "{project.title}" Round{" "}
+                    {track.roundNumber}? This action cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="mt-4">
+                  <RevButtons
+                    variant="outline"
+                    onClick={() => setApproveDialogOpen(false)}
+                  >
+                    Cancel
+                  </RevButtons>
+                  <RevButtons
+                    variant="success"
+                    onClick={handleApprove}
+                    disabled={isDecisionPending}
+                  >
+                    {isDecisionPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Confirm Approval
+                  </RevButtons>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </CardFooter>
           <CardContent className="text-xs text-muted-foreground flex items-start gap-2">
             <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <span>
               Approving marks the project complete. Requesting revisions starts
-              a new round.
+              a new round with your feedback.
             </span>
           </CardContent>
         </Card>
