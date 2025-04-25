@@ -24,6 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Image from "next/image";
+import { updateAllStepContent } from "./actions";
 
 interface EditableStepsListProps {
   trackId: string;
@@ -381,40 +382,83 @@ export function EditableStepsList({
       if (!proceed) return;
     }
 
-    // First, save any steps with unsaved changes (new images, text changes)
-    for (let i = 0; i < nonFinalSteps.length; i++) {
-      const step = nonFinalSteps[i];
-      if (step.hasUnsavedChanges) {
-        await handleSaveStep(i);
-      }
-    }
-
-    // Then save the overall structure (order of steps)
     try {
-      // Prepare the steps for structure update (without the added properties)
+      // Prepare the form data for updateAllStepContent
+      const allFormData = new FormData();
+      allFormData.append("trackId", trackId);
+
+      // Create the steps structure, ensuring we're sending the displayText
+      // which contains the raw URLs that need to be processed
       const stepsForStructure = editableSteps.map((step) => ({
         name: step.name,
         status: step.status,
         is_final: step.is_final,
         deliverable_link: step.deliverable_link,
-        metadata: step.metadata,
+        metadata: {
+          type: step.metadata?.type || "comment",
+          comment_id: step.metadata?.comment_id,
+          text: step.displayText, // This contains URLs as plain text
+          images: step.metadata?.images || [],
+          links: step.metadata?.links || [],
+          created_at: step.metadata?.created_at,
+        },
       }));
 
-      await onSave(stepsForStructure);
+      allFormData.append("stepsStructure", JSON.stringify(stepsForStructure));
 
-      // Clear any remaining "hasUnsavedChanges" flags
+      // Identify ALL non-final steps that need processing
+      const stepsToProcess = editableSteps
+        .map((step, index) => ({
+          index,
+          hasNewImages: step.newImageFiles?.length > 0,
+          isFinal: step.is_final,
+        }))
+        .filter((item) => !item.isFinal); // Process all non-final steps
+
+      allFormData.append("stepsToProcess", JSON.stringify(stepsToProcess));
+
+      // Also identify specifically steps with new images
+      const stepsWithNewImages = stepsToProcess.filter(
+        (item) => item.hasNewImages
+      );
+
+      allFormData.append(
+        "stepsWithNewImages",
+        JSON.stringify(stepsWithNewImages)
+      );
+
+      // Add all new image files
+      editableSteps.forEach((step, stepIndex) => {
+        if (step.newImageFiles && step.newImageFiles.length > 0) {
+          step.newImageFiles.forEach((file, fileIndex) => {
+            allFormData.append(`newImage_${stepIndex}_${fileIndex}`, file);
+          });
+        }
+      });
+
+      // Call the server action
+      await updateAllStepContent(allFormData);
+
+      // Update UI state after successful save
       setEditableSteps((prev) =>
         prev.map((step) => ({
           ...step,
           hasUnsavedChanges: false,
+          newImageFiles: [],
         }))
       );
+
+      toast({
+        title: "Success",
+        description: "All changes saved successfully",
+        variant: "success",
+      });
     } catch (error) {
-      console.error("Error saving step order:", error);
+      console.error("Error saving changes:", error);
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to save step order",
+          error instanceof Error ? error.message : "Failed to save changes",
         variant: "destructive",
       });
     }
@@ -448,7 +492,7 @@ export function EditableStepsList({
             onClick={onCancel}
             disabled={isSaving || editableSteps.some((step) => step.isSaving)}
           >
-            Cancel
+            Back
           </RevButtons>
         </div>
       </div>
@@ -482,7 +526,7 @@ export function EditableStepsList({
                           snapshot.isDragging
                             ? "bg-accent/20 border-primary"
                             : ""
-                        } ${step.hasUnsavedChanges ? "border-yellow-200" : ""}`}
+                        } ${step.hasUnsavedChanges ? "border-yellow-200/50 border-2 border-dashed" : ""}`}
                       >
                         <div className="flex items-start gap-3">
                           <div
@@ -499,24 +543,11 @@ export function EditableStepsList({
                                 {step.hasUnsavedChanges && " (Unsaved changes)"}
                               </h4>
                               <div className="flex gap-2">
-                                {step.hasUnsavedChanges && (
-                                  <RevButtons
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleSaveStep(index)}
-                                    disabled={step.isSaving}
-                                  >
-                                    {step.isSaving ? (
-                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                    ) : null}
-                                    Save Step
-                                  </RevButtons>
-                                )}
                                 <RevButtons
-                                  variant="ghost"
+                                  variant="destructive"
                                   size="icon"
                                   onClick={() => handleDeleteStep(index)}
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  className="size-8"
                                   title="Delete step"
                                   disabled={step.isSaving}
                                 >

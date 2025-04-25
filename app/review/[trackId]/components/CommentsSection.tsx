@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, Clock } from "lucide-react";
 import { CommentTextWithLinks } from "./CommentTextWithLinks";
 import { EditableReviewComment } from "./EditableReviewComment"; // Import the edit component
+import { RevButtons } from "@/components/ui/RevButtons";
 
 // Interface for a single comment
 interface Comment {
@@ -124,20 +125,20 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                     </div>
                     {canModify && !isCurrentlyEditing && (
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
+                        <RevButtons
+                          variant="info"
                           size="icon"
-                          className="h-7 w-7"
+                          className="size-8"
                           onClick={() => onEdit(comment.id)}
                           title="Edit comment"
                           disabled={isEditDeletePending || !!editingCommentId}
                         >
                           <Pencil className="h-4 w-4" />
-                        </Button>
+                        </RevButtons>
                         <Button
-                          variant="ghost"
+                          variant="destructive"
                           size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          className="size-8"
                           onClick={() => onDelete(comment.id)}
                           title="Delete comment"
                           disabled={isEditDeletePending || !!editingCommentId}

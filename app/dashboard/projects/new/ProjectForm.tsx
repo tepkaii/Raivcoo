@@ -260,7 +260,7 @@ export default function ProjectForm({
                                 </div>
                               </div>
 
-                              <div className=" rounded-lg p-4 space-y-3 border-[2px] border-[#3F3F3F] pl-12">
+                              <div className=" rounded-lg p-4 space-y-3 border-[2px] bg-background border-dashed pl-12">
                                 <div className="flex justify-between items-start gap-2">
                                   <Textarea
                                     value={comment.text}

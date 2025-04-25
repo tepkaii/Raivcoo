@@ -833,3 +833,138 @@ export async function createInitialRound(
 
   return { message: "Initial round created successfully" };
 }
+// Add this to app/projects/actions.ts
+export async function updateAllStepContent(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("Editor not authenticated");
+
+  // Extract data
+  const trackId = formData.get("trackId") as string;
+  const stepsStructureString = formData.get("stepsStructure") as string;
+  const stepsToProcessString = formData.get("stepsToProcess") as string;
+  const stepsWithNewImagesString = formData.get("stepsWithNewImages") as string;
+  
+  if (!trackId || !stepsStructureString) {
+    throw new Error("Missing track ID or steps structure.");
+  }
+
+  // Parse steps data
+  let stepsStructure;
+  let stepsToProcess;
+  let stepsWithNewImages;
+  try {
+    stepsStructure = JSON.parse(stepsStructureString);
+    stepsToProcess = JSON.parse(stepsToProcessString);
+    stepsWithNewImages = JSON.parse(stepsWithNewImagesString);
+  } catch (e) {
+    console.error("Failed to parse steps data", e);
+    throw new Error("Invalid steps data format.");
+  }
+
+  // Verify track and ownership
+  const { data: track, error: trackError } = await supabase
+    .from("project_tracks")
+    .select(
+      `id, project_id, steps, client_decision, project:projects!inner(id, editor_id)`
+    )
+    .eq("id", trackId)
+    .single();
+    
+  if (trackError || !track || !track.project)
+    throw new Error("Track or associated project not found.");
+
+  // Verify editor owns the project
+  const { data: editorProfile, error: profileError } = await supabase
+    .from("editor_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+  if (
+    profileError ||
+    !editorProfile ||
+    track.project.editor_id !== editorProfile.id
+  ) {
+    throw new Error(
+      "Unauthorized: Project track does not belong to this editor."
+    );
+  }
+
+  // Check client decision
+  if (track.client_decision !== "pending") {
+    throw new Error(
+      `Client has already submitted their decision (${track.client_decision}). Cannot modify.`
+    );
+  }
+
+  // Process all non-final steps for links
+  for (const stepInfo of stepsToProcess) {
+    const stepIndex = stepInfo.index;
+    const stepData = stepsStructure[stepIndex];
+    
+    // Process links in the text for ALL steps
+    const { processedText, links } = detectAndExtractLinks(stepData.metadata.text);
+    stepData.metadata.text = processedText;
+    stepData.metadata.links = links;
+  }
+
+  // Process steps with new images
+  for (const stepInfo of stepsWithNewImages) {
+    const stepIndex = stepInfo.index;
+    const stepData = stepsStructure[stepIndex];
+    
+    // Get files for this step
+    const newImageUrls = [];
+    let fileIndex = 0;
+    let file = formData.get(`newImage_${stepIndex}_${fileIndex}`);
+    
+    while (file) {
+      if (file instanceof File && file.size > 0) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        try {
+          const imageUrl = await uploadImageToImgBB(buffer, file.name, file.type);
+          newImageUrls.push(imageUrl);
+        } catch (error) {
+          console.error(`Error uploading image for step ${stepIndex}:`, error);
+          throw error;
+        }
+      }
+      fileIndex++;
+      file = formData.get(`newImage_${stepIndex}_${fileIndex}`);
+    }
+    
+    // Update the step's metadata with the new image URLs
+    if (newImageUrls.length > 0) {
+      const existingImages = stepData.metadata.images || [];
+      stepData.metadata.images = [...existingImages, ...newImageUrls];
+    }
+  }
+  
+  // Now update the track with all changes at once
+  try {
+    const { error: updateError } = await supabase
+      .from("project_tracks")
+      .update({ 
+        steps: stepsStructure, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", trackId);
+      
+    if (updateError) throw updateError;
+    
+    // Revalidate paths
+    revalidatePath(`/dashboard/projects/${track.project_id}`);
+    revalidatePath(`/review/${trackId}`);
+    revalidatePath(`/projects/${track.project_id}/review/${trackId}`);
+    
+    return { message: "All steps updated successfully." };
+  } catch (error) {
+    console.error("Database update error:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("An unexpected error occurred while updating steps.");
+  }
+}

@@ -10,25 +10,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CameraIcon, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
-import { countries } from "../../../utils/ProfileOptions";
 import { validateDisplayName } from "./displayNameValidation";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
+import { timeZones } from "@/utils/timezones";
 
 interface AccountData {
   email: string | number | readonly string[] | undefined;
   user_id: string;
   full_name: string;
   display_name: string;
-  country: string;
   avatar_url: string;
   account_type: "editor" | "client";
+  timezone?: string;
 }
 
 interface AccountFormProps {
@@ -40,7 +43,6 @@ const MIN_FULL_NAME_LENGTH = 5;
 const MAX_FULL_NAME_LENGTH = 30;
 const MIN_DISPLAY_NAME_LENGTH = 3;
 const MAX_DISPLAY_NAME_LENGTH = 20;
-//
 
 export default function AccountForm({
   Account,
@@ -49,33 +51,36 @@ export default function AccountForm({
   const [displayNameErrors, setDisplayNameErrors] = useState<string[]>([]);
   const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null);
   const [previewAvatarUrl, setPreviewAvatarUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fullName, setFullName] = useState(Account.full_name);
+  const [displayName, setDisplayName] = useState(Account.display_name);
+  const [accountType, setAccountType] = useState<"editor" | "client">(
+    Account.account_type || "editor"
+  );
+  const [timezone, setTimezone] = useState(Account.timezone || "UTC");
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [isDisplayNameValid, setIsDisplayNameValid] = useState(true);
+
+  // Cleanup preview URLs on unmount
   useEffect(() => {
     return () => {
       if (previewAvatarUrl) {
         URL.revokeObjectURL(previewAvatarUrl);
       }
     };
-  }, [, previewAvatarUrl]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [fullName, setFullName] = useState(Account.full_name);
-  const [displayName, setDisplayName] = useState(Account.display_name);
-  const [country, setCountry] = useState(Account.country);
-  const [accountType, setAccountType] = useState<"editor" | "client">(
-    Account.account_type || "editor"
-  );
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [isDisplayNameValid, setIsDisplayNameValid] = useState(true);
-  // isFullNameValid
+  }, [previewAvatarUrl]);
+
+  // Validation flags
   const isFullNameValid =
     fullName.length >= MIN_FULL_NAME_LENGTH &&
     fullName.length <= MAX_FULL_NAME_LENGTH;
-  // isFormValid
   const isFormValid = isFullNameValid && isDisplayNameValid;
-  //
+
   const handleDisplayNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDisplayName(e.target.value);
   };
+
   const handleDisplayNameBlur = async () => {
     if (displayName !== Account.display_name) {
       startTransition(async () => {
@@ -109,37 +114,33 @@ export default function AccountForm({
     const formData = new FormData(event.currentTarget);
 
     try {
-      // Handle avatar and banner uploads
+      // Handle avatar upload
       if (newAvatarFile) {
         formData.set("image", newAvatarFile);
       }
 
-      // Add other form data
+      // Add form data
       formData.set("full_name", fullName);
-      formData.set("display_name", displayName.toLowerCase()); // Ensure lowercase when saving
-      formData.set("country", country);
+      formData.set("display_name", displayName.toLowerCase());
       formData.set("account_type", accountType);
+      formData.set("timezone", timezone);
 
       // Submit form
       const result = await updateAccount(formData);
 
-      // Show success message
       toast({
         title: "Success",
         description: result.message,
         variant: "success",
       });
 
-      // Clean up preview URLs
+      // Clean up preview URL
       if (previewAvatarUrl) {
         URL.revokeObjectURL(previewAvatarUrl);
         setPreviewAvatarUrl(null);
       }
 
-      // Reset file states
       setNewAvatarFile(null);
-
-      // Refresh the page to show updated data
       router.refresh();
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -164,242 +165,273 @@ export default function AccountForm({
         });
         return;
       }
-      // Just create local preview and store file
       setNewAvatarFile(file);
       const previewUrl = URL.createObjectURL(file);
       setPreviewAvatarUrl(previewUrl);
     }
   };
+
+  // Simplified character count display
   const renderCharacterCount = (current: number, min: number, max: number) => {
     const isValid = current >= min && current <= max;
-    const isEmpty = current === 0;
-    const isOverMax = current > max;
-    const isUnderMin = current > 0 && current < min;
-
-    const color = isEmpty
-      ? "text-gray-500"
-      : isOverMax || isUnderMin
-        ? "text-red-500"
-        : "text-green-500";
-
     return (
-      <p className={`text-sm ${color} mt-1 flex items-center`}>
-        {isValid ? (
-          <CheckCircle2 className="w-4 h-4 mr-1" />
-        ) : (
-          <AlertCircle className="w-4 h-4 mr-1" />
-        )}
-        {current}/{max} characters
+      <p
+        className={`text-sm ${isValid ? "text-green-500" : "text-red-500"} mt-1`}
+      >
+        {current}/{max}
       </p>
     );
   };
-  //
+
   return (
     <form onSubmit={handleSubmit} className="min-h-screen">
       <Card className="border-0 bg-transparent">
-        <CardContent className="space-y-4 mt-4">
-          <div className="flex flex-col   justify-between p-4 rounded-lg sm:p-6 gap-4 sm:gap-4">
-            <div className="flex flex-col  items-center  gap-4 sm:gap-6 w-full ">
-              {/* Avatar Section */}
-              <div
-                className={`relative group cursor-pointer rounded-full  `}
-                onClick={() =>
-                  document.getElementById("avatar-upload")?.click()
+        <CardContent className="space-y-6 mt-4">
+          {/* Avatar and User Info - Side by side layout */}
+          <div className="grid grid-cols-1   w-full">
+            {/* Left side - Avatar */}
+            {/* Avatar and User Info - Better balanced layout */}
+            <div className="flex flex-col sm:flex-row w-full items-center gap-6 pb-4 border-b">
+              {/* Left side - Avatar and name */}
+              <div className="flex items-center gap-4">
+                {/* Avatar */}
+                <div className="relative">
+                  <div
+                    className="group relative cursor-pointer"
+                    onClick={() =>
+                      document.getElementById("avatar-upload")?.click()
+                    }
+                    role="button"
+                    aria-label="Change profile picture"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        document.getElementById("avatar-upload")?.click();
+                      }
+                    }}
+                  >
+                    <Avatar className="h-20 w-20 rounded-xl border-2 border-primary/10 shadow-sm">
+                      <AvatarImage
+                        src={previewAvatarUrl || Account.avatar_url}
+                        loading="lazy"
+                        alt={Account.display_name}
+                      />
+                      <AvatarFallback>
+                        <Image
+                          src={"/avif/user-profile-avatar.avif"}
+                          alt={Account.display_name || "User Avatar"}
+                          fill
+                          loading="lazy"
+                        />
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Improved hover state */}
+                    <div className="absolute inset-0 rounded-xl bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="bg-white dark:bg-gray-800 rounded-[10px] p-2">
+                        <CameraIcon className="h-5 w-5 text-primary" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Visual indicator when new avatar is selected */}
+                  {newAvatarFile && (
+                    <div className="absolute -bottom-1 -right-1 bg-green-900 text-green-500 rounded-[5px] p-1">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                  )}
+
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    aria-label="Upload profile picture"
+                  />
+                </div>
+
+                {/* Name info */}
+                <div className="flex flex-col">
+                  <h2 className="text-xl font-semibold">{Account.full_name}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    @{Account.display_name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Right side - Account type badge */}
+            </div>
+          </div>
+
+          {/* Form Fields */}
+          <div className="space-y-5">
+            {/* Full Name */}
+            <div>
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input
+                type="text"
+                name="full_name"
+                id="full_name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={`mt-1 ${!isFullNameValid && fullName.length > 0 ? "border-red-500" : ""}`}
+                required
+                placeholder="Enter your full name"
+              />
+              {renderCharacterCount(
+                fullName.length,
+                MIN_FULL_NAME_LENGTH,
+                MAX_FULL_NAME_LENGTH
+              )}
+            </div>
+
+            {/* Display Name */}
+            <div>
+              <Label htmlFor="display_name">Display Name</Label>
+              <Input
+                type="text"
+                name="display_name"
+                id="display_name"
+                value={displayName}
+                onChange={(e) => {
+                  const lowercaseValue = e.target.value.toLowerCase();
+                  handleDisplayNameChange({
+                    ...e,
+                    target: { ...e.target, value: lowercaseValue },
+                  });
+                }}
+                onBlur={handleDisplayNameBlur}
+                className={`mt-1 ${!isDisplayNameValid ? "border-red-500" : ""}`}
+                placeholder="Choose your display name"
+                required
+                autoCapitalize="none"
+                style={{ textTransform: "lowercase" }}
+              />
+              {renderCharacterCount(
+                displayName.length,
+                MIN_DISPLAY_NAME_LENGTH,
+                MAX_DISPLAY_NAME_LENGTH
+              )}
+
+              {isPending && (
+                <p className="text-sm text-gray-500">
+                  Checking availability...
+                </p>
+              )}
+
+              {displayNameErrors.length > 0 && !isPending && (
+                <ul className="text-sm text-red-500 mt-1">
+                  {displayNameErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Email - Non-editable */}
+            <div>
+              <Label htmlFor="Email">Email</Label>
+              <Input
+                type="text"
+                name="Email"
+                disabled={true}
+                id="Email"
+                value={Account.email}
+                className="cursor-not-allowed mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Contact support to update your email address
+              </p>
+            </div>
+
+            {/* Time Zone */}
+            <div>
+              <Label htmlFor="timezone">Time Zone</Label>
+              <Select
+                name="timezone"
+                value={timezone}
+                onValueChange={(value) => setTimezone(value)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select time zone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Group timezones by region */}
+                  {Array.from(new Set(timeZones.map((tz) => tz.region))).map(
+                    (region) => (
+                      <SelectGroup key={region}>
+                        <SelectLabel className="text-sm text-muted-foreground">
+                          {region}
+                        </SelectLabel>
+                        {timeZones
+                          .filter((tz) => tz.region === region)
+                          .map((tz) => (
+                            <SelectItem key={tz.zone} value={tz.zone}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                      </SelectGroup>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your time zone helps with project deadlines and notifications
+              </p>
+            </div>
+
+            {/* Account Type */}
+            <div>
+              <Label htmlFor="account_type">Account Type</Label>
+              <Select
+                name="account_type"
+                value={accountType}
+                onValueChange={(value) =>
+                  setAccountType(value as "editor" | "client")
                 }
               >
-                <div className="relative">
-                  <Avatar className="h-24 w-24  rounded-lg border-2">
-                    <AvatarImage
-                      src={previewAvatarUrl || Account.avatar_url}
-                      loading="lazy"
-                      alt={Account.display_name}
-                    />
-                    <AvatarFallback>
-                      <Image
-                        src={"/avif/user-profile-avatar.avif"}
-                        alt={Account.display_name || "Editor Avatar"}
-                        fill
-                        loading="lazy"
-                      />
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-
-                {/* Hover overlay */}
-                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <CameraIcon className="h-6 w-6 text-white" />
-                </div>
-
-                <input
-                  type="file"
-                  id="avatar-upload"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                />
-              </div>
-
-              {/* User Info Section */}
-              <div className="flex flex-col items-center mt-0 text-center">
-                <h2 className=" text-2xl font-semibold">{Account.full_name}</h2>
-                <p className="sm:text-sm text-base text-muted-foreground mt-1">
-                  @{Account.display_name}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="full_name">Full Name</Label>
-            <Input
-              type="text"
-              name="full_name"
-              id="full_name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className={` mt-2 ${
-                !isFullNameValid && fullName.length > 0 ? "border-red-500" : ""
-              }`}
-              required
-              placeholder="Enter your full name"
-            />
-            {renderCharacterCount(
-              fullName.length,
-              MIN_FULL_NAME_LENGTH,
-              MAX_FULL_NAME_LENGTH
-            )}
-          </div>
-          <div>
-            <Label htmlFor="display_name">Display Name</Label>
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="text"
-                  name="display_name"
-                  id="display_name"
-                  value={displayName}
-                  onChange={(e) => {
-                    // Convert to lowercase immediately on input
-                    const lowercaseValue = e.target.value.toLowerCase();
-                    handleDisplayNameChange({
-                      ...e,
-                      target: { ...e.target, value: lowercaseValue },
-                    });
-                  }}
-                  onBlur={handleDisplayNameBlur}
-                  className={` ${!isDisplayNameValid ? "border-red-500" : ""}`}
-                  placeholder="Choose your display name"
-                  required
-                  autoCapitalize="none" // Helps on mobile devices
-                  style={{ textTransform: "lowercase" }} // Forces visual lowercase
-                />
-              </div>
-            </div>
-            {renderCharacterCount(
-              displayName.length,
-              MIN_DISPLAY_NAME_LENGTH,
-              MAX_DISPLAY_NAME_LENGTH
-            )}
-            {isPending && (
-              <p className="text-sm text-gray-500 mt-1">
-                Checking availability...
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select account type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client">Client</SelectItem>
+                  <SelectItem value="editor">Editor</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {accountType === "client"
+                  ? "Clients review and approve content submitted by editors"
+                  : "Editors submit content to clients for review and feedback"}
               </p>
-            )}
-            {displayNameErrors.length > 0 && !isPending && (
-              <ul className="text-sm text-red-500 mt-1">
-                {displayNameErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="Email">Email</Label>
-            <Input
-              type="text"
-              name="Email"
-              disabled={true}
-              id="Email"
-              value={Account.email}
-              className=" cursor-not-allowed mt-2"
-            />
-            <p className="text-sm text-muted-foreground mt-1">
-              You cannot change your email address at this time
-            </p>
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="country">Country</Label>
-            <Select
-              name="country"
-              value={country}
-              onValueChange={(value) => setCountry(value)}
-            >
-              <SelectTrigger className=" mt-2">
-                <SelectValue placeholder="Select country" />
-              </SelectTrigger>
-              <SelectContent>
-                {countries.map((country) => (
-                  <SelectItem key={country} value={country}>
-                    {country}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="account_type">Account Type</Label>
-            <Select
-              name="account_type"
-              value={accountType}
-              onValueChange={(value) =>
-                setAccountType(value as "editor" | "client")
-              }
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select account type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="client">Client</SelectItem>
-                <SelectItem value="editor">Editor</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground mt-1">
-              {accountType === "client"
-                ? "As a client, you review videos and images sent by editors and decide whether to request revisions or approve them."
-                : "As an editor, you send videos and images to clients for review and feedback."}
-            </p>
-          </div>
-
-          <p className="text-sm text-muted-foreground flex flex-wrap gap-1">
-            To Delete your account or Update your email, please contact us at{" "}
+          {/* Support info */}
+          <p className="text-xs text-center text-muted-foreground">
+            Need help? Contact us at{" "}
             <a
               href="mailto:ravivcoo@gmail.com"
-              className="hover:underline transition-all  break-words"
+              className="hover:underline transition-all"
             >
               Ravivcoo@gmail.com
-            </a>
-            /
+            </a>{" "}
+            or{" "}
             <a
               href="https://twitter.com/raivcoo"
-              className="hover:underline transition-all  break-words"
+              className="hover:underline transition-all"
             >
               Twitter
             </a>
           </p>
 
-          <div className="py-6">
+          {/* Submit Button */}
+          <div className="pt-4">
             <RevButtons
-              variant={"success"}
-              className=""
+              variant="success"
               type="submit"
-              disabled={
-                isLoading ||
-                !isFormValid ||
-                isPending ||
-                fullName.length > MAX_FULL_NAME_LENGTH ||
-                displayName.length > MAX_DISPLAY_NAME_LENGTH
-              }
+              disabled={isLoading || !isFormValid || isPending}
+              className="w-full"
             >
               {isLoading ? (
                 <>

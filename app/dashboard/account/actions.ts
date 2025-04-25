@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { timeZones } from "@/utils/timezones";
 import { revalidatePath } from "next/cache";
 
 const AVATAR_MAX_SIZE = 5 * 1024 * 1024;
@@ -45,6 +46,15 @@ async function uploadImageToImgBB(
   return data.data.url;
 }
 
+// Constants moved to account-related naming
+const ACCOUNT_AVATAR_MAX_SIZE = 32 * 1024 * 1024; // 32MB
+const ACCOUNT_REQUIRED_FIELDS = [
+  "full_name",
+  "display_name",
+  "account_type",
+  "timezone", // Added timezone as required
+];
+
 export async function updateAccount(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -71,7 +81,7 @@ export async function updateAccount(formData: FormData) {
     // Handle avatar upload
     const avatarFile = formData.get("image") as File;
     if (avatarFile instanceof File) {
-      if (avatarFile.size > AVATAR_MAX_SIZE) {
+      if (avatarFile.size > ACCOUNT_AVATAR_MAX_SIZE) {
         throw new Error("Avatar file size exceeds limit");
       }
       const bytes = await avatarFile.arrayBuffer();
@@ -84,34 +94,39 @@ export async function updateAccount(formData: FormData) {
       profileData.avatar_url = avatarUrl;
     }
 
-    // Handle fields
-    const jsonFields = [
-      "languages",
-      "skills",
-      "preferred_genres",
-      "software_proficiency",
+    // Process only the fields we need, ignore the rest
+    const allowedFields = [
+      "full_name",
+      "display_name",
+      "account_type",
+      "timezone",
+      "email", // Keep read-only email
     ];
+
+    // Remove unused fields from profile data
+    Object.keys(profileData).forEach((key) => {
+      if (
+        !allowedFields.includes(key) &&
+        key !== "user_id" &&
+        key !== "avatar_url" &&
+        key !== "id" &&
+        key !== "created_at" &&
+        key !== "updated_at"
+      ) {
+        delete profileData[key];
+      }
+    });
+
+    // Update with new form data
     for (const [key, value] of formData.entries()) {
-      if (key === "image") continue;
-      if (jsonFields.includes(key)) {
-        try {
-          profileData[key] = JSON.parse(value as string);
-        } catch {
-          profileData[key] = value;
-        }
-      } else {
+      if (key === "image") continue; // Skip image as we handled it separately
+      if (allowedFields.includes(key)) {
         profileData[key] = value;
       }
     }
 
     // Validate required fields
-    const requiredFields = [
-      "full_name",
-      "display_name",
-      "country",
-      "account_type", // Added this field as required
-    ];
-    for (const field of requiredFields) {
+    for (const field of ACCOUNT_REQUIRED_FIELDS) {
       if (!profileData[field]) {
         throw new Error(`${field} is required`);
       }
@@ -136,16 +151,23 @@ export async function updateAccount(formData: FormData) {
       }
     }
 
+    // Force lowercase for display name
+    profileData.display_name = profileData.display_name.toLowerCase();
+
     // Clean up undefined/null values
     Object.keys(profileData).forEach((key) => {
       if (profileData[key] === undefined || profileData[key] === null) {
         delete profileData[key];
       }
     });
-
-    // Remove password from being sent to db
-    delete profileData.password;
-
+    const timezoneValue = formData.get("timezone") as string;
+    if (timezoneValue) {
+      const isValidTimezone = timeZones.some((tz) => tz.zone === timezoneValue);
+      if (!isValidTimezone) {
+        throw new Error("Invalid timezone selected");
+      }
+      profileData.timezone = timezoneValue; // Store just the zone value
+    }
     // Update profile
     const { error: updateError } = await supabase
       .from("editor_profiles")
@@ -155,10 +177,10 @@ export async function updateAccount(formData: FormData) {
       throw new Error(`Failed to update profile: ${updateError.message}`);
     }
 
-    revalidatePath("/profile");
-    return { message: "Profile updated successfully" };
+    revalidatePath("/dashboard/account");
+    return { message: "Account updated successfully" };
   } catch (error) {
-    console.error("Profile update error:", error);
+    console.error("Account update error:", error);
     throw error instanceof Error ? error : new Error("Unexpected error");
   }
 }

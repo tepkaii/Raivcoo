@@ -91,22 +91,10 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
       {/* Logo/Website Header - Top */}
       <SidebarHeader className="border-b p-0 m-0 border-[#3F3F3F] bg-background">
         <Link href="/" className="w-full">
-          <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] cursor-pointer">
-            <div className="h-8 w-8 rounded-lg border-2 flex items-center justify-center overflow-hidden">
+          <div className="flex items-center  py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] cursor-pointer">
+            <div className="h-8 w-8  flex items-center justify-center overflow-hidden">
               {/* Replace with your logo */}
-              <Image
-                src="/avif/user-profile-avatar.avif"
-                alt="Raivcoo"
-                width={32}
-                height={32}
-                className="object-cover"
-              />
-            </div>
-            <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-medium truncate">Raivcoo</span>
-              <span className="text-xs text-muted-foreground truncate">
-                Video Review Platform
-              </span>
+              <Image src="/Raivcco.svg" alt="Raivcoo" width={30} height={30} />
             </div>
           </div>
         </Link>
