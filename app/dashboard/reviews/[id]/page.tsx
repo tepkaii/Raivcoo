@@ -41,7 +41,7 @@ export default async function ClientProjectPage({
   params: { id: string };
 }) {
   const supabase = await createClient();
-  const { id } = params;
+  const { id } = await params;
 
   const {
     data: { user },

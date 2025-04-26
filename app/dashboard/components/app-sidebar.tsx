@@ -22,6 +22,8 @@ import {
   LayoutDashboard,
   Clock,
   CheckCircle2,
+  Home,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,7 +32,22 @@ import { EditorProfile } from "@/app/types/editorProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useLinkStatus } from "next/link";
-import Image from "next/image";
+import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import AccountForm from "../account/AccountForm";
+import { updateAccount } from "../account/actions";
 
 interface ProfileShowProps {
   portfolio: EditorProfile;
@@ -74,6 +91,7 @@ function LinkStatus({ href }: { href: string }) {
 export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
   const pathname = usePathname();
   const isClient = initialPortfolio?.account_type === "client";
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
 
   // Check if we're in a specific section (more precise than just startsWith)
   const isActiveSection = (path: string) => {
@@ -89,15 +107,70 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
   return (
     <Sidebar collapsible="icon">
       {/* Logo/Website Header - Top */}
-      <SidebarHeader className="border-b p-0 m-0 border-[#3F3F3F] bg-background">
-        <Link href="/" className="w-full">
-          <div className="flex items-center  py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] cursor-pointer">
-            <div className="h-8 w-8  flex items-center justify-center overflow-hidden">
-              {/* Replace with your logo */}
-              <Image src="/Raivcco.svg" alt="Raivcoo" width={30} height={30} />
-            </div>
+      <SidebarHeader className="border-b p-0 m-0  bg-background">
+        <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
+          <Avatar className="h-8 w-8 rounded-lg border-2">
+            <AvatarImage
+              src={initialPortfolio?.avatar_url || ""}
+              alt={initialPortfolio?.display_name || "User"}
+            />
+            <AvatarFallback>
+              <User className="h-4 w-4" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
+            <span className="text-sm font-medium truncate">
+              {initialPortfolio?.display_name || "User"}
+            </span>
+            <span className="text-xs text-muted-foreground truncate">
+              {initialPortfolio?.email || "user@example.com"}
+            </span>
           </div>
-        </Link>
+
+          {/* New dropdown menu replacing the sign out button */}
+          <div className="absolute group-data-[collapsible=icon]:hidden right-3 top-1/2 -translate-y-1/2">
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <RevButtons size={"icon"} variant={"ghost"} title="User Menu">
+                  <div className="flex items-center">
+                    <ChevronDown className="h-3 w-3  transition-transform duration-200 data-[state=open]:rotate-180" />
+                  </div>
+                </RevButtons>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/" className="flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    <span>Home</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setAccountDialogOpen(true)}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <SquareUser className="h-4 w-4" />
+                  <span>Account</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <form
+                    action="/auth/signout"
+                    method="post"
+                    className="flex items-center gap-2 w-full cursor-pointer"
+                  >
+                    <button
+                      type="submit"
+                      className="flex items-center gap-2 w-full"
+                    >
+                      <LogOut className="h-4 w-4 text-red-600" />
+                      <span className=" text-red-600">Sign out</span>
+                    </button>
+                  </form>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
       </SidebarHeader>
 
       <SidebarContent className="space-y-[-15px]">
@@ -242,71 +315,22 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-
-        {/* ACCOUNT SECTION - FOR BOTH */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/dashboard/account" className="w-full">
-                  <SidebarMenuButton
-                    className={cn(
-                      "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
-                      isActiveSection("/dashboard/account") && "bg-muted"
-                    )}
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#4C1D95]/40 text-[#A855F7] shrink-0">
-                      <SquareUser className="w-4 h-4" />
-                    </div>
-                    <span className="group-data-[collapsible=icon]:hidden">
-                      Account
-                    </span>
-                    <LinkStatus href="/dashboard/account" />
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
-      {/* User Footer - This is the new bottom section */}
-      <SidebarFooter className="mt-auto border-t p-0 m-0 border-[#3F3F3F] bg-background">
-        <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
-          <Avatar className="h-8 w-8 rounded-lg border-2">
-            <AvatarImage
-              src={initialPortfolio?.avatar_url || ""}
-              alt={initialPortfolio?.display_name || "User"}
+      {/* Account Dialog */}
+      <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Account Settings</DialogTitle>
+          </DialogHeader>
+          {initialPortfolio && (
+            <AccountForm
+              Account={initialPortfolio}
+              updateAccount={updateAccount}
             />
-            <AvatarFallback>
-              <User className="h-4 w-4" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-medium truncate">
-              {initialPortfolio?.display_name || "User"}
-            </span>
-            <span className="text-xs text-muted-foreground truncate">
-              {initialPortfolio?.email || "user@example.com"}
-            </span>
-          </div>
-
-          <form
-            action="/auth/signout"
-            method="post"
-            className="absolute group-data-[collapsible=icon]:hidden  right-3 top-1/2 -translate-y-1/2"
-          >
-            <RevButtons
-              size={"icon"}
-              variant={"destructive"}
-              type="submit"
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </RevButtons>
-          </form>
-        </div>
-      </SidebarFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   );
 }

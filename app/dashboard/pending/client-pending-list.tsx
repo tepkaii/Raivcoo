@@ -65,14 +65,18 @@ export function ClientPendingList({
             )}
           </div>
           <Link href={`/dashboard/reviews/${project.id}`}>
-            <Button variant="ghost" size="sm" className="text-muted-foreground">
+            <RevButtons
+              variant="outline"
+              size="icon"
+              className="text-muted-foreground"
+            >
               <ChevronRight className="h-4 w-4" />
-            </Button>
+            </RevButtons>
           </Link>
         </div>
 
         {/* Project metadata */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="flex justify-between  gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <p className="text-muted-foreground">Last updated:</p>
@@ -102,16 +106,6 @@ export function ClientPendingList({
             </span>
           </div>
         )}
-
-        {/* Status Info */}
-        <div className="flex items-center gap-2 text-sm text-orange-500">
-          <RotateCcw className="h-4 w-4" />
-          <span>
-            {project.latestTrack?.client_decision === "revisions_requested"
-              ? "Editor working on your requested revisions"
-              : "Editor preparing initial submission"}
-          </span>
-        </div>
 
         {/* Quick Actions */}
         <div className="flex gap-2 pt-2">

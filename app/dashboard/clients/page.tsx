@@ -1,14 +1,12 @@
-// app/clients/page.tsx
+// app/clients/page.tsx - updated version
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Card, CardContent } from "@/components/ui/card";
-import { PlusCircle, Users } from "lucide-react"; // Removed MoreVertical
+import { PlusCircle, Users } from "lucide-react";
 import { Metadata } from "next";
 import { ClientCard } from "./ClientCard";
-
-// Import the new ClientCard component
 
 export const metadata: Metadata = {
   title: "Clients - Video Editor Dashboard",
@@ -35,17 +33,18 @@ export default async function page() {
 
   if (profileError || !editorProfile) {
     console.error("Editor profile error or not found:", profileError);
-    // Redirect to profile setup or show an error state
-    redirect("/profile?error=Editor profile not found"); // Example redirect with query param
+    redirect("/profile?error=Editor profile not found");
   }
 
   // Fetch clients - Runs on the server
-  // Define the type explicitly for better clarity
   type ClientWithProjects = {
     id: string;
     name: string;
     company: string | null;
     email: string | null;
+    phone: string | null;
+    notes: string | null;
+    created_at: string;
     projects: { id: string }[] | null;
   };
 
@@ -57,22 +56,23 @@ export default async function page() {
       name,
       company,
       email,
+      phone,
+      notes,
+      created_at,
       projects:projects(id)
     `
     )
     .eq("editor_id", editorProfile.id)
     .order("name", { ascending: true });
 
-  // Cast the fetched data to the defined type
   const clients: ClientWithProjects[] | null = clientsData;
 
   if (clientsError) {
     console.error("Error fetching clients:", clientsError);
   }
 
-  // ClientCard component is now defined in its own file and imported
   return (
-    <div className="min-h-screen  py-6 space-y-6 ">
+    <div className="min-h-screen py-6 space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex justify-between items-center w-full gap-4 flex-wrap border-b pb-4">
           <div>
@@ -87,14 +87,12 @@ export default async function page() {
       </div>
 
       {clients && clients.length > 0 ? (
-        <div className="grid grid-cols-1  gap-4">
-          {/* Use the imported ClientCard component */}
+        <div className="flex flex-col gap-4">
           {clients.map((client) => (
             <ClientCard key={client.id} client={client} />
           ))}
         </div>
       ) : clientsError ? (
-        // Optional: Show an error state if fetching failed
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10">
             <p className="text-red-600">
@@ -106,7 +104,6 @@ export default async function page() {
           </CardContent>
         </Card>
       ) : (
-        // Show the "No clients yet" state
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />

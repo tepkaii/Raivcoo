@@ -184,9 +184,9 @@ export default function AccountForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="min-h-screen">
-      <Card className="border-0 bg-transparent">
-        <CardContent className="space-y-6 mt-4">
+    <form onSubmit={handleSubmit}>
+      <Card className="border-0 p-0 m-0 bg-transparent">
+        <CardContent className=" p-0 m-0 space-y-6 mt-4">
           {/* Avatar and User Info - Side by side layout */}
           <div className="grid grid-cols-1   w-full">
             {/* Left side - Avatar */}
@@ -407,6 +407,24 @@ export default function AccountForm({
             </div>
           </div>
 
+          {/* Submit Button */}
+          <div className="">
+            <RevButtons
+              variant="success"
+              type="submit"
+              disabled={isLoading || !isFormValid || isPending}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </RevButtons>
+          </div>
           {/* Support info */}
           <p className="text-xs text-center text-muted-foreground">
             Need help? Contact us at{" "}
@@ -424,25 +442,6 @@ export default function AccountForm({
               Twitter
             </a>
           </p>
-
-          {/* Submit Button */}
-          <div className="pt-4">
-            <RevButtons
-              variant="success"
-              type="submit"
-              disabled={isLoading || !isFormValid || isPending}
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Changes"
-              )}
-            </RevButtons>
-          </div>
         </CardContent>
       </Card>
     </form>

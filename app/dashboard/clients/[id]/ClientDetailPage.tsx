@@ -35,10 +35,12 @@ import {
   FolderOpenDot,
   Truck,
   Circle,
+  MoreVertical,
 } from "lucide-react";
 import { ClientDetailActions } from "./components/ClientDetailActions";
 import { ProjectEditDialog } from "../../projects/components/ProjectEditDialog";
 import { ProjectDeleteDialog } from "../../projects/components/ProjectDeleteDialog";
+import { RevButtons } from "@/components/ui/RevButtons";
 
 interface Step {
   name: string;
@@ -247,7 +249,9 @@ export default function ClientDetailPage({
           {projects.length > 0 ? (
             <div className="grid gap-4">
               {projects.map((project) => {
-                const trackProgress = calculateTrackProgress(project.latestTrack);
+                const trackProgress = calculateTrackProgress(
+                  project.latestTrack
+                );
                 const newRound = isNewRound(project.latestTrack);
                 const statusIcon = getStatusIcon(project.status);
                 const statusVariant = getStatusVariant(project.status);
@@ -292,15 +296,13 @@ export default function ClientDetailPage({
 
                             <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 data-[state=open]:bg-muted"
+                                <RevButtons
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8 p-0"
                                 >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">
-                                    Project Actions
-                                  </span>
-                                </button>
+                                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                </RevButtons>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem
@@ -316,16 +318,11 @@ export default function ClientDetailPage({
                                   <span>Edit Details</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={handleSelect} asChild>
-                                  <Link
-                                    href={`/dashboard/projects/${project.id}`}
-                                    className="flex items-center"
-                                  >
-                                    <FolderOpenDot className="mr-2 h-4 w-4" />
-                                    <span>View Project</span>
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={handleSelect} asChild>
+
+                                <DropdownMenuItem
+                                  onSelect={handleSelect}
+                                  asChild
+                                >
                                   <Link
                                     href={liveTrackUrl}
                                     className="flex items-center"
@@ -399,7 +396,8 @@ export default function ClientDetailPage({
                                             (s) => s.status === "completed"
                                           ).length
                                         }
-                                        /{project.latestTrack.steps.length} steps
+                                        /{project.latestTrack.steps.length}{" "}
+                                        steps
                                       </span>
                                     )}
                                   </span>
@@ -429,29 +427,14 @@ export default function ClientDetailPage({
 
                             <div className="flex items-center gap-2">
                               <Link
-                                href={liveTrackUrl}
-                                className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                                title="Live Track Link"
+                                href={`/dashboard/projects/${project.id}`}
+                                className="flex items-center"
                               >
-                                <Link2 className="h-4 w-4" />
-                                <span className="text-xs hidden sm:inline">
-                                  Live Link
-                                </span>
+                                <RevButtons variant={"outline"} size={"sm"}>
+                                  <FolderOpenDot className="mr-2 h-4 w-4" />
+                                  <span>View Project</span>
+                                </RevButtons>
                               </Link>
-                              <button
-                                className="p-1 rounded-md hover:bg-muted transition-colors flex items-center gap-1"
-                                title="Copy Live Track Link"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(
-                                    `${window.location.origin}${liveTrackUrl}`
-                                  );
-                                }}
-                              >
-                                <Copy className="h-4 w-4" />
-                                <span className="text-xs hidden sm:inline">
-                                  Copy
-                                </span>
-                              </button>
                             </div>
                           </div>
                         </div>

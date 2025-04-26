@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 import { StepCommentsSection } from "./StepCommentsSection";
-import { EditableStepsList } from "../EditableStepsList";
+import { EditableStepsList } from "../components/EditableStepsList";
 import { RevButtons } from "@/components/ui/RevButtons";
 
 // --- Interfaces ---

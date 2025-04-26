@@ -46,7 +46,7 @@ interface Project {
 
 export default async function page({ params }: { params: { id: string } }) {
   const supabase = await createClient();
-  const { id: clientId } = params;
+  const { id: clientId } = await params;
 
   const {
     data: { user },

@@ -35,6 +35,14 @@ export default async function DashboardPage() {
 
   const isClient = userProfile.account_type === "client";
 
+  // Get current month's start date
+  const currentDate = new Date();
+  const monthStart = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    1
+  ).toISOString();
+
   if (isClient) {
     // CLIENT VIEW - Find all projects where client's email is used
     const { data: clientProjects } = await supabase
@@ -188,7 +196,6 @@ export default async function DashboardPage() {
             };
           })
           // Sort projects by their most recent track activity (update or creation)
-          // app/dashboard/page.tsx (continued)
           .sort((a, b) => {
             const dateA = a.latestTrackUpdate
               ? new Date(a.latestTrackUpdate).getTime()
@@ -210,6 +217,7 @@ export default async function DashboardPage() {
       id,
       name,
       company,
+      created_at,
       projects:projects(id)
     `
       )
@@ -217,7 +225,7 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false })
       .limit(3);
 
-    // Count projects by status
+    // All-time stats
     const { count: activeProjects } = await supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
@@ -236,15 +244,56 @@ export default async function DashboardPage() {
       .eq("editor_id", userProfile.id)
       .eq("status", "completed");
 
+    const { count: totalClients } = await supabase
+      .from("clients")
+      .select("*", { count: "exact", head: true })
+      .eq("editor_id", userProfile.id);
+
+    // Monthly stats
+    const { count: monthlyActiveProjects } = await supabase
+      .from("projects")
+      .select("*", { count: "exact", head: true })
+      .eq("editor_id", userProfile.id)
+      .eq("status", "active")
+      .gte("created_at", monthStart);
+
+    const { count: monthlyPendingProjects } = await supabase
+      .from("projects")
+      .select("*", { count: "exact", head: true })
+      .eq("editor_id", userProfile.id)
+      .eq("status", "pending")
+      .gte("created_at", monthStart);
+
+    const { count: monthlyCompletedProjects } = await supabase
+      .from("projects")
+      .select("*", { count: "exact", head: true })
+      .eq("editor_id", userProfile.id)
+      .eq("status", "completed")
+      .gte("created_at", monthStart);
+
+    const { count: monthlyNewClients } = await supabase
+      .from("clients")
+      .select("*", { count: "exact", head: true })
+      .eq("editor_id", userProfile.id)
+      .gte("created_at", monthStart);
+
     return (
       <DashboardClient
         recentProjects={recentProjects}
         recentClients={recentClients || []}
         stats={{
-          activeProjects: activeProjects || 0,
-          pendingProjects: pendingProjects || 0,
-          completedProjects: completedProjects || 0,
-          totalClients: recentClients?.length || 0,
+          monthly: {
+            activeProjects: monthlyActiveProjects || 0,
+            pendingProjects: monthlyPendingProjects || 0,
+            completedProjects: monthlyCompletedProjects || 0,
+            newClients: monthlyNewClients || 0,
+          },
+          allTime: {
+            activeProjects: activeProjects || 0,
+            pendingProjects: pendingProjects || 0,
+            completedProjects: completedProjects || 0,
+            totalClients: totalClients || 0,
+          },
         }}
       />
     );

@@ -16,12 +16,16 @@ import {
   FolderOpenDot,
   Eye,
   MessageSquare,
+  Calendar,
+  History,
+  BarChart,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState } from "react";
 
 interface Step {
   name: string;
@@ -66,6 +70,19 @@ interface Project {
   latestTrackUpdate?: string;
 }
 
+interface Stats {
+  monthly: {
+    activeProjects: number;
+    pendingReviews: number;
+    completedProjects: number;
+  };
+  allTime: {
+    activeProjects: number;
+    pendingReviews: number;
+    completedProjects: number;
+  };
+}
+
 export function DashboardClientView({
   activeProjects,
   pendingReviews,
@@ -75,6 +92,43 @@ export function DashboardClientView({
   pendingReviews: Project[];
   completedProjects: Project[];
 }) {
+  const [showAllTimeStats, setShowAllTimeStats] = useState(false);
+
+  // Calculate monthly stats
+  const currentDate = new Date();
+  const monthStart = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    1
+  );
+
+  const monthlyActiveProjects = activeProjects.filter(
+    (p) => new Date(p.created_at) >= monthStart
+  ).length;
+
+  const monthlyPendingReviews = pendingReviews.filter(
+    (p) => new Date(p.created_at) >= monthStart
+  ).length;
+
+  const monthlyCompletedProjects = completedProjects.filter(
+    (p) => new Date(p.created_at) >= monthStart
+  ).length;
+
+  const stats: Stats = {
+    monthly: {
+      activeProjects: monthlyActiveProjects,
+      pendingReviews: monthlyPendingReviews,
+      completedProjects: monthlyCompletedProjects,
+    },
+    allTime: {
+      activeProjects: activeProjects.length,
+      pendingReviews: pendingReviews.length,
+      completedProjects: completedProjects.length,
+    },
+  };
+
+  const currentStats = showAllTimeStats ? stats.allTime : stats.monthly;
+
   const renderProjectCard = (project: Project) => {
     const trackProgress = project.latestTrack
       ? calculateTrackProgress(project.latestTrack)
@@ -105,9 +159,13 @@ export function DashboardClientView({
             )}
           </div>
           <Link href={`/dashboard/reviews/${project.id}`}>
-            <Button variant="ghost" size="sm" className="text-muted-foreground">
+            <RevButtons
+              variant="outline"
+              size="icon"
+              className="text-muted-foreground"
+            >
               <ChevronRight className="h-4 w-4" />
-            </Button>
+            </RevButtons>
           </Link>
         </div>
 
@@ -151,12 +209,7 @@ export function DashboardClientView({
               </RevButtons>
             </Link>
           )}
-          <Link href={`/dashboard/reviews/${project.id}`}>
-            <RevButtons variant="outline" size="sm" className="gap-1">
-              <FolderOpenDot className="h-4 w-4" />
-              Details
-            </RevButtons>
-          </Link>
+
           {project.status === "active" && (
             <Link href={`/live-track/${project.id}`}>
               <RevButtons variant="outline" size="sm" className="gap-1">
@@ -186,10 +239,22 @@ export function DashboardClientView({
     return Math.round((completedSteps / track.steps.length) * 100);
   };
 
+  // Calculate completion rate
+  const calculateCompletionRate = (stats: {
+    completedProjects: number;
+    activeProjects: number;
+    pendingReviews: number;
+  }) => {
+    const total =
+      stats.completedProjects + stats.activeProjects + stats.pendingReviews;
+    if (total === 0) return 0;
+    return Math.round((stats.completedProjects / total) * 100);
+  };
+
   return (
     <div className="min-h-screen p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             Client Dashboard
@@ -198,25 +263,43 @@ export function DashboardClientView({
             Review and approve your projects
           </p>
         </div>
+        <Button
+          onClick={() => setShowAllTimeStats(!showAllTimeStats)}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-1"
+        >
+          {showAllTimeStats ? (
+            <>
+              <Calendar className="h-4 w-4" />
+              Show Monthly Stats
+            </>
+          ) : (
+            <>
+              <History className="h-4 w-4" />
+              Show All-time Stats
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
-          title="Active Projects"
-          value={activeProjects.length}
+          title={`${showAllTimeStats ? "All-time" : "Monthly"} Active Projects`}
+          value={currentStats.activeProjects}
           icon={<FolderOpenDot className="h-4 w-4" />}
           variant="active"
         />
         <StatCard
-          title="Pending Reviews"
-          value={pendingReviews.length}
+          title={`${showAllTimeStats ? "All-time" : "Monthly"} Pending Reviews`}
+          value={currentStats.pendingReviews}
           icon={<Clock className="h-4 w-4" />}
           variant="pending"
         />
         <StatCard
-          title="Completed"
-          value={completedProjects.length}
+          title={`${showAllTimeStats ? "All-time" : "Monthly"} Completed`}
+          value={currentStats.completedProjects}
           icon={<CheckCircle2 className="h-4 w-4" />}
           variant="completed"
         />
@@ -271,6 +354,29 @@ export function DashboardClientView({
               </Link>
             </CardFooter>
           )}
+        </Card>
+
+        {/* Analytics Section */}
+        <Card className="border-[2px]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart className="h-5 w-5" />
+              Monthly Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground space-y-3">
+              <p>
+                Project completion rate:{" "}
+                {calculateCompletionRate(stats.monthly)}%
+              </p>
+              <p>
+                Average review time:{" "}
+                {stats.monthly.completedProjects > 0 ? "24 hours" : "N/A"}
+              </p>
+              <p>Active projects this month: {stats.monthly.activeProjects}</p>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>

@@ -12,7 +12,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Step } from "./[id]/TrackManager";
+import { Step } from "../[id]/TrackManager";
 import { toast } from "@/hooks/use-toast";
 import {
   Loader2,
@@ -24,7 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Image from "next/image";
-import { updateAllStepContent } from "./actions";
+import { updateAllStepContent } from "../actions";
 
 interface EditableStepsListProps {
   trackId: string;

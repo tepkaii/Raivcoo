@@ -1,13 +1,13 @@
-// app/clients/ClientCard.tsx (or components/clients/ClientCard.tsx)
+// app/clients/ClientCard.tsx
 "use client";
 
-import { useState, ChangeEvent, FormEvent } from "react"; // Added ChangeEvent, FormEvent
+import { useState, ChangeEvent, FormEvent } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, Mail, Building2, Phone } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,21 +26,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { deleteClient, updateClient } from "./actions";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-
-// Define a more complete type for the client data needed for editing
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { RevButtons } from "@/components/ui/RevButtons";
 
 type ClientData = {
   id: string;
   name: string;
   company: string | null;
   email: string | null;
-  phone: string | null; // Added phone
-  notes: string | null; // Added notes
+  phone: string | null;
+  notes: string | null;
+  created_at?: string;
   projects: { id: string }[] | null;
 };
 
-// Type for the form data state
 type EditFormData = {
   name: string;
   email: string;
@@ -49,20 +50,17 @@ type EditFormData = {
   notes: string;
 };
 
-// Define the type for the server action responses
 type ServerActionResult = {
   success: boolean;
   message: string;
-  // Delete specific fields
   hasProjects?: boolean;
   projectCount?: number;
   forceDeletedProjects?: boolean;
-  // Update specific fields
-  client?: ClientData; // Assuming update returns the updated client
+  client?: ClientData;
 };
 
 interface ClientCardProps {
-  client: ClientData; // Use the more complete type
+  client: ClientData;
 }
 
 export function ClientCard({ client }: ClientCardProps) {
@@ -131,7 +129,6 @@ export function ClientCard({ client }: ClientCardProps) {
     e.preventDefault();
     setUpdateState({ loading: true, error: null });
 
-    // Create FormData to send to the server action
     const formData = new FormData();
     formData.append("name", editFormData.name);
     formData.append("email", editFormData.email);
@@ -140,14 +137,11 @@ export function ClientCard({ client }: ClientCardProps) {
     formData.append("notes", editFormData.notes);
 
     try {
-      const result = await updateClient(client.id, formData); // Call server action
+      const result = await updateClient(client.id, formData);
       if (result.message.includes("success")) {
-        // Simple success check based on message
         setShowEditDialog(false);
-        router.refresh(); // Refresh data on the page
-        // Optionally show success toast
+        router.refresh();
       } else {
-        // If the action resolves but indicates failure (e.g., validation)
         setUpdateState({
           loading: false,
           error: result.message || "Failed to update client.",
@@ -155,7 +149,6 @@ export function ClientCard({ client }: ClientCardProps) {
       }
     } catch (error) {
       console.error("Error calling updateClient action:", error);
-      // If the action throws an error
       setUpdateState({
         loading: false,
         error:
@@ -166,7 +159,6 @@ export function ClientCard({ client }: ClientCardProps) {
     }
   };
 
-  // Function to initialize/reset edit form state when opening dialog
   const openEditDialog = () => {
     setEditFormData({
       name: client.name ?? "",
@@ -175,86 +167,123 @@ export function ClientCard({ client }: ClientCardProps) {
       phone: client.phone ?? "",
       notes: client.notes ?? "",
     });
-    setUpdateState({ loading: false, error: null }); // Reset errors/loading
+    setUpdateState({ loading: false, error: null });
     setShowEditDialog(true);
+  };
+
+  // Format date for display
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
     <div className="relative group">
-      {/* Card Content and Link */}
       <Card className="h-full border-2 hover:shadow-md transition-shadow">
-        {/* Link should ideally navigate to a dedicated client page */}
-        {/* Or remove the Link wrapper if all actions are via dropdown */}
-        <Link
-          href={`/dashboard/clients/${client.id}`}
-          passHref
-          className="block h-full"
-        >
-          <CardHeader className="pb-2">
-            <CardTitle>{client.name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {client.company || "N/A"}
-            </p>{" "}
-            {/* Handle null display */}
-            <p className="text-sm text-muted-foreground">
-              {client.email || "N/A"}
-            </p>{" "}
-            {/* Handle null display */}
-            <div className="mt-2 flex items-center">
-              <div className="bg-muted px-2 py-1 rounded-md text-xs font-medium">
-                {client.projects?.length ?? 0} projects
-              </div>
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 border">
+              <AvatarImage src={`https://avatar.vercel.sh/${client.id}.png`} />
+              <AvatarFallback>
+                {client.name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-semibold text-lg">{client.name}</h3>
+              {client.company && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Building2 className="h-3 w-3 mr-1" />
+                  {client.company}
+                </div>
+              )}
             </div>
-          </CardContent>
-        </Link>
-      </Card>
+          </div>
 
-      {/* Dropdown Menu for Actions */}
-      <div className="absolute top-2 right-2 z-10">
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger>
-            <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
-              <span className="sr-only">Open client menu</span>
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onSelect={(e) => {
-                // Use onSelect to avoid interfering with Dialog trigger logic
-                e.preventDefault(); // Prevent any default behavior
-                openEditDialog();
-              }}
-              className="cursor-pointer"
-            >
-              Edit Client
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Link href={`/dashboard/clients/${client.id}`}>View Details</Link>{" "}
-              {/* Changed link purpose */}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteState({ loading: false, error: null });
-                setShowDeleteDialog(true);
-              }}
-              className="text-red-600 focus:text-red-700 cursor-pointer"
-            >
-              Delete Client
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger>
+              <RevButtons variant="outline" size="icon" className="h-8 w-8 p-0">
+                <span className="sr-only">Open client menu</span>
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              </RevButtons>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  openEditDialog();
+                }}
+                className="cursor-pointer"
+              >
+                Edit Client
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteState({ loading: false, error: null });
+                  setShowDeleteDialog(true);
+                }}
+                className="text-red-600 focus:text-red-700 cursor-pointer"
+              >
+                Delete Client
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardHeader>
+
+        <CardContent>
+          <div className="space-y-3">
+            {client.email && (
+              <div className="flex items-center text-sm">
+                <Mail className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                <a href={`mailto:${client.email}`} className="hover:underline">
+                  {client.email}
+                </a>
+              </div>
+            )}
+
+            {client.phone && (
+              <div className="flex items-center text-sm">
+                <Phone className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                <a href={`tel:${client.phone}`} className="hover:underline">
+                  {client.phone}
+                </a>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2">
+              <Badge variant="outline" className="px-2 py-0.5">
+                {client.projects?.length || 0} project
+                {client.projects?.length !== 1 ? "s" : ""}
+              </Badge>
+
+              {client.created_at && (
+                <span className="text-xs text-muted-foreground">
+                  Added {formatDate(client.created_at)}
+                </span>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <Link href={`/dashboard/clients/${client.id}`}>
+                <RevButtons variant="outline" size="sm" className="w-full mt-2">
+                  View Details
+                </RevButtons>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* --- Edit Client Dialog --- */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-md">
-          {" "}
-          {/* Adjust width if needed */}
           <DialogHeader>
             <DialogTitle>Edit Client: {client.name}</DialogTitle>
             <DialogDescription>
@@ -262,7 +291,6 @@ export function ClientCard({ client }: ClientCardProps) {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
-            {/* Display Update Error */}
             {updateState.error && (
               <div className="text-red-600 text-sm p-3 bg-red-50 rounded-md border border-red-200">
                 {updateState.error}
@@ -324,31 +352,28 @@ export function ClientCard({ client }: ClientCardProps) {
               />
             </div>
             <DialogFooter className="mt-5">
-              {" "}
-              {/* Add margin */}
               <DialogClose asChild>
-                <Button
+                <RevButtons
                   type="button"
                   variant="outline"
                   disabled={updateState.loading}
                 >
                   Cancel
-                </Button>
+                </RevButtons>
               </DialogClose>
-              <Button
+              <RevButtons
+                variant="success"
                 type="submit"
                 disabled={updateState.loading || !editFormData.name}
               >
-                {" "}
-                {/* Disable if loading or no name */}
                 {updateState.loading ? "Saving..." : "Save Changes"}
-              </Button>
+              </RevButtons>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* --- Delete Confirmation Dialog (Existing) --- */}
+      {/* --- Delete Confirmation Dialog --- */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
