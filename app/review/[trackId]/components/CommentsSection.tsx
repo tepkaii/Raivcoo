@@ -1,15 +1,16 @@
 // app/review/[trackId]/components/CommentsSection.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { formatTime } from "@/app/review/lib/utils"; // Adjust path if needed
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Clock } from "lucide-react";
+import { Pencil, Trash2, Clock, ExternalLink } from "lucide-react";
 import { CommentTextWithLinks } from "./CommentTextWithLinks";
 import { EditableReviewComment } from "./EditableReviewComment"; // Import the edit component
 import { RevButtons } from "@/components/ui/RevButtons";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 
 // Interface for a single comment
 interface Comment {
@@ -79,6 +80,18 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
 }) => {
   const isEditingThisComment = (commentId: string) =>
     editingCommentId === commentId;
+
+  // State for image dialog
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
+  const [currentImageAlt, setCurrentImageAlt] = useState<string>("");
+
+  // Open image dialog
+  const openImageDialog = (imageUrl: string, commentIndex: number) => {
+    setCurrentImageUrl(imageUrl);
+    setCurrentImageAlt(`Comment image ${commentIndex + 1}`);
+    setImageDialogOpen(true);
+  };
 
   return (
     <Card className="border-2">
@@ -186,12 +199,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                         comment.comment.images.length > 0 && (
                           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {comment.comment.images.map((imageUrl, idx) => (
-                              <a
+                              <div
                                 key={idx}
-                                href={imageUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="relative aspect-square rounded-md overflow-hidden border hover:border-primary transition-colors"
+                                className="relative aspect-square rounded-md overflow-hidden border hover:border-primary transition-colors cursor-pointer"
+                                onClick={() => openImageDialog(imageUrl, idx)}
                               >
                                 <Image
                                   src={imageUrl}
@@ -201,7 +212,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                                   sizes="(max-width: 640px) 50vw, 25vw"
                                 />
                                 <div className="absolute inset-0 bg-black/10 hover:bg-black/20 transition-colors" />
-                              </a>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -222,6 +233,26 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             })}
           </div>
         )}
+
+        {/* Image Dialog */}
+        <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+          <DialogContent className="max-w-6xl w-[95vw] p-4 max-h-[95vh]">
+            <DialogHeader className="flex flex-row justify-between items-center p-2"></DialogHeader>
+            <div className="overflow-auto flex justify-center items-center bg-black border-2 border-dashed rounded-md max-h-[calc(95vh-100px)]">
+              <img
+                src={currentImageUrl}
+                alt={currentImageAlt}
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  objectFit: "contain",
+                  display: "block",
+                }}
+                className="h-auto"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

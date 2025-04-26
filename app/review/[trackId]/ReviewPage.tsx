@@ -1,3 +1,4 @@
+// app/review/[trackId]/ReviewPage.tsx
 "use client";
 
 import React, {
@@ -7,7 +8,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import Image from "next/image";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -36,11 +37,9 @@ import {
   Check,
   Edit,
   ThumbsUp,
-  MessageSquareWarning,
   ShieldAlert,
   Info,
   Clock,
-  ExternalLink,
   Image as ImageIconLucide,
   XCircle,
   Building,
@@ -49,23 +48,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import {
-  formatTime,
-  getVimeoEmbedUrl,
-  getYouTubeEmbedUrl,
-  isAudioFile,
-  isGoogleDriveLink,
-  isVideoFile,
-  isVimeoLink,
-  isYoutubeLink,
-  getGoogleDriveEmbedUrl,
-  isDropboxLink,
-  getDropboxDirectUrl,
-} from "../lib/utils";
-import { VimeoPlayer } from "./components/VimeoPlayer";
+import { formatTime } from "../lib/utils";
+import { MediaContainer } from "./components/MediaContainer";
 import { CommentsSection } from "./components/CommentsSection";
-import { YouTubePlayer } from "./components/YouTubePlayer";
-import { GoogleDrivePlayer } from "./components/GoogleDrivePlayer";
 
 // --- Interfaces ---
 interface Comment {
@@ -113,20 +98,6 @@ interface ReviewPageProps {
 }
 
 // --- Helpers ---
-function renderPlainTextWithUrls(
-  rawText: string | undefined,
-  links: { url: string; text: string }[] | undefined
-): string {
-  if (!rawText) return "";
-  if (!links || links.length === 0) return rawText;
-  let renderedText = rawText;
-  renderedText = renderedText.replace(/\[LINK:(\d+)\]/g, (match, indexStr) => {
-    const index = parseInt(indexStr, 10);
-    return links[index]?.url || match;
-  });
-  return renderedText;
-}
-
 function detectAndExtractLinks(text: string) {
   const urlRegex = /(https?:\/\/[^\s<>"]+)/g;
   const links: { url: string; text: string }[] = [];
@@ -191,7 +162,6 @@ export default function ReviewPage({
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDecisionMade = track.clientDecision !== "pending";
@@ -297,12 +267,15 @@ export default function ReviewPage({
       if (isDecisionMade || isAnyActionPending) return;
       const commentToEdit = comments.find((c) => c.id === commentId);
       if (commentToEdit) {
-        setEditedCommentText(
-          renderPlainTextWithUrls(
-            commentToEdit.comment.text,
-            commentToEdit.comment.links
-          )
-        );
+        const plainText = commentToEdit.comment.text || "";
+        const links = commentToEdit.comment.links || [];
+
+        let displayText = plainText;
+        links.forEach((link, index) => {
+          displayText = displayText.replace(`[LINK:${index}]`, link.url);
+        });
+
+        setEditedCommentText(displayText);
         setEditingExistingImageUrls(commentToEdit.comment.images || []);
         setEditingNewImageFiles([]);
         setEditingNewImagePreviews([]);
@@ -514,36 +487,10 @@ export default function ReviewPage({
     editingCommentId,
   ]);
 
-  const googleDriveEmbedUrl = isGoogleDriveLink(deliverableLink)
-    ? getGoogleDriveEmbedUrl(deliverableLink)
-    : null;
-  const youtubeEmbedUrl = isYoutubeLink(deliverableLink)
-    ? getYouTubeEmbedUrl(deliverableLink)
-    : null;
-  const vimeoEmbedUrl = isVimeoLink(deliverableLink)
-    ? getVimeoEmbedUrl(deliverableLink)
-    : null;
-  const dropboxDirectUrl = isDropboxLink(deliverableLink)
-    ? getDropboxDirectUrl(deliverableLink)
-    : null;
-  const isVideo = isVideoFile(deliverableLink);
-  const isAudio = isAudioFile(deliverableLink);
-  const isVideoPlayerNeededByURL =
-    isVideo ||
-    !!youtubeEmbedUrl ||
-    !!vimeoEmbedUrl ||
-    !!googleDriveEmbedUrl ||
-    !!dropboxDirectUrl;
-  const isAudioPlayerNeededByURL = isAudio && !isVideoPlayerNeededByURL;
-
   const canInteractWithAddForm =
     !isAnyActionPending && !isDecisionMade && !editingCommentId;
 
-  const handleTimeUpdate = useCallback(() => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-    }
-  }, []);
+  const isVideoPlayerNeededByType = deliverableMediaType === "video";
 
   return (
     <div className="space-y-6 w-full max-w-5xl px-2">
@@ -577,152 +524,14 @@ export default function ReviewPage({
 
       <Card>
         <CardContent className="pt-6 space-y-5">
-          <div className="rounded-lg overflow-hidden border bg-muted/10 relative">
-            {deliverableMediaType === "image" ? (
-              <div className="p-2 flex justify-center items-center bg-black">
-                <a
-                  href={deliverableLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="View full image"
-                >
-                  <Image
-                    src={deliverableLink}
-                    alt={`Deliverable for ${project.title} - Round ${track.roundNumber}`}
-                    width={1280}
-                    height={720}
-                    style={{
-                      maxWidth: "100%",
-                      height: "auto",
-                      display: "block",
-                    }}
-                    priority
-                  />
-                </a>
-              </div>
-            ) : deliverableMediaType === "video" ? (
-              <div className="aspect-video bg-black">
-                {youtubeEmbedUrl ? (
-                  <YouTubePlayer
-                    youtubeEmbedUrl={youtubeEmbedUrl}
-                    setCurrentTime={setCurrentTime}
-                  />
-                ) : googleDriveEmbedUrl ? (
-                  <GoogleDrivePlayer
-                    googleDriveEmbedUrl={googleDriveEmbedUrl}
-                    setCurrentTime={setCurrentTime}
-                  />
-                ) : vimeoEmbedUrl ? (
-                  <VimeoPlayer
-                    vimeoEmbedUrl={vimeoEmbedUrl}
-                    setCurrentTime={setCurrentTime}
-                    currentTime={0}
-                  />
-                ) : dropboxDirectUrl ? (
-                  <video
-                    ref={videoRef as React.RefObject<HTMLVideoElement>}
-                    className="w-full h-full block"
-                    controls
-                    onTimeUpdate={handleTimeUpdate}
-                  >
-                    <source src={dropboxDirectUrl} type="video/mp4" /> Your
-                    browser does not support video.
-                  </video>
-                ) : isVideo ? (
-                  <video
-                    ref={videoRef as React.RefObject<HTMLVideoElement>}
-                    className="w-full h-full block"
-                    controls
-                    onTimeUpdate={handleTimeUpdate}
-                    src={deliverableLink}
-                  >
-                    Your browser does not support video.
-                  </video>
-                ) : (
-                  <div className="p-6 bg-secondary flex flex-col items-center text-center justify-center h-full aspect-video">
-                    <MessageSquareWarning className="w-10 h-10 text-muted-foreground mb-3" />
-                    <p className="font-medium mb-1">Cannot preview video.</p>
-                    <a
-                      href={deliverableLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline font-medium text-sm inline-flex items-center gap-1"
-                    >
-                      View/Download Video <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="aspect-video bg-black">
-                {isVideoPlayerNeededByURL ? (
-                  <>
-                    {youtubeEmbedUrl ? (
-                      <YouTubePlayer
-                        youtubeEmbedUrl={youtubeEmbedUrl}
-                        setCurrentTime={setCurrentTime}
-                      />
-                    ) : googleDriveEmbedUrl ? (
-                      <GoogleDrivePlayer
-                        googleDriveEmbedUrl={googleDriveEmbedUrl}
-                        setCurrentTime={setCurrentTime}
-                      />
-                    ) : vimeoEmbedUrl ? (
-                      <VimeoPlayer
-                        vimeoEmbedUrl={vimeoEmbedUrl}
-                        setCurrentTime={setCurrentTime}
-                      />
-                    ) : dropboxDirectUrl ? (
-                      <video
-                        ref={videoRef as React.RefObject<HTMLVideoElement>}
-                        className="w-full h-full block"
-                        controls
-                        onTimeUpdate={handleTimeUpdate}
-                      >
-                        <source src={dropboxDirectUrl} type="video/mp4" /> Your
-                        browser does not support video.
-                      </video>
-                    ) : isVideo ? (
-                      <video
-                        ref={videoRef as React.RefObject<HTMLVideoElement>}
-                        className="w-full h-full block"
-                        controls
-                        onTimeUpdate={handleTimeUpdate}
-                        src={deliverableLink}
-                      >
-                        Your browser does not support video.
-                      </video>
-                    ) : null}
-                  </>
-                ) : isAudioPlayerNeededByURL ? (
-                  <div className="p-4 bg-gray-800 h-full flex items-center">
-                    <audio
-                      ref={videoRef as React.RefObject<HTMLAudioElement>}
-                      className="w-full"
-                      controls
-                      onTimeUpdate={handleTimeUpdate}
-                      src={deliverableLink}
-                    >
-                      Your browser does not support audio.
-                    </audio>
-                  </div>
-                ) : (
-                  <div className="p-6 bg-secondary flex flex-col items-center text-center justify-center h-full aspect-video">
-                    <MessageSquareWarning className="w-10 h-10 text-muted-foreground mb-3" />
-                    <p className="font-medium mb-1">Cannot preview content.</p>
-                    <a
-                      href={deliverableLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline font-medium text-sm inline-flex items-center gap-1"
-                    >
-                      View/Download <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Media Container replaces all the previous media handling logic */}
+          <MediaContainer
+            deliverableLink={deliverableLink}
+            deliverableMediaType={deliverableMediaType}
+            projectTitle={project.title}
+            roundNumber={track.roundNumber}
+            setCurrentTime={setCurrentTime}
+          />
 
           {isDecisionMade && (
             <div
@@ -754,9 +563,7 @@ export default function ReviewPage({
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Clock className="h-4 w-4" /> Add feedback at:{" "}
-                {isVideoPlayerNeededByURL || isAudioPlayerNeededByURL
-                  ? formatTime(currentTime)
-                  : "N/A"}
+                {isVideoPlayerNeededByType ? formatTime(currentTime) : "N/A"}
               </div>
               <Textarea
                 placeholder="Enter your feedback here..."
@@ -845,14 +652,8 @@ export default function ReviewPage({
       {(comments.length > 0 || editingCommentId) && (
         <CommentsSection
           comments={comments}
-          isVideoFile={
-            deliverableMediaType === "video" || isVideoPlayerNeededByURL
-          }
-          isAudioFile={
-            deliverableMediaType !== "video" &&
-            !isVideoPlayerNeededByURL &&
-            isAudioPlayerNeededByURL
-          }
+          isVideoFile={isVideoPlayerNeededByType}
+          isAudioFile={false}
           isDecisionMade={isDecisionMade}
           editingCommentId={editingCommentId}
           editedCommentText={editedCommentText}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
 import {
@@ -10,6 +11,7 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import {
   ExternalLink,
   ShieldCheck,
@@ -19,7 +21,6 @@ import {
   Calendar,
   Clock,
   ChevronRight,
-  ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
 import { CommentTextWithLinks } from "@/app/dashboard/projects/[id]/CommentRenderer";
@@ -81,6 +82,18 @@ export default function LiveTrackClient({
   activeTrack: Track;
   formattedComments: Comment[];
 }) {
+  // Image dialog state
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
+  const [currentImageAlt, setCurrentImageAlt] = useState<string>("");
+
+  // Image dialog handler
+  const openImageDialog = (imageUrl: string, altText: string) => {
+    setCurrentImageUrl(imageUrl);
+    setCurrentImageAlt(altText);
+    setImageDialogOpen(true);
+  };
+
   // Calculate track progress
   const calculateTrackProgress = (track: Track) => {
     if (!track || !track.steps?.length) return 0;
@@ -155,13 +168,6 @@ export default function LiveTrackClient({
     <div className="min-h-screen p-6 space-y-6">
       {/* Header with back button */}
       <div className="mb-6">
-        {/* <Link
-          href={`/dashboard/projects/${project.id}`}
-          className="flex items-center text-muted-foreground hover:text-foreground mb-2"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to project
-        </Link> */}
-
         <div className="flex items-center justify-between">
           <div>
             <div className="flex gap-2 items-center">
@@ -329,26 +335,28 @@ export default function LiveTrackClient({
                                   {step.metadata.images.map((imageUrl, idx) => (
                                     <div
                                       key={idx}
-                                      className="group relative overflow-hidden rounded-md border hover:border-primary transition-colors"
+                                      className="group relative overflow-hidden rounded-md border hover:border-primary transition-colors cursor-pointer"
+                                      onClick={() =>
+                                        openImageDialog(
+                                          imageUrl,
+                                          `Reference image ${idx + 1}`
+                                        )
+                                      }
                                     >
-                                      <Link
-                                        href={imageUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="block"
-                                      >
-                                        <Image
-                                          src={imageUrl}
-                                          alt={`Reference image ${idx + 1}`}
-                                          width={400}
-                                          height={300}
-                                          className="object-contain w-full h-auto max-h-[300px] group-hover:opacity-90 transition-opacity"
-                                          style={{
-                                            aspectRatio: "auto",
-                                          }}
-                                          sizes="(max-width: 768px) 50vw, 400px"
-                                        />
-                                      </Link>
+                                      <Image
+                                        src={imageUrl}
+                                        alt={`Reference image ${idx + 1}`}
+                                        width={400}
+                                        height={300}
+                                        className="object-contain w-full h-auto max-h-[300px] group-hover:opacity-90 transition-opacity"
+                                        style={{
+                                          aspectRatio: "auto",
+                                        }}
+                                        sizes="(max-width: 768px) 50vw, 400px"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <ExternalLink className="h-6 w-6 text-white" />
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -402,12 +410,15 @@ export default function LiveTrackClient({
                       comment.comment.images.length > 0 && (
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           {comment.comment.images.map((imageUrl, idx) => (
-                            <Link
+                            <div
                               key={idx}
-                              href={imageUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="relative aspect-square rounded-md overflow-hidden border hover:border-primary transition-colors"
+                              className="relative aspect-square rounded-md overflow-hidden border hover:border-primary transition-colors cursor-pointer"
+                              onClick={() =>
+                                openImageDialog(
+                                  imageUrl,
+                                  `Comment image ${idx + 1}`
+                                )
+                              }
                             >
                               <Image
                                 src={imageUrl}
@@ -416,7 +427,10 @@ export default function LiveTrackClient({
                                 className="object-cover"
                                 sizes="(max-width: 640px) 50vw, 25vw"
                               />
-                            </Link>
+                              <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <ExternalLink className="h-6 w-6 text-white" />
+                              </div>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -529,6 +543,26 @@ export default function LiveTrackClient({
           </CardContent>
         </Card>
       )}
+
+      {/* Image Dialog */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent className="max-w-6xl w-[95vw] p-4 max-h-[95vh]">
+          <DialogHeader className="flex flex-row justify-between items-center p-2"></DialogHeader>
+          <div className="overflow-auto flex justify-center items-center bg-black border-2 border-dashed rounded-md max-h-[calc(95vh-100px)]">
+            <img
+              src={currentImageUrl}
+              alt={currentImageAlt}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "100%",
+                objectFit: "contain",
+                display: "block",
+              }}
+              className="h-auto"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
