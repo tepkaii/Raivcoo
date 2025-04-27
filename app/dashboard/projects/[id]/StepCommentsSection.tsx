@@ -6,13 +6,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { CommentTextWithLinks } from "./CommentRenderer";
 import { ExternalLink } from "lucide-react";
-import { Step } from "./TrackManager"; // Assuming Step type is exported from TrackManager or a shared types file
+import { Step } from "./TrackManager";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 
 interface StepCommentsSectionProps {
   step: Step;
-  isFinalStep?: boolean; // Optional, if you want specific final step logic here
+  isFinalStep?: boolean;
 }
 
 export function StepCommentsSection({
@@ -27,18 +27,18 @@ export function StepCommentsSection({
   const [currentImageAlt, setCurrentImageAlt] = useState<string>("");
 
   // Open image dialog
-  const openImageDialog = (imageUrl: string, idx: number) => {
+  const openImageDialog = (imageUrl: string, altText: string) => {
     setCurrentImageUrl(imageUrl);
-    setCurrentImageAlt(`Reference image ${idx + 1}`);
+    setCurrentImageAlt(altText);
     setImageDialogOpen(true);
   };
 
   return (
-    <div className="flex-1 w-full ">
-      {/* Display Step Name/Title - Consistent with TrackManager */}
+    <div className="flex-1 w-full">
+      {/* Display Step Name/Title */}
       <span
         className={`font-medium text-sm sm:text-base truncate ${step.status === "completed" ? "line-through text-muted-foreground" : ""}`}
-        title={metadata?.text || ""} // Show full text on hover if truncated
+        title={metadata?.text || ""}
       >
         {metadata?.text ? null : (
           <>
@@ -51,30 +51,36 @@ export function StepCommentsSection({
         )}
       </span>
 
-      {/* Display Text and Links - Mimics LiveTrackClient */}
+      {/* Display Text and Links */}
       {metadata?.text && (
-        <div className="">
+        <div>
           <CommentTextWithLinks text={metadata.text} links={metadata.links} />
         </div>
       )}
 
-      {/* Display Images - Mimics LiveTrackClient */}
+      {/* Display Images */}
       {metadata?.images && metadata.images.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
           {metadata.images.map((imageUrl, idx) => (
             <div
               key={`${imageUrl}-${idx}`}
-              className="group relative aspect-square rounded-md overflow-hidden border hover:border-primary transition-colors cursor-pointer"
-              onClick={() => openImageDialog(imageUrl, idx)}
+              className="relative rounded-md overflow-hidden border border-muted hover:border-primary transition-colors cursor-pointer"
+              onClick={() =>
+                openImageDialog(imageUrl, `Reference image ${idx + 1}`)
+              }
+              style={{
+                height: "160px",
+                width: "100%",
+              }}
             >
               <Image
                 src={imageUrl}
                 alt={`Reference image ${idx + 1}`}
                 fill
-                className="object-cover group-hover:opacity-90 transition-opacity"
-                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                className="object-contain"
+                sizes="(max-width: 640px) 100vw, 300px"
               />
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                 <ExternalLink className="h-6 w-6 text-white" />
               </div>
             </div>
@@ -89,7 +95,7 @@ export function StepCommentsSection({
             href={step.deliverable_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center text-blue-600 hover:underline text-sm"
+            className="inline-flex items-center text-blue-600 hover:underline text-sm bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full"
           >
             <ExternalLink className="h-4 w-4 mr-1" />
             View Submitted Deliverable
@@ -101,7 +107,7 @@ export function StepCommentsSection({
       <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
         <DialogContent className="max-w-6xl w-[95vw] p-4 max-h-[95vh]">
           <DialogHeader className="flex flex-row justify-between items-center p-2"></DialogHeader>
-          <div className="overflow-auto flex justify-center items-center bg-black border-2 border-dashed rounded-md max-h-[calc(95vh-100px)]">
+          <div className="overflow-auto flex justify-center items-center bg-black border border-muted rounded-md max-h-[calc(95vh-100px)]">
             <img
               src={currentImageUrl}
               alt={currentImageAlt}

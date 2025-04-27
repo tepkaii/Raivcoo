@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { RevButtons } from "@/components/ui/RevButtons";
 import {
   Card,
   CardContent,
@@ -21,12 +20,16 @@ import {
   Calendar,
   Clock,
   ChevronRight,
+  ArrowLeft,
+  CheckCircle2,
 } from "lucide-react";
 import Image from "next/image";
 import { CommentTextWithLinks } from "@/app/dashboard/projects/[id]/CommentRenderer";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
+import { ProjectComments } from "./ProjectComments";
 
 interface Project {
   id: string;
@@ -165,13 +168,19 @@ export default function LiveTrackClient({
   };
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className="min-h-screen p-3 md:p-6 space-y-6">
       {/* Header with back button */}
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <div className="flex gap-2 items-center">
-              <h1 className="text-3xl font-bold tracking-tight">
+              <Link
+                href={`/dashboard/projects/${project.id}`}
+                className="text-muted-foreground hover:text-foreground mr-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+              <h1 className="text-xl md:text-3xl font-bold tracking-tight">
                 {project.title}
               </h1>
               <Badge variant={getStatusVariant(project.status)}>
@@ -185,6 +194,20 @@ export default function LiveTrackClient({
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <p>Created: {formatFullDate(project.created_at)}</p>
             </div>
+            {project.deadline && (
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <p
+                  className={
+                    isDeadlineApproaching(project.deadline)
+                      ? "text-orange-500 font-medium"
+                      : ""
+                  }
+                >
+                  Deadline: {formatFullDate(project.deadline)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -192,12 +215,17 @@ export default function LiveTrackClient({
       {/* Current track progress */}
       <Card className="border-2">
         <CardHeader className="border-b pb-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                Round {activeTrack.round_number}
-                <span className="text-muted-foreground text-sm">|</span>
-                <span className="text-sm font-normal text-muted-foreground">
+              <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-full w-8 h-8 text-sm">
+                  {activeTrack.round_number}
+                </div>
+                <span>Round {activeTrack.round_number}</span>
+                <span className="text-muted-foreground text-sm hidden md:inline">
+                  |
+                </span>
+                <span className="text-xs sm:text-sm font-normal text-muted-foreground">
                   Last updated: {formatFullDate(activeTrack.updated_at)}
                 </span>
               </CardTitle>
@@ -242,7 +270,7 @@ export default function LiveTrackClient({
               </div>
               <span className="text-sm font-medium">{trackProgress}%</span>
             </div>
-            <Progress value={trackProgress} />
+            <Progress value={trackProgress} className="h-2.5" />
           </div>
         </CardHeader>
 
@@ -257,26 +285,31 @@ export default function LiveTrackClient({
                 return (
                   <Card
                     key={index}
-                    className={`p-4 border-2  border-dashed ${isCompleted ? "bg-muted/5 " : ""}`}
+                    className={cn(
+                      "p-4 border-2 border-dashed relative",
+                      isCompleted
+                        ? "bg-muted/5 border-muted"
+                        : "border-muted/50"
+                    )}
                   >
-                    <div className="flex flex-col items-start gap-3">
+                    {/* Status indicator line */}
+                    <div
+                      className={cn(
+                        "absolute left-0 top-0 bottom-0 w-1",
+                        isCompleted ? "bg-green-500" : "bg-amber-400"
+                      )}
+                    />
+
+                    <div className="flex flex-col items-start gap-3 pl-2">
                       <div className="flex items-center justify-between w-full">
-                        <RevButtons
-                          variant={isCompleted ? "success" : "outline"}
-                          size="sm"
-                        >
+                        <div className="flex items-center">
                           {isCompleted ? (
-                            <>
-                              <span>Step {index + 1}</span> |{" "}
-                              <span>completed</span>
-                            </>
+                            <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
                           ) : (
-                            <>
-                              <span>Step {index + 1}</span> |{" "}
-                              <span>In Progress</span>
-                            </>
+                            <div className="h-5 w-5 rounded-full border-2 border-amber-400 mr-2" />
                           )}
-                        </RevButtons>
+                          <span className="font-medium">Step {index + 1}</span>
+                        </div>
 
                         {isCompleted && (
                           <span className="text-xs text-muted-foreground">
@@ -287,9 +320,9 @@ export default function LiveTrackClient({
 
                       <div className="flex-1 w-full">
                         {isFinalStep && (
-                          <div className="p-4 mb-4 border-2 border-dashed rounded-md text-sm">
+                          <div className="p-4 mb-4 border-2 border-dashed rounded-md text-sm bg-muted/10">
                             <div className="flex items-center gap-2">
-                              <Flag className="h-4 w-4" />
+                              <Flag className="h-4 w-4 text-primary" />
                               <h3 className="font-medium">Round Completion</h3>
                             </div>
 
@@ -298,20 +331,12 @@ export default function LiveTrackClient({
                                 <p className="text-sm text-muted-foreground">
                                   The editor has marked this round as complete
                                 </p>
-                                {step.deliverable_link && (
-                                  <Link
-                                    href={step.deliverable_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center text-blue-600 hover:underline mt-2 text-sm"
-                                  >
-                                    <ExternalLink className="h-4 w-4 mr-1" />
-                                    View Final Deliverable
-                                  </Link>
-                                )}
                               </div>
                             ) : (
-                              <TextShimmer className="text-sm" duration={2}>
+                              <TextShimmer
+                                className="text-sm mt-2"
+                                duration={2}
+                              >
                                 The editor is currently working on this round
                               </TextShimmer>
                             )}
@@ -321,7 +346,7 @@ export default function LiveTrackClient({
                         {step.metadata && (
                           <div className="space-y-3">
                             {step.metadata.text && (
-                              <div className="p-3 border-2 border-dashed rounded-md text-sm">
+                              <div className="p-3 border-2 border-dashed rounded-md text-sm bg-card">
                                 <CommentTextWithLinks
                                   text={step.metadata.text}
                                   links={step.metadata.links}
@@ -331,28 +356,28 @@ export default function LiveTrackClient({
 
                             {step.metadata.images &&
                               step.metadata.images.length > 0 && (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {step.metadata.images.map((imageUrl, idx) => (
                                     <div
                                       key={idx}
-                                      className="group relative overflow-hidden rounded-md border hover:border-primary transition-colors cursor-pointer"
+                                      className="group relative overflow-hidden rounded-md border border-muted hover:border-primary transition-colors cursor-pointer"
                                       onClick={() =>
                                         openImageDialog(
                                           imageUrl,
                                           `Reference image ${idx + 1}`
                                         )
                                       }
+                                      style={{
+                                        height: "200px",
+                                        width: "100%",
+                                      }}
                                     >
                                       <Image
                                         src={imageUrl}
                                         alt={`Reference image ${idx + 1}`}
-                                        width={400}
-                                        height={300}
-                                        className="object-contain w-full h-auto max-h-[300px] group-hover:opacity-90 transition-opacity"
-                                        style={{
-                                          aspectRatio: "auto",
-                                        }}
-                                        sizes="(max-width: 768px) 50vw, 400px"
+                                        fill
+                                        className="object-contain"
+                                        sizes="(max-width: 768px) 100vw, 400px"
                                       />
                                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <ExternalLink className="h-6 w-6 text-white" />
@@ -370,7 +395,7 @@ export default function LiveTrackClient({
                               href={step.deliverable_link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center text-blue-600 hover:underline text-sm"
+                              className="inline-flex items-center text-blue-600 hover:underline text-sm bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full"
                             >
                               <ExternalLink className="h-4 w-4 mr-1" />
                               View Deliverable
@@ -384,162 +409,121 @@ export default function LiveTrackClient({
               })}
           </div>
 
-          {/* Client feedback section */}
+          {/* Client feedback section - moved to separate component */}
           {formattedComments.length > 0 && (
             <div className="mt-8 border-t pt-6">
-              <h3 className="font-medium text-lg mb-4">Client Feedback</h3>
-              <div className="space-y-4">
-                {formattedComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="p-4 border-2 rounded-md bg-muted/5"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-medium">Client</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatFullDate(comment.created_at)}
-                      </span>
-                    </div>
-                    <div className="p-3 bg-muted/20 rounded-md text-sm">
-                      <CommentTextWithLinks
-                        text={comment.comment.text}
-                        links={comment.comment.links}
-                      />
-                    </div>
-                    {comment.comment.images &&
-                      comment.comment.images.length > 0 && (
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          {comment.comment.images.map((imageUrl, idx) => (
-                            <div
-                              key={idx}
-                              className="relative aspect-square rounded-md overflow-hidden border hover:border-primary transition-colors cursor-pointer"
-                              onClick={() =>
-                                openImageDialog(
-                                  imageUrl,
-                                  `Comment image ${idx + 1}`
-                                )
-                              }
-                            >
-                              <Image
-                                src={imageUrl}
-                                alt={`Comment image ${idx + 1}`}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 640px) 50vw, 25vw"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <ExternalLink className="h-6 w-6 text-white" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                ))}
-              </div>
+              <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Client Feedback
+              </h3>
+              <ProjectComments
+                comments={formattedComments}
+                formatFullDate={formatFullDate}
+                openImageDialog={openImageDialog}
+              />
             </div>
           )}
         </CardContent>
       </Card>
-      {project.deadline && (
-        <div className="flex items-center justify-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <p
-            className={
-              isDeadlineApproaching(project.deadline)
-                ? "text-orange-500 font-medium"
-                : ""
-            }
-          >
-            Deadline: {formatFullDate(project.deadline)}
-          </p>
-        </div>
-      )}
+
       {/* Previous rounds */}
       {tracks.length > 1 && (
         <Card className="border-2">
           <CardHeader>
-            <CardTitle className="text-xl">Previous Rounds</CardTitle>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <div className="flex items-center justify-center bg-muted text-muted-foreground rounded-full w-7 h-7 text-sm">
+                {tracks.length - 1}
+              </div>
+              Previous Rounds
+            </CardTitle>
             <CardDescription>
               History of previous revision rounds for this project
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {tracks
-              .filter((track) => track.id !== activeTrack.id)
-              .map((track) => {
-                const finalStep = track.steps?.find(
-                  (_, index) => index === track.steps.length - 1
-                );
-                const trackProgress = calculateTrackProgress(track);
+          <CardContent className="space-y-4 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {tracks
+                .filter((track) => track.id !== activeTrack.id)
+                .map((track) => {
+                  const finalStep = track.steps?.find(
+                    (_, index) => index === track.steps.length - 1
+                  );
+                  const trackProgress = calculateTrackProgress(track);
 
-                return (
-                  <Card key={track.id} className="border">
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            Round {track.round_number}
-                            <span className="text-muted-foreground text-sm">
-                              |
-                            </span>
-                            <span className="text-sm font-normal text-muted-foreground">
-                              {formatFullDate(track.updated_at)}
-                            </span>
-                          </CardTitle>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {track.client_decision && (
-                            <Badge
-                              variant={
-                                track.client_decision === "approved"
-                                  ? "success"
+                  return (
+                    <Card
+                      key={track.id}
+                      className="border hover:border-primary/40 transition-colors"
+                    >
+                      <CardHeader className="pb-2 border-b bg-muted/10">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center bg-muted text-muted-foreground rounded-full w-6 h-6 text-xs">
+                              {track.round_number}
+                            </div>
+                            <CardTitle className="text-base">
+                              Round {track.round_number}
+                            </CardTitle>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {track.client_decision && (
+                              <Badge
+                                variant={
+                                  track.client_decision === "approved"
+                                    ? "success"
+                                    : track.client_decision ===
+                                        "revisions_requested"
+                                      ? "destructive"
+                                      : "info"
+                                }
+                                className="text-xs"
+                              >
+                                {track.client_decision === "approved"
+                                  ? "Approved"
                                   : track.client_decision ===
                                       "revisions_requested"
-                                    ? "destructive"
-                                    : "info"
-                              }
-                            >
-                              {track.client_decision === "approved"
-                                ? "Approved"
-                                : track.client_decision ===
-                                    "revisions_requested"
-                                  ? "Revisions"
-                                  : "Pending"}
-                            </Badge>
-                          )}
+                                    ? "Revisions"
+                                    : "Pending"}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-1">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-muted-foreground">
-                            {track.steps?.filter(
-                              (s) => s.status === "completed"
-                            ).length || 0}{" "}
-                            of {track.steps?.length || 0} steps completed
-                          </span>
-                          <span>{trackProgress}%</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatFullDate(track.updated_at)}
+                        </span>
+                      </CardHeader>
+                      <CardContent className="pt-3 pb-1">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground">
+                              {track.steps?.filter(
+                                (s) => s.status === "completed"
+                              ).length || 0}{" "}
+                              of {track.steps?.length || 0} steps completed
+                            </span>
+                            <span>{trackProgress}%</span>
+                          </div>
+                          <Progress value={trackProgress} className="h-1.5" />
                         </div>
-                        <Progress value={trackProgress} className="h-2" />
-                      </div>
-                    </CardContent>
-                    <CardFooter className="pt-2 border-t">
-                      {finalStep?.deliverable_link && (
-                        <Link
-                          href={`/projects/${project.id}/review/${track.id}`}
-                          className="flex items-center text-blue-600 hover:underline text-sm"
-                        >
-                          <ExternalLink className="h-4 w-4 mr-1" />
-                          View Deliverable
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Link>
-                      )}
-                    </CardFooter>
-                  </Card>
-                );
-              })}
+                      </CardContent>
+                      <CardFooter className="pt-2 pb-3 border-t">
+                        {finalStep?.deliverable_link && (
+                          <Link
+                            href={`/projects/${project.id}/review/${track.id}`}
+                            className="flex w-full items-center justify-between text-blue-600 hover:underline text-sm group"
+                          >
+                            <span className="flex items-center">
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              View Round Details
+                            </span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -548,7 +532,7 @@ export default function LiveTrackClient({
       <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
         <DialogContent className="max-w-6xl w-[95vw] p-4 max-h-[95vh]">
           <DialogHeader className="flex flex-row justify-between items-center p-2"></DialogHeader>
-          <div className="overflow-auto flex justify-center items-center bg-black border-2 border-dashed rounded-md max-h-[calc(95vh-100px)]">
+          <div className="overflow-auto flex justify-center items-center bg-black border border-muted rounded-md max-h-[calc(95vh-100px)]">
             <img
               src={currentImageUrl}
               alt={currentImageAlt}

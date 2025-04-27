@@ -32,7 +32,27 @@ interface Project {
   latestTrack?: any;
   awaitingEditorSubmission: boolean;
 }
+export const formatFullDate = (
+  dateString: string | undefined | null
+): string => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
 
+  // For consistent formatting across locales including Arabic
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  } catch (error) {
+    // Fallback to basic formatting if Intl fails
+    return `${date.toDateString()} ${date.toTimeString().substring(0, 5)}`;
+  }
+};
 export function ClientPendingList({
   pendingProjects,
 }: {
@@ -80,7 +100,7 @@ export function ClientPendingList({
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <p className="text-muted-foreground">Last updated:</p>
-            <p>{lastUpdated.toLocaleDateString()}</p>
+            <p> {formatFullDate(lastUpdated)}</p>
           </div>
 
           {project.latestTrack && (

@@ -163,7 +163,7 @@ export function DashboardClient({
       </div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title={`${showAllTimeStats ? "All-time" : "Monthly"} Active Projects`}
           value={currentStats.activeProjects}
@@ -182,7 +182,7 @@ export function DashboardClient({
           icon={<CheckCircle2 className="h-4 w-4" />}
           variant="completed"
         />
-        <StatCard
+        {/* <StatCard
           title={showAllTimeStats ? "Total Clients" : "New Clients (Month)"}
           value={
             showAllTimeStats
@@ -191,7 +191,7 @@ export function DashboardClient({
           }
           icon={<Users className="h-4 w-4" />}
           variant="default"
-        />
+        /> */}
       </div>
 
       {/* Main Content Area */}

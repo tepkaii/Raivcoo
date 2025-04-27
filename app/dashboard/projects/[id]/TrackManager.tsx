@@ -21,11 +21,13 @@ import {
   Edit,
   Video,
   Image as ImageIcon,
+  CheckCircle2,
 } from "lucide-react";
 
 import { StepCommentsSection } from "./StepCommentsSection";
 import { EditableStepsList } from "../components/EditableStepsList";
 import { RevButtons } from "@/components/ui/RevButtons";
+import { cn } from "@/lib/utils";
 
 // --- Interfaces ---
 export interface Step {
@@ -473,7 +475,12 @@ export default function TrackManager({
                 return (
                   <div
                     key={viewKey}
-                    className={`flex flex-col ${isClientActionDone || (isTrackComplete && isCompleted) ? "bg-muted/50 opacity-75" : ""}`}
+                    className={cn(
+                      "flex flex-col",
+                      isClientActionDone || (isTrackComplete && isCompleted)
+                        ? "opacity-75"
+                        : ""
+                    )}
                   >
                     <div className="flex justify-end items-end w-full mb-3">
                       <div className="flex items-center gap-1.5 flex-wrap justify-end w-full sm:w-auto pl-7 sm:pl-0 mt-2 sm:mt-0">
@@ -527,20 +534,52 @@ export default function TrackManager({
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <div className="">
-                        {isCompleted ? (
-                          <CheckCircle className="text-green-500 h-5 w-5 flex-shrink-0" />
-                        ) : (
-                          <Clock
-                            className={`h-5 w-5 flex-shrink-0 ${!isClientActionDone ? "text-blue-500" : "text-gray-400"}`}
-                          />
+
+                    {/* Render step content with border and status indicator */}
+                    <Card
+                      className={cn(
+                        "p-4 border-2 border-dashed relative",
+                        isCompleted
+                          ? "bg-muted/5 border-muted"
+                          : "border-muted/50"
+                      )}
+                    >
+                      {/* Status indicator line */}
+                      <div
+                        className={cn(
+                          "absolute left-0 top-0 bottom-0 w-1",
+                          isCompleted ? "bg-green-500" : "bg-amber-400"
                         )}
+                      />
+
+                      <div className="flex flex-col items-start gap-3 pl-2">
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center">
+                            {isCompleted ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
+                            ) : (
+                              <div className="h-5 w-5 rounded-full border-2 border-amber-400 mr-2" />
+                            )}
+                            <span className="font-medium">
+                              Step {index + 1}
+                            </span>
+                          </div>
+
+                          {isCompleted && (
+                            <span className="text-xs text-muted-foreground">
+                              {/* Updated: {formatFullDate(track.updated_at)} */}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex-1 w-full">
+                          <StepCommentsSection
+                            step={step}
+                            isFinalStep={false}
+                          />
+                        </div>
                       </div>
-                      <div className="flex-1 p-3 border-2 border-dashed border-muted-foreground/30 rounded-md text-sm">
-                        <StepCommentsSection step={step} isFinalStep={false} />
-                      </div>
-                    </div>
+                    </Card>
                   </div>
                 );
               })}

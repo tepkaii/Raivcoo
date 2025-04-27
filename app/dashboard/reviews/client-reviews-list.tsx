@@ -25,6 +25,7 @@ import {
   Film,
   Image as ImageIcon,
 } from "lucide-react";
+import { formatFullDate } from "../pending/client-pending-list";
 
 interface Project {
   id: string;
@@ -95,7 +96,7 @@ export function ClientReviewsList({
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <p className="text-muted-foreground">Last updated:</p>
-            <p>{lastUpdated.toLocaleDateString()}</p>
+            <p>{formatFullDate(lastUpdated)}</p>
           </div>
 
           {project.latestTrack && (
