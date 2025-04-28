@@ -18,10 +18,10 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CameraIcon, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { CameraIcon, Loader2, CheckCircle2 } from "lucide-react";
 import { validateDisplayName } from "./displayNameValidation";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
+
 import { timeZones } from "@/utils/timezones";
 
 interface AccountData {

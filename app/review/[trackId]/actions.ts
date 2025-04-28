@@ -165,59 +165,9 @@ async function verifyClientAuthorization(
   };
 }
 
-// --- EDITOR ACTIONS ---
-export async function createProject(formData: FormData) {
-  // NOTE: This function seems partially implemented in the original prompt reference
-  // It relies on editor_profiles and client verification not shown in full client-side auth helper
-  // Assuming it should be fully implemented elsewhere or is just a placeholder here.
-  console.log("Placeholder/Incomplete createProject called");
-  return { message: "Project created (placeholder)" };
-}
 
-export async function updateProjectTrackStepStatus(
-  trackId: string,
-  stepIndex: number,
-  newStatus: "pending" | "completed",
-  linkValue?: string
-) {
-  // NOTE: Needs full implementation for editor context (auth, fetching track, updating steps array)
-  console.log("Placeholder updateProjectTrackStepStatus called");
-  return { message: "Step status updated (placeholder)" };
-}
-
-export async function updateStepContent(formData: FormData) {
-  // NOTE: Needs full implementation for editor context (auth, fetching track, processing text/links/images, updating steps array)
-  console.log("Placeholder updateStepContent called");
-  return { message: "Step content updated (placeholder)" };
-}
-
-export async function updateTrackStructure(
-  trackId: string,
-  newStepsStructure: Omit<Step, "status" | "deliverable_link" | "is_final">[]
-) {
-  // NOTE: Needs full implementation for editor context (auth, fetching track, merging old/new steps, updating steps array)
-  console.log("Placeholder updateTrackStructure called");
-  return { message: "Track structure updated (placeholder)" };
-}
-
-export async function completeTrackAndCreateNewRound(trackId: string) {
-  const message = `DEPRECATION/SECURITY WARNING: Editor attempted to call completeTrackAndCreateNewRound for track ${trackId}. Client must initiate revisions.`;
-  console.error(message);
-  throw new Error(
-    "Operation not permitted for editor. Client must request revisions."
-  );
-}
-
-export async function completeProject(projectId: string) {
-  const message = `DEPRECATION/SECURITY WARNING: Editor attempted to call completeProject for project ${projectId}. Client must approve.`;
-  console.error(message);
-  throw new Error(
-    "Operation not permitted for editor. Client must approve the project."
-  );
-}
 
 // --- CLIENT ACTIONS ---
-
 export async function addReviewComment(formData: FormData) {
   const supabase = await createClient();
   const {

@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Button } from "@/components/ui/button";
 
 const MAX_IMAGES_PER_COMMENT = 4;
 const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";

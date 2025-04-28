@@ -8,11 +8,10 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { Progress } from "@/components/ui/progress";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Clock,
@@ -20,7 +19,6 @@ import {
   ChevronRight,
   Eye,
   FolderOpenDot,
-  Loader2,
   Calendar,
   Film,
   Image as ImageIcon,

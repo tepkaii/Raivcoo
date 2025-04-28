@@ -4,13 +4,7 @@
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Maximize2 } from "lucide-react";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import {
   isVimeoLink,
   isYoutubeLink,

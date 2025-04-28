@@ -30,7 +30,7 @@ export default async function page() {
     .single();
 
   if (profileError) {
-    redirect("/profile");
+    redirect("/account");
   }
 
   // Fetch other editor profiles that could be clients

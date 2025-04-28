@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { formatTime } from "../../lib/utils";
 
 // Global declarations for player APIs
 declare global {

@@ -22,7 +22,6 @@ import {
   CheckCircle2,
   Film,
   Image as ImageIcon,
-  User,
   MessageCircle,
   History,
 } from "lucide-react";
@@ -64,14 +63,6 @@ export default function ClientProjectView({
   project,
   tracks,
 }: ClientProjectViewProps) {
-  // Format the creation date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
 
   // Calculate if deadline is approaching
   const isDeadlineApproaching = (deadline?: string) => {
@@ -150,8 +141,9 @@ export default function ClientProjectView({
 
         {project.editor && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">{project.editor.display_name}</span>
+            <span className="text-sm">
+              Editor: {project.editor.display_name}
+            </span>
           </div>
         )}
       </div>
@@ -208,7 +200,7 @@ export default function ClientProjectView({
               return (
                 <Card
                   key={track.id}
-                  className="border-2 border-dashed relative"
+                  className="border-0 border-t-2 border-r-2 border-b-2 border-dashed relative rounded-none rounded-tr-md rounded-br-md"
                 >
                   {/* Status indicator line */}
                   <div
@@ -225,9 +217,9 @@ export default function ClientProjectView({
                   <CardHeader className="pb-3 pl-5">
                     <div className="flex flex-wrap justify-between items-center gap-2">
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        <div className="flex items-center justify-center bg-muted text-muted-foreground rounded-full w-7 h-7 text-sm">
+                        {/* <div className="flex items-center justify-center bg-muted text-muted-foreground rounded-[5px] w-7 h-7 text-sm">
                           {track.round_number}
-                        </div>
+                        </div> */}
                         Round {track.round_number}
                       </CardTitle>
                       <div className="flex items-center gap-2">
@@ -263,12 +255,15 @@ export default function ClientProjectView({
                   <CardContent className="pt-0 pb-3 pl-5">
                     {track.final_deliverable_media_type && (
                       <div className="flex items-center gap-2 text-sm">
-                        <div className="flex items-center gap-1 text-xs bg-muted rounded-full px-2 py-0.5">
+                        <Badge
+                          variant={"outline"}
+                          className="flex items-center gap-2"
+                        >
                           <MediaIcon className="h-3.5 w-3.5" />
                           <span className="capitalize">
                             {track.final_deliverable_media_type}
                           </span>
-                        </div>
+                        </Badge>
                       </div>
                     )}
                   </CardContent>

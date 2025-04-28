@@ -9,6 +9,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/pricing", label: "Pricing", icon: FlaskConical },
+  { href: "/board", label: "board", icon: FlaskConical },
 ];
 
 export function NavLinks() {

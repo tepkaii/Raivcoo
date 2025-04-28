@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"; // Import Input
 import { Label } from "@/components/ui/label"; // Import Label
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Save, Ban, Loader2, Image as ImageIcon, XCircle } from "lucide-react"; // Import needed icons
-import { toast } from "@/hooks/use-toast"; // Import toast for warnings
+
 
 interface EditableReviewCommentProps {
   editedText: string;

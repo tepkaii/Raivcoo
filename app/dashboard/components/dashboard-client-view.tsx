@@ -15,7 +15,6 @@ import {
   ChevronRight,
   FolderOpenDot,
   Eye,
-  MessageSquare,
   Calendar,
   History,
   BarChart,

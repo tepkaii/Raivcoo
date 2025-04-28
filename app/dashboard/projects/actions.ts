@@ -3,14 +3,13 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-
-import { Buffer } from "buffer"; // Needed for Buffer.from
+import { Buffer } from "buffer"; 
 
 const MAX_IMAGES_PER_COMMENT = 4; // Keep consistent with review page
 const IMAGE_MAX_SIZE_MB = 5; // 5MB limit for each image
 const IMAGE_MAX_SIZE_BYTES = IMAGE_MAX_SIZE_MB * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const ACCEPTED_IMAGE_TYPES_STRING = ACCEPTED_IMAGE_TYPES.join(","); // For client-side input accept attribute
+
 
 async function uploadImageToImgBB(
   fileBuffer: Buffer,

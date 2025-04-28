@@ -23,8 +23,6 @@ import {
   XCircle,
   CircleDot,
   Clapperboard,
-  Link2,
-  Copy,
   MoreHorizontal,
   Edit,
   Trash2,

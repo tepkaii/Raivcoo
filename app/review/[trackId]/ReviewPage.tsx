@@ -8,7 +8,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import Link from "next/link";
+
 import {
   Card,
   CardContent,

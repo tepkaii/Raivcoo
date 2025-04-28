@@ -9,7 +9,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import {
-  CheckCircle,
   Clock,
   Loader2,
   ArrowLeft,
@@ -537,8 +536,9 @@ export default function TrackManager({
 
                     {/* Render step content with border and status indicator */}
                     <Card
+                      key={index}
                       className={cn(
-                        "p-4 border-2 border-dashed relative",
+                        "p-4 border-0 border-t-2 border-r-2 border-b-2 border-dashed relative rounded-none rounded-tr-md rounded-br-md",
                         isCompleted
                           ? "bg-muted/5 border-muted"
                           : "border-muted/50"
