@@ -2,7 +2,9 @@
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import { CommentTextWithLinks } from "@/app/dashboard/projects/[id]/CommentRenderer";
-import { Circle, ExternalLink } from "lucide-react";
+import { Clock, ExternalLink } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatTime } from "@/app/review/lib/utils";
 
 interface Comment {
   id: string;
@@ -29,17 +31,26 @@ export function ProjectComments({
   return (
     <div className="space-y-4">
       {comments.map((comment) => (
-        <Card key={comment.id} className="p-4 border-2 rounded-md bg-muted/5">
+        <Card key={comment.id} className="p-4  rounded-md bg-muted/5">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-sm font-medium flex items-center gap-1">
-              <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
-              Client
-            </span>
+            <div className="flex items-start gap-1 mb-2">
+              <Avatar className="size-5 border-2 border-dashed">
+                <AvatarImage src={`https://avatar.vercel.sh/%50`} />
+                <AvatarFallback>C</AvatarFallback>
+              </Avatar>{" "}
+              <span className="text-sm font-medium flex items-center gap-1">
+                Client{" "}
+                <p className="text-xs ml-2 text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> At{" "}
+                  {formatTime(comment.comment.timestamp)}
+                </p>
+              </span>
+            </div>
             <span className="text-xs text-muted-foreground">
               {formatFullDate(comment.created_at)}
             </span>
           </div>
-          <div className="p-3 bg-muted/20 rounded-md text-sm">
+          <div className="p-3 border-2 border-dashed rounded-md text-sm">
             <CommentTextWithLinks
               text={comment.comment.text}
               links={comment.comment.links}

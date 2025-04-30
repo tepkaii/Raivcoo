@@ -30,7 +30,7 @@ export const Spotlight = ({
       transition={{ duration: 1.5 }}
       className="absolute inset-0 overflow-hidden"
     >
-      <div className="absolute top-0 left-0 w-full h-screen z-40">
+      <div className="absolute top-0 left-0 w-full h-screen z-20">
         <div
           style={{
             transform: `translateY(${translateY}px) rotate(-45deg)`,

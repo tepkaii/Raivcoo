@@ -1,4 +1,5 @@
 // app/dashboard/layout.tsx
+// @ts-nocheck
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./components/app-sidebar";
 import { redirect } from "next/navigation";

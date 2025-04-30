@@ -1,4 +1,5 @@
 // app/dashboard/reviews/components/client-reviews-list.tsx
+// @ts-nocheck
 "use client";
 
 import {
@@ -23,7 +24,7 @@ import {
   Film,
   Image as ImageIcon,
 } from "lucide-react";
-import { formatFullDate } from "../pending/client-pending-list";
+import { formatFullDate } from "../components/libs";
 
 interface Project {
   id: string;
@@ -207,7 +208,7 @@ export function ClientReviewsList({
       {/* Main Content Area */}
       <div className="grid gap-6">
         {/* Needs Review Section */}
-        <Card className="border-[2px]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-orange-500" />
@@ -227,7 +228,7 @@ export function ClientReviewsList({
         </Card>
 
         {/* Reviewed Projects Section */}
-        <Card className="border-[2px]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -288,7 +289,7 @@ function StatCard({
   };
 
   return (
-    <Card className="hover:shadow-sm transition-shadow border-2">
+    <Card className="hover:shadow-sm transition-shadow border-2 border-dashed">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>

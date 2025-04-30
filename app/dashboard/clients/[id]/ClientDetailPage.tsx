@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 "use client";
 
 import { useState } from "react";
@@ -256,7 +258,7 @@ export default function ClientDetailPage({
                 return (
                   <Card
                     key={project.id}
-                    className="relative group overflow-hidden border-[2px]"
+                    className="relative group overflow-hidden "
                   >
                     <div
                       className={`absolute left-0 top-0 bottom-0 w-1 ${

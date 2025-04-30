@@ -51,6 +51,8 @@ import { useRouter } from "next/navigation";
 import { formatTime } from "../lib/utils";
 import { MediaContainer } from "./components/MediaContainer";
 import { CommentsSection } from "./components/CommentsSection";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 // --- Interfaces ---
 interface Comment {
@@ -167,6 +169,23 @@ export default function ReviewPage({
   const isDecisionMade = track.clientDecision !== "pending";
   const isAnyActionPending =
     isAddPending || isDecisionPending || isEditDeletePending;
+
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editTimeValue, setEditTimeValue] = useState(formatTime(currentTime));
+
+  useEffect(() => {
+    setEditTimeValue(formatTime(currentTime));
+  }, [currentTime]);
+
+  const handleTimeUpdate = () => {
+    // Parse the timestamp
+    const [minutes, seconds] = editTimeValue.split(":").map(Number);
+    if (!isNaN(minutes) && !isNaN(seconds)) {
+      const newTime = minutes * 60 + seconds;
+      setCurrentTime(newTime);
+      setIsEditingTime(false);
+    }
+  };
 
   useEffect(() => {
     setComments(initialComments);
@@ -494,31 +513,33 @@ export default function ReviewPage({
 
   return (
     <div className="space-y-6 w-full max-w-5xl px-2">
-      <Card className="border-2">
+      <Card className="border-2 border-dashed">
         <CardHeader className="pb-4">
-          <CardTitle className="text-2xl md:text-3xl tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-            {project.title} - Round {track.roundNumber} Review
-          </CardTitle>
-          <CardDescription className="text-base">
-            {clientInfo?.company && (
-              <div className="flex items-center gap-2 mb-2">
-                <Building className="h-4 w-4 text-muted-foreground" />
-                <span>{clientInfo.company}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>
-                {clientInfo?.email || clientDisplayName || "Reviewer"}
-              </span>
+          <div className="flex items-center justify-between flex-wrap gap-y-2">
+            <div>
+              <CardTitle className="text-xl md:text-2xl font-semibold">
+                Review: {project.title}
+              </CardTitle>
+              <p className="text-muted-foreground text-sm font-medium">
+                Round / Version {track.roundNumber}
+              </p>
             </div>
-            {clientInfo?.phone && (
-              <div className="flex items-center gap-2 mt-2">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{clientInfo.phone}</span>
-              </div>
-            )}
-          </CardDescription>
+            <Badge
+              variant={
+                track.clientDecision === "approved"
+                  ? "success"
+                  : track.clientDecision === "revisions_requested"
+                    ? "destructive"
+                    : "warning"
+              }
+            >
+              {track.clientDecision === "approved"
+                ? "Approved"
+                : track.clientDecision === "revisions_requested"
+                  ? "Revisions Requested"
+                  : "Awaiting Feedback"}
+            </Badge>
+          </div>
         </CardHeader>
       </Card>
 
@@ -562,8 +583,79 @@ export default function ReviewPage({
           {!isDecisionMade && !editingCommentId && (
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Clock className="h-4 w-4" /> Add feedback at:{" "}
-                {isVideoPlayerNeededByType ? formatTime(currentTime) : "N/A"}
+                <Clock className="h-4 w-4" />
+                <span className="whitespace-nowrap">Add feedback at: </span>
+
+                {isVideoPlayerNeededByType ? (
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="px-2 py-1 bg-secondary border rounded text-xs font-mono cursor-pointer hover:bg-secondary/80"
+                        onClick={() => setIsEditingTime(true)}
+                        title="Click to edit timestamp"
+                      >
+                        {formatTime(currentTime)}
+                      </div>
+
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          className="p-1 rounded hover:bg-secondary text-xs"
+                          onClick={() =>
+                            setCurrentTime(Math.max(0, currentTime - 5))
+                          }
+                          title="Back 5 seconds"
+                        >
+                          -5s
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1 rounded hover:bg-secondary text-xs"
+                          onClick={() => setCurrentTime(currentTime + 5)}
+                          title="Forward 5 seconds"
+                        >
+                          +5s
+                        </button>
+                      </div>
+                    </div>
+
+                    {isEditingTime && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editTimeValue}
+                          onChange={(e) => setEditTimeValue(e.target.value)}
+                          placeholder="MM:SS"
+                          className="w-20 px-2 py-1 text-xs border rounded"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleTimeUpdate();
+                            } else if (e.key === "Escape") {
+                              setIsEditingTime(false);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                          onClick={handleTimeUpdate}
+                        >
+                          Set
+                        </button>
+                        <button
+                          type="button"
+                          className="px-2 py-1 text-xs border rounded hover:bg-muted"
+                          onClick={() => setIsEditingTime(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-muted">N/A</span>
+                )}
               </div>
               <Textarea
                 placeholder="Enter your feedback here..."
@@ -683,7 +775,7 @@ export default function ReviewPage({
               cannot add or edit feedback on this page.
             </CardDescription>
           </CardHeader>
-          <CardFooter className="flex flex-col sm:flex-row gap-4">
+          <CardFooter className="flex flex-col w-full sm:flex-row gap-4">
             {/* Revision Request Dialog */}
             <Dialog
               open={revisionDialogOpen}
@@ -692,7 +784,7 @@ export default function ReviewPage({
               <DialogTrigger asChild>
                 <RevButtons
                   variant="destructive"
-                  className="flex-1"
+                  className="flex-1 w-full"
                   disabled={isAnyActionPending || !!editingCommentId}
                 >
                   {isDecisionPending ? (
@@ -741,7 +833,7 @@ export default function ReviewPage({
               <DialogTrigger asChild>
                 <RevButtons
                   variant="success"
-                  className="flex-1"
+                  className="flex-1 w-full"
                   disabled={isAnyActionPending || !!editingCommentId}
                 >
                   {isDecisionPending ? (

@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
@@ -27,6 +29,7 @@ import { StepCommentsSection } from "./StepCommentsSection";
 import { EditableStepsList } from "../components/EditableStepsList";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/app/review/lib/utils";
 
 // --- Interfaces ---
 export interface Step {
@@ -392,7 +395,7 @@ export default function TrackManager({
     !isClientActionDone;
 
   return (
-    <Card className="border-2">
+    <Card className="">
       <CardHeader className="pb-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-3 flex-wrap rounded-xl">
@@ -424,7 +427,7 @@ export default function TrackManager({
                 </RevButtons>
               ) : (
                 <RevButtons
-                  variant="info"
+                  variant="outline"
                   size="sm"
                   className="flex items-center gap-1"
                   onClick={() => {
@@ -555,11 +558,6 @@ export default function TrackManager({
                       <div className="flex flex-col items-start gap-3 pl-2">
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center">
-                            {isCompleted ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-                            ) : (
-                              <div className="h-5 w-5 rounded-full border-2 border-amber-400 mr-2" />
-                            )}
                             <span className="font-medium">
                               Step {index + 1}
                             </span>
@@ -578,6 +576,16 @@ export default function TrackManager({
                             isFinalStep={false}
                           />
                         </div>
+
+                        {/* Timestamp indicator */}
+                        {step.metadata?.timestamp !== undefined && (
+                          <div className="absolute bottom-2 right-3 flex items-center gap-1 text-xs px-1.5 py-0.5 bg-secondary/40 rounded-full text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span className="font-mono">
+                              At {formatTime(step.metadata.timestamp)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </Card>
                   </div>

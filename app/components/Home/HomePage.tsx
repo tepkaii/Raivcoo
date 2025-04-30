@@ -7,6 +7,10 @@ import { useRef } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { BorderTrail } from "@/components/ui/border-trail";
+import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
+import { BentoDemo } from "../bentos";
+import { AnimatedBeamDemo } from "./Beams";
+import { LandingHero } from "./LandingHero";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -27,10 +31,11 @@ function AnimatedSection({ children, className }: any) {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="">
-        {/* Hero Section */}
-        <section className="pt-32 pb-20 px-4 text-center container mx-auto">
+    <div className="min-h-screen bg-background overflow-hidden  text-foreground">
+      <GridBackground />
+      <Spotlight />
+      <div className="relative  z-40">
+        {/* <section className="pt-32 pb-20 px-4 text-center container mx-auto">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -64,14 +69,16 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground mt-4">
             No credit card required • Adobe AE & PR extensions included
           </p>
-        </section>
+        </section> */}
+        <div className="mt-[-160px] md:mt-0">
+          <LandingHero />
+        </div>
 
-        {/* Main Feature Image */}
-        <AnimatedSection className="py-12">
+        {/* <AnimatedSection className="">
           <div className="container mx-auto px-4">
             <div className="relative rounded-xl overflow-hidden border border-[#3F3F3F] shadow-2xl max-w-5xl mx-auto">
               <Image
-                src="/MainDashboard.png"
+                src="/1.png"
                 alt="RAIVCOO Dashboard"
                 width={1200}
                 height={700}
@@ -80,7 +87,7 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-20"></div>
             </div>
           </div>
-        </AnimatedSection>
+        </AnimatedSection> */}
 
         {/* Value Section */}
         <AnimatedSection className="py-16">
@@ -95,8 +102,12 @@ export default function HomePage() {
           </div>
         </AnimatedSection>
 
+        <div className="w-full px-4">
+          <BentoDemo />
+        </div>
+
         {/* Features Grid */}
-        <AnimatedSection className="py-12">
+        {/* <AnimatedSection className="py-12">
           <div className="container mx-auto px-4">
             <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               <div className="bg-card/50 p-6 rounded-xl border border-[#3F3F3F] hover:border-primary transition-all duration-300">
@@ -172,14 +183,14 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-        </AnimatedSection>
+        </AnimatedSection> */}
 
         {/* Comments / Rounds */}
         <AnimatedSection className="py-16">
           <div className="container mx-auto px-4">
             <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
               <Image
-                src="/ReviewVideo.png"
+                src="/2.png"
                 alt="Client Comment Flow"
                 width={600}
                 height={400}
@@ -247,7 +258,7 @@ export default function HomePage() {
                 </ul>
               </div>
               <Image
-                src="/AppAccess.png"
+                src="/3.png"
                 alt="App Access"
                 width={600}
                 height={400}

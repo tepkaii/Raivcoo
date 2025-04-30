@@ -8,6 +8,8 @@ import { CommentTextWithLinks } from "./CommentRenderer";
 import { formatTime } from "@/app/review/lib/utils";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Circle, ExternalLink } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatFullDate } from "../../components/libs";
 
 interface Comment {
   id: string;
@@ -41,7 +43,7 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
   };
 
   return (
-    <Card className="border-2">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Feedback History
@@ -64,22 +66,24 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
               >
                 <div className="flex justify-between items-start gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
+                    <Avatar className="size-5 border-2 border-dashed">
+                      <AvatarImage src={`https://avatar.vercel.sh/%50`} />
+                      <AvatarFallback>
+                        {comment.commenter_display_name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                     <p className="font-medium text-sm">
                       {comment.commenter_display_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      at {formatTime(comment.comment.timestamp)}
+                      At {formatTime(comment.comment.timestamp)}
                     </p>
                   </div>
                   <span
                     className="text-xs text-muted-foreground flex-shrink-0"
                     title={new Date(comment.created_at).toString()}
                   >
-                    {new Date(comment.created_at).toLocaleString([], {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+                    {formatFullDate(comment.created_at)}
                   </span>
                 </div>
                 {comment.comment.text && (

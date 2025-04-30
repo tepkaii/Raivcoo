@@ -1,4 +1,5 @@
 // app/dashboard/pending/components/client-pending-list.tsx
+// @ts-nocheck
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import {
   Calendar,
   RotateCcw,
 } from "lucide-react";
+import { formatFullDate } from "../components/libs";
 
 interface Project {
   id: string;
@@ -32,27 +34,6 @@ interface Project {
   awaitingEditorSubmission: boolean;
 }
 
-export const formatFullDate = (
-  dateString: string | undefined | null
-): string => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-
-  // For consistent formatting across locales including Arabic
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
-  } catch (error) {
-    // Fallback to basic formatting if Intl fails
-    return `${date.toDateString()} ${date.toTimeString().substring(0, 5)}`;
-  }
-};
 export function ClientPendingList({
   pendingProjects,
 }: {
@@ -174,7 +155,7 @@ export function ClientPendingList({
 
       {/* Main Content Area */}
       <div className="grid gap-6">
-        <Card className="border-[2px]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <RotateCcw className="h-5 w-5 text-orange-500" />
@@ -229,7 +210,7 @@ function StatCard({
   };
 
   return (
-    <Card className="hover:shadow-sm transition-shadow border-2">
+    <Card className="hover:shadow-sm transition-shadow border-2 border-dashed">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>

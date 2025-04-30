@@ -10,13 +10,8 @@ export const metadata: Metadata = {
   description: "Create a new video editing project",
 };
 
-interface PageProps {
-  searchParams: {
-    client?: string;
-  };
-}
 
-export default async function NewProjectPage({ searchParams }: PageProps) {
+export default async function NewProjectPage() {
   const supabase = await createClient();
 
   const {
@@ -51,7 +46,7 @@ export default async function NewProjectPage({ searchParams }: PageProps) {
 
   // If no clients yet, redirect to client creation
   if (!clients || clients.length === 0) {
-    redirect("/clients/new?redirect=project");
+    redirect("/dashboard/clients/new?redirect=project");
   }
 
   return (

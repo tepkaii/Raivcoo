@@ -23,6 +23,7 @@ import {
 import React from "react";
 import Image from "next/image";
 import { NavLinks, NavDropdownItems } from "./NavComponents";
+import { UserMenuItems } from "./UserMenuItems";
 
 export default async function Header() {
   const supabase = createClient();
@@ -40,7 +41,7 @@ export default async function Header() {
 
   return (
     <header
-      className=" fixed  top-0 z-[99]  right-0 left-0     md:p-6
+      className=" fixed  top-0 z-50  right-0 left-0     md:p-6
         transition-all duration-300"
     >
       <div
@@ -65,7 +66,7 @@ backdrop-blur-sm"
 
           <div className="flex items-center ">
             {user ? (
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <RevButtons
                     variant="ghost"
@@ -104,7 +105,8 @@ backdrop-blur-sm"
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <UserMenuItems account={account} />
+
+                  <UserMenuItems initialPortfolio={account} />
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -120,7 +122,7 @@ backdrop-blur-sm"
               </div>
             )}
 
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <RevButtons variant="ghost" size="icon" className="md:hidden">
                   <Menu className="h-5 w-5" />
@@ -164,29 +166,4 @@ backdrop-blur-sm"
   );
 }
 
-function UserMenuItems({ account }: { account: any }) {
-  return (
-    <>
-      <DropdownMenuItem asChild>
-        <Link href="/account" className="flex items-center">
-          <User className="mr-2 h-4 w-4" />
-          <span>Account</span>
-        </Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild></DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem>
-        <form action="/auth/signout" method="post" className="w-full">
-          <button type="submit" className="w-full">
-            <RevButtons
-              variant="destructive"
-              className="w-full text-left flex items-center"
-            >
-              <LogOut className="mr-2 h-4 w-4" /> Sign out
-            </RevButtons>
-          </button>
-        </form>
-      </DropdownMenuItem>
-    </>
-  );
-}
+

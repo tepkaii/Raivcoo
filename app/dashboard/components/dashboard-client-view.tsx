@@ -25,6 +25,7 @@ import { RevButtons } from "@/components/ui/RevButtons";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState } from "react";
+import { formatStatus, getStatusVariant } from "./libs";
 
 interface Step {
   name: string;
@@ -307,7 +308,7 @@ export function DashboardClientView({
       {/* Main Content Area */}
       <div className="grid gap-6">
         {/* Needs Review Section */}
-        <Card className="border-[2px]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-orange-500" />
@@ -327,7 +328,7 @@ export function DashboardClientView({
         </Card>
 
         {/* Active Projects Section */}
-        <Card className="border-[2px]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FolderOpenDot className="h-5 w-5 text-green-500" />
@@ -356,7 +357,7 @@ export function DashboardClientView({
         </Card>
 
         {/* Analytics Section */}
-        <Card className="border-[2px]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart className="h-5 w-5" />
@@ -409,7 +410,7 @@ function StatCard({
   };
 
   return (
-    <Card className="hover:shadow-sm transition-shadow border-2">
+    <Card className="border-2 border-dashed">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -427,34 +428,3 @@ function StatCard({
   );
 }
 
-// Helper functions
-function formatStatus(status: string): string {
-  if (!status) return "Unknown";
-  return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-}
-
-function getStatusVariant(
-  status: string | undefined | null
-):
-  | "default"
-  | "secondary"
-  | "destructive"
-  | "outline"
-  | "success"
-  | "warning"
-  | "info" {
-  switch (status?.toLowerCase()) {
-    case "completed":
-      return "success";
-    case "active":
-      return "info";
-    case "in_progress":
-      return "warning";
-    case "on_hold":
-      return "warning";
-    case "cancelled":
-      return "destructive";
-    default:
-      return "secondary";
-  }
-}

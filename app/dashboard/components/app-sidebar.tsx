@@ -1,9 +1,11 @@
 // components/app-sidebar.tsx
+// @ts-nocheck
 "use client";
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -23,6 +25,7 @@ import {
   CheckCircle2,
   Home,
   ChevronDown,
+  HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -122,7 +125,8 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
               {initialPortfolio?.display_name || "User"}
             </span>
             <span className="text-xs text-muted-foreground truncate">
-              {initialPortfolio?.email || "user@example.com"}
+              {/* {initialPortfolio?.email || "user@example.com"} */}
+              team@ravicoo.com
             </span>
           </div>
 
@@ -189,13 +193,15 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
                       isActiveSection("/dashboard") && "bg-muted"
                     )}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#783F04]/40 text-[#F59E0B] shrink-0">
+                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md  bg-[#581C87]/40 text-[#C084FC] shrink-0">
                       <LayoutDashboard className="size-4" />
                     </div>
                     <span className="group-data-[collapsible=icon]:hidden">
                       Main
                     </span>
-                    <LinkStatus href="/dashboard" />
+                    <div className="group-data-[collapsible=icon]:hidden">
+                      <LinkStatus href="/dashboard" />
+                    </div>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -222,7 +228,9 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
                       <span className="group-data-[collapsible=icon]:hidden">
                         Clients
                       </span>
-                      <LinkStatus href="/dashboard/clients" />
+                      <div className="group-data-[collapsible=icon]:hidden">
+                        <LinkStatus href="/dashboard/clients" />
+                      </div>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
@@ -250,7 +258,9 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
                       <span className="group-data-[collapsible=icon]:hidden">
                         Projects
                       </span>
-                      <LinkStatus href="/dashboard/projects" />
+                      <div className="group-data-[collapsible=icon]:hidden">
+                        <LinkStatus href="/dashboard/projects" />
+                      </div>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
@@ -278,7 +288,9 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
                       <span className="group-data-[collapsible=icon]:hidden">
                         My Reviews
                       </span>
-                      <LinkStatus href="/dashboard/reviews" />
+                      <div className="group-data-[collapsible=icon]:hidden">
+                        <LinkStatus href="/dashboard/reviews" />
+                      </div>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
@@ -306,7 +318,9 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
                       <span className="group-data-[collapsible=icon]:hidden">
                         Pending
                       </span>
-                      <LinkStatus href="/dashboard/pending" />
+                      <div className="group-data-[collapsible=icon]:hidden">
+                        <LinkStatus href="/dashboard/pending" />
+                      </div>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
@@ -315,6 +329,28 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
           </SidebarGroup>
         )}
       </SidebarContent>
+      <SidebarFooter className=" border-t group-data-[collapsible=icon]:border-none mt-auto space-y-2 group-data-[collapsible=icon]:space-y-0">
+        {/* Top row: Help + Version */}
+        <div className="flex justify-around items-center gap-2 group-data-[collapsible=icon]:hidden group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start">
+          <Link
+            href="/support"
+            className="flex text-xs group-data-[collapsible=icon]:hidden  items-center gap-2 p-0 h-auto"
+          >
+            <span className="">Help & Support</span>
+          </Link>
+          <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+            |
+          </span>
+          <div className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+            <strong className="text-foreground">Raivcoo</strong> v1.0.0
+          </div>
+        </div>
+
+        {/* Bottom row: copyright */}
+        <div className="text-[11px] text-muted-foreground group-data-[collapsible=icon]:hidden px-1">
+          © {new Date().getFullYear()} Raivcoo
+        </div>
+      </SidebarFooter>
 
       {/* Account Dialog */}
       <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>

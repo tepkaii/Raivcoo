@@ -8,8 +8,9 @@ import { FlaskConical } from "lucide-react";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/pricing", label: "Pricing", icon: FlaskConical },
-  { href: "/board", label: "board", icon: FlaskConical },
+  // { href: "/pricing", label: "Pricing", icon: FlaskConical },
+  // { href: "/board", label: "board", icon: FlaskConical },
+  { href: "/tools", label: "Tools" },
 ];
 
 export function NavLinks() {
@@ -28,7 +29,6 @@ export function NavLinks() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-         
           <span>{item.label}</span>
         </Link>
       ))}
@@ -52,7 +52,6 @@ export function NavDropdownItems() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-          
             <span>{item.label}</span>
           </Link>
         </DropdownMenuItem>

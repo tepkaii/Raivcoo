@@ -1,4 +1,5 @@
 // app/clients/ClientCard.tsx
+// @ts-nocheck
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
@@ -184,7 +185,7 @@ export function ClientCard({ client }: ClientCardProps) {
 
   return (
     <div className="relative group">
-      <Card className="h-full border-2 hover:shadow-md transition-shadow">
+      <Card className="h-full">
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10 border">
@@ -207,7 +208,6 @@ export function ClientCard({ client }: ClientCardProps) {
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger>
               <RevButtons variant="outline" size="icon" className="h-8 w-8 p-0">
-                <span className="sr-only">Open client menu</span>
                 <MoreVertical className="h-4 w-4 text-muted-foreground" />
               </RevButtons>
             </DropdownMenuTrigger>

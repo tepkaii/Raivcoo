@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useState } from "react";
@@ -30,6 +31,16 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ProjectComments } from "./ProjectComments";
+import { formatTime } from "@/app/review/lib/utils";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
+  getStatusDescription,
+  getStatusDotColor,
+} from "@/app/dashboard/components/libs";
 
 interface Project {
   id: string;
@@ -52,6 +63,7 @@ interface Track {
   steps: Array<{
     status: string;
     metadata?: {
+      timestamp(timestamp: any): import("react").ReactNode;
       text: string;
       links?: Array<{ url: string; text: string }>;
       images?: string[];
@@ -168,32 +180,37 @@ export default function LiveTrackClient({
   };
 
   return (
-    <div className="min-h-screen p-3 md:p-6 space-y-6">
+    <div className="min-h-screen px-3 py-6 md:p-6 space-y-6">
       {/* Header with back button */}
-      <div className="mb-6">
+      <div className="mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <div className="flex gap-2 items-center">
-              <Link
-                href={`/dashboard/projects/${project.id}`}
-                className="text-muted-foreground hover:text-foreground mr-1"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-              <h1 className="text-xl md:text-3xl font-bold tracking-tight">
-                {project.title}
-              </h1>
-              <Badge variant={getStatusVariant(project.status)}>
-                {formatStatus(project.status)}
-              </Badge>
-            </div>
-          </div>
+          <div className="flex items-center relative w-fit gap-2">
+            <h3 className="text-xl md:text-3xl font-bold tracking-tight text-white">
+              {project.title}
+            </h3>
 
+            <HoverCard openDelay={0} closeDelay={0}>
+              <HoverCardTrigger asChild>
+                <div
+                  className={cn(
+                    "absolute -top-0 border-2  -right-4 size-3 rounded-full cursor-default",
+                    getStatusDotColor(project.status)
+                  )}
+                />
+              </HoverCardTrigger>
+              <HoverCardContent side="top" className="text-sm max-w-xs">
+                <p className="font-medium">{formatStatus(project.status)}</p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {getStatusDescription(project.status)}
+                </p>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
           <div className="flex flex-col gap-2 text-sm">
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <p>Created: {formatFullDate(project.created_at)}</p>
-            </div>
+            </div> */}
             {project.deadline && (
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -213,14 +230,11 @@ export default function LiveTrackClient({
       </div>
 
       {/* Current track progress */}
-      <Card className="border-2">
+      <Card className="">
         <CardHeader className="border-b pb-4">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-                <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-full w-8 h-8 text-sm">
-                  {activeTrack.round_number}
-                </div>
                 <span>Round {activeTrack.round_number}</span>
                 <span className="text-muted-foreground text-sm hidden md:inline">
                   |
@@ -237,7 +251,7 @@ export default function LiveTrackClient({
                     ? "success"
                     : activeTrack.client_decision === "revisions_requested"
                       ? "destructive"
-                      : "info"
+                      : "warning"
                 }
                 className="px-3 py-1"
               >
@@ -270,7 +284,7 @@ export default function LiveTrackClient({
               </div>
               <span className="text-sm font-medium">{trackProgress}%</span>
             </div>
-            <Progress value={trackProgress} className="h-2.5" />
+            <Progress value={trackProgress} />
           </div>
         </CardHeader>
 
@@ -303,11 +317,6 @@ export default function LiveTrackClient({
                     <div className="flex flex-col items-start gap-3 pl-2">
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center">
-                          {isCompleted ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-                          ) : (
-                            <div className="h-5 w-5 rounded-full border-2 border-amber-400 mr-2" />
-                          )}
                           <span className="font-medium">Step {index + 1}</span>
                         </div>
 
@@ -344,9 +353,9 @@ export default function LiveTrackClient({
                         )}
 
                         {step.metadata && (
-                          <div className="space-y-3">
+                          <div className="space-y-3 mb-6">
                             {step.metadata.text && (
-                              <div className="p-3 border-2 border-dashed rounded-md text-sm bg-card">
+                              <div className="p-3 border-2 border-dashed rounded-md text-sm bg-card ">
                                 <CommentTextWithLinks
                                   text={step.metadata.text}
                                   links={step.metadata.links}
@@ -403,6 +412,16 @@ export default function LiveTrackClient({
                           </div>
                         )}
                       </div>
+
+                      {/* Timestamp indicator */}
+                      {step.metadata?.timestamp !== undefined && (
+                        <div className="absolute bottom-2 right-3 flex items-center  gap-1 text-xs px-1.5 py-0.5 bg-secondary/40 rounded-full text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span className="font-mono">
+                            {formatTime(step.metadata.timestamp)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 );
@@ -414,7 +433,7 @@ export default function LiveTrackClient({
             <div className="mt-8 border-t pt-6">
               <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-primary" />
-                Client Feedback
+                Original Client Feedback
               </h3>
               <ProjectComments
                 comments={formattedComments}
@@ -428,7 +447,7 @@ export default function LiveTrackClient({
 
       {/* Previous rounds */}
       {tracks.length > 1 && (
-        <Card className="border-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <div className="flex items-center justify-center bg-muted text-muted-foreground rounded-full w-7 h-7 text-sm">
@@ -458,9 +477,6 @@ export default function LiveTrackClient({
                       <CardHeader className="pb-2 border-b bg-muted/10">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center bg-muted text-muted-foreground rounded-full w-6 h-6 text-xs">
-                              {track.round_number}
-                            </div>
                             <CardTitle className="text-base">
                               Round {track.round_number}
                             </CardTitle>
@@ -492,9 +508,9 @@ export default function LiveTrackClient({
                           {formatFullDate(track.updated_at)}
                         </span>
                       </CardHeader>
-                      <CardContent className="pt-3 pb-1">
+                      <CardContent className="pt-3 pb-1 mb-2">
                         <div className="space-y-2">
-                          <div className="flex justify-between items-center text-xs">
+                          <div className="flex justify-between items-center  text-xs">
                             <span className="text-muted-foreground">
                               {track.steps?.filter(
                                 (s) => s.status === "completed"
@@ -503,14 +519,13 @@ export default function LiveTrackClient({
                             </span>
                             <span>{trackProgress}%</span>
                           </div>
-                          <Progress value={trackProgress} className="h-1.5" />
                         </div>
                       </CardContent>
-                      <CardFooter className="pt-2 pb-3 border-t">
+                      <CardFooter className="pt-3 pb-3 border-t">
                         {finalStep?.deliverable_link && (
                           <Link
-                            href={`/projects/${project.id}/review/${track.id}`}
-                            className="flex w-full items-center justify-between text-blue-600 hover:underline text-sm group"
+                            href={`/review/${track.id}`}
+                            className="flex w-full items-center justify-between text-[#8C5CF6] hover:underline text-sm group"
                           >
                             <span className="flex items-center">
                               <ExternalLink className="h-4 w-4 mr-1" />

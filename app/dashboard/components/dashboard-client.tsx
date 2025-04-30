@@ -29,6 +29,19 @@ import { RevButtons } from "@/components/ui/RevButtons";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
+
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
+  formatFullDate,
+  formatStatus,
+  getStatusDescription,
+  getStatusDotColor,
+} from "./libs";
 
 interface Step {
   name: string;
@@ -197,10 +210,10 @@ export function DashboardClient({
       {/* Main Content Area */}
       <div className="grid gap-6">
         {/* Recent Projects Section */}
-        <Card className="border-[2px]">
+        <Card className="">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Film className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 ">
+              <Film className="h-5 w-5 " />
               Recent Projects
             </CardTitle>
           </CardHeader>
@@ -210,25 +223,42 @@ export function DashboardClient({
                 {/* Main Project Card */}
                 <div className="space-y-4 p-4 border-2 border-dashed rounded-lg">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xl font-semibold">
+                    <div className="relative w-fit">
+                      <h3 className="text-xl font-semibold text-white">
                         {mostRecentProject.title}
                       </h3>
-                      <span className="text-muted-foreground">|</span>
-                      <Badge
-                        variant={getStatusVariant(mostRecentProject.status)}
-                      >
-                        {formatStatus(mostRecentProject.status)}
-                      </Badge>
+
+                      <HoverCard openDelay={0} closeDelay={0}>
+                        <HoverCardTrigger asChild>
+                          <div
+                            className={cn(
+                              "absolute -top-0 border-2  -right-4 size-3 rounded-full cursor-default",
+                              getStatusDotColor(mostRecentProject.status)
+                            )}
+                          />
+                        </HoverCardTrigger>
+                        <HoverCardContent
+                          side="top"
+                          className="text-sm max-w-xs"
+                        >
+                          <p className="font-medium">
+                            {formatStatus(mostRecentProject.status)}
+                          </p>
+                          <p className="text-muted-foreground text-xs mt-1">
+                            {getStatusDescription(mostRecentProject.status)}
+                          </p>
+                        </HoverCardContent>
+                      </HoverCard>
                     </div>
+
                     <Link href={`/dashboard/projects/${mostRecentProject.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <RevButtons
+                        variant="outline"
+                        size="icon"
                         className="text-muted-foreground"
                       >
                         <ChevronRight className="h-4 w-4" />
-                      </Button>
+                      </RevButtons>
                     </Link>
                   </div>
 
@@ -238,21 +268,17 @@ export function DashboardClient({
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-1">
                           <span className="text-sm font-medium">
-                            Round {mostRecentProject.latestTrack.round_number}{" "}
-                            <span className="text-muted-foreground">|</span>
+                            Round{" "}
+                            {mostRecentProject.latestTrack.round_number}{" "}
                           </span>
-                          {hasNewRound ? (
-                            <Circle className="size-2 text-green-500" />
-                          ) : (
-                            <span className="text-muted-foreground text-sm">
-                              {mostRecentProject.latestTrack.steps?.filter(
-                                (s) => s.status === "completed"
-                              ).length || 0}
-                              /
-                              {mostRecentProject.latestTrack.steps?.length || 0}{" "}
-                              steps
-                            </span>
-                          )}
+                          <span className="text-muted-foreground">|</span>
+                          <span className="text-muted-foreground text-sm">
+                            {mostRecentProject.latestTrack.steps?.filter(
+                              (s) => s.status === "completed"
+                            ).length || 0}
+                            /{mostRecentProject.latestTrack.steps?.length || 0}{" "}
+                            steps
+                          </span>
                         </div>
                         <span className="text-sm font-medium">
                           {trackProgress}%
@@ -263,7 +289,7 @@ export function DashboardClient({
                   )}
 
                   {/* Project Metadata */}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex flex-wrap justify-between items-center text-sm">
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -273,9 +299,12 @@ export function DashboardClient({
                     </div>
                     {mostRecentProject.deadline && (
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">Deadline |</p>
+                        </div>
+
                         <div>
-                          <p className="text-muted-foreground">Deadline</p>
                           <p
                             className={
                               isDeadlineApproaching(mostRecentProject.deadline)
@@ -316,35 +345,54 @@ export function DashboardClient({
                     {recentProjects.slice(1).map((project) => (
                       <div
                         key={project.id}
-                        className="flex items-center justify-between px-1 py-3 hover:bg-muted/50 rounded-lg transition-colors"
+                        className="flex items-center justify-between px-3 py-3 border-2 border-dashed hover:bg-muted/50 rounded-lg transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium">{project.title}</h4>
-                            </div>
+                            <div className="relative w-fit">
+                              <h3 className="text-xl font-semibold text-white">
+                                {project.title}
+                              </h3>
 
+                              <HoverCard openDelay={0} closeDelay={0}>
+                                <HoverCardTrigger asChild>
+                                  <div
+                                    className={cn(
+                                      "absolute -top-0 border-2  -right-4 size-3 rounded-full cursor-default",
+                                      getStatusDotColor(project.status)
+                                    )}
+                                  />
+                                </HoverCardTrigger>
+                                <HoverCardContent
+                                  side="top"
+                                  className="text-sm max-w-xs"
+                                >
+                                  <p className="font-medium">
+                                    {formatStatus(project.status)}
+                                  </p>
+                                  <p className="text-muted-foreground text-xs mt-1">
+                                    {getStatusDescription(project.status)}
+                                  </p>
+                                </HoverCardContent>
+                              </HoverCard>
+                            </div>
                             <div className="flex items-center mt-2 gap-2 text-sm">
                               {project.latestTrack && (
                                 <span className="text-muted-foreground">
                                   Round {project.latestTrack.round_number}
                                 </span>
                               )}
-                              <span className="text-muted-foreground">|</span>
-                              <Badge variant={getStatusVariant(project.status)}>
-                                {formatStatus(project.status)}
-                              </Badge>
                             </div>
                           </div>
                         </div>
                         <Link href={`/dashboard/projects/${project.id}`}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <RevButtons
+                            variant="outline"
+                            size="icon"
                             className="text-muted-foreground"
                           >
                             <ChevronRight className="h-4 w-4" />
-                          </Button>
+                          </RevButtons>
                         </Link>
                       </div>
                     ))}
@@ -356,7 +404,7 @@ export function DashboardClient({
                 <Film className="h-8 w-8 text-muted-foreground" />
                 <p className="text-muted-foreground">No active projects</p>
                 <Link href="/dashboard/projects/new">
-                  <Button size="sm">Create Project</Button>
+                  <RevButtons variant={"outline"}>Create Project</RevButtons>
                 </Link>
               </div>
             )}
@@ -371,7 +419,7 @@ export function DashboardClient({
         </Card>
 
         {/* Recent Clients Section */}
-        <Card className="border-[2px]">
+        <Card className="">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -399,17 +447,17 @@ export function DashboardClient({
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="px-2 py-0.5">
+                      {/* <Badge variant="outline" className="px-2 py-0.5">
                         {client.projects?.length || 0} project(s)
-                      </Badge>
+                      </Badge> */}
                       <Link href={`/dashboard/clients/${client.id}`}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <RevButtons
+                          variant="outline"
+                          size="icon"
                           className="text-muted-foreground"
                         >
                           <ChevronRight className="h-4 w-4" />
-                        </Button>
+                        </RevButtons>
                       </Link>
                     </div>
                   </div>
@@ -420,7 +468,7 @@ export function DashboardClient({
                 <Users className="h-8 w-8 text-muted-foreground" />
                 <p className="text-muted-foreground">No clients yet</p>
                 <Link href="/dashboard/clients/new">
-                  <Button size="sm">Add Client</Button>
+                  <RevButtons variant={"outline"}>Add Client</RevButtons>
                 </Link>
               </div>
             )}
@@ -435,7 +483,7 @@ export function DashboardClient({
         </Card>
 
         {/* Analytics Section */}
-        <Card className="border-[2px]">
+        <Card className="">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart className="h-5 w-5" />
@@ -500,7 +548,7 @@ function StatCard({
   };
 
   return (
-    <Card className="hover:shadow-sm transition-shadow border-2">
+    <Card className="hover:shadow-sm transition-shadow border-2 border-dashed">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -518,49 +566,9 @@ function StatCard({
   );
 }
 
-// Helper functions (unchanged)
-function formatStatus(status: string): string {
-  if (!status) return "Unknown";
-  return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-}
 
-function formatFullDate(dateString: string | undefined | null): string {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
-function getStatusVariant(
-  status: string | undefined | null
-):
-  | "default"
-  | "secondary"
-  | "destructive"
-  | "outline"
-  | "success"
-  | "warning"
-  | "info" {
-  switch (status?.toLowerCase()) {
-    case "completed":
-      return "success";
-    case "active":
-      return "info";
-    case "in_progress":
-      return "warning";
-    case "on_hold":
-      return "warning";
-    case "cancelled":
-      return "destructive";
-    default:
-      return "secondary";
-  }
-}
+
 
 function isDeadlineApproaching(deadline: string | undefined | null): boolean {
   if (!deadline) return false;

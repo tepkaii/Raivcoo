@@ -11,6 +11,8 @@ import { CommentTextWithLinks } from "./CommentTextWithLinks";
 import { EditableReviewComment } from "./EditableReviewComment"; // Import the edit component
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatFullDate } from "@/app/dashboard/components/libs";
 
 // Interface for a single comment
 interface Comment {
@@ -94,7 +96,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
   };
 
   return (
-    <Card className="border-2">
+    <Card>
       <CardHeader>
         <CardTitle>Feedback Comments ({comments.length})</CardTitle>
       </CardHeader>
@@ -116,24 +118,31 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 >
                   {/* Comment Header: Info and Edit/Delete Buttons */}
                   <div className="flex justify-between items-start gap-2 flex-wrap mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-sm">
-                        {comment.commenter_display_name}
-                      </p>
-                      {(isVideoFile || isAudioFile) && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />{" "}
-                          {formatTime(comment.comment.timestamp)}
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Avatar className="size-5 border-2 border-dashed">
+                          <AvatarImage src={`https://avatar.vercel.sh/%50`} />
+                          <AvatarFallback>
+                            {comment.commenter_display_name
+                              .charAt(0)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <p className="font-semibold text-sm">
+                          {comment.commenter_display_name}
                         </p>
-                      )}
+                        {(isVideoFile || isAudioFile) && (
+                          <p className="text-xs ml-2 text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> At{" "}
+                            {formatTime(comment.comment.timestamp)}
+                          </p>
+                        )}
+                      </div>
                       <span
                         className="text-xs text-muted-foreground flex-shrink-0"
                         title={new Date(comment.created_at).toString()}
                       >
-                        {new Date(comment.created_at).toLocaleString([], {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
+                        {formatFullDate(comment.created_at)}
                       </span>
                     </div>
                     {canModify && !isCurrentlyEditing && (

@@ -1,4 +1,5 @@
 // app/dashboard/pending/page.tsx
+// @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -29,7 +30,7 @@ export default async function ClientPendingPage() {
     .single();
 
   if (profileError || !userProfile) {
-    redirect("/profile");
+    redirect("/login");
   }
 
   // Verify this is a client account

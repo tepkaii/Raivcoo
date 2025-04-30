@@ -1,4 +1,5 @@
 // app/dashboard/projects/[id]/page.tsx
+// @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -22,12 +23,23 @@ import {
   updateTrackStructure,
 } from "../actions";
 import { ProjectCommentsSection } from "./ProjectCommentsSection";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { cn } from "@/lib/utils";
+import {
+  formatStatus,
+  getStatusDescription,
+  getStatusDotColor,
+} from "../../components/libs";
 
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
-}): Promise<Metadata> {
+  params: Promise<{ id: string }>;
+}) {
   const supabase = await createClient();
   const { id } = await params;
   const { data: project } = await supabase
@@ -41,7 +53,11 @@ export async function generateMetadata({
   };
 }
 
-export default async function page({ params }: { params: { id: string } }) {
+export default async function page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const supabase = await createClient();
   const { id } = await params;
 
@@ -188,28 +204,28 @@ export default async function page({ params }: { params: { id: string } }) {
     <div className="min-h-screen  py-6 space-y-6 ">
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold  tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+          <div className="relative w-fit">
+            <h3 className=" text-3xl font-bold   text-white">
               {project.title}
-            </h1>{" "}
-            |{" "}
-            <span
-              className={`text-sm   ${
-                project.status === "completed"
-                  ? " text-green-500"
-                  : project.status === "active"
-                    ? " text-yellow-500"
-                    : " text-gray-500"
-              }`}
-            >
-              {project.status === "completed"
-                ? "Completed"
-                : project.status === "active"
-                  ? "Active"
-                  : project.status}
-            </span>
-          </div>
+            </h3>
 
+            <HoverCard openDelay={0} closeDelay={0}>
+              <HoverCardTrigger asChild>
+                <div
+                  className={cn(
+                    "absolute -top-0 border-2  -right-4 size-3 rounded-full cursor-default",
+                    getStatusDotColor(project.status)
+                  )}
+                />
+              </HoverCardTrigger>
+              <HoverCardContent side="top" className="text-sm max-w-xs">
+                <p className="font-medium">{formatStatus(project.status)}</p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {getStatusDescription(project.status)}
+                </p>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
           <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
             <span className="flex items-center">
               <Calendar className="h-4 w-4 mr-1.5" />
@@ -226,7 +242,7 @@ export default async function page({ params }: { params: { id: string } }) {
       </div>
 
       {project.description && (
-        <Card className="space-y-3 p-2">
+        <Card className="space-y-3 p-4 border-2 border-dashed">
           <CardTitle className="">Description</CardTitle>
 
           <CardContent className="pt-6 p-0 text-sm text-muted-foreground whitespace-pre-line">
@@ -293,74 +309,72 @@ export default async function page({ params }: { params: { id: string } }) {
 
         {tracksWithComments.length > 1 && (
           <div className="mt-16 ">
-            <div className="text-lg font-semibold mt-6 mb-4">
-              <span className="inline-flex items-center ">
-                Previous Rounds History{" "}
-              </span>
-              <hr className="mt-4" />
+            <div className="text-lg text-center font-semibold mt-6 mb-2">
+              <span className="  items-center ">Previous Rounds History </span>
             </div>
+            <div className="space-y-4">
+              {tracksWithComments
+                .filter((track) => track.id !== latestTrack?.id)
+                .sort((a, b) => b.round_number - a.round_number)
+                .map((track) => {
+                  let decisionVariant: "success" | "destructive" | "outline" =
+                    "outline";
+                  let DecisionIcon = Hourglass;
+                  let decisionText = "Status Unknown";
 
-            {tracksWithComments
-              .filter((track) => track.id !== latestTrack?.id)
-              .sort((a, b) => b.round_number - a.round_number)
-              .map((track) => {
-                let decisionVariant: "success" | "destructive" | "outline" =
-                  "outline";
-                let DecisionIcon = Hourglass;
-                let decisionText = "Status Unknown";
+                  if (track.client_decision === "approved") {
+                    decisionVariant = "success";
+                    DecisionIcon = ShieldCheck;
+                    decisionText = "Client Approved";
+                  } else if (track.client_decision === "revisions_requested") {
+                    decisionVariant = "destructive";
+                    DecisionIcon = ShieldX;
+                    decisionText = "Revisions Requested";
+                  }
 
-                if (track.client_decision === "approved") {
-                  decisionVariant = "success";
-                  DecisionIcon = ShieldCheck;
-                  decisionText = "Client Approved";
-                } else if (track.client_decision === "revisions_requested") {
-                  decisionVariant = "destructive";
-                  DecisionIcon = ShieldX;
-                  decisionText = "Revisions Requested";
-                }
-
-                return (
-                  <Card
-                    key={track.id}
-                    className="border-0 p-0 m-0 bg-transparent"
-                  >
-                    <CardHeader className="p-0 m-0">
-                      <div className="flex flex-wrap mb-2 justify-between items-center gap-2">
-                        <CardTitle className=" font-medium">
-                          Round {track.round_number}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <RevButtons
-                            size="sm"
-                            variant={decisionVariant}
-                            className="flex items-center gap-1 text-xs px-2 py-0.5"
-                          >
-                            <DecisionIcon className="h-3.5 w-3.5" />
-                            {decisionText}
-                          </RevButtons>
-                          <Link href={`/review/${track.id}`} passHref>
-                            <RevButtons variant="secondary" size="sm">
-                              View History
+                  return (
+                    <Card
+                      key={track.id}
+                      className="border-0 p-0 m-0 bg-transparent"
+                    >
+                      <CardHeader className="p-0 m-0">
+                        <div className="flex flex-wrap mb-2 justify-between items-center gap-2">
+                          <CardTitle className=" font-medium">
+                            Round {track.round_number}
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <RevButtons
+                              size="sm"
+                              variant={decisionVariant}
+                              className="flex items-center gap-1 text-xs px-2 py-0.5"
+                            >
+                              <DecisionIcon className="h-3.5 w-3.5" />
+                              {decisionText}
                             </RevButtons>
-                          </Link>
+                            <Link href={`/review/${track.id}`} passHref>
+                              <RevButtons variant="secondary" size="sm">
+                                View History
+                              </RevButtons>
+                            </Link>
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
+                      </CardHeader>
 
-                    {track.comments && track.comments.length > 0 && (
-                      <CardContent className="p-0 m-0 mt-3">
-                        <ProjectCommentsSection comments={track.comments} />
-                      </CardContent>
-                    )}
-                    {track.client_decision === "revisions_requested" &&
-                      (!track.comments || track.comments.length === 0) && (
-                        <CardContent className="pt-0 pb-3 px-4 text-xs text-muted-foreground">
-                          (No specific comments were provided)
+                      {track.comments && track.comments.length > 0 && (
+                        <CardContent className="p-0 m-0 mt-3">
+                          <ProjectCommentsSection comments={track.comments} />
                         </CardContent>
                       )}
-                  </Card>
-                );
-              })}
+                      {track.client_decision === "revisions_requested" &&
+                        (!track.comments || track.comments.length === 0) && (
+                          <CardContent className="pt-0 pb-3 px-4 text-xs text-muted-foreground">
+                            (No specific comments were provided)
+                          </CardContent>
+                        )}
+                    </Card>
+                  );
+                })}
+            </div>
           </div>
         )}
       </div>

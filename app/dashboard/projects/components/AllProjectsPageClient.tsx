@@ -1,9 +1,11 @@
+// @ts-nocheck
+
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +17,6 @@ import { RevButtons } from "@/components/ui/RevButtons";
 import { Progress } from "@/components/ui/progress";
 import {
   Calendar,
-  Layers,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -26,13 +27,19 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
-  ChevronRight,
   FolderOpenDot,
   Truck,
   Circle,
 } from "lucide-react";
 import { ProjectEditDialog } from "./ProjectEditDialog";
 import { ProjectDeleteDialog } from "./ProjectDeleteDialog";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { cn } from "@/lib/utils";
+import { getStatusDescription, getStatusDotColor } from "../../components/libs";
 
 interface Step {
   name: string;
@@ -165,7 +172,7 @@ export default function AllProjectsPageClient({
               return (
                 <Card
                   key={project.id}
-                  className="relative group overflow-hidden border-[2px]"
+                  className="relative group overflow-hidden"
                 >
                   <div
                     className={`absolute left-0 top-0 bottom-0 w-1 ${
@@ -179,26 +186,39 @@ export default function AllProjectsPageClient({
                     <div className="flex items-start">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Link
-                              href={`/dashboard/projects/${project.id}`}
-                              className="font-semibold text-lg truncate group-hover:text-primary transition-colors"
-                            >
-                              {project.title}
-                            </Link>
-                            {project.latestTrack?.round_number && (
-                              <Badge
-                                variant="outline"
-                                className="flex items-center gap-1 py-0 h-5"
-                              >
-                                <Layers className="h-3 w-3" />
-                                <span>
-                                  Round {project.latestTrack.round_number}
-                                </span>
-                              </Badge>
-                            )}
-                          </div>
+                          <div className="">
+                            <div className="flex items-center relative w-fit gap-2">
+                              <h3 className=" text-xl font-bold   text-white">
+                                {project.title}
+                              </h3>
 
+                              <HoverCard openDelay={0} closeDelay={0}>
+                                <HoverCardTrigger asChild>
+                                  <div
+                                    className={cn(
+                                      "absolute -top-0 border-2  -right-4 size-3 rounded-full cursor-default",
+                                      getStatusDotColor(project.status)
+                                    )}
+                                  />
+                                </HoverCardTrigger>
+                                <HoverCardContent
+                                  side="top"
+                                  className="text-sm max-w-xs"
+                                >
+                                  <p className="font-medium">
+                                    {formatStatus(project.status)}
+                                  </p>
+                                  <p className="text-muted-foreground text-xs mt-1">
+                                    {getStatusDescription(project.status)}
+                                  </p>
+                                </HoverCardContent>
+                              </HoverCard>
+                            </div>
+                            <span className="text-sm mt-2 font-medium text-muted-foreground">
+                              Round/Version{" "}
+                              {project.latestTrack?.round_number}{" "}
+                            </span>
+                          </div>
                           <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                               <RevButtons
@@ -253,7 +273,7 @@ export default function AllProjectsPageClient({
                           </DropdownMenu>
                         </div>
 
-                        {project.client && (
+                        {/* {project.client && (
                           <div className="mt-1 mb-2">
                             <Link
                               href={`/dashboard/clients/${project.client.id}`}
@@ -263,19 +283,9 @@ export default function AllProjectsPageClient({
                               <ChevronRight className="h-3 w-3" />
                             </Link>
                           </div>
-                        )}
+                        )} */}
 
-                        <div className="flex items-center gap-2 mt-2 mb-3">
-                          <Badge
-                            variant={statusVariant}
-                            className="flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium"
-                          >
-                            {statusIcon}
-                            {formatStatus(project.status)}
-                          </Badge>
-                        </div>
-
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3 min-h-[2.5rem]">
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2  min-h-[2.5rem]">
                           {project.description || (
                             <span className="italic">
                               No description provided

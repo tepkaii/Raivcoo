@@ -1,7 +1,7 @@
 // app/projects/[projectId]/review/[trackId]/components/MediaDialog.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ interface MediaDialogProps {
   mediaUrl: string;
   mediaType: "image" | "video" | "other";
   title?: string;
+  setCurrentTime?: (time: number) => void;
 }
 
 export const MediaDialog: React.FC<MediaDialogProps> = ({
@@ -25,8 +26,27 @@ export const MediaDialog: React.FC<MediaDialogProps> = ({
   mediaUrl,
   mediaType,
   title,
+  setCurrentTime,
 }) => {
   const [zoomLevel, setZoomLevel] = React.useState(100);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // For video time tracking
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement || mediaType !== "video" || !setCurrentTime) return;
+
+    const handleTimeUpdate = () => {
+      if (videoElement && setCurrentTime) {
+        setCurrentTime(videoElement.currentTime);
+      }
+    };
+
+    videoElement.addEventListener("timeupdate", handleTimeUpdate);
+    return () => {
+      videoElement.removeEventListener("timeupdate", handleTimeUpdate);
+    };
+  }, [mediaType, setCurrentTime]);
 
   const handleZoomIn = () => {
     setZoomLevel((prev) => Math.min(prev + 25, 200));
@@ -94,6 +114,7 @@ export const MediaDialog: React.FC<MediaDialogProps> = ({
             </div>
           ) : mediaType === "video" ? (
             <video
+              ref={videoRef}
               src={mediaUrl}
               controls
               autoPlay

@@ -26,7 +26,7 @@ import {
   History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatFullDate } from "../../pending/client-pending-list";
+import { formatFullDate } from "../../components/libs";
 
 type ProjectType = {
   id: string;
@@ -63,7 +63,6 @@ export default function ClientProjectView({
   project,
   tracks,
 }: ClientProjectViewProps) {
-
   // Calculate if deadline is approaching
   const isDeadlineApproaching = (deadline?: string) => {
     if (!deadline) return false;
@@ -149,7 +148,7 @@ export default function ClientProjectView({
       </div>
 
       {project.description && (
-        <Card className="border-2">
+        <Card className="border-2 border-dashed">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-primary" />
