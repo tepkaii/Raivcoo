@@ -1,6 +1,6 @@
 "use client";
-import AccountForm from "@/app/dashboard/account/AccountForm";
-import { updateAccount } from "@/app/dashboard/account/actions";
+import AccountForm from "@/app/account/AccountForm";
+import { updateAccount } from "@/app/account/actions";
 import {
   Dialog,
   DialogContent,

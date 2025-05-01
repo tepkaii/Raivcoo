@@ -35,7 +35,7 @@ export default function HomePage() {
       <GridBackground />
       <Spotlight />
       <div className="relative  z-40">
-        {/* <section className="pt-32 pb-20 px-4 text-center container mx-auto">
+        <section className="pt-32 pb-20 px-4 text-center container mx-auto">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -69,12 +69,12 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground mt-4">
             No credit card required • Adobe AE & PR extensions included
           </p>
-        </section> */}
-        <div className="mt-[-160px] md:mt-0">
+        </section>
+        {/* <div className="mt-[-160px] md:mt-0">
           <LandingHero />
-        </div>
+        </div> */}
 
-        {/* <AnimatedSection className="">
+        <AnimatedSection className="">
           <div className="container mx-auto px-4">
             <div className="relative rounded-xl overflow-hidden border border-[#3F3F3F] shadow-2xl max-w-5xl mx-auto">
               <Image
@@ -87,7 +87,7 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-20"></div>
             </div>
           </div>
-        </AnimatedSection> */}
+        </AnimatedSection>
 
         {/* Value Section */}
         <AnimatedSection className="py-16">
@@ -102,9 +102,9 @@ export default function HomePage() {
           </div>
         </AnimatedSection>
 
-        <div className="w-full px-4">
+        <AnimatedSection className="container mx-auto px-4">
           <BentoDemo />
-        </div>
+        </AnimatedSection>
 
         {/* Features Grid */}
         {/* <AnimatedSection className="py-12">

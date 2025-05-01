@@ -1,3 +1,4 @@
+// app/auth/callback/route.ts
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -5,8 +6,9 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const error = requestUrl.searchParams.get("error");
+  const setPasswordParam = requestUrl.searchParams.get("set_password");
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (error) {
     console.error("OAuth error:", error);
@@ -16,7 +18,14 @@ export async function GET(request: Request) {
 
   if (code) {
     try {
-      await (await supabase).auth.exchangeCodeForSession(code);
+      await supabase.auth.exchangeCodeForSession(code);
+
+      // Only redirect to set-password if explicitly requested via parameter
+      if (setPasswordParam === "true") {
+        return NextResponse.redirect(
+          new URL("/set-password", requestUrl.origin)
+        );
+      }
     } catch (e) {
       console.error("Failed to exchange OAuth code:", e);
       return NextResponse.redirect(

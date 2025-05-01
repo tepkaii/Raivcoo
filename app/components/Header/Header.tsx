@@ -12,18 +12,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronDown,
-  LogOut,
   Menu,
-  User,
   LogInIcon,
   UserPlus,
   Link as LinkIcon,
-  ChartLine,
+  AlertCircle,
+  SquareUser,
+  LogOut,
 } from "lucide-react";
 import React from "react";
 import Image from "next/image";
 import { NavLinks, NavDropdownItems } from "./NavComponents";
 import { UserMenuItems } from "./UserMenuItems";
+import { redirect } from "next/navigation";
 
 export default async function Header() {
   const supabase = createClient();
@@ -39,13 +40,18 @@ export default async function Header() {
         .eq("user_id", user.id)
         .single();
 
+  // Redirect to complete-profile if user is logged in but has no display name
+  if (user && (!account?.display_name || account.display_name.trim() === "")) {
+    redirect("/complete-profile");
+  }
+
   return (
     <header
-      className=" fixed  top-0 z-50  right-0 left-0     md:p-6
+      className="fixed top-0 z-50 right-0 left-0 md:p-6
         transition-all duration-300"
     >
       <div
-        className="mx-auto px-4  sm:px-6 md:rounded-[15px] lg:px-8 py-3 bg-background/50 border
+        className="mx-auto px-4 sm:px-6 md:rounded-[15px] lg:px-8 py-3 bg-background/50 border
 backdrop-blur-sm"
       >
         <div className="flex items-center justify-between">
@@ -57,58 +63,98 @@ backdrop-blur-sm"
                 priority
                 width={35}
                 height={35}
-                className=" hover:scale-105 transition-all duration-300 "
+                className="hover:scale-105 transition-all duration-300"
               />
             </Link>
 
             <NavLinks />
           </div>
 
-          <div className="flex items-center ">
+          <div className="flex items-center">
             {user ? (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <RevButtons
-                    variant="ghost"
-                    className="flex items-center space-x-2 hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="relative">
-                      <Avatar className="h-8 w-8 rounded-lg border-[1.8px]">
-                        <AvatarImage
-                          src={account?.avatar_url || ""}
-                          loading="lazy"
-                          alt={account?.display_name || "Avatar"}
-                        />
-                        <AvatarFallback>
-                          <Image
-                            width={32}
-                            height={32}
-                            src="/avif/user-profile-avatar.avif"
-                            loading="lazy"
-                            alt="Avatar"
-                          />
-                        </AvatarFallback>
-                      </Avatar>
-                      {/* Availability dot */}
-                    </div>
+              <>
+                {account?.display_name ? (
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <RevButtons
+                        variant="ghost"
+                        className="flex items-center space-x-2 hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="relative">
+                          <Avatar className="h-8 w-8 rounded-lg border-[1.8px]">
+                            <AvatarImage
+                              src={account?.avatar_url || ""}
+                              loading="lazy"
+                              alt={account?.display_name || "Avatar"}
+                            />
+                            <AvatarFallback>
+                              <Image
+                                width={32}
+                                height={32}
+                                src="/avif/user-profile-avatar.avif"
+                                loading="lazy"
+                                alt="Avatar"
+                              />
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
 
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </RevButtons>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="font-medium">@{account?.display_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      </RevButtons>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-56"
+                      align="end"
+                      forceMount
+                    >
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="font-medium">
+                            @{account?.display_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {user.email}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
 
-                  <UserMenuItems initialPortfolio={account} />
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <DropdownMenuItem>
+                        <Link
+                          href={"/account"}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <SquareUser className="h-4 w-4" />
+                          <span>Account</span>{" "}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <form action="/auth/signout" method="post">
+                          <button
+                            type="submit"
+                            className="flex items-center text-red-600"
+                          >
+                            <LogOut className="mr-2 h-4 w-4" />{" "}
+                            <span> Sign out</span>
+                          </button>
+                        </form>
+                      </DropdownMenuItem>
+                      {/* <UserMenuItems initialPortfolio={account} /> */}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  // This is a fallback but shouldn't appear due to the redirect
+                  <Link href="/complete-profile">
+                    <RevButtons
+                      variant="ghost"
+                      className="text-amber-500 flex items-center gap-2"
+                    >
+                      <AlertCircle className="h-4 w-4" />
+                      Complete Profile
+                    </RevButtons>
+                  </Link>
+                )}
+              </>
             ) : (
               <div className="hidden md:flex space-x-2">
                 <Link href="/signup">
@@ -134,7 +180,7 @@ backdrop-blur-sm"
                   <></>
                 ) : (
                   <>
-                    <DropdownMenuLabel className="font-light ">
+                    <DropdownMenuLabel className="font-light">
                       Account
                     </DropdownMenuLabel>
                     <DropdownMenuItem asChild>
@@ -152,7 +198,7 @@ backdrop-blur-sm"
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuLabel className="font-light ">
+                <DropdownMenuLabel className="font-light">
                   Navigation
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -165,5 +211,3 @@ backdrop-blur-sm"
     </header>
   );
 }
-
-

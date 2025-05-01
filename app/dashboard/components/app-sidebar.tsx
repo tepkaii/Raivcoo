@@ -1,5 +1,5 @@
 // components/app-sidebar.tsx
-// @ts-nocheck
+
 "use client";
 
 import {
@@ -26,6 +26,7 @@ import {
   Home,
   ChevronDown,
   HelpCircle,
+  Puzzle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -48,11 +49,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import AccountForm from "../account/AccountForm";
-import { updateAccount } from "../account/actions";
+import AccountForm from "../../account/AccountForm";
+import { updateAccount } from "../../account/actions";
+import PasswordSection from "../../account/PasswordSection";
 
 interface ProfileShowProps {
   portfolio: EditorProfile;
+  hasPasswordAuth: boolean;
 }
 
 function LinkStatus({ href }: { href: string }) {
@@ -90,7 +93,10 @@ function LinkStatus({ href }: { href: string }) {
   ) : null;
 }
 
-export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
+export function AppSidebar({
+  portfolio: initialPortfolio,
+  hasPasswordAuth,
+}: ProfileShowProps) {
   const pathname = usePathname();
   const isClient = initialPortfolio?.account_type === "client";
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
@@ -268,6 +274,34 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+        {!isClient && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link href="/dashboard/extensions" className="w-full">
+                    <SidebarMenuButton
+                      className={cn(
+                        "flex items-center w-full group-data-[collapsible=icon]:justify-center",
+                        isActiveSection("/dashboard/extensions") && "bg-muted"
+                      )}
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#4B1D5B]/40 text-[#A87FC0] shrink-0">
+                        <Puzzle className="w-4 h-4" />
+                      </div>
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        Extensions
+                      </span>
+                      <div className="group-data-[collapsible=icon]:hidden">
+                        <LinkStatus href="/dashboard/extensions" />
+                      </div>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* FOR CLIENTS ONLY - MY REVIEWS SECTION */}
         {isClient && (
@@ -359,10 +393,16 @@ export function AppSidebar({ portfolio: initialPortfolio }: ProfileShowProps) {
             <DialogTitle>Account Settings</DialogTitle>
           </DialogHeader>
           {initialPortfolio && (
-            <AccountForm
-              Account={initialPortfolio}
-              updateAccount={updateAccount}
-            />
+            <>
+              <AccountForm
+                Account={initialPortfolio}
+                updateAccount={updateAccount}
+              />
+              <PasswordSection
+                hasPassword={!!hasPasswordAuth}
+                email={initialPortfolio.email || ""}
+              />
+            </>
           )}
         </DialogContent>
       </Dialog>

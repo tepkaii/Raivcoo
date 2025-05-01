@@ -63,11 +63,14 @@ export default function RootLayout({
                 "/test",
                 "/login",
                 "/signup",
-                "/portfolio",
                 "/dashboard",
                 "/live-track/",
                 "/review/",
                 "/board",
+                "/complete-profile",
+                "/set-password",
+                "/account/",
+                "/account",
               ]}
               // excludePaths={["/links/edit"]}
             >
