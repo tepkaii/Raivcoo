@@ -1,4 +1,5 @@
 // app/set-password/set-password-form.tsx
+// @ts-nocheck
 "use client";
 
 import { useState } from "react";
@@ -11,6 +12,7 @@ import { Loader2, HelpCircle, Home, ArrowRight, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { AuroraText } from "@/components/ui/aurora-text";
 
 interface SetPasswordFormProps {
   initialHasPassword: boolean;
@@ -89,12 +91,15 @@ export default function SetPasswordForm({
 
         <div className="flex flex-1 items-center justify-center">
           <div className="max-w-md w-full p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Check className="h-8 w-8 text-green-600" />
+            <div className="w-16 h-16 bg-[#064E3B]/40 border  hover:bg-[#064E3B]/60 rounded-[10px] flex items-center justify-center mx-auto mb-6">
+              <Check className="h-8 w-8 text-green-500" />
             </div>
 
             <h2 className="text-2xl font-bold mb-4">
-              {hasExistingPassword ? "Password Updated" : "Password Set"}
+              Password{" "}
+              <AuroraText>
+                {hasExistingPassword ? "Updated" : "Set"}{" "}
+              </AuroraText>
             </h2>
 
             <p className="text-muted-foreground mb-8">
@@ -127,14 +132,14 @@ export default function SetPasswordForm({
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b p-4">
-        <div className="container max-w-screen-xl mx-auto flex justify-between items-center">
+      <header className="border-b px-4 py-2">
+        <div className="container max-w-screen-2xl mx-auto flex justify-between items-center">
           <Link href="/" className="flex items-center">
             <Image
-              src="/Raivcco.svg"
+              src="/MainLogo.png"
               alt="Raivcoo Logo"
-              width={36}
-              height={36}
+              width={50}
+              height={50}
               className="rounded-[5px]"
               priority
               quality={100}

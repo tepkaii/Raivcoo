@@ -80,11 +80,9 @@ export default function RootLayout({
             <Analytics />
             <SpeedInsights />
           </main>
-          {/* <HideOnPaths
-            pathStarts={["/editors/", "/test", "/chat/", "/portfolio"]}
-          >
+          <HideOnPaths pathStarts={["/dashboard"]}>
             <Footer />
-          </HideOnPaths> */}
+          </HideOnPaths>
 
           <Toaster />
         </ThemeProvider>

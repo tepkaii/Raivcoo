@@ -1,6 +1,6 @@
 import { BentoCard, BentoGrid } from "@/components/magicui/bento-grid";
 import { InputIcon } from "@radix-ui/react-icons";
-import { BellIcon, CalendarIcon, FileTextIcon, Globe } from "lucide-react";
+import { FileTextIcon, Globe } from "lucide-react";
 import { AnimatedBeamDemo } from "./Home/Beams";
 import { InfiniteSliderBasic } from "./Home/Infinite";
 
@@ -36,7 +36,15 @@ const features = [
       "Clients create new revision rounds with their feedback, keeping track of all changes.",
     href: "/",
     cta: "Learn more",
-    background: <img className="absolute -right-20 -top-20 opacity-60" />,
+    background: (
+      <video
+        autoPlay
+        loop
+        muted
+        src="/Loop Comp.mp4"
+        className="absolute -top-20 opacity-60"
+      />
+    ),
     className: "lg:col-span-2 lg:row-span-1",
   },
 ];

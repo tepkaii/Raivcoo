@@ -81,11 +81,11 @@ function Footer() {
             <div className="flex items-center space-x-2 mb-4">
               <Link href="/">
                 <Image
-                  src={"/Raivcco.svg"}
+                  src={"/MainLogo.png"}
                   alt="Raivcoo.com Footer Logo"
                   loading="lazy"
-                  height={60}
-                  width={60}
+                  height={80}
+                  width={80}
                   className="rounded-[5px] hover:scale-105 transition-all duration-300 "
                 />
               </Link>

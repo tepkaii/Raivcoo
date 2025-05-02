@@ -51,18 +51,18 @@ export default async function Header() {
         transition-all duration-300"
     >
       <div
-        className="mx-auto px-4 sm:px-6 md:rounded-[15px] lg:px-8 py-3 bg-background/50 border
+        className="mx-auto px-4 sm:px-6 md:rounded-[15px] lg:px-5 py-3 bg-background/50 border
 backdrop-blur-sm"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Link href="/">
               <Image
-                src="/Raivcco.svg"
+                src="/MainLogo.png"
                 alt="Raivcoo.com logo"
                 priority
-                width={35}
-                height={35}
+                width={40}
+                height={40}
                 className="hover:scale-105 transition-all duration-300"
               />
             </Link>

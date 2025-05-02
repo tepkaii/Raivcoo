@@ -51,7 +51,6 @@ import { useRouter } from "next/navigation";
 import { formatTime } from "../lib/utils";
 import { MediaContainer } from "./components/MediaContainer";
 import { CommentsSection } from "./components/CommentsSection";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 // --- Interfaces ---

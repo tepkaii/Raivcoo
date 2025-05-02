@@ -22,6 +22,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: "https://www.raivcoo.com/dashboard/account",
     },
+    //
+    {
+      url: "https://www.raivcoo.com/dashboard/extensions",
+    },
+    {
+      url: "https://www.raivcoo.com/dashboard/pending",
+    },
+    {
+      url: "https://www.raivcoo.com/dashboard/reviews",
+    },
+
     {
       url: "https://www.raivcoo.com/pricing",
     },

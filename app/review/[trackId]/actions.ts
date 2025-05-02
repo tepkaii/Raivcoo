@@ -107,9 +107,14 @@ async function uploadImageToImgBB(
   }
 }
 
-async function verifyClientAuthorization(
-  projectId: string
-): Promise<{ user: any; client: any; project: any; error: string | null }> {
+export async function verifyClientAuthorization(projectId: string): Promise<{
+  user: any;
+  client: any;
+  project: any;
+  editor: any;
+  error: string | null;
+  isEditor: boolean;
+}> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -120,21 +125,27 @@ async function verifyClientAuthorization(
       user: null,
       client: null,
       project: null,
+      editor: null,
       error: "Not authenticated.",
+      isEditor: false,
     };
   if (!user.email)
     return {
       user: null,
       client: null,
       project: null,
+      editor: null,
       error: "User email missing.",
+      isEditor: false,
     };
 
+  // Get project data including editor_id
   const { data: projectData, error: projectError } = await supabase
     .from("projects")
-    .select(`id, client:clients (id, email, name)`)
+    .select(`id, editor_id, client:clients (id, email, name)`)
     .eq("id", projectId)
     .single();
+
   if (projectError || !projectData || !projectData.client) {
     console.error(
       `Error fetching project ${projectId} or client:`,
@@ -144,29 +155,61 @@ async function verifyClientAuthorization(
       user,
       client: null,
       project: null,
+      editor: null,
       error: "Project/Client not found.",
+      isEditor: false,
     };
   }
-  if (projectData.client.email !== user.email) {
-    console.warn(
-      `Auth Fail: User ${user.email} project ${projectId} client ${projectData.client.email}`
-    );
+
+  // Check if user is the client
+  const isClient = projectData.client.email === user.email;
+
+  // If user is client, return success
+  if (isClient) {
     return {
       user,
       client: projectData.client,
       project: projectData,
-      error: "Unauthorized.",
+      editor: null,
+      error: null,
+      isEditor: false,
     };
   }
+
+  // If not client, check if user is the editor
+  const { data: editorData } = await supabase
+    .from("editor_profiles")
+    .select("id, email, account_type, display_name")
+    .eq("email", user.email)
+    .eq("account_type", "editor")
+    .maybeSingle();
+
+  const isEditor = editorData && editorData.id === projectData.editor_id;
+
+  if (isEditor) {
+    return {
+      user,
+      client: projectData.client,
+      project: projectData,
+      editor: editorData,
+      error: null,
+      isEditor: true,
+    };
+  }
+
+  // If neither client nor editor, return unauthorized
+  console.warn(
+    `Auth Fail: User ${user.email} is neither client ${projectData.client.email} nor editor for project ${projectId}`
+  );
   return {
     user,
     client: projectData.client,
     project: projectData,
-    error: null,
+    editor: null,
+    error: "Unauthorized.",
+    isEditor: false,
   };
 }
-
-
 
 // --- CLIENT ACTIONS ---
 export async function addReviewComment(formData: FormData) {
@@ -247,7 +290,10 @@ export async function addReviewComment(formData: FormData) {
       .insert({ track_id: trackId, comment: commentDataToSave })
       .select(`id, created_at, comment`)
       .single();
-    if (insertError) throw new Error("Database error saving comment.");
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      throw insertError;
+    }
 
     revalidatePath(`/projects/${trackData.project_id}/review/${trackId}`);
 

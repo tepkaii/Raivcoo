@@ -1,15 +1,16 @@
+// terms-of-service.tsx
 "use client";
 
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
 import { ReactNode, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { TextureButton } from "@/components/ui/texture-button";
 import { ArrowRight } from "lucide-react";
 import AnimatedGridPattern from "@/components/ui/animated-grid-pattern";
 import { cn } from "@/lib/utils";
 import BlurFade from "@/components/ui/blur-fade";
 import { Button } from "@/components/ui/button";
+import { RevButtons } from "@/components/ui/RevButtons";
 
 interface FadeInSectionProps {
   children: ReactNode;
@@ -55,18 +56,14 @@ interface SectionProps {
 const Section = ({ title, children, index }: SectionProps) => (
   <FadeInSection delay={index * 0.1}>
     <BlurFade delay={index * 0.15} inView>
-      <div className=" rounded-lg p-4 sm:p-6 md:p-8 hover:shadow-md transition-shadow duration-300 bg-card">
+      <div className="rounded-lg p-4 sm:p-6 md:p-8 duration-300 bg-card">
         <div className="flex items-center gap-3 mb-4 sm:mb-6">
           <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center">
             <span className="text-primary font-semibold text-base sm:text-lg">
               {index + 1}
             </span>
           </div>
-          <h2
-            className="text-2xl sm:text-3xl font-semibold text-transparent bg-clip-text 
-            dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]
-            bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
-          >
+          <h2 className="text-2xl sm:text-3xl font-semibold text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             {title}
           </h2>
         </div>
@@ -78,23 +75,19 @@ const Section = ({ title, children, index }: SectionProps) => (
   </FadeInSection>
 );
 
-const Terms = () => {
+const TermsOfService = () => {
   return (
     <div className="min-h-screen flex justify-center">
       <main className="pb-12 md:pb-16 space-y-16 mt-32 container">
         <FadeInSection delay={0.2}>
           <BlurFade delay={0.25} inView>
             <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
-              <h1
-                className="text-4xl md:text-5xl font-normal tracking-tighter lg:text-5xl text-transparent bg-clip-text 
-                dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]
-                bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
-              >
+              <h1 className="text-4xl md:text-5xl font-normal tracking-tighter lg:text-5xl text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
                 Terms of Service
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground mt-2 px-4">
-                Please read these terms carefully before using Raivcoo's video
-                portfolio platform
+                Please read these terms carefully before using the Raivcoo
+                platform
               </p>
             </div>
           </BlurFade>
@@ -104,161 +97,142 @@ const Terms = () => {
           <CardContent className="p-4 sm:p-8 md:p-12">
             <div className="space-y-6 sm:space-y-8">
               <Section title="Acceptance of Terms" index={0}>
-                <div className="space-y-4 text-muted-foreground">
-                  <p className="leading-relaxed">
-                    By accessing and using Raivcoo (the "Service"), you agree to
-                    be bound by these Terms of Service ("Terms"). If you
-                    disagree with any part of the terms, you may not access the
-                    Service.
-                  </p>
-                </div>
+                <p className="text-muted-foreground">
+                  By accessing and using Raivcoo, you agree to be bound by these
+                  Terms of Service. If you do not agree with any part of these
+                  terms, you may not use the platform.
+                </p>
               </Section>
 
-              <Section title="Description of Service" index={1}>
-                <div className="space-y-4 text-muted-foreground">
-                  <p className="leading-relaxed">
-                    Raivcoo is a platform that allows users to create and
-                    showcase video editing portfolios by linking to externally
-                    hosted videos. The service includes free features with
-                    potential paid features in the future.
-                  </p>
-                </div>
+              <Section title="Platform Overview" index={1}>
+                <p className="text-muted-foreground">
+                  Raivcoo provides a video review system for editors and clients
+                  to collaborate. Features include timestamped commenting, live
+                  step tracking, and project rounds. Videos are linked from
+                  third-party sources. This setup may evolve to include direct
+                  uploads or hybrid hosting.
+                </p>
               </Section>
 
-              <Section title="User Accounts" index={2}>
-                <div className="space-y-4 text-muted-foreground">
-                  <ul className="space-y-2 pl-6 list-disc">
-                    <li className="leading-relaxed">
-                      You must be at least 13 years old to use this Service
-                    </li>
-                    <li className="leading-relaxed">
-                      You are responsible for maintaining the confidentiality of
-                      your account and password
-                    </li>
-                    <li className="leading-relaxed">
-                      You agree to accept responsibility for all activities that
-                      occur under your account
-                    </li>
-                  </ul>
-                </div>
+              <Section title="User Requirements" index={2}>
+                <ul className="space-y-2 pl-6 list-disc text-muted-foreground">
+                  <li>Users must be 13 years of age or older</li>
+                  <li>You are responsible for your account activity</li>
+                  <li>Impersonation or account sharing is not allowed</li>
+                </ul>
               </Section>
 
-              <Section title="External Links to Videos" index={3}>
-                <div className="space-y-4 text-muted-foreground">
-                  <p className="leading-relaxed">
-                    Users are only permitted to embed or link to videos hosted
-                    on third-party platforms. By doing so, you agree to comply
-                    with the terms of service of those platforms.
-                  </p>
-                  <p className="leading-relaxed">
-                    You are solely responsible for ensuring that the linked
-                    videos comply with copyright laws and that you have the
-                    necessary rights to display the content.
-                  </p>
-                </div>
+              <Section title="Media Responsibility" index={3}>
+                <ul className="space-y-2 pl-6 list-disc text-muted-foreground">
+                  <li>
+                    All videos must be legally owned or licensed by the user
+                  </li>
+                  <li>We do not host videos; all links are user-provided</li>
+                  <li>
+                    Users are responsible for complying with third-party host
+                    terms (Google Drive, Dropbox, Vimeo, etc.)
+                  </li>
+                </ul>
               </Section>
 
-              <Section title="Prohibited Activities" index={4}>
-                <div className="space-y-4 text-muted-foreground">
-                  <p className="leading-relaxed">
-                    You agree not to engage in any of the following activities:
-                  </p>
-                  <ul className="space-y-2 pl-6 list-disc">
-                    <li className="leading-relaxed">
-                      Violating laws or regulations
-                    </li>
-                    <li className="leading-relaxed">
-                      Infringing on intellectual property rights
-                    </li>
-                    <li className="leading-relaxed">
-                      Linking to illegal, copyrighted, or inappropriate content
-                    </li>
-                    <li className="leading-relaxed">
-                      Uploading malicious code or content
-                    </li>
-                    <li className="leading-relaxed">Impersonating others</li>
-                  </ul>
-                </div>
+              <Section title="Notifications & Email Policy" index={4}>
+                <ul className="space-y-2 pl-6 list-disc text-muted-foreground">
+                  <li>Users will receive email updates for review activity</li>
+                  <li>Most project-based notifications can be disabled</li>
+                  <li>
+                    Core emails such as login verification cannot be turned off
+                  </li>
+                  <li>
+                    Email address changes must go through support and are
+                    subject to account status
+                  </li>
+                </ul>
               </Section>
 
-              <Section title="Termination" index={5}>
-                <div className="space-y-4 text-muted-foreground">
-                  <p className="leading-relaxed">
-                    We reserve the right to terminate or suspend access to our
-                    Service immediately, without prior notice or liability, for
-                    any reason whatsoever, including without limitation if you
-                    breach the Terms.
-                  </p>
-                </div>
+              <Section title="Adobe Extension" index={5}>
+                <p className="text-muted-foreground">
+                  Our Adobe extension allows users to access Raivcoo project
+                  data within Adobe apps. It uses the same authentication and
+                  respects the same permissions as the web version. No
+                  additional data is collected or stored locally by the
+                  extension.
+                </p>
               </Section>
 
-              <Section title="Contact Information" index={6}>
-                <div className="space-y-4">
-                  <p className="leading-relaxed text-muted-foreground">
-                    Reach out to us through any of these channels:
-                  </p>
-                  <div className="bg-primary/5 p-6 rounded-lg space-y-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                      <span className="font-semibold min-w-[100px]">
-                        Email:
-                      </span>
-                      <Link
-                        href="mailto:support@raivcoo.com"
-                        className="text-primary hover:underline"
-                      >
-                        support@raivcoo.com
-                      </Link>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                      <span className="font-semibold min-w-[100px]">
-                        Twitter:
-                      </span>
-                      <Link
-                        href="https://twitter.com/raivcoo"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        @raivcoo
-                      </Link>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                      <span className="font-semibold min-w-[100px]">
-                        Discord:
-                      </span>
-                      <Link
-                        href="https://discord.gg/G5AZBEP5"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        Join our Discord Community
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+              <Section title="Subscription and Billing" index={6}>
+                <ul className="space-y-2 pl-6 list-disc text-muted-foreground">
+                  <li>
+                    Subscriptions are manually renewed — there is no auto-renew
+                  </li>
+                  <li>
+                    Future updates may introduce auto-renewal, with opt-out
+                    options
+                  </li>
+                  <li>
+                    Access to Pro features is granted during an active billing
+                    cycle
+                  </li>
+                </ul>
+              </Section>
+
+              <Section title="Refunds" index={7}>
+                <p className="text-muted-foreground">
+                  There is no guaranteed refund policy. We may review refund
+                  requests based on usage, technical issues, or other reasonable
+                  factors. We reserve the right to introduce a structured refund
+                  process at any time.
+                </p>
+              </Section>
+
+              <Section title="Account Termination" index={8}>
+                <ul className="space-y-2 pl-6 list-disc text-muted-foreground">
+                  <li>
+                    Accounts may be suspended or banned for violating terms
+                  </li>
+                  <li>Deleted accounts are not recoverable</li>
+                </ul>
+              </Section>
+
+              <Section title="Limitation of Liability" index={9}>
+                <p className="text-muted-foreground">
+                  Raivcoo is provided "as is" without warranties. We are not
+                  liable for loss of data, failed video links, or external
+                  service errors. Our liability is limited to the subscription
+                  amount paid in the last 90 days, if any.
+                </p>
+              </Section>
+
+              <Section title="Changes to Terms" index={10}>
+                <p className="text-muted-foreground">
+                  These terms are subject to change as features and integrations
+                  evolve. Users will be notified of significant changes.
+                  Continued use of the platform means acceptance of updated
+                  terms.
+                </p>
+              </Section>
+
+              <Section title="Contact" index={11}>
+                <p className="text-muted-foreground">
+                  For questions or support:
+                </p>
+                <ul className="space-y-2 pl-6 list-disc text-muted-foreground">
+                  <li>Email: support@raivcoo.com</li>
+                  <li>Discord: https://discord.gg/G5AZBEP5</li>
+                </ul>
               </Section>
             </div>
 
             <FadeInSection delay={0.4}>
               <div className="mt-12 text-center space-y-6">
-                {/* <p className="text-muted-foreground">
-                  Last updated:{" "}
-                  {new Date().toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p> */}
+                <p className="text-muted-foreground">
+                  Need help understanding our terms?
+                </p>
                 <div className="flex flex-col items-center gap-4">
-                  <p className="text-muted-foreground">
-                    Have questions about our terms?
-                  </p>
                   <Link href="/support">
-                    <Button variant="default" size="lg">
+                    <RevButtons variant="default" size="lg">
                       Contact Support
                       <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
+                    </RevButtons>
                   </Link>
                 </div>
               </div>
@@ -280,4 +254,4 @@ const Terms = () => {
   );
 };
 
-export default Terms;
+export default TermsOfService;

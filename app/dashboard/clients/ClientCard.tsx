@@ -395,19 +395,19 @@ export function ClientCard({ client }: ClientCardProps) {
             )}
           <DialogFooter className="mt-4">
             <DialogClose asChild>
-              <Button variant="outline" disabled={deleteState.loading}>
+              <RevButtons variant="outline" disabled={deleteState.loading}>
                 Cancel
-              </Button>
+              </RevButtons>
             </DialogClose>
             {(client.projects && client.projects.length > 0) ||
             deleteState.error ? (
-              <Button
+              <RevButtons
                 variant="destructive"
                 onClick={() => handleDelete(true)}
                 disabled={deleteState.loading}
               >
                 {deleteState.loading ? "Deleting..." : "Delete Client & Data"}
-              </Button>
+              </RevButtons>
             ) : (
               <Button
                 variant="destructive"

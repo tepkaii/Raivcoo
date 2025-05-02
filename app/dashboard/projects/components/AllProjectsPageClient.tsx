@@ -1,3 +1,4 @@
+// app/dashboard/projects/AllProjectsPageClient.tsx
 // @ts-nocheck
 
 "use client";
@@ -66,7 +67,7 @@ interface ProjectTrack {
   updated_at: string;
 }
 
-interface Project {
+export interface Project {
   id: string;
   title: string;
   description?: string;

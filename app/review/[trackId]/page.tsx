@@ -2,7 +2,6 @@
 // @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { Metadata } from "next";
 import ReviewPage from "./ReviewPage";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
@@ -47,7 +46,7 @@ export async function generateMetadata({
 export default async function ReviewPageWrapper({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ trackId: string }>;
 }) {
   const { trackId } = await params;
   const supabase = await createClient();
@@ -80,7 +79,7 @@ export default async function ReviewPageWrapper({
     .select(
       `id, project_id, round_number, steps, client_decision,
        final_deliverable_media_type,
-       project:projects!inner(id, title, client:clients!inner(id, name, email, company, phone))`
+      project:projects!inner(id, title, editor_id, client:clients!inner(id, name, email, company, phone))`
     )
     .eq("id", trackId)
     .maybeSingle();
@@ -97,12 +96,39 @@ export default async function ReviewPageWrapper({
     );
     return notFound();
   }
+  const { data: editorProfile } = await supabase
+    .from("editor_profiles")
+    .select("id, email")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (trackData.project.client.email !== user.email) {
+  const isEditor =
+    editorProfile && editorProfile.id === trackData.project.editor_id;
+  const isClient = trackData.project.client.email === user.email;
+
+  if (!isEditor && !isClient) {
     console.warn(
-      `AUTH FAILED: User ${user.email} accessing review for client ${trackData.project.client.email}`
+      `AUTH FAILED: User ${user.email} tried accessing track ${trackId} without matching editor or client`
     );
-    return notFound();
+    return (
+      <div className="container mx-auto mt-24 py-12 text-center max-w-xl">
+        <h1 className="text-2xl font-semibold text-red-600 mb-4">
+          Access Denied
+        </h1>
+        {/* <div className="flex flex-col gap-6">
+          <span>{editorProfile?.id}</span>
+          <span>{trackData.project.editor_id}</span>
+        </div> */}
+
+        <p className="text-muted-foreground text-base">
+          You are not authorized to view this review. Make sure you're logged in
+          with the correct account associated with the project.
+        </p>
+        <Link href="/dashboard" className="mt-6 inline-block">
+          <RevButtons variant="outline">Back to Dashboard</RevButtons>
+        </Link>
+      </div>
+    );
   }
 
   const steps = Array.isArray(trackData?.steps) ? trackData.steps : [];

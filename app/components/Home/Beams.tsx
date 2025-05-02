@@ -5,6 +5,7 @@ import React, { forwardRef, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { AnimatedBeam } from "@/components/magicui/animated-beam";
 import { User } from "lucide-react";
+import Image from "next/image";
 
 const Circle = forwardRef<
   HTMLDivElement,
@@ -14,7 +15,7 @@ const Circle = forwardRef<
     <div
       ref={ref}
       className={cn(
-        "z-10 flex size-14 items-center justify-center rounded-[10px] border-2  p-3 shadow-[0_0_20px_-12px_rgba(0,0,0,0.8)]",
+        "z-10 flex size-[100px] items-center justify-center  shadow-[0_0_20px_-12px_rgba(0,0,0,0.8)]",
         className
       )}
     >
@@ -37,17 +38,24 @@ export function AnimatedBeamDemo() {
     >
       <div className="flex size-full flex-col items-stretch justify-between gap-10">
         <div className="flex flex-row justify-between">
-          <Circle
-            className="p-0 border-4 bg-[#581C87] text-[#C084FC]"
-            ref={div1Ref}
-          >
-            <User className="size-10 " />{" "}
+          <Circle ref={div1Ref}>
+            <Image
+              quality={100}
+              width={100}
+              height={100}
+              src="/clint.png"
+              alt=""
+            />
           </Circle>
-          <Circle
-            ref={div2Ref}
-            className="p-0 border-4 bg-[#1E3A8A] text-[#3B82F6]"
-          >
-            <User className="size-10" />
+          <Circle ref={div2Ref}>
+            {" "}
+            <Image
+              quality={100}
+              width={100}
+              height={100}
+              src="/editor.png"
+              alt=""
+            />
           </Circle>
         </div>
       </div>

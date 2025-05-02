@@ -35,7 +35,7 @@ export default function HomePage() {
       <GridBackground />
       <Spotlight />
       <div className="relative  z-40">
-        <section className="pt-32 pb-20 px-4 text-center container mx-auto">
+        <section className="pt-32 pb-10 px-4 text-center container mx-auto">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -66,9 +66,9 @@ export default function HomePage() {
               </RevButtons>
             </Link>
           </motion.div>
-          <p className="text-sm text-muted-foreground mt-4">
+          {/* <p className="text-sm text-muted-foreground mt-4">
             No credit card required • Adobe AE & PR extensions included
-          </p>
+          </p> */}
         </section>
         {/* <div className="mt-[-160px] md:mt-0">
           <LandingHero />
@@ -209,7 +209,8 @@ export default function HomePage() {
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-primary mr-2 mt-1" />
                     <span>
-                      Support for YouTube, Vimeo, and direct video uploads
+                      Support for YouTube, Vimeo, Goggle Drive, and Dropbox, amd
+                      Images
                     </span>
                   </li>
                   <li className="flex items-start">
@@ -243,11 +244,21 @@ export default function HomePage() {
                 <ul className="mt-6 space-y-3">
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                    <span>Adobe After Effects extension</span>
+                    <div className="flex items-center gap-2">
+                      <span>Adobe After Effects extension</span>
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                        Coming Soon
+                      </span>
+                    </div>
                   </li>
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                    <span>Adobe Premiere Pro extension</span>
+                    <div className="flex items-center gap-2">
+                      <span>Adobe Premiere Pro extension</span>
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                        Coming Soon
+                      </span>
+                    </div>
                   </li>
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-primary mr-2 mt-1" />

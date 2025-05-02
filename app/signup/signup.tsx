@@ -105,14 +105,14 @@ export default function SignUpForm() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Minimal Header */}
-      <header className="border-b p-4">
-        <div className="container max-w-screen-xl mx-auto flex justify-between items-center">
+      <header className="border-b px-4 py-2">
+        <div className="container max-w-screen-2xl mx-auto flex justify-between items-center">
           <Link href="/" className="flex items-center">
             <Image
-              src="/Raivcco.svg"
+              src="/MainLogo.png"
               alt="Raivcoo Logo"
-              width={36}
-              height={36}
+              width={50}
+              height={50}
               className="rounded-[5px]"
               priority
               quality={100}
@@ -127,7 +127,6 @@ export default function SignUpForm() {
           </Link>
         </div>
       </header>
-
       {/* Main Content - Two Column Layout */}
       <div className="flex flex-1">
         {/* Left Column - Signup Form */}
@@ -336,102 +335,9 @@ export default function SignUpForm() {
             placeholder="blur"
             alt="Background Illustration"
             fill
-            className="object-fill"
+            className="object-cover"
             priority
           />
-          <div className="relative z-10 max-w-md border-2 shadow-2xl border-[#3F3F3F]/10 p-3 backdrop-blur-xl bg-background/10  rounded-3xl">
-            {/* Main heading with gradient text */}
-            <h1 className="flex items-center justify-center text-center space-x-2 mt-8 mb-5">
-              <span
-                className="text-3xl font-bold gap-2 truncate tracking-tight text-transparent bg-clip-text 
-                          dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]
-                          bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
-              >
-                What You get for Free
-              </span>{" "}
-              {/* <Image
-                src="/sparkles_2728.png"
-                alt="sparkles"
-                width={36}
-                height={36}
-              ></Image> */}
-            </h1>
-
-            {/* Feature highlights in a card-like format with shadows */}
-            <div className="space-y-6 bg-primary-foreground border-t border-2 border-[#3F3F3F] rounded-3xl w-full">
-              <div className="flex gap-4 items-start rounded-xl p-4 ">
-                <div className="flex-shrink-0 size-10 rounded-xl border-[2px] border-[#3F3F3F] bg-[#1A1F2A] flex items-center justify-center">
-                  <Layout className="size-6 text-[#3B82F6]" />
-                </div>
-                <div className="text-left">
-                  <h3
-                    className="text-lg font-semibold mb-1 text-transparent bg-clip-text 
-      dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]
-      bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]"
-                  >
-                    Professional Portfolio
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Showcase your work with a customized online presence
-                  </p>
-                </div>
-              </div>
-              <hr className="border-[#3F3F3F] border-1" />
-              <div className="flex gap-4 items-start  rounded-xl p-4 ">
-                <div className="flex-shrink-0 size-10 rounded-xl border-[2px] border-[#3F3F3F] bg-[#1A2721] flex items-center justify-center">
-                  <BarChart3 className="size-6 text-[#10B981]" />
-                </div>
-                <div className="text-left">
-                  <h3
-                    className="text-lg font-semibold mb-1 text-transparent bg-clip-text 
-      dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]
-      bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]"
-                  >
-                    Advanced Analytics
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Track engagement and see where your visitors come from
-                  </p>
-                </div>
-              </div>
-              <hr className="border-[#3F3F3F] border-1" />
-              <div className="flex gap-4 items-start  rounded-xl p-4 ">
-                <div className="flex-shrink-0 size-10 rounded-xl border-[2px] border-[#3F3F3F] bg-[#2A1A1F] flex items-center justify-center">
-                  <Lock className="size-6 text-[#F43F5E]" />
-                </div>
-                <div className="text-left">
-                  <h3
-                    className="text-lg font-semibold mb-1 text-transparent bg-clip-text 
-      dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]
-      bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]"
-                  >
-                    Privacy Controls
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Password-protect your work for select clients
-                  </p>
-                </div>
-              </div>
-              <hr className="border-[#3F3F3F] border-1" />
-              <div className="flex gap-4 items-start  rounded-xl p-4 ">
-                <div className="flex-shrink-0 size-10 rounded-xl border-[2px] border-[#3F3F3F] bg-[#2A1A24] flex items-center justify-center">
-                  <Globe className="size-6 text-[#EC4899]" />
-                </div>
-                <div className="text-left">
-                  <h3
-                    className="text-lg font-semibold mb-1 text-transparent bg-clip-text 
-      dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]
-      bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)]"
-                  >
-                    Custom Branding
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Personalized OG images and favicons for your portfolio
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
