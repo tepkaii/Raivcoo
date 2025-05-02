@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   creator: "Raivcoo",
   publisher: "Raivcoo",
   description:
-    "Raivcoo is the platform where video editors can create, share, and manage their portfolios for free. Discover talented editors or showcase your work today.",
+    "Raivcoo is a simple video review App for editors and their clients. Share projects, get timestamped feedback, and manage revisions with ease.",
   metadataBase: new URL("https://www.raivcoo.com"),
 };
 const inter = Inter({ subsets: ["latin"] });
