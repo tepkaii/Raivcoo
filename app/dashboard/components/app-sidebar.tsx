@@ -131,8 +131,8 @@ export function AppSidebar({
               {initialPortfolio?.display_name || "User"}
             </span>
             <span className="text-xs text-muted-foreground truncate">
-              {/* {initialPortfolio?.email || "user@example.com"} */}
-              team@ravicoo.com
+              {initialPortfolio?.email || "user@example.com"}
+              {/* team@ravicoo.com */}
             </span>
           </div>
 
