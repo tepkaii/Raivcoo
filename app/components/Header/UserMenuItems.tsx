@@ -24,13 +24,7 @@ export function UserMenuItems({ initialPortfolio }: { initialPortfolio: any }) {
         <span>Account</span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <form action="/auth/signout" method="post">
-          <button type="submit" className="flex items-center text-red-600">
-            <LogOut className="mr-2 h-4 w-4" /> <span> Sign out</span>
-          </button>
-        </form>
-      </DropdownMenuItem>
+    
       <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
