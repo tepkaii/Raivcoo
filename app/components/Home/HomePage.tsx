@@ -78,6 +78,8 @@ export default function HomePage() {
           <div className="container mx-auto px-4">
             <div className="relative rounded-xl overflow-hidden border border-[#3F3F3F] shadow-2xl max-w-5xl mx-auto">
               <Image
+                quality={100}
+                priority
                 src="/1.png"
                 alt="RAIVCOO Dashboard"
                 width={1200}
@@ -190,6 +192,8 @@ export default function HomePage() {
           <div className="container mx-auto px-4">
             <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
               <Image
+                quality={100}
+                priority
                 src="/2.png"
                 alt="Client Comment Flow"
                 width={600}
@@ -269,6 +273,8 @@ export default function HomePage() {
                 </ul>
               </div>
               <Image
+                quality={100}
+                priority
                 src="/3.png"
                 alt="App Access"
                 width={600}
