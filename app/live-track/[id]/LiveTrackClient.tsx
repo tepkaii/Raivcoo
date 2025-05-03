@@ -185,7 +185,7 @@ export default function LiveTrackClient({
       <div className="mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center relative w-fit gap-2">
-            <h3 className="text-xl md:text-3xl font-bold tracking-tight text-white">
+            <h3 className="text-xl md:text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
               {project.title}
             </h3>
 
@@ -562,6 +562,9 @@ export default function LiveTrackClient({
           </div>
         </DialogContent>
       </Dialog>
+      <span>
+        POWRed by <a href="https://vercel.com">Vercel</a>
+      </span>
     </div>
   );
 }

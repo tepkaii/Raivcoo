@@ -7,9 +7,11 @@ import { DashboardClientView } from "./components/dashboard-client-view";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Dashboard - Raivcoo",
-  description: "Your video editing workspace",
+  title: "Dashboard | Raivcoo",
+  description:
+    "Track projects, manage client feedback, and stay organized in your video editing workspace.",
 };
+
 
 export default async function DashboardPage() {
   const supabase = await createClient();

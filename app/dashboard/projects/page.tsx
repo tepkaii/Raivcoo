@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import AllProjectsPageClient from "./components/AllProjectsPageClient";
+import { Metadata } from "next";
 
 interface Step {
   name: string;
@@ -45,8 +46,13 @@ interface Project {
   latestTrack?: ProjectTrack | null;
   latestTrackUpdate?: string | null;
 }
+// --- Metadata ---
+export const metadata: Metadata = {
+  title: "All Projects | Raivcoo",
+  description: "View and manage all your video editing projects.",
+};
 
-export default async function AllProjectsPage() {
+export default async function Page() {
   const supabase = await createClient();
   const {
     data: { user },
