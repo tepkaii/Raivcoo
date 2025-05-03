@@ -96,11 +96,13 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Feedback Comments ({comments.length})</CardTitle>
+    <Card className="border-0 p-0 m-0">
+      <CardHeader className="p-0 m-0">
+        <CardTitle className="mb-2">
+          Feedback Comments ({comments.length})
+        </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0 m-0">
         {comments.length === 0 ? (
           <p className="text-center text-muted-foreground py-6">
             No feedback comments yet.
@@ -157,7 +159,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                         >
                           <Pencil className="h-4 w-4" />
                         </RevButtons>
-                        <Button
+                        <RevButtons
                           variant="destructive"
                           size="icon"
                           className="size-8"
@@ -166,7 +168,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                           disabled={isEditDeletePending || !!editingCommentId}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </RevButtons>
                       </div>
                     )}
                   </div>

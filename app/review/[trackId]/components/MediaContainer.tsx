@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { ExternalLink, Maximize2 } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import {
   VimeoPlayer,

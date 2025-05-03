@@ -43,7 +43,7 @@ export async function generateMetadata({
 }
 
 // --- Main Page Component ---
-export default async function ReviewPageWrapper({
+export default async function Page({
   params,
 }: {
   params: Promise<{ trackId: string }>;

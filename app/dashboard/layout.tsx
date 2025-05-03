@@ -57,7 +57,7 @@ export default async function DashboardLayout({
       <div className="flex min-h-screen w-full">
         <AppSidebar portfolio={portfolio} hasPasswordAuth={hasPasswordAuth} />
         <main className="w-full">
-          <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-1">
+          <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
             <span className="border-2 flex items-center justify-center rounded-md">
               <SidebarTrigger />
             </span>

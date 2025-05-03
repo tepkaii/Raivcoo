@@ -205,7 +205,7 @@ export default async function page({
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <div className="relative w-fit">
-            <h3 className=" text-3xl font-bold   text-white">
+            <h3 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
               {project.title}
             </h3>
 
@@ -310,8 +310,11 @@ export default async function page({
         {tracksWithComments.length > 1 && (
           <div className="mt-16 ">
             <div className="text-lg text-center font-semibold mt-6 mb-2">
-              <span className="  items-center ">Previous Rounds History </span>
+              <span className=" text-2xl items-center ">
+                Previous Rounds History{" "}
+              </span>
             </div>
+            <hr className="mb-4" />
             <div className="space-y-4">
               {tracksWithComments
                 .filter((track) => track.id !== latestTrack?.id)

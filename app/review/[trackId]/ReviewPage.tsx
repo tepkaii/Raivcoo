@@ -1,4 +1,4 @@
-// app/review/[trackId]/ReviewPage.tsx
+// app/review/[trackId]/ReviewPage.tsx - Complete file
 "use client";
 
 import React, { useState, useTransition, useEffect, useCallback } from "react";
@@ -30,6 +30,7 @@ import {
   ShieldAlert,
   Info,
   Clock,
+  XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,7 +38,8 @@ import { formatTime } from "../lib/utils";
 import { MediaContainer } from "./components/MediaContainer";
 import { CommentsSection } from "./components/CommentsSection";
 import { Badge } from "@/components/ui/badge";
-import { AIInputWithSearch } from "@/components/ui/ai-input-with-search";
+import { FeedbackInput } from "@/app/review/[trackId]/feedbackInput";
+import { cn } from "@/lib/utils";
 
 // --- Interfaces ---
 interface Comment {
@@ -144,11 +146,11 @@ export default function ReviewPage({
   >([]);
 
   // Dialog control
-  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
-  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
-
-  // New state for controlling the search option in AI input
-  const [useSearch, setUseSearch] = useState(true);
+  const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
+  const [dialogStatus, setDialogStatus] = useState<{
+    type: "pending" | "success" | "error";
+    message?: string;
+  }>({ type: "pending" });
 
   const isDecisionMade = track.clientDecision !== "pending";
   const isAnyActionPending =
@@ -168,7 +170,7 @@ export default function ReviewPage({
   }, [editingNewImageFiles]);
 
   const handleAIInputSubmit = useCallback(
-    (value: string, withSearch: boolean) => {
+    (value: string) => {
       if (
         editingCommentId ||
         isAnyActionPending ||
@@ -415,94 +417,55 @@ export default function ReviewPage({
     ]
   );
 
-  const handleApprove = useCallback(() => {
-    if (isAnyActionPending || isDecisionMade || editingCommentId) return;
-    setApproveDialogOpen(false);
+  const handleOpenDecisionDialog = () => {
+    setDecisionDialogOpen(true);
+    setDialogStatus({ type: "pending" });
+  };
 
+  const handleApprove = async () => {
+    setDialogStatus({ type: "pending" });
     startDecisionTransition(async () => {
       try {
         await approveProjectAction(project.id, track.id);
-        toast({ title: "Project Approved!", variant: "success" });
-        router.refresh();
+        setDialogStatus({ type: "success", message: "Project Approved!" });
+        setTimeout(() => {
+          setDecisionDialogOpen(false);
+          router.refresh();
+        }, 1500);
       } catch (error: any) {
-        toast({
-          title: "Approval Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        setDialogStatus({ type: "error", message: error.message });
       }
     });
-  }, [
-    project.id,
-    track.id,
-    approveProjectAction,
-    isAnyActionPending,
-    isDecisionMade,
-    router,
-    editingCommentId,
-  ]);
+  };
 
-  const handleRequestRevisions = useCallback(() => {
-    if (isAnyActionPending || isDecisionMade || editingCommentId) return;
-    setRevisionDialogOpen(false);
-
+  const handleRequestRevisions = async () => {
+    setDialogStatus({ type: "pending" });
     startDecisionTransition(async () => {
       try {
         await requestRevisionsAction(track.id);
-        toast({ title: "Revisions Requested", variant: "success" });
-        router.refresh();
+        setDialogStatus({ type: "success", message: "Revisions Requested" });
+        setTimeout(() => {
+          setDecisionDialogOpen(false);
+          router.refresh();
+        }, 1500);
       } catch (error: any) {
-        toast({
-          title: "Request Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        setDialogStatus({ type: "error", message: error.message });
       }
     });
-  }, [
-    track.id,
-    requestRevisionsAction,
-    isAnyActionPending,
-    isDecisionMade,
-    router,
-    editingCommentId,
-  ]);
+  };
 
   const canInteractWithAddForm =
     !isAnyActionPending && !isDecisionMade && !editingCommentId;
-
-  // Display uploaded images above the input
-  const renderUploadedImages = () => {
-    if (imageFiles.length === 0) return null;
-
-    return (
-      <div className="flex flex-wrap gap-2 my-2 p-2 bg-black/5 dark:bg-white/5 rounded-lg">
-        {imageFiles.map((file, index) => (
-          <div key={index} className="relative w-20 h-20 group">
-            <img
-              src={URL.createObjectURL(file)}
-              alt={`Upload ${index + 1}`}
-              className="w-full h-full object-cover rounded border"
-            />
-            <Button
-              variant="destructive"
-              size="icon"
-              className="absolute top-0 right-0 h-5 w-5 rounded-full -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() =>
-                setImageFiles((prev) => prev.filter((_, i) => i !== index))
-              }
-              disabled={!canInteractWithAddForm}
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
+  const handleTimeChange = useCallback((newTime: number) => {
+    setCurrentTime(newTime);
+  }, []);
   return (
-    <div className="space-y-6 w-full max-w-5xl px-2 pb-20">
+    <div
+      className={cn(
+        "space-y-6 w-full min-h-screen max-w-5xl px-2 pb-20",
+        comments.length > 0 && "mb-28"
+      )}
+    >
       <Card className="border-2 border-dashed">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between flex-wrap gap-y-2">
@@ -515,7 +478,7 @@ export default function ReviewPage({
                   Round / Version {track.roundNumber}
                 </p>
                 <Link
-                  href={`/review/${track.id}/history`}
+                  href={`/review/${track.id}/history`} // This is correct - keep using track.id
                   className="text-xs text-primary hover:underline"
                 >
                   View History
@@ -541,8 +504,8 @@ export default function ReviewPage({
         </CardHeader>
       </Card>
 
-      <Card>
-        <CardContent className="pt-6 space-y-5">
+      <Card className="border-0 p-0 m-0">
+        <CardContent className="p-0 m-0 space-y-5">
           {/* Media Container */}
           <MediaContainer
             deliverableLink={deliverableLink}
@@ -581,154 +544,44 @@ export default function ReviewPage({
       </Card>
 
       {/* Comments Section */}
-      {comments.length > 0 && (
-        <CommentsSection
-          comments={comments}
-          isVideoFile={isVideoPlayerNeededByType}
-          isAudioFile={false}
-          isDecisionMade={isDecisionMade}
-          editingCommentId={editingCommentId}
-          editedCommentText={editedCommentText}
-          onEdit={handleEditComment}
-          onCancelEdit={handleCancelEdit}
-          onSaveEdit={handleSaveEdit}
-          onDelete={handleDeleteComment}
-          onTextChange={setEditedCommentText}
-          isEditDeletePending={isEditDeletePending}
-          existingImageUrls={editingExistingImageUrls}
-          newImageFiles={editingNewImageFiles}
-          newImagePreviews={editingNewImagePreviews}
-          onRemoveExistingImage={handleRemoveExistingImage}
-          onRemoveNewImage={handleRemoveNewImage}
-          onFileChange={handleEditFileChange}
-          maxImages={MAX_IMAGES_PER_COMMENT}
-          acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
-        />
-      )}
-
-      {/* Decision Card */}
-      {!isDecisionMade && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Submit Your Decision</CardTitle>
-            <CardDescription>
-              Once you submit your decision for Round {track.roundNumber}, you
-              cannot add or edit feedback on this page.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter className="flex flex-col w-full sm:flex-row gap-4">
-            {/* Revision Request Dialog */}
-            <Dialog
-              open={revisionDialogOpen}
-              onOpenChange={setRevisionDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <RevButtons
-                  variant="destructive"
-                  className="flex-1 w-full"
-                  disabled={isAnyActionPending || !!editingCommentId}
-                >
-                  {isDecisionPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Edit className="h-4 w-4 mr-2" />
-                  )}
-                  Request Revisions
-                </RevButtons>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Request Revisions</DialogTitle>
-                  <DialogDescription>
-                    {comments.length === 0
-                      ? "You haven't added any feedback. Are you sure you want to request revisions without specific comments?"
-                      : `Request revisions based on your ${comments.length} comment(s)?`}
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="mt-4">
-                  <RevButtons
-                    variant="outline"
-                    onClick={() => setRevisionDialogOpen(false)}
-                  >
-                    Cancel
-                  </RevButtons>
-                  <RevButtons
-                    variant="destructive"
-                    onClick={handleRequestRevisions}
-                    disabled={isDecisionPending}
-                  >
-                    {isDecisionPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : null}
-                    Confirm Revision Request
-                  </RevButtons>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            {/* Approval Dialog */}
-            <Dialog
-              open={approveDialogOpen}
-              onOpenChange={setApproveDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <RevButtons
-                  variant="success"
-                  className="flex-1 w-full"
-                  disabled={isAnyActionPending || !!editingCommentId}
-                >
-                  {isDecisionPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-2" />
-                  )}
-                  Approve Project
-                </RevButtons>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Approve Project</DialogTitle>
-                  <DialogDescription>
-                    Are you sure you want to approve "{project.title}" Round{" "}
-                    {track.roundNumber}? This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="mt-4">
-                  <RevButtons
-                    variant="outline"
-                    onClick={() => setApproveDialogOpen(false)}
-                  >
-                    Cancel
-                  </RevButtons>
-                  <RevButtons
-                    variant="success"
-                    onClick={handleApprove}
-                    disabled={isDecisionPending}
-                  >
-                    {isDecisionPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : null}
-                    Confirm Approval
-                  </RevButtons>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </CardFooter>
-          <CardContent className="text-xs text-muted-foreground flex items-start gap-2">
-            <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>
-              Approving marks the project complete. Requesting revisions starts
-              a new round with your feedback.
-            </span>
+      {comments.length > 0 ? (
+        <div>
+          <CommentsSection
+            comments={comments}
+            isVideoFile={isVideoPlayerNeededByType}
+            isAudioFile={false}
+            isDecisionMade={isDecisionMade}
+            editingCommentId={editingCommentId}
+            editedCommentText={editedCommentText}
+            onEdit={handleEditComment}
+            onCancelEdit={handleCancelEdit}
+            onSaveEdit={handleSaveEdit}
+            onDelete={handleDeleteComment}
+            onTextChange={setEditedCommentText}
+            isEditDeletePending={isEditDeletePending}
+            existingImageUrls={editingExistingImageUrls}
+            newImageFiles={editingNewImageFiles}
+            newImagePreviews={editingNewImagePreviews}
+            onRemoveExistingImage={handleRemoveExistingImage}
+            onRemoveNewImage={handleRemoveNewImage}
+            onFileChange={handleEditFileChange}
+            maxImages={MAX_IMAGES_PER_COMMENT}
+            acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
+          />
+        </div>
+      ) : (
+        <Card className="text-center text-muted-foreground text-sm py-8">
+          <CardContent className="py-0">
+            No feedback has been added yet.
           </CardContent>
         </Card>
       )}
 
-      {/* Fixed bottom AI input */}
+      {/* Fixed bottom area with comment input and decision button */}
       {!isDecisionMade && !editingCommentId && (
-        <div className="fixed bottom-0 left-0 right-0  z-50">
+        <div className="fixed bottom-0 left-0 right-0 z-50">
           <div className="max-w-5xl mx-auto px-2">
-            <AIInputWithSearch
+            <FeedbackInput
               placeholder="Add your feedback..."
               onSubmit={handleAIInputSubmit}
               onFileSelect={handleFileSelect}
@@ -744,10 +597,109 @@ export default function ReviewPage({
               isVideoFile={isVideoPlayerNeededByType}
               formatTime={formatTime}
               maxImages={MAX_IMAGES_PER_COMMENT}
+              onTimeChange={handleTimeChange} // Add this prop
+              // Decision button props
+              showDecisionButton={true}
+              onRequestRevisions={handleOpenDecisionDialog}
+              isDecisionPending={isDecisionPending}
+              decisionButtonDisabled={isAnyActionPending || !!editingCommentId}
+              projectTitle={project.title}
+              roundNumber={track.roundNumber}
             />
           </div>
         </div>
       )}
+
+      {/* Decision Dialog with feedback */}
+      <Dialog open={decisionDialogOpen} onOpenChange={setDecisionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+              Submit Your Decision
+            </DialogTitle>
+            <DialogDescription>
+              Round {track.roundNumber} - Once submitted, you cannot add or edit
+              feedback
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Dialog content based on status */}
+          {dialogStatus.type === "pending" && (
+            <div className="">
+              <div className="grid grid-cols-2 gap-3">
+                <RevButtons
+                  variant="success"
+                  onClick={handleApprove}
+                  disabled={isDecisionPending}
+                  className="w-full"
+                >
+                  {isDecisionPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4 mr-2" />
+                  )}
+                  Approve Project
+                </RevButtons>
+                <RevButtons
+                  variant="destructive"
+                  onClick={handleRequestRevisions}
+                  disabled={isDecisionPending}
+                  className="w-full"
+                >
+                  {isDecisionPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Edit className="h-4 w-4 mr-2" />
+                  )}
+                  Request Revisions
+                </RevButtons>
+              </div>
+            </div>
+          )}
+
+          {dialogStatus.type === "success" && (
+            <div className="py-6 text-center">
+              <div className="mx-auto size-16 rounded-[10px] border-2 bg-[#064E3B]/40 flex items-center justify-center mb-4">
+                <Check className="size-8 text-green-500" />
+              </div>
+              <div className="text-lg font-semibold text-green-600 mb-2">
+                {dialogStatus.message}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Redirecting in a moment...
+              </div>
+            </div>
+          )}
+
+          {dialogStatus.type === "error" && (
+            <div className="py-6 text-center">
+              <div className="mx-auto size-16 rounded-[10px] border-2 bg-[#7F1D1D]/40 flex items-center justify-center mb-4">
+                <XCircle className="size-8 text-red-500" />
+              </div>
+              <div className="text-lg font-semibold text-red-600 mb-2">
+                Error
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {dialogStatus.message}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {(dialogStatus.type === "error" ||
+              dialogStatus.type === "pending") && (
+              <RevButtons
+                variant="outline"
+                className="w-full"
+                onClick={() => setDecisionDialogOpen(false)}
+                disabled={isDecisionPending}
+              >
+                Cancel
+              </RevButtons>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
