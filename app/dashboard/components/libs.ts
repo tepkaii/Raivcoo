@@ -83,3 +83,68 @@ export const formatFullDate = (
     return `${date.toDateString()} ${date.toTimeString().substring(0, 5)}`;
   }
 };
+
+export interface Step {
+  name: string;
+  status: "pending" | "completed";
+  is_final?: boolean;
+  deliverable_link?: string;
+  metadata?: {
+    text?: string;
+    type?: string;
+    links?: any[];
+    images?: string[];
+    created_at?: string;
+    step_index?: number;
+  };
+}
+
+export interface ProjectTrack {
+  id: string;
+  round_number: number;
+  status: string;
+  client_decision: string;
+  steps: Step[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  deadline?: string;
+  created_at: string;
+  updated_at: string;
+  client?: {
+    id: string;
+    name: string;
+  };
+  project_tracks?: ProjectTrack[];
+  latestTrack?: ProjectTrack | null;
+  latestTrackUpdate?: string;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  company?: string;
+  projects?: { id: string }[];
+  created_at?: string;
+}
+
+export interface Stats {
+  monthly: {
+    activeProjects: number;
+    pendingProjects: number;
+    completedProjects: number;
+    newClients: number;
+  };
+  allTime: {
+    activeProjects: number;
+    pendingProjects: number;
+    completedProjects: number;
+    totalClients: number;
+  };
+}

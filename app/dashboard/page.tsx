@@ -12,7 +12,6 @@ export const metadata: Metadata = {
     "Track projects, manage client feedback, and stay organized in your video editing workspace.",
 };
 
-
 export default async function DashboardPage() {
   const supabase = await createClient();
 
@@ -33,7 +32,7 @@ export default async function DashboardPage() {
     .single();
 
   if (profileError || !userProfile) {
-    redirect("/profile");
+    redirect("/account");
   }
 
   const isClient = userProfile.account_type === "client";
@@ -47,93 +46,113 @@ export default async function DashboardPage() {
   ).toISOString();
 
   if (isClient) {
-    // CLIENT VIEW - Find all projects where client's email is used
-    const { data: clientProjects } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("email", userProfile.email);
-
-    const clientIds = clientProjects?.map((client) => client.id) || [];
-
-    // Fetch all projects for this client
-    const { data: allProjects } = await supabase
-      .from("projects")
-      .select(
-        `
-        id,
-        title,
-        description,
-        status,
-        deadline,
-        created_at,
-        updated_at,
-        editor:editor_profiles(id, display_name, avatar_url),
-        project_tracks(
-          id,
-          round_number,
-          status,
-          client_decision,
-          steps,
-          created_at,
-          updated_at
-        )
-      `
-      )
-      .in("client_id", clientIds);
-
-    // Process projects to get the latest track info
-    const processedProjects = allProjects
-      ? allProjects.map((project) => {
-          const latestTrack =
-            project.project_tracks?.length > 0
-              ? [...project.project_tracks].sort((a, b) => {
-                  const timestampA = new Date(
-                    a.updated_at || a.created_at
-                  ).getTime();
-                  const timestampB = new Date(
-                    b.updated_at || b.created_at
-                  ).getTime();
-                  return timestampB - timestampA;
-                })[0]
-              : null;
-
-          return {
-            ...project,
-            latestTrack,
-          };
-        })
-      : [];
-
-    // Split projects by status
-    const activeProjects = processedProjects.filter(
-      (p) => p.status === "active"
-    );
-
-    // Pending reviews are active projects with pending client decisions and completed final deliverables
-    const pendingReviews = processedProjects.filter(
-      (p) =>
-        p.status === "active" &&
-        p.latestTrack?.client_decision === "pending" &&
-        p.latestTrack?.steps?.some(
-          (s) => s.status === "completed" && s.is_final
-        )
-    );
-
-    const completedProjects = processedProjects.filter(
-      (p) => p.status === "completed"
-    );
-
-    return (
-      <DashboardClientView
-        activeProjects={activeProjects}
-        pendingReviews={pendingReviews}
-        completedProjects={completedProjects}
-      />
-    );
+    return await getClientDashboard(supabase, userProfile);
   } else {
-    // EDITOR VIEW - Existing editor dashboard
-    // Fetch last 3 projects with full track data, sorted by most recently updated track
-    const { data: allProjects } = await supabase
+    return await getEditorDashboard(supabase, userProfile, monthStart);
+  }
+}
+
+// CLIENT VIEW - Separated for performance
+async function getClientDashboard(supabase, userProfile) {
+  // Find all projects where client's email is used
+  const { data: clientProjects } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("email", userProfile.email);
+
+  const clientIds = clientProjects?.map((client) => client.id) || [];
+
+  // Fetch all necessary fields for projects
+  const { data: allProjects } = await supabase
+    .from("projects")
+    .select(
+      `
+      id,
+      title,
+      description,
+      status,
+      deadline,
+      created_at,
+      updated_at,
+      editor:editor_profiles(id, display_name, avatar_url),
+      project_tracks(
+        id,
+        round_number,
+        status,
+        client_decision,
+        steps,
+        created_at,
+        updated_at
+      )
+    `
+    )
+    .in("client_id", clientIds);
+
+  // Process projects to get the latest track info
+  const processedProjects = allProjects
+    ? allProjects.map((project) => {
+        const latestTrack =
+          project.project_tracks?.length > 0
+            ? [...project.project_tracks].sort((a, b) => {
+                const timestampA = new Date(
+                  a.updated_at || a.created_at
+                ).getTime();
+                const timestampB = new Date(
+                  b.updated_at || b.created_at
+                ).getTime();
+                return timestampB - timestampA;
+              })[0]
+            : null;
+
+        return {
+          ...project,
+          latestTrack,
+        };
+      })
+    : [];
+
+  // Split projects by status
+  const activeProjects = processedProjects.filter((p) => p.status === "active");
+
+  // Pending reviews are active projects with pending client decisions and completed final deliverables
+  const pendingReviews = processedProjects.filter(
+    (p) =>
+      p.status === "active" &&
+      p.latestTrack?.client_decision === "pending" &&
+      p.latestTrack?.steps?.some((s) => s.status === "completed" && s.is_final)
+  );
+
+  const completedProjects = processedProjects.filter(
+    (p) => p.status === "completed"
+  );
+
+  return (
+    <DashboardClientView
+      activeProjects={activeProjects}
+      pendingReviews={pendingReviews}
+      completedProjects={completedProjects}
+    />
+  );
+}
+
+// EDITOR VIEW - Simplified and optimized
+async function getEditorDashboard(supabase, userProfile, monthStart) {
+  // Parallel queries for better performance
+  const [
+    allProjectsData,
+    recentClientsData,
+    // Individual stats queries
+    activeProjectsCount,
+    pendingProjectsCount,
+    completedProjectsCount,
+    totalClientsCount,
+    monthlyActiveProjectsCount,
+    monthlyPendingProjectsCount,
+    monthlyCompletedProjectsCount,
+    monthlyNewClientsCount,
+  ] = await Promise.all([
+    // Simplified project query
+    supabase
       .from("projects")
       .select(
         `
@@ -156,149 +175,133 @@ export default async function DashboardPage() {
         )
       `
       )
-      .eq("editor_id", userProfile.id);
+      .eq("editor_id", userProfile.id),
 
-    // Process projects data to sort by most recently updated OR created track
-    const recentProjects = allProjects
-      ? allProjects
-          .map((project) => {
-            // Find the most recently active track (either updated or created)
-            const latestTrack =
-              project.project_tracks?.length > 0
-                ? [...project.project_tracks].sort((a, b) => {
-                    // Get the most recent timestamp for each track
-                    // Use updated_at if available, otherwise created_at
-                    const timestampA = new Date(
-                      a.updated_at && a.updated_at !== a.created_at
-                        ? a.updated_at
-                        : a.created_at
-                    ).getTime();
-
-                    const timestampB = new Date(
-                      b.updated_at && b.updated_at !== b.created_at
-                        ? b.updated_at
-                        : b.created_at
-                    ).getTime();
-
-                    return timestampB - timestampA;
-                  })[0]
-                : null;
-
-            // Get the most recent timestamp for the track
-            const mostRecentActivity = latestTrack
-              ? latestTrack.updated_at &&
-                latestTrack.updated_at !== latestTrack.created_at
-                ? latestTrack.updated_at
-                : latestTrack.created_at
-              : null;
-
-            return {
-              ...project,
-              latestTrack,
-              latestTrackUpdate: mostRecentActivity,
-            };
-          })
-          // Sort projects by their most recent track activity (update or creation)
-          .sort((a, b) => {
-            const dateA = a.latestTrackUpdate
-              ? new Date(a.latestTrackUpdate).getTime()
-              : 0;
-            const dateB = b.latestTrackUpdate
-              ? new Date(b.latestTrackUpdate).getTime()
-              : 0;
-            return dateB - dateA;
-          })
-          // Limit to 3 projects
-          .slice(0, 3)
-      : [];
-
-    // Fetch recent clients (last 3) with project counts
-    const { data: recentClients } = await supabase
+    // Simplified clients query
+    supabase
       .from("clients")
-      .select(
-        `
-      id,
-      name,
-      company,
-      created_at,
-      projects:projects(id)
-    `
-      )
+      .select("id, name, company, created_at")
       .eq("editor_id", userProfile.id)
       .order("created_at", { ascending: false })
-      .limit(3);
+      .limit(3),
 
     // All-time stats
-    const { count: activeProjects } = await supabase
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
       .eq("editor_id", userProfile.id)
-      .eq("status", "active");
+      .eq("status", "active"),
 
-    const { count: pendingProjects } = await supabase
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
       .eq("editor_id", userProfile.id)
-      .eq("status", "pending");
+      .eq("status", "pending"),
 
-    const { count: completedProjects } = await supabase
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
       .eq("editor_id", userProfile.id)
-      .eq("status", "completed");
+      .eq("status", "completed"),
 
-    const { count: totalClients } = await supabase
+    supabase
       .from("clients")
       .select("*", { count: "exact", head: true })
-      .eq("editor_id", userProfile.id);
+      .eq("editor_id", userProfile.id),
 
     // Monthly stats
-    const { count: monthlyActiveProjects } = await supabase
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
       .eq("editor_id", userProfile.id)
       .eq("status", "active")
-      .gte("created_at", monthStart);
+      .gte("created_at", monthStart),
 
-    const { count: monthlyPendingProjects } = await supabase
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
       .eq("editor_id", userProfile.id)
       .eq("status", "pending")
-      .gte("created_at", monthStart);
+      .gte("created_at", monthStart),
 
-    const { count: monthlyCompletedProjects } = await supabase
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
       .eq("editor_id", userProfile.id)
       .eq("status", "completed")
-      .gte("created_at", monthStart);
+      .gte("created_at", monthStart),
 
-    const { count: monthlyNewClients } = await supabase
+    supabase
       .from("clients")
       .select("*", { count: "exact", head: true })
       .eq("editor_id", userProfile.id)
-      .gte("created_at", monthStart);
+      .gte("created_at", monthStart),
+  ]);
 
-    return (
-      <DashboardClient
-        recentProjects={recentProjects}
-        recentClients={recentClients || []}
-        stats={{
-          monthly: {
-            activeProjects: monthlyActiveProjects || 0,
-            pendingProjects: monthlyPendingProjects || 0,
-            completedProjects: monthlyCompletedProjects || 0,
-            newClients: monthlyNewClients || 0,
-          },
-          allTime: {
-            activeProjects: activeProjects || 0,
-            pendingProjects: pendingProjects || 0,
-            completedProjects: completedProjects || 0,
-            totalClients: totalClients || 0,
-          },
-        }}
-      />
-    );
-  }
+  // Process projects (same logic as before)
+  const recentProjects = allProjectsData.data
+    ? allProjectsData.data
+        .map((project) => {
+          const latestTrack =
+            project.project_tracks?.length > 0
+              ? [...project.project_tracks].sort((a, b) => {
+                  const timestampA = new Date(
+                    a.updated_at && a.updated_at !== a.created_at
+                      ? a.updated_at
+                      : a.created_at
+                  ).getTime();
+                  const timestampB = new Date(
+                    b.updated_at && b.updated_at !== b.created_at
+                      ? b.updated_at
+                      : b.created_at
+                  ).getTime();
+                  return timestampB - timestampA;
+                })[0]
+              : null;
+
+          const mostRecentActivity = latestTrack
+            ? latestTrack.updated_at &&
+              latestTrack.updated_at !== latestTrack.created_at
+              ? latestTrack.updated_at
+              : latestTrack.created_at
+            : null;
+
+          return {
+            ...project,
+            latestTrack,
+            latestTrackUpdate: mostRecentActivity,
+          };
+        })
+        .sort((a, b) => {
+          const dateA = a.latestTrackUpdate
+            ? new Date(a.latestTrackUpdate).getTime()
+            : 0;
+          const dateB = b.latestTrackUpdate
+            ? new Date(b.latestTrackUpdate).getTime()
+            : 0;
+          return dateB - dateA;
+        })
+        .slice(0, 3)
+    : [];
+
+  return (
+    <DashboardClient
+      recentProjects={recentProjects}
+      recentClients={recentClientsData.data || []}
+      stats={{
+        monthly: {
+          activeProjects: monthlyActiveProjectsCount.count || 0,
+          pendingProjects: monthlyPendingProjectsCount.count || 0,
+          completedProjects: monthlyCompletedProjectsCount.count || 0,
+          newClients: monthlyNewClientsCount.count || 0,
+        },
+        allTime: {
+          activeProjects: activeProjectsCount.count || 0,
+          pendingProjects: pendingProjectsCount.count || 0,
+          completedProjects: completedProjectsCount.count || 0,
+          totalClients: totalClientsCount.count || 0,
+        },
+      }}
+    />
+  );
 }

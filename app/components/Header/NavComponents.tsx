@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { FlaskConical } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home" },

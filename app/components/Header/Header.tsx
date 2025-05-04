@@ -15,7 +15,6 @@ import {
   Menu,
   LogInIcon,
   UserPlus,
-  Link as LinkIcon,
   AlertCircle,
   SquareUser,
   LogOut,
@@ -23,7 +22,6 @@ import {
 import React from "react";
 import Image from "next/image";
 import { NavLinks, NavDropdownItems } from "./NavComponents";
-import { UserMenuItems } from "./UserMenuItems";
 import { redirect } from "next/navigation";
 
 export default async function Header() {
@@ -39,12 +37,9 @@ export default async function Header() {
         .select("*")
         .eq("user_id", user.id)
         .single();
-
-  // Redirect to complete-profile if user is logged in but has no display name
   if (user && (!account?.display_name || account.display_name.trim() === "")) {
     redirect("/complete-profile");
   }
-
   return (
     <header
       className="fixed top-0 z-50 right-0 left-0 md:p-6
@@ -139,7 +134,6 @@ backdrop-blur-sm"
                           </button>
                         </form>
                       </DropdownMenuItem>
-                      {/* <UserMenuItems initialPortfolio={account} /> */}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (

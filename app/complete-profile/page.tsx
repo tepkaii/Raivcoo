@@ -32,21 +32,21 @@ export default async function CompleteProfilePage() {
     .eq("user_id", user.id)
     .single();
 
-  // If user already has a complete profile with display_name and account_type, redirect to dashboard
+  // If user already has a complete profile with display_name and account_type, redirect to  the home page
   if (profile?.display_name && profile?.account_type) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b p-4">
-        <div className="container max-w-screen-xl mx-auto flex justify-between items-center">
+      <header className="border-b px-4 py-2">
+        <div className="container max-w-screen-2xl mx-auto flex justify-between items-center">
           <Link href="/" className="flex items-center">
             <Image
-              src="/Raivcco.svg"
+              src="/MainLogo.png"
               alt="Raivcoo Logo"
-              width={36}
-              height={36}
+              width={50}
+              height={50}
               className="rounded-[5px]"
               priority
               quality={100}

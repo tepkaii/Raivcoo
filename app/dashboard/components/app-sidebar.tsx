@@ -56,6 +56,7 @@ import PasswordSection from "../../account/PasswordSection";
 interface ProfileShowProps {
   portfolio: EditorProfile;
   hasPasswordAuth: boolean;
+  webVersion: string;
 }
 
 function LinkStatus({ href }: { href: string }) {
@@ -96,6 +97,7 @@ function LinkStatus({ href }: { href: string }) {
 export function AppSidebar({
   portfolio: initialPortfolio,
   hasPasswordAuth,
+  webVersion,
 }: ProfileShowProps) {
   const pathname = usePathname();
   const isClient = initialPortfolio?.account_type === "client";
@@ -376,7 +378,9 @@ export function AppSidebar({
             |
           </span>
           <div className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-            <strong className="text-foreground">Raivcoo</strong> v1.0.0
+            <div className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+              <strong className="text-foreground">Raivcoo</strong> v{webVersion}
+            </div>
           </div>
         </div>
 
