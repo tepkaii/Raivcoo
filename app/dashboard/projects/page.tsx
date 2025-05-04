@@ -68,7 +68,7 @@ export default async function Page() {
     .single();
 
   if (profileError || !editorProfile) {
-    return redirect("/profile?error=Editor profile needed");
+    return redirect("/account?error=Editor Account needed");
   }
 
   // Fetch projects with additional data needed for the new UI
