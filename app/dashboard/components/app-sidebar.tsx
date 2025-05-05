@@ -57,6 +57,7 @@ interface ProfileShowProps {
   portfolio: EditorProfile;
   hasPasswordAuth: boolean;
   webVersion: string;
+  extensionVersion: string;
 }
 
 function LinkStatus({ href }: { href: string }) {
@@ -98,6 +99,7 @@ export function AppSidebar({
   portfolio: initialPortfolio,
   hasPasswordAuth,
   webVersion,
+  extensionVersion,
 }: ProfileShowProps) {
   const pathname = usePathname();
   const isClient = initialPortfolio?.account_type === "client";
@@ -365,28 +367,24 @@ export function AppSidebar({
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className=" border-t group-data-[collapsible=icon]:border-none mt-auto space-y-2 group-data-[collapsible=icon]:space-y-0">
-        {/* Top row: Help + Version */}
-        <div className="flex justify-around items-center gap-2 group-data-[collapsible=icon]:hidden group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start">
-          <Link
-            href="/support"
-            className="flex text-xs group-data-[collapsible=icon]:hidden  items-center gap-2 p-0 h-auto"
-          >
-            <span className="">Help & Support</span>
-          </Link>
-          <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-            |
+      <SidebarFooter className="border-t mt-auto px-4 py-3 group-data-[collapsible=icon]:hidden">
+        {/* Open Beta Badge */}
+        <div>
+          <span className="inline-block bg-muted px-2 py-0.5 rounded-md text-[10px] font-semibold text-muted-foreground">
+            Open Beta
           </span>
-          <div className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-            <div className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-              <strong className="text-foreground">Raivcoo</strong> v{webVersion}
-            </div>
-          </div>
         </div>
-
-        {/* Bottom row: copyright */}
-        <div className="text-[11px] text-muted-foreground group-data-[collapsible=icon]:hidden px-1">
-          © {new Date().getFullYear()} Raivcoo
+        {/* Versions */}
+        <div className="text-xs text-muted-foreground font-medium space-y-1">
+          <div className="flex justify-between">
+            <span>
+              Web App: <span className="text-foreground">v{webVersion}</span>
+            </span>
+            <span>
+              Extension:{" "}
+              <span className="text-foreground">v{extensionVersion}</span>
+            </span>
+          </div>
         </div>
       </SidebarFooter>
 

@@ -23,13 +23,11 @@ export default async function DashboardLayout({
   if (!user) {
     redirect("/login");
   }
-  const { data: versionData } = await supabase
+  const { data: versionData, error } = await supabase
     .from("version_log")
-    .select("version")
-    .eq("platform", "web")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+    .select("platform, version")
+    .in("platform", ["web", "extension"])
+    .order("created_at", { ascending: false }); // optional but good for tracking
 
   // Fetch the existing portfolio data
   const { data: existingPortfolio, error: fetchError } = await supabase
@@ -58,7 +56,11 @@ export default async function DashboardLayout({
   );
   const portfolio = existingPortfolio as EditorProfile;
   const isClient = portfolio.account_type === "client";
-  const webVersion = versionData?.version || "1.0.0"; // fallback
+  const webVersion =
+    versionData?.find((v) => v.platform === "web")?.version || "1.0.0";
+
+  const extensionVersion =
+    versionData?.find((v) => v.platform === "extension")?.version || "1.0.0";
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -66,6 +68,7 @@ export default async function DashboardLayout({
           portfolio={portfolio}
           hasPasswordAuth={hasPasswordAuth}
           webVersion={webVersion}
+          extensionVersion={extensionVersion}
         />
         <main className="w-full">
           <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">

@@ -211,18 +211,18 @@ export default function HomePage() {
                 </p>
                 <ul className="mt-6 space-y-3">
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-primary mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-purple-500  mr-2 mt-1" />
                     <span>
                       Support for YouTube, Vimeo, Goggle Drive, and Dropbox, amd
                       Images
                     </span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-primary mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-purple-500  mr-2 mt-1" />
                     <span>Reference image uploads with comments</span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-primary mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-purple-500  mr-2 mt-1" />
                     <span>
                       Live track of review rounds and revision history
                     </span>
@@ -237,41 +237,38 @@ export default function HomePage() {
         <AnimatedSection className="py-16">
           <div className="container mx-auto px-4">
             <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+              {/* Text Section */}
               <div className="order-2 md:order-1">
                 <h3 className="text-2xl md:text-3xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
                   Adobe Creative Cloud Integration
                 </h3>
                 <p className="text-muted-foreground text-lg leading-relaxed">
-                  Access client feedback directly in your favorite editing
-                  applications with our Adobe extensions.
+                  Access client feedback and project reviews directly within
+                  your favorite Adobe apps.
                 </p>
+
                 <ul className="mt-6 space-y-3">
+                  {[
+                    "Adobe Premiere Pro",
+                    "Adobe After Effects",
+                    "Adobe Animate",
+                    "Adobe Illustrator",
+                    "Adobe Photoshop ",
+                  ].map((app) => (
+                    <li key={app} className="flex items-start">
+                      <Check className="h-5 w-5 text-purple-500  mr-2 mt-1" />
+                      <span>{app}</span>
+                    </li>
+                  ))}
+
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                    <div className="flex items-center gap-2">
-                      <span>Adobe After Effects extension</span>
-                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                        Coming Soon
-                      </span>
-                    </div>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                    <div className="flex items-center gap-2">
-                      <span>Adobe Premiere Pro extension</span>
-                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                        Coming Soon
-                      </span>
-                    </div>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                    <span>
-                      Browser access for when you're away from your desk
-                    </span>
+                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <span>Browser access when you're not using Adobe apps</span>
                   </li>
                 </ul>
               </div>
+
+              {/* Image */}
               <Image
                 quality={100}
                 priority

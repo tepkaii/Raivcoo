@@ -8,16 +8,18 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
+        warning:
+          "bg-[#78350F]/40 border border-2 hover:bg-[#78350F]/60 text-yellow-500 [&>svg]:text-yellow-500 ",
         default: "bg-background text-foreground",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          " bg-[#7F1D1D]/40 border border-2 text-red-500 hover:bg-[#7F1D1D]/60 text-red-500  [&>svg]:text-red-500",
       },
     },
     defaultVariants: {
       variant: "default",
     },
   }
-)
+);
 
 const Alert = React.forwardRef<
   HTMLDivElement,
