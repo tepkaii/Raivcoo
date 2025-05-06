@@ -71,6 +71,7 @@ export default function RootLayout({
                 "/set-password",
                 "/account/",
                 "/account",
+                "/og",
               ]}
               // excludePaths={["/links/edit"]}
             >
