@@ -25,7 +25,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Image from "next/image";
-import { updateAllStepContent } from "../actions";
+import { updateAllStepContent } from "../[id]/actions";
 
 interface EditableStepsListProps {
   trackId: string;

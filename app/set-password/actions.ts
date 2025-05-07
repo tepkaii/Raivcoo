@@ -42,7 +42,17 @@ export async function setPassword(formData: FormData) {
         identity.identity_data?.email === user.email
     );
 
-    if (hasPasswordAuth && currentPassword) {
+    // Get the user's current editor profile
+    const { data: editorProfile, error: profileError } = await supabase
+      .from("editor_profiles")
+      .select("has_password")
+      .eq("user_id", user.id)
+      .single();
+
+    // Determine if the user actually has a password set
+    const userHasPassword = editorProfile?.has_password || hasPasswordAuth;
+
+    if (userHasPassword && currentPassword) {
       // If user has a password, verify the current one first
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email || "",
@@ -64,11 +74,22 @@ export async function setPassword(formData: FormData) {
       return { error: error.message };
     }
 
+    // Update the editor_profiles table to mark that the user has a password
+    const { error: updateError } = await supabase
+      .from("editor_profiles")
+      .update({ has_password: true })
+      .eq("user_id", user.id);
+
+    if (updateError) {
+      console.error("Failed to update editor profile:", updateError);
+      // Continue anyway since the password itself was updated successfully
+    }
+
     return {
       success: true,
       email: user.email,
       userId: user.id,
-      isNewPassword: !hasPasswordAuth,
+      isNewPassword: !userHasPassword,
     };
   } catch (err) {
     console.error("Server error:", err);

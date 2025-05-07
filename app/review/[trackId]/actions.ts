@@ -1,5 +1,4 @@
-// app/projects/actions.ts
-// @ts-nocheck
+// app/review/[trackId]/actions.ts
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -86,6 +85,7 @@ async function uploadImageToImgBB(
       `https://api.imgbb.com/1/upload?key=${apiKey}`,
       { method: "POST", body: formData }
     );
+    // app/review/[trackId]/actions.ts (continued)
     if (!response.ok) {
       const errorData = await response.json();
       console.error("ImgBB API Error:", errorData);
@@ -107,124 +107,23 @@ async function uploadImageToImgBB(
   }
 }
 
-export async function verifyClientAuthorization(projectId: string): Promise<{
-  user: any;
-  client: any;
-  project: any;
-  editor: any;
-  error: string | null;
-  isEditor: boolean;
-}> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  if (userError || !user)
-    return {
-      user: null,
-      client: null,
-      project: null,
-      editor: null,
-      error: "Not authenticated.",
-      isEditor: false,
-    };
-  if (!user.email)
-    return {
-      user: null,
-      client: null,
-      project: null,
-      editor: null,
-      error: "User email missing.",
-      isEditor: false,
-    };
-
-  // Get project data including editor_id
-  const { data: projectData, error: projectError } = await supabase
-    .from("projects")
-    .select(`id, editor_id, client:clients (id, email, name)`)
-    .eq("id", projectId)
-    .single();
-
-  if (projectError || !projectData || !projectData.client) {
-    console.error(
-      `Error fetching project ${projectId} or client:`,
-      projectError
-    );
-    return {
-      user,
-      client: null,
-      project: null,
-      editor: null,
-      error: "Project/Client not found.",
-      isEditor: false,
-    };
-  }
-
-  // Check if user is the client
-  const isClient = projectData.client.email === user.email;
-
-  // If user is client, return success
-  if (isClient) {
-    return {
-      user,
-      client: projectData.client,
-      project: projectData,
-      editor: null,
-      error: null,
-      isEditor: false,
-    };
-  }
-
-  // If not client, check if user is the editor
-  const { data: editorData } = await supabase
-    .from("editor_profiles")
-    .select("id, email, account_type, display_name")
-    .eq("email", user.email)
-    .eq("account_type", "editor")
-    .maybeSingle();
-
-  const isEditor = editorData && editorData.id === projectData.editor_id;
-
-  if (isEditor) {
-    return {
-      user,
-      client: projectData.client,
-      project: projectData,
-      editor: editorData,
-      error: null,
-      isEditor: true,
-    };
-  }
-
-  // If neither client nor editor, return unauthorized
-  console.warn(
-    `Auth Fail: User ${user.email} is neither client ${projectData.client.email} nor editor for project ${projectId}`
-  );
-  return {
-    user,
-    client: projectData.client,
-    project: projectData,
-    editor: null,
-    error: "Unauthorized.",
-    isEditor: false,
-  };
-}
-
-// --- CLIENT ACTIONS ---
+// Modified to skip authentication requirements
 export async function addReviewComment(formData: FormData) {
   const supabase = await createClient();
+
+  // Get authenticated user if available, but don't require it
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
-  if (userError || !user) throw new Error("Not authenticated");
 
   const trackId = formData.get("trackId") as string;
   const timestampString = formData.get("timestamp") as string;
-  const commentText = formData.get("commentText") as string; // Contains placeholders from client
+  const commentText = formData.get("commentText") as string;
+  const commenterName =
+    (formData.get("commenterName") as string) || "Anonymous Visitor";
   const imageFiles = formData.getAll("images") as File[];
   const linksString = formData.get("links") as string;
+
   let links;
   if (linksString) {
     try {
@@ -243,21 +142,18 @@ export async function addReviewComment(formData: FormData) {
   if (imageFiles.length > MAX_IMAGES_PER_COMMENT)
     throw new Error(`Max ${MAX_IMAGES_PER_COMMENT} images.`);
 
+  // Check if track exists and decision not already made
   const { data: trackData, error: trackError } = await supabase
     .from("project_tracks")
     .select("id, project_id, client_decision")
     .eq("id", trackId)
     .single();
-  if (trackError || !trackData) throw new Error("Track not found.");
 
-  const { client, error: authError } = await verifyClientAuthorization(
-    trackData.project_id
-  );
-  if (authError || !client)
-    throw new Error(authError || "Authorization failed.");
+  if (trackError || !trackData) throw new Error("Track not found.");
   if (trackData.client_decision !== "pending")
     throw new Error(`Decision (${trackData.client_decision}) submitted.`);
 
+  // Upload images
   const uploadedImageUrls: string[] = [];
   if (imageFiles.length > 0) {
     try {
@@ -285,17 +181,26 @@ export async function addReviewComment(formData: FormData) {
   };
 
   try {
+    // Add user ID if authenticated
+    const commentInsertData = {
+      track_id: trackId,
+      comment: commentDataToSave,
+      commenter_name: commenterName,
+      commenter_id: user?.id || null, // Store user ID for authenticated users
+    };
+
     const { data: newCommentData, error: insertError } = await supabase
       .from("review_comments")
-      .insert({ track_id: trackId, comment: commentDataToSave })
-      .select(`id, created_at, comment`)
+      .insert(commentInsertData)
+      .select(`id, created_at, comment, commenter_name, commenter_id`)
       .single();
+
     if (insertError) {
       console.error("Insert error:", insertError);
       throw insertError;
     }
 
-    revalidatePath(`/projects/${trackData.project_id}/review/${trackId}`);
+    revalidatePath(`/review/${trackId}`);
 
     return {
       message: "Comment added successfully",
@@ -303,7 +208,8 @@ export async function addReviewComment(formData: FormData) {
         id: newCommentData.id,
         created_at: newCommentData.created_at,
         comment: newCommentData.comment as CommentData,
-        commenter_display_name: client.name || user.email,
+        commenter_display_name:
+          newCommentData.commenter_name || "Anonymous Visitor",
         isOwnComment: true,
       },
     };
@@ -315,9 +221,10 @@ export async function addReviewComment(formData: FormData) {
 export async function updateReviewComment(formData: FormData) {
   const supabase = await createClient();
   const commentId = formData.get("commentId") as string;
-  const newCommentText = formData.get("newCommentText") as string; // Plain text
-  const existingImagesString = formData.get("existingImages") as string; // JSON string array of URLs to keep
-  const newImageFiles = formData.getAll("newImages") as File[]; // New files to upload
+  const newCommentText = formData.get("newCommentText") as string;
+  const existingImagesString = formData.get("existingImages") as string;
+  const commenterName = formData.get("commenterName") as string;
+  const newImageFiles = formData.getAll("newImages") as File[];
 
   if (!commentId || newCommentText === null || !existingImagesString)
     throw new Error("Required data missing.");
@@ -331,28 +238,35 @@ export async function updateReviewComment(formData: FormData) {
     throw new Error("Failed to parse existing images.");
   }
 
+  // Get user if authenticated
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
-  if (userError || !user) throw new Error("Not authenticated");
 
+  // Get the comment to verify ownership
   const { data: commentData, error: commentError } = await supabase
     .from("review_comments")
     .select(
-      `id, comment, track_id, track:project_tracks!inner (id, project_id, client_decision)`
+      `id, comment, commenter_id, commenter_name, track_id, track:project_tracks!inner (id, project_id, client_decision)`
     )
     .eq("id", commentId)
     .single();
+
   if (commentError || !commentData || !commentData.track)
     throw new Error("Comment/track not found.");
 
+  // Verify ownership - either the commenter_id matches user.id or
+  // the comment has no commenter_id (anonymous) and no user is logged in
+  const isOwnComment =
+    (user && user.id === commentData.commenter_id) ||
+    (!commentData.commenter_id && !user);
+
+  if (!isOwnComment) {
+    throw new Error("You can only edit your own comments.");
+  }
+
+  // Check if decision already made
   const { track } = commentData;
-  const { client, error: authError } = await verifyClientAuthorization(
-    track.project_id
-  );
-  if (authError || !client)
-    throw new Error(authError || "Authorization failed.");
   if (track.client_decision !== "pending")
     throw new Error(`Decision (${track.client_decision}) submitted.`);
 
@@ -361,7 +275,6 @@ export async function updateReviewComment(formData: FormData) {
   if (newImageFiles.length > 0) {
     const totalPotentialImages = imagesToKeep.length + newImageFiles.length;
     if (totalPotentialImages > MAX_IMAGES_PER_COMMENT) {
-      // MAX_IMAGES_PER_COMMENT defined earlier
       throw new Error(
         `Cannot save comment: Exceeds maximum of ${MAX_IMAGES_PER_COMMENT} images.`
       );
@@ -371,7 +284,6 @@ export async function updateReviewComment(formData: FormData) {
         .filter((f) => f.size > 0)
         .map(async (file) => {
           const buffer = Buffer.from(await file.arrayBuffer());
-          // Re-use existing upload helper
           return await uploadImageToImgBB(buffer, file.name, file.type);
         });
       const results = await Promise.all(uploadPromises);
@@ -393,15 +305,15 @@ export async function updateReviewComment(formData: FormData) {
   const { processedText, links } = detectAndExtractLinks(newCommentText.trim());
   const existingCommentJson = commentData.comment as CommentData;
 
-  // Create final JSONB, now including updated images array
+  // Create final JSONB with updated content
   const updatedCommentJsonb: CommentData = {
     ...existingCommentJson,
     text: processedText,
     links: links,
-    images: finalImageUrls, // <<<<<<<<<<<< Use the combined list
+    images: finalImageUrls,
   };
 
-  // Prevent saving completely empty comment (no text, no images)
+  // Prevent saving completely empty comment
   if (
     !updatedCommentJsonb.text &&
     (!updatedCommentJsonb.images || updatedCommentJsonb.images.length === 0)
@@ -409,17 +321,28 @@ export async function updateReviewComment(formData: FormData) {
     throw new Error("Cannot save comment with no text and no images.");
   }
 
+  // Update the commenter name if provided and different
+  const updateData: any = {
+    comment: updatedCommentJsonb,
+  };
+
+  // Only update commenter_name if it was provided and different
+  if (commenterName && commenterName !== commentData.commenter_name) {
+    updateData.commenter_name = commenterName;
+  }
+
   // Update DB
   try {
     const { data: updatedData, error: updateError } = await supabase
       .from("review_comments")
-      .update({ comment: updatedCommentJsonb })
+      .update(updateData)
       .eq("id", commentId)
-      .select(`id, created_at, comment`)
+      .select(`id, created_at, comment, commenter_name`)
       .single();
+
     if (updateError) throw new Error("Database error updating comment.");
 
-    revalidatePath(`/projects/${track.project_id}/review/${track.id}`);
+    revalidatePath(`/review/${track.id}`);
 
     return {
       message: "Comment updated successfully",
@@ -427,7 +350,8 @@ export async function updateReviewComment(formData: FormData) {
         id: updatedData.id,
         created_at: updatedData.created_at,
         comment: updatedData.comment as CommentData,
-        commenter_display_name: client.name || user.email,
+        commenter_display_name:
+          updatedData.commenter_name || "Anonymous Visitor",
         isOwnComment: true,
       },
     };
@@ -442,29 +366,37 @@ export async function deleteReviewComment(commentId: string) {
   const supabase = await createClient();
   if (!commentId) throw new Error("Comment ID missing.");
 
+  // Get user if authenticated
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
-  if (userError || !user) throw new Error("Not authenticated");
 
+  // Get the comment to verify ownership
   const { data: commentData, error: commentError } = await supabase
     .from("review_comments")
     .select(
-      `id, track_id, track:project_tracks!inner (id, project_id, client_decision)`
+      `id, commenter_id, track_id, track:project_tracks!inner (id, project_id, client_decision)`
     )
     .eq("id", commentId)
     .single();
+
   if (commentError || !commentData || !commentData.track) {
     console.warn("Comment not found for delete:", commentError);
     throw new Error("Comment/track not found.");
   }
 
+  // Verify ownership - either the commenter_id matches user.id or
+  // the comment has no commenter_id (anonymous) and no user is logged in
+  const isOwnComment =
+    (user && user.id === commentData.commenter_id) ||
+    (!commentData.commenter_id && !user);
+
+  if (!isOwnComment) {
+    throw new Error("You can only delete your own comments.");
+  }
+
+  // Check if decision already made
   const { track } = commentData;
-  const { error: authError } = await verifyClientAuthorization(
-    track.project_id
-  );
-  if (authError) throw new Error(authError || "Authorization failed.");
   if (track.client_decision !== "pending")
     throw new Error(`Decision (${track.client_decision}) submitted.`);
 
@@ -473,9 +405,10 @@ export async function deleteReviewComment(commentId: string) {
       .from("review_comments")
       .delete()
       .eq("id", commentId);
+
     if (deleteError) throw new Error("Database error deleting comment.");
 
-    revalidatePath(`/projects/${track.project_id}/review/${track.id}`);
+    revalidatePath(`/review/${track.id}`);
     return { message: "Comment deleted successfully" };
   } catch (error) {
     throw error instanceof Error
@@ -491,22 +424,23 @@ export async function clientRequestRevisions(trackId: string) {
     .select("id, project_id, round_number, client_decision")
     .eq("id", trackId)
     .single();
+
   if (trackError || !currentTrack) throw new Error("Track not found.");
 
-  const { error: authError } = await verifyClientAuthorization(
-    currentTrack.project_id
-  );
-  if (authError) throw new Error(authError);
+  // Check if decision is already made (no auth check needed)
   if (currentTrack.client_decision !== "pending")
     throw new Error(`Decision already submitted.`);
 
+  // Get all comments to use for the next round
   const { data: commentsData, error: commentsError } = await supabase
     .from("review_comments")
     .select("id, comment, created_at")
     .eq("track_id", trackId)
     .order("comment->>timestamp", { ascending: true });
+
   if (commentsError) throw new Error("Could not retrieve comments.");
 
+  // Create steps for the next round
   const nextRoundSteps: Step[] = (commentsData || []).map((c, i) => ({
     status: "pending",
     metadata: {
@@ -520,11 +454,17 @@ export async function clientRequestRevisions(trackId: string) {
       step_index: i,
     },
   }));
+
   nextRoundSteps.push({
     name: "Finish Revisions",
     status: "pending",
     is_final: true,
     deliverable_link: null,
+  });
+  console.log("Calling revision with:", {
+    trackId,
+    projectId: currentTrack.project_id,
+    round: currentTrack.round_number,
   });
 
   try {
@@ -537,52 +477,72 @@ export async function clientRequestRevisions(trackId: string) {
         p_next_round_steps: nextRoundSteps,
       }
     );
+
     if (rpcError) throw rpcError;
-    revalidatePath(`/projects/${currentTrack.project_id}`);
-    revalidatePath(`/projects/${currentTrack.project_id}/review/${trackId}`);
-    revalidatePath(`/dashboard/projects/${currentTrack.project_id}`);
+
+    revalidatePath(`/review/${trackId}`);
+    console.log("Project Tracks Policies:", trackId);
+    console.log("Projects Policies:", currentTrack.project_id);
     return {
       success: true,
       message: `Revisions requested. Round ${currentTrack.round_number + 1} created.`,
     };
-  } catch (error) {
+  } catch (error: any) {
     throw new Error(
-      error instanceof Error ? error.message : "Failed to request revisions"
+      error?.message
+        ? `Revision failed: ${error.message}` +
+          (error.details ? ` | Details: ${checkDatabasePolicies()}` : "") +
+          (error.hint ? ` | Hint: ${error.hint}` : "")
+        : "Failed to request revisions"
     );
   }
 }
+async function checkDatabasePolicies() {
+  const supabase = await createClient();
 
+  // Get policies for project_tracks table
+  const { data: trackPolicies, error: trackError } = await supabase.rpc(
+    "get_policies",
+    { table_name: "project_tracks" }
+  );
+
+  // Get policies for projects table
+  const { data: projectPolicies, error: projectError } = await supabase.rpc(
+    "get_policies",
+    { table_name: "projects" }
+  );
+
+  console.log("Project Tracks Policies:", trackPolicies);
+  console.log("Projects Policies:", projectPolicies);
+}
 export async function clientApproveProject(projectId: string, trackId: string) {
   const supabase = await createClient();
-  const {
-    user,
-    client,
-    error: authError,
-  } = await verifyClientAuthorization(projectId);
-  if (authError || !client || !user)
-    throw new Error(authError || "Authorization failed.");
 
+  // No authentication needed, allow anyone to approve
   const { data: trackData, error: trackError } = await supabase
     .from("project_tracks")
     .select("id, client_decision")
     .eq("id", trackId)
     .eq("project_id", projectId)
     .single();
+
   if (trackError || !trackData) throw new Error("Track not found or invalid.");
+
+  // Check if decision is already made
   if (trackData.client_decision !== "pending")
     throw new Error(`Decision already submitted.`);
 
   try {
+    // Call the database function to handle the approval
     const { error: rpcError } = await supabase.rpc(
       "handle_client_approval_v2",
       { p_project_id: projectId, p_track_id: trackId }
     );
+
     if (rpcError) throw new Error(`Database error: ${rpcError.message}`);
-    revalidatePath(`/projects/${projectId}`);
-    revalidatePath(`/projects/${projectId}/review/${trackId}`);
-    revalidatePath("/projects");
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    if (client.id) revalidatePath(`/clients/${client.id}`);
+
+    revalidatePath(`/review/${trackId}`);
+
     return { message: "Project approved successfully." };
   } catch (error) {
     throw error instanceof Error
@@ -590,4 +550,3 @@ export async function clientApproveProject(projectId: string, trackId: string) {
       : new Error("Failed to approve project.");
   }
 }
-

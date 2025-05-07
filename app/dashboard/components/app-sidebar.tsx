@@ -1,5 +1,5 @@
 // components/app-sidebar.tsx
-// @ts-nocheck
+
 "use client";
 
 import {
@@ -15,17 +15,13 @@ import {
 } from "@/components/ui/sidebar";
 
 import {
-  Users2,
   LogOut,
   User,
   FolderOpenDot,
   SquareUser,
   LayoutDashboard,
-  Clock,
-  CheckCircle2,
   Home,
   ChevronDown,
-  HelpCircle,
   Puzzle,
 } from "lucide-react";
 import Link from "next/link";
@@ -102,7 +98,6 @@ export function AppSidebar({
   extensionVersion,
 }: ProfileShowProps) {
   const pathname = usePathname();
-  const isClient = initialPortfolio?.account_type === "client";
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
 
   // Check if we're in a specific section (more precise than just startsWith)
@@ -119,7 +114,7 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon">
       {/* Logo/Website Header - Top */}
-      <SidebarHeader className="border-b p-0 m-0  bg-background">
+      <SidebarHeader className="border-b p-0 m-0 bg-background">
         <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
           <Avatar className="h-8 w-8 rounded-lg border-2">
             <AvatarImage
@@ -136,17 +131,16 @@ export function AppSidebar({
             </span>
             <span className="text-xs text-muted-foreground truncate">
               {initialPortfolio?.email || "user@example.com"}
-              {/* team@ravicoo.com */}
             </span>
           </div>
 
-          {/* New dropdown menu replacing the sign out button */}
+          {/* User dropdown menu */}
           <div className="absolute group-data-[collapsible=icon]:hidden right-3 top-1/2 -translate-y-1/2">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <RevButtons size={"icon"} variant={"ghost"} title="User Menu">
                   <div className="flex items-center">
-                    <ChevronDown className="h-3 w-3  transition-transform duration-200 data-[state=open]:rotate-180" />
+                    <ChevronDown className="h-3 w-3 transition-transform duration-200 data-[state=open]:rotate-180" />
                   </div>
                 </RevButtons>
               </DropdownMenuTrigger>
@@ -176,7 +170,7 @@ export function AppSidebar({
                       className="flex items-center gap-2 w-full"
                     >
                       <LogOut className="h-4 w-4 text-red-600" />
-                      <span className=" text-red-600">Sign out</span>
+                      <span className="text-red-600">Sign out</span>
                     </button>
                   </form>
                 </DropdownMenuItem>
@@ -199,11 +193,11 @@ export function AppSidebar({
                 <Link href="/dashboard" className="w-full">
                   <SidebarMenuButton
                     className={cn(
-                      "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
+                      "flex items-center w-full group-data-[collapsible=icon]:justify-center",
                       isActiveSection("/dashboard") && "bg-muted"
                     )}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md  bg-[#581C87]/40 text-[#C084FC] shrink-0">
+                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#581C87]/40 text-[#C084FC] shrink-0">
                       <LayoutDashboard className="size-4" />
                     </div>
                     <span className="group-data-[collapsible=icon]:hidden">
@@ -219,154 +213,63 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* FOR EDITORS ONLY - CLIENTS SECTION */}
-        {!isClient && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <Link href="/dashboard/clients" className="w-full">
-                    <SidebarMenuButton
-                      className={cn(
-                        "flex items-center w-full group-data-[collapsible=icon]:justify-center  ",
-                        isActiveSection("/dashboard/clients") && "bg-muted"
-                      )}
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#1E3A8A]/40 text-[#3B82F6] shrink-0">
-                        <Users2 className="w-4 h-4" />
-                      </div>
-                      <span className="group-data-[collapsible=icon]:hidden">
-                        Clients
-                      </span>
-                      <div className="group-data-[collapsible=icon]:hidden">
-                        <LinkStatus href="/dashboard/clients" />
-                      </div>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {/* PROJECTS SECTION */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/dashboard/projects" className="w-full">
+                  <SidebarMenuButton
+                    className={cn(
+                      "flex items-center w-full group-data-[collapsible=icon]:justify-center",
+                      isActiveSection("/dashboard/projects") && "bg-muted"
+                    )}
+                  >
+                    <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#064E3B]/40 text-[#10B981] shrink-0">
+                      <FolderOpenDot className="w-4 h-4" />
+                    </div>
+                    <span className="group-data-[collapsible=icon]:hidden">
+                      Projects
+                    </span>
+                    <div className="group-data-[collapsible=icon]:hidden">
+                      <LinkStatus href="/dashboard/projects" />
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        {/* FOR EDITORS ONLY - PROJECTS SECTION */}
-        {!isClient && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <Link href="/dashboard/projects" className="w-full">
-                    <SidebarMenuButton
-                      className={cn(
-                        "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
-                        isActiveSection("/dashboard/projects") && "bg-muted"
-                      )}
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#064E3B]/40 text-[#10B981] shrink-0">
-                        <FolderOpenDot className="w-4 h-4" />
-                      </div>
-                      <span className="group-data-[collapsible=icon]:hidden">
-                        Projects
-                      </span>
-                      <div className="group-data-[collapsible=icon]:hidden">
-                        <LinkStatus href="/dashboard/projects" />
-                      </div>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-        {!isClient && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <Link href="/dashboard/extensions" className="w-full">
-                    <SidebarMenuButton
-                      className={cn(
-                        "flex items-center w-full group-data-[collapsible=icon]:justify-center",
-                        isActiveSection("/dashboard/extensions") && "bg-muted"
-                      )}
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#4B1D5B]/40 text-[#A87FC0] shrink-0">
-                        <Puzzle className="w-4 h-4" />
-                      </div>
-                      <span className="group-data-[collapsible=icon]:hidden">
-                        Extensions
-                      </span>
-                      <div className="group-data-[collapsible=icon]:hidden">
-                        <LinkStatus href="/dashboard/extensions" />
-                      </div>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* FOR CLIENTS ONLY - MY REVIEWS SECTION */}
-        {isClient && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <Link href="/dashboard/reviews" className="w-full">
-                    <SidebarMenuButton
-                      className={cn(
-                        "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
-                        isActiveSection("/dashboard/reviews") && "bg-muted"
-                      )}
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#064E3B]/40 text-[#10B981] shrink-0">
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                      <span className="group-data-[collapsible=icon]:hidden">
-                        My Reviews
-                      </span>
-                      <div className="group-data-[collapsible=icon]:hidden">
-                        <LinkStatus href="/dashboard/reviews" />
-                      </div>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* FOR CLIENTS ONLY - PENDING SECTION */}
-        {isClient && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <Link href="/dashboard/pending" className="w-full">
-                    <SidebarMenuButton
-                      className={cn(
-                        "flex items-center w-full group-data-[collapsible=icon]:justify-center ",
-                        isActiveSection("/dashboard/pending") && "bg-muted"
-                      )}
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#783F04]/40 text-[#F59E0B] shrink-0">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <span className="group-data-[collapsible=icon]:hidden">
-                        Pending
-                      </span>
-                      <div className="group-data-[collapsible=icon]:hidden">
-                        <LinkStatus href="/dashboard/pending" />
-                      </div>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {/* EXTENSIONS SECTION */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/dashboard/extensions" className="w-full">
+                  <SidebarMenuButton
+                    className={cn(
+                      "flex items-center w-full group-data-[collapsible=icon]:justify-center",
+                      isActiveSection("/dashboard/extensions") && "bg-muted"
+                    )}
+                  >
+                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#4B1D5B]/40 text-[#A87FC0] shrink-0">
+                      <Puzzle className="w-4 w-4" />
+                    </div>
+                    <span className="group-data-[collapsible=icon]:hidden">
+                      Extensions
+                    </span>
+                    <div className="group-data-[collapsible=icon]:hidden">
+                      <LinkStatus href="/dashboard/extensions" />
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
+
       <SidebarFooter className="border-t mt-auto px-4 py-3 group-data-[collapsible=icon]:hidden">
         {/* Open Beta Badge */}
         <div>

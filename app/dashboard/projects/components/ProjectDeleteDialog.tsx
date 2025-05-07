@@ -11,10 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { deleteProject } from "../../clients/[id]/actions"; // Assumes actions.ts is in the same folder
+import { deleteProject } from "../actions"; // Assumes actions.ts is in the same folder
 import { RevButtons } from "@/components/ui/RevButtons";
 
 interface ProjectDeleteDialogProps {

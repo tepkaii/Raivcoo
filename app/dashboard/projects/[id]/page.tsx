@@ -14,6 +14,7 @@ import {
   ShieldX,
   Hourglass,
   RotateCcw,
+  Lock,
 } from "lucide-react";
 import { Metadata } from "next";
 import TrackManager from "./TrackManager";
@@ -21,7 +22,7 @@ import {
   updateProjectTrackStepStatus,
   updateStepContent,
   updateTrackStructure,
-} from "../actions";
+} from "./actions";
 import { ProjectCommentsSection } from "./ProjectCommentsSection";
 import {
   HoverCard,
@@ -78,10 +79,12 @@ export default async function page({
     redirect("/profile?message=Complete your profile setup");
   }
 
+  // Updated query to get client_name and password_protected directly from projects
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select(
-      `id, title, description, status, deadline, created_at, editor_id, client:clients (id, name)`
+      `id, title, description, status, deadline, created_at, editor_id, 
+       client_name, client_email, password_protected`
     )
     .eq("id", id)
     .single();
@@ -100,7 +103,7 @@ export default async function page({
   const { data: tracks, error: tracksError } = await supabase
     .from("project_tracks")
     .select(
-      `id, project_id, round_number, status, steps, created_at, updated_at, client_decision, final_deliverable_media_type` // <-- ADDED HERE
+      `id, project_id, round_number, status, steps, created_at, updated_at, client_decision, final_deliverable_media_type`
     )
     .eq("project_id", id)
     .order("round_number", { ascending: true });
@@ -145,16 +148,17 @@ export default async function page({
           <Link href="/projects" className="hover:underline flex items-center">
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
           </Link>
-          {project.client && (
-            <>
-              {" • "}
-              <Link
-                href={`/clients/${project.client.id}`}
-                className="hover:underline"
-              >
-                {project.client.name || "Client Details"}
-              </Link>
-            </>
+          {/* Show client name directly from project */}
+          {project.client_name && (
+            <span className="text-sm text-muted-foreground">
+              {" • "} Client: {project.client_name}
+              {project.password_protected && (
+                <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                  <Lock className="h-3 w-3 mr-1" />
+                  Protected
+                </span>
+              )}
+            </span>
           )}
         </div>
         <h1 className="text-2xl font-bold">{project.title}</h1>
@@ -175,16 +179,17 @@ export default async function page({
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
           </Link>
 
-          {project.client && (
-            <>
-              {" • "}
-              <Link
-                href={`/clients/${project.client.id}`}
-                className="hover:underline"
-              >
-                {project.client.name || "Client Details"}
-              </Link>
-            </>
+          {/* Show client name directly from project */}
+          {project.client_name && (
+            <span className="text-sm text-muted-foreground">
+              {" • "} Client: {project.client_name}
+              {project.password_protected && (
+                <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                  <Lock className="h-3 w-3 mr-1" />
+                  Protected
+                </span>
+              )}
+            </span>
           )}
         </div>
         <h1 className="text-2xl font-bold">{project.title}</h1>
@@ -201,7 +206,7 @@ export default async function page({
   }
 
   return (
-    <div className="min-h-screen  py-6 space-y-6 ">
+    <div className="min-h-screen py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <div className="relative w-fit">
@@ -213,7 +218,7 @@ export default async function page({
               <HoverCardTrigger asChild>
                 <div
                   className={cn(
-                    "absolute -top-0 border-2  -right-4 size-3 rounded-full cursor-default",
+                    "absolute -top-0 border-2 -right-4 size-3 rounded-full cursor-default",
                     getStatusDotColor(project.status)
                   )}
                 />
@@ -241,6 +246,22 @@ export default async function page({
         </div>
       </div>
 
+      {/* Display client information */}
+      {project.client_name && (
+        <div className="flex items-center text-sm text-muted-foreground">
+          <span>Client: {project.client_name}</span>
+          {project.password_protected && (
+            <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+              <Lock className="h-3 w-3 mr-1" />
+              Protected
+            </span>
+          )}
+          {project.client_email && (
+            <span className="ml-2">({project.client_email})</span>
+          )}
+        </div>
+      )}
+
       {project.description && (
         <Card className="space-y-3 p-4 border-2 border-dashed">
           <CardTitle className="">Description</CardTitle>
@@ -266,25 +287,6 @@ export default async function page({
             {latestTrack.client_decision !== "pending" && (
               <Card className="mt-6 border-0 bg-transparent mx-0 px-0 py-6">
                 <CardContent className="pt-6 p-0 m-0">
-                  {/* <div
-                    className={`p-3 mb-4 rounded-md text-sm ${latestTrack.client_decision === "approved" ? "bg-[#10B981] " : "bg-[#F43F5E]"}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {latestTrack.client_decision === "approved" ? (
-                        <ThumbsUp className="h-4 w-4" />
-                      ) : (
-                        <MessageSquareWarning className="h-4 w-4" />
-                      )}
-                      <span>
-                        Client{" "}
-                        {latestTrack.client_decision === "approved"
-                          ? "approved"
-                          : "requested revisions for"}{" "}
-                        this round.
-                      </span>
-                    </div>
-                  </div> */}
-
                   {latestTrack.comments && latestTrack.comments.length > 0 && (
                     <div>
                       <p className="text-sm font-medium mb-2">

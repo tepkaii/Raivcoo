@@ -1,5 +1,4 @@
-// app/dashboard/projects/AllProjectsPageClient.tsx
-// @ts-nocheck
+// app/dashboard/projects/components/AllProjectsPageClient.tsx
 
 "use client";
 
@@ -31,6 +30,7 @@ import {
   FolderOpenDot,
   Truck,
   Circle,
+  Lock,
 } from "lucide-react";
 import { ProjectEditDialog } from "./ProjectEditDialog";
 import { ProjectDeleteDialog } from "./ProjectDeleteDialog";
@@ -75,10 +75,9 @@ export interface Project {
   deadline?: string;
   created_at: string;
   updated_at: string;
-  client?: {
-    id: string;
-    name: string;
-  };
+  client_name: string;
+  client_email?: string;
+  password_protected: boolean;
   project_tracks?: ProjectTrack[];
   latestTrack?: ProjectTrack | null;
   latestTrackUpdate?: string | null;
@@ -189,7 +188,7 @@ export default function AllProjectsPageClient({
                         <div className="flex items-center justify-between">
                           <div className="">
                             <div className="flex items-center relative w-fit gap-2">
-                              <h3 className=" text-xl font-bold   text-white">
+                              <h3 className=" text-xl font-bold text-white">
                                 {project.title}
                               </h3>
 
@@ -237,7 +236,7 @@ export default function AllProjectsPageClient({
                                   handleSelect(e);
                                   setEditDialogState({
                                     isOpen: true,
-                                    project,
+                                    project: project,
                                   });
                                 }}
                               >
@@ -274,19 +273,20 @@ export default function AllProjectsPageClient({
                           </DropdownMenu>
                         </div>
 
-                        {/* {project.client && (
-                          <div className="mt-1 mb-2">
-                            <Link
-                              href={`/dashboard/clients/${project.client.id}`}
-                              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5"
-                            >
-                              <span>{project.client.name}</span>
-                              <ChevronRight className="h-3 w-3" />
-                            </Link>
-                          </div>
-                        )} */}
+                        {/* Display client name and password protection status */}
+                        <div className="mt-1 mb-2">
+                          <span className="text-sm text-muted-foreground">
+                            Client: {project.client_name}
+                            {project.password_protected && (
+                              <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                                <Lock className="h-3 w-3 mr-1" />
+                                Protected
+                              </span>
+                            )}
+                          </span>
+                        </div>
 
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2  min-h-[2.5rem]">
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2 min-h-[2.5rem]">
                           {project.description || (
                             <span className="italic">
                               No description provided
@@ -301,7 +301,7 @@ export default function AllProjectsPageClient({
                               <div className="flex w-full justify-between items-center gap-2">
                                 <span className="text-sm font-medium">
                                   {newRound ? (
-                                    <div className=" flex items-center gap-1">
+                                    <div className="flex items-center gap-1">
                                       <span className="text-muted-foreground text-sm">
                                         {
                                           project.latestTrack.steps.filter(

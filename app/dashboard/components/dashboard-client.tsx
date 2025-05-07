@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Clock,
-  Users,
   Film,
   Calendar,
   CheckCircle2,
@@ -22,11 +21,11 @@ import {
   FolderOpenDot,
   History,
   BarChart,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import {
   HoverCard,
@@ -34,7 +33,6 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import {
-  Client,
   formatFullDate,
   formatStatus,
   getStatusDescription,
@@ -43,19 +41,13 @@ import {
   ProjectTrack,
   Stats,
 } from "./libs";
-import {
-  ClientCardSkeleton,
-  ProjectCardSkeleton,
-  StatCardSkeleton,
-} from "./dashboard-loading";
+import { ProjectCardSkeleton, StatCardSkeleton } from "./dashboard-loading";
 
 export function DashboardClient({
   recentProjects,
-  recentClients,
   stats,
 }: {
   recentProjects: Project[];
-  recentClients: Client[];
   stats: Stats;
 }) {
   const [showAllTimeStats, setShowAllTimeStats] = useState(false);
@@ -105,11 +97,6 @@ export function DashboardClient({
         {/* Recent Projects Section - with Suspense */}
         <Suspense fallback={<RecentProjectsSkeleton />}>
           <RecentProjectsSection recentProjects={recentProjects} />
-        </Suspense>
-
-        {/* Recent Clients Section - with Suspense */}
-        <Suspense fallback={<RecentClientsSkeleton />}>
-          <RecentClientsSection recentClients={recentClients} />
         </Suspense>
 
         {/* Analytics Section - with Suspense */}
@@ -216,6 +203,19 @@ function RecentProjectsSection({
                 </Link>
               </div>
 
+              {/* Client Info */}
+              {mostRecentProject.client_name && (
+                <div className="text-sm text-muted-foreground flex items-center">
+                  Client: {mostRecentProject.client_name}
+                  {mostRecentProject.password_protected && (
+                    <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Protected
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Project Progress */}
               {mostRecentProject.latestTrack && (
                 <div className="space-y-2">
@@ -293,42 +293,49 @@ function RecentProjectsSection({
                     key={project.id}
                     className="flex items-center justify-between px-3 py-3 border-2 border-dashed hover:bg-muted/50 rounded-lg transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="relative w-fit">
-                          <h3 className="text-xl font-semibold text-white">
-                            {project.title}
-                          </h3>
-                          <HoverCard openDelay={0} closeDelay={0}>
-                            <HoverCardTrigger asChild>
-                              <div
-                                className={cn(
-                                  "absolute -top-0 border-2 -right-4 size-3 rounded-full cursor-default",
-                                  getStatusDotColor(project.status)
-                                )}
-                              />
-                            </HoverCardTrigger>
-                            <HoverCardContent
-                              side="top"
-                              className="text-sm max-w-xs"
-                            >
-                              <p className="font-medium">
-                                {formatStatus(project.status)}
-                              </p>
-                              <p className="text-muted-foreground text-xs mt-1">
-                                {getStatusDescription(project.status)}
-                              </p>
-                            </HoverCardContent>
-                          </HoverCard>
-                        </div>
-                        {project.latestTrack && (
-                          <div className="flex items-center mt-2 gap-2 text-sm">
-                            <span className="text-muted-foreground">
-                              Round {project.latestTrack.round_number}
-                            </span>
-                          </div>
-                        )}
+                    <div className="flex-1">
+                      <div className="relative w-fit">
+                        <h3 className="font-semibold">{project.title}</h3>
+                        <HoverCard openDelay={0} closeDelay={0}>
+                          <HoverCardTrigger asChild>
+                            <div
+                              className={cn(
+                                "absolute -top-0 border-2 -right-4 size-3 rounded-full cursor-default",
+                                getStatusDotColor(project.status)
+                              )}
+                            />
+                          </HoverCardTrigger>
+                          <HoverCardContent
+                            side="top"
+                            className="text-sm max-w-xs"
+                          >
+                            <p className="font-medium">
+                              {formatStatus(project.status)}
+                            </p>
+                            <p className="text-muted-foreground text-xs mt-1">
+                              {getStatusDescription(project.status)}
+                            </p>
+                          </HoverCardContent>
+                        </HoverCard>
                       </div>
+                      {project.client_name && (
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Client: {project.client_name}
+                          {project.password_protected && (
+                            <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                              <Lock className="h-3 w-3 mr-1" />
+                              Protected
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {project.latestTrack && (
+                        <div className="flex items-center mt-1 gap-2 text-sm">
+                          <span className="text-muted-foreground">
+                            Round {project.latestTrack.round_number}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <Link href={`/dashboard/projects/${project.id}`}>
                       <RevButtons
@@ -365,69 +372,6 @@ function RecentProjectsSection({
   );
 }
 
-// Recent Clients Section Component
-function RecentClientsSection({ recentClients }: { recentClients: Client[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Recent Clients
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {recentClients.length > 0 ? (
-          <div className="space-y-4">
-            {recentClients.map((client) => (
-              <div
-                key={client.id}
-                className="flex items-center gap-4 justify-between px-3 py-3 border-2 border-dashed hover:bg-muted/50 rounded-lg transition-colors"
-              >
-                <Avatar>
-                  <AvatarImage
-                    src={`https://avatar.vercel.sh/${client.id}.png`}
-                  />
-                  <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium truncate">{client.name}</h4>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {client.company || "No company specified"}
-                  </p>
-                </div>
-                <Link href={`/dashboard/clients/${client.id}`}>
-                  <RevButtons
-                    variant="outline"
-                    size="icon"
-                    className="text-muted-foreground"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </RevButtons>
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-8 space-y-2">
-            <Users className="h-8 w-8 text-muted-foreground" />
-            <p className="text-muted-foreground">No clients yet</p>
-            <Link href="/dashboard/clients/new">
-              <RevButtons variant="outline">Add Client</RevButtons>
-            </Link>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="border-t pt-4">
-        <Link href="/dashboard/clients" className="w-full">
-          <RevButtons variant="outline" className="w-full">
-            View All Clients
-          </RevButtons>
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-}
-
 // Analytics Section Component
 function AnalyticsSection({ stats }: { stats: Stats }) {
   return (
@@ -447,7 +391,6 @@ function AnalyticsSection({ stats }: { stats: Stats }) {
             Average project duration:{" "}
             {stats.monthly.completedProjects > 0 ? "7 days" : "N/A"}
           </p>
-          <p>New clients this month: {stats.monthly.newClients}</p>
         </div>
       </CardContent>
     </Card>
@@ -476,29 +419,6 @@ function RecentProjectsSkeleton() {
       </CardHeader>
       <CardContent className="space-y-6">
         <ProjectCardSkeleton isMain={true} />
-      </CardContent>
-      <CardFooter className="border-t pt-4">
-        <div className="h-10 w-full bg-muted animate-pulse rounded" />
-      </CardFooter>
-    </Card>
-  );
-}
-
-function RecentClientsSkeleton() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Recent Clients
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <ClientCardSkeleton key={i} />
-          ))}
-        </div>
       </CardContent>
       <CardFooter className="border-t pt-4">
         <div className="h-10 w-full bg-muted animate-pulse rounded" />

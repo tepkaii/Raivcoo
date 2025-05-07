@@ -30,6 +30,7 @@ interface ProjectTrack {
   updated_at: string;
 }
 
+// Updated Project interface with client fields directly in project
 interface Project {
   id: string;
   title: string;
@@ -38,14 +39,14 @@ interface Project {
   deadline?: string;
   created_at: string;
   updated_at: string;
-  client?: {
-    id: string;
-    name: string;
-  };
+  client_name: string;
+  client_email?: string;
+  password_protected: boolean;
   project_tracks?: ProjectTrack[];
   latestTrack?: ProjectTrack | null;
   latestTrackUpdate?: string | null;
 }
+
 // --- Metadata ---
 export const metadata: Metadata = {
   title: "All Projects | Raivcoo",
@@ -79,14 +80,15 @@ export default async function Page() {
       .select(
         `
         id, 
-        title, 
-        description, 
-        status, 
-        deadline, 
-        created_at, 
+        title,
+        description,
+        status,
+        deadline,
+        created_at,
         updated_at,
-        client_id,
-        client:clients(id, name),
+        client_name,
+        client_email,
+        password_protected,
         project_tracks(
           id, 
           round_number, 

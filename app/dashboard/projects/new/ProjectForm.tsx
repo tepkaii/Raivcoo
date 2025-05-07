@@ -1,5 +1,4 @@
 // app/projects/ProjectForm.tsx
-// @ts-nocheck
 "use client";
 
 import React, { useRef, useState } from "react";
@@ -15,42 +14,28 @@ import {
   Image as ImageIcon,
   XCircle,
   GripVertical,
+  Lock,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const MAX_IMAGES_PER_COMMENT = 4;
 const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
 
-interface Client {
-  id: string;
-  name: string;
-}
-
 interface ProjectFormProps {
-  clients: Client[];
   createProject: (
     formData: FormData
   ) => Promise<{ message: string; project: any }>;
 }
 
-export default function ProjectForm({
-  clients,
-  createProject,
-}: ProjectFormProps) {
+export default function ProjectForm({ createProject }: ProjectFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<string>("");
   const [comments, setComments] = useState<{ text: string; images?: File[] }[]>(
     [{ text: "" }]
   );
+  const [isPasswordProtected, setIsPasswordProtected] = useState(false);
   const router = useRouter();
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -115,14 +100,6 @@ export default function ProjectForm({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedClient) {
-      toast({
-        title: "Error",
-        description: "Select a client",
-        variant: "destructive",
-      });
-      return;
-    }
 
     const validComments = comments.filter(
       (c) => c.text.trim() !== "" || (c.images && c.images.length > 0)
@@ -138,9 +115,21 @@ export default function ProjectForm({
 
     setIsLoading(true);
     const formData = new FormData();
-    formData.set("client_id", selectedClient);
+
+    // Project details
     formData.set("title", e.currentTarget.title.value);
     formData.set("description", e.currentTarget.description.value);
+
+    // Client details directly in projects table
+    formData.set("client_name", e.currentTarget.client_name.value);
+    formData.set("client_email", e.currentTarget.client_email.value);
+
+    // Password protection
+    formData.set("password_protected", isPasswordProtected.toString());
+    if (isPasswordProtected) {
+      formData.set("access_password", e.currentTarget.access_password.value);
+    }
+
     if (e.currentTarget.deadline.value) {
       formData.set("deadline", e.currentTarget.deadline.value);
     }
@@ -190,26 +179,6 @@ export default function ProjectForm({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <div>
-              <Label>Client</Label>
-              <Select
-                value={selectedClient}
-                onValueChange={setSelectedClient}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
               <Label>Project Title</Label>
               <Input name="title" placeholder="Project title" required />
             </div>
@@ -221,6 +190,53 @@ export default function ProjectForm({
                 placeholder="Project description"
                 rows={3}
               />
+            </div>
+
+            {/* Client Information Section */}
+            <div className="border p-4 rounded-md space-y-3">
+              <h3 className="text-lg font-medium">Client Information</h3>
+
+              <div>
+                <Label>Client Name</Label>
+                <Input name="client_name" placeholder="Client name" required />
+              </div>
+
+              <div>
+                <Label>Client Email (Optional)</Label>
+                <Input
+                  name="client_email"
+                  type="email"
+                  placeholder="client@example.com"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox
+                  id="password-protection"
+                  checked={isPasswordProtected}
+                  onCheckedChange={(checked) =>
+                    setIsPasswordProtected(checked === true)
+                  }
+                />
+                <label
+                  htmlFor="password-protection"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Password Protect Project
+                </label>
+              </div>
+
+              {isPasswordProtected && (
+                <div className="pt-2">
+                  <Label>Access Password</Label>
+                  <Input
+                    name="access_password"
+                    type="password"
+                    placeholder="Set access password"
+                    required={isPasswordProtected}
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -260,7 +276,7 @@ export default function ProjectForm({
                                 </div>
                               </div>
 
-                              <div className=" rounded-lg p-4 space-y-3 border-[2px] bg-background border-dashed pl-12">
+                              <div className="rounded-lg p-4 space-y-3 border-[2px] bg-background border-dashed pl-12">
                                 <div className="flex justify-between items-start gap-2">
                                   <Textarea
                                     value={comment.text}

@@ -26,19 +26,22 @@ export default async function AccountPage() {
     redirect("/login");
   }
 
-  // Check if user has password auth
-  const hasPasswordAuth = user.identities?.some(
-    (identity) =>
-      identity.provider === "email" &&
-      identity.identity_data?.email === user.email
-  );
-
   const { data: Account } = await supabase
     .from("editor_profiles")
     .select("*")
     .eq("user_id", user.id)
     .single();
 
+  // Check if user has password auth
+  const hasPasswordAuthFromIdentities = user.identities?.some(
+    (identity) =>
+      identity.provider === "email" &&
+      identity.identity_data?.email === user.email
+  );
+
+  // User has a password if either source indicates it
+  const hasPasswordAuth =
+    Account?.has_password || hasPasswordAuthFromIdentities;
   return (
     <div className=" min-h-screen  flex flex-col ">
       <header className="border-b px-4 py-2">

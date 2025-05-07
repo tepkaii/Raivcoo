@@ -23,19 +23,29 @@ export default async function SetPasswordPage() {
     redirect("/login?message=You+must+be+logged+in+to+set+a+password");
   }
 
-  // Check if user has password auth
+  // Get the editor profile to check has_password flag
+  const { data: editorProfile, error: profileError } = await supabase
+    .from("editor_profiles")
+    .select("has_password")
+    .eq("user_id", user.id)
+    .single();
+
+  // Also check if user has password auth (as fallback)
   const hasPasswordAuth = user.identities?.some(
     (identity) =>
       identity.provider === "email" &&
       identity.identity_data?.email === user.email
   );
 
+  // User has a password if either the profile flag is true or the auth provider indicates it
+  const userHasPassword = editorProfile?.has_password || hasPasswordAuth;
+
   // Get user's email
   const userEmail = user.email || "";
 
   return (
     <SetPasswordForm
-      initialHasPassword={!!hasPasswordAuth}
+      initialHasPassword={!!userHasPassword}
       userEmail={userEmail}
       userId={user.id}
     />

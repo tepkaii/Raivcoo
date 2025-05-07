@@ -1,18 +1,10 @@
-// app/review/[trackId]/ReviewPage.tsx - Complete file
+// app/review/[trackId]/ReviewPage.tsx
 "use client";
 
 import React, { useState, useTransition, useEffect, useCallback } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { toast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Loader2,
@@ -28,8 +19,6 @@ import {
   Edit,
   ThumbsUp,
   ShieldAlert,
-  Info,
-  Clock,
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -55,16 +44,7 @@ interface Comment {
   isOwnComment?: boolean;
 }
 
-interface ClientInfo {
-  name: string;
-  company?: string | null;
-  email?: string | null;
-  phone?: string | null;
-}
-
 interface ReviewPageProps {
-  clientDisplayName: string | null;
-  clientInfo?: ClientInfo;
   track: {
     id: string;
     projectId: string;
@@ -84,6 +64,8 @@ interface ReviewPageProps {
     formData: FormData
   ) => Promise<{ message: string; comment: Comment }>;
   deleteCommentAction: (commentId: string) => Promise<{ message: string }>;
+  isAuthenticated?: boolean;
+  userId?: string | null;
 }
 
 // --- Helpers ---
@@ -113,8 +95,6 @@ const ACCEPTED_IMAGE_TYPES_STRING = "image/jpeg,image/png,image/webp";
 
 // --- Component ---
 export default function ReviewPage({
-  clientDisplayName,
-  clientInfo,
   track,
   project,
   deliverableLink,
@@ -125,6 +105,8 @@ export default function ReviewPage({
   requestRevisionsAction,
   updateCommentAction,
   deleteCommentAction,
+  isAuthenticated = false,
+  userId = null,
 }: ReviewPageProps) {
   const router = useRouter();
   const [isAddPending, startAddTransition] = useTransition();
@@ -134,6 +116,7 @@ export default function ReviewPage({
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [currentTime, setCurrentTime] = useState(0);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [commenterName, setCommenterName] = useState<string>("");
 
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editedCommentText, setEditedCommentText] = useState<string>("");
@@ -160,7 +143,32 @@ export default function ReviewPage({
   useEffect(() => {
     setComments(initialComments);
   }, [initialComments]);
+  const [ownCommentIds, setOwnCommentIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      try {
+        const savedIds = localStorage.getItem("ownCommentIds");
+        if (savedIds) {
+          setOwnCommentIds(JSON.parse(savedIds));
+        }
+      } catch (e) {
+        console.error("Failed to parse saved comment IDs", e);
+      }
+    }
+  }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      try {
+        const savedIds = localStorage.getItem("ownCommentIds");
+        if (savedIds) {
+          setOwnCommentIds(JSON.parse(savedIds));
+        }
+      } catch (e) {
+        console.error("Failed to parse saved comment IDs", e);
+      }
+    }
+  }, [isAuthenticated]);
   useEffect(() => {
     const previews = editingNewImageFiles.map((file) =>
       URL.createObjectURL(file)
@@ -168,56 +176,6 @@ export default function ReviewPage({
     setEditingNewImagePreviews(previews);
     return () => previews.forEach(URL.revokeObjectURL);
   }, [editingNewImageFiles]);
-
-  const handleAIInputSubmit = useCallback(
-    (value: string) => {
-      if (
-        editingCommentId ||
-        isAnyActionPending ||
-        isDecisionMade ||
-        !value.trim()
-      )
-        return;
-
-      const { processedText, links } = detectAndExtractLinks(value);
-      const formData = new FormData();
-      formData.append("trackId", track.id);
-      formData.append("timestamp", currentTime.toString());
-      formData.append("commentText", processedText.trim());
-      if (links.length > 0) {
-        formData.append("links", JSON.stringify(links));
-      }
-
-      // Add any files that were selected
-      imageFiles.forEach((file) => {
-        formData.append("images", file);
-      });
-
-      startAddTransition(async () => {
-        try {
-          const result = await addCommentAction(formData);
-          setComments((prev) => [...prev, result.comment]);
-          setImageFiles([]); // Clear files after submission
-          toast({ title: "Success", variant: "success" });
-        } catch (error: any) {
-          toast({
-            title: "Error Adding",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-      });
-    },
-    [
-      track.id,
-      currentTime,
-      imageFiles,
-      addCommentAction,
-      isAnyActionPending,
-      isDecisionMade,
-      editingCommentId,
-    ]
-  );
 
   const handleFileSelect = useCallback(
     (file: File) => {
@@ -249,7 +207,15 @@ export default function ReviewPage({
   const handleEditComment = useCallback(
     (commentId: string) => {
       if (isDecisionMade || isAnyActionPending) return;
+
+      // Find the comment to edit
       const commentToEdit = comments.find((c) => c.id === commentId);
+
+      // Check if it's the user's own comment
+      if (!commentToEdit || !commentToEdit.isOwnComment) {
+        return; // Don't allow editing of comments that aren't the user's own
+      }
+
       if (commentToEdit) {
         const plainText = commentToEdit.comment.text || "";
         const links = commentToEdit.comment.links || [];
@@ -333,6 +299,18 @@ export default function ReviewPage({
 
   const handleSaveEdit = useCallback(async () => {
     if (!editingCommentId || isAnyActionPending || isDecisionMade) return;
+
+    // Verify this is the user's own comment
+    const commentToEdit = comments.find((c) => c.id === editingCommentId);
+    if (!commentToEdit || !commentToEdit.isOwnComment) {
+      toast({
+        title: "Cannot Edit",
+        description: "You can only edit your own comments",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const totalImages =
       editingExistingImageUrls.length + editingNewImageFiles.length;
     if (!editedCommentText.trim() && totalImages === 0) {
@@ -348,6 +326,11 @@ export default function ReviewPage({
     formData.append("commentId", editingCommentId);
     formData.append("newCommentText", editedCommentText);
     formData.append("existingImages", JSON.stringify(editingExistingImageUrls));
+    formData.append(
+      "commenterName",
+      commenterName.trim() || commentToEdit.commenter_display_name
+    );
+
     editingNewImageFiles.forEach((file) => {
       formData.append("newImages", file);
     });
@@ -381,28 +364,162 @@ export default function ReviewPage({
     isAnyActionPending,
     isDecisionMade,
     handleCancelEdit,
+    comments,
+    commenterName,
   ]);
+  const handleAIInputSubmit = useCallback(
+    (value: string) => {
+      if (
+        editingCommentId ||
+        isAnyActionPending ||
+        isDecisionMade ||
+        !value.trim()
+      )
+        return;
 
+      const { processedText, links } = detectAndExtractLinks(value);
+      const formData = new FormData();
+      formData.append("trackId", track.id);
+      formData.append("timestamp", currentTime.toString());
+      formData.append("commentText", processedText.trim());
+
+      // Add commenter name
+      formData.append(
+        "commenterName",
+        commenterName.trim() || "Anonymous Visitor"
+      );
+
+      if (links.length > 0) {
+        formData.append("links", JSON.stringify(links));
+      }
+
+      // Add any files that were selected
+      imageFiles.forEach((file) => {
+        formData.append("images", file);
+      });
+
+      startAddTransition(async () => {
+        try {
+          const result = await addCommentAction(formData);
+
+          // For anonymous users, save the comment ID in localStorage
+          if (!isAuthenticated) {
+            // Get existing comment IDs or initialize empty array
+            let storedIds: string[] = [];
+            try {
+              const existingData = localStorage.getItem("ownCommentIds");
+              storedIds = existingData ? JSON.parse(existingData) : [];
+            } catch (e) {
+              console.error("Error reading from localStorage:", e);
+            }
+
+            // Add new comment ID and save back to localStorage
+            const updatedIds = [...storedIds, result.comment.id];
+            localStorage.setItem("ownCommentIds", JSON.stringify(updatedIds));
+
+            // Update state
+            setOwnCommentIds(updatedIds);
+          }
+
+          // Add the comment to the state with isOwnComment flag set to true
+          setComments((prev) => [
+            ...prev,
+            { ...result.comment, isOwnComment: true },
+          ]);
+
+          // Clear image files after submission
+          setImageFiles([]);
+
+          toast({ title: "Comment added", variant: "success" });
+        } catch (error: any) {
+          toast({
+            title: "Error Adding Comment",
+            description: error.message || "Failed to add comment",
+            variant: "destructive",
+          });
+        }
+      });
+    },
+    [
+      track.id,
+      currentTime,
+      imageFiles,
+      addCommentAction,
+      isAnyActionPending,
+      isDecisionMade,
+      editingCommentId,
+      commenterName,
+      isAuthenticated,
+      ownCommentIds,
+    ]
+  );
   const handleDeleteComment = useCallback(
     async (commentId: string) => {
       if (isAnyActionPending || isDecisionMade) return;
 
+      // Verify this is the user's own comment
+      let isOwnComment = false;
+
+      if (isAuthenticated) {
+        // For authenticated users, check the comment metadata
+        const commentToDelete = comments.find((c) => c.id === commentId);
+        isOwnComment = !!commentToDelete?.isOwnComment;
+      } else {
+        // For anonymous users, check localStorage
+        try {
+          const storedIds = localStorage.getItem("ownCommentIds");
+          const ownIds = storedIds ? JSON.parse(storedIds) : [];
+          isOwnComment = ownIds.includes(commentId);
+        } catch (e) {
+          console.error("Error reading from localStorage:", e);
+        }
+      }
+
+      if (!isOwnComment) {
+        toast({
+          title: "Cannot Delete",
+          description: "You can only delete your own comments",
+          variant: "destructive",
+        });
+        return;
+      }
+
       startEditDeleteTransition(async () => {
         try {
           const result = await deleteCommentAction(commentId);
+
+          // For anonymous users, update localStorage
+          if (!isAuthenticated) {
+            try {
+              const storedIds = localStorage.getItem("ownCommentIds");
+              const ownIds = storedIds ? JSON.parse(storedIds) : [];
+              const updatedIds = ownIds.filter(
+                (id: string) => id !== commentId
+              );
+              localStorage.setItem("ownCommentIds", JSON.stringify(updatedIds));
+              setOwnCommentIds(updatedIds);
+            } catch (e) {
+              console.error("Error updating localStorage:", e);
+            }
+          }
+
+          // Remove the comment from the state
           setComments((prev) => prev.filter((c) => c.id !== commentId));
+
+          // If we're editing this comment, cancel the edit
           if (editingCommentId === commentId) {
             handleCancelEdit();
           }
+
           toast({
-            title: "Success",
-            description: result.message,
+            title: "Comment deleted",
+            description: result.message || "Comment successfully deleted",
             variant: "success",
           });
         } catch (error: any) {
           toast({
             title: "Error Deleting",
-            description: error.message,
+            description: error.message || "Failed to delete comment",
             variant: "destructive",
           });
         }
@@ -414,6 +531,8 @@ export default function ReviewPage({
       isDecisionMade,
       editingCommentId,
       handleCancelEdit,
+      comments,
+      isAuthenticated,
     ]
   );
 
@@ -459,6 +578,7 @@ export default function ReviewPage({
   const handleTimeChange = useCallback((newTime: number) => {
     setCurrentTime(newTime);
   }, []);
+
   return (
     <div
       className={cn(
@@ -478,7 +598,7 @@ export default function ReviewPage({
                   Round / Version {track.roundNumber}
                 </p>
                 <Link
-                  href={`/review/${track.id}/history`} // This is correct - keep using track.id
+                  href={`/review/${track.id}/history`}
                   className="text-xs text-primary hover:underline"
                 >
                   View History
@@ -535,13 +655,32 @@ export default function ReviewPage({
               </div>
               <p className="text-sm opacity-90 mt-1 pl-7">
                 {track.clientDecision === "approved"
-                  ? "You have approved this round. No further action is needed on this review page."
-                  : "The editor has been notified about your revision request."}
+                  ? "This project has been approved. No further action is needed."
+                  : "The editor has been notified about the revision request."}
               </p>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Anonymous commenter name input */}
+      {!isAuthenticated && !isDecisionMade && !editingCommentId && (
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Your Name (Optional)"
+              value={commenterName}
+              onChange={(e) => setCommenterName(e.target.value)}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isAnyActionPending}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Leave your name so others know who left the comment
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Comments Section */}
       {comments.length > 0 ? (
@@ -597,7 +736,7 @@ export default function ReviewPage({
               isVideoFile={isVideoPlayerNeededByType}
               formatTime={formatTime}
               maxImages={MAX_IMAGES_PER_COMMENT}
-              onTimeChange={handleTimeChange} // Add this prop
+              onTimeChange={handleTimeChange}
               // Decision button props
               showDecisionButton={true}
               onRequestRevisions={handleOpenDecisionDialog}

@@ -1,5 +1,5 @@
 // app/dashboard/layout.tsx
-// @ts-nocheck
+
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./components/app-sidebar";
 import { redirect } from "next/navigation";
@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/server";
 import { EditorProfile } from "../types/editorProfile";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { Film, Users, MessageSquare } from "lucide-react";
+import { Film } from "lucide-react";
 
 export default async function DashboardLayout({
   children,
@@ -23,11 +23,12 @@ export default async function DashboardLayout({
   if (!user) {
     redirect("/login");
   }
+
   const { data: versionData, error } = await supabase
     .from("version_log")
     .select("platform, version")
     .in("platform", ["web", "extension"])
-    .order("created_at", { ascending: false }); // optional but good for tracking
+    .order("created_at", { ascending: false });
 
   // Fetch the existing portfolio data
   const { data: existingPortfolio, error: fetchError } = await supabase
@@ -40,6 +41,7 @@ export default async function DashboardLayout({
     console.error("Error fetching portfolio:", fetchError);
     throw fetchError;
   }
+
   // Redirect to complete-profile if user is logged in but has no display name
   if (
     existingPortfolio &&
@@ -48,19 +50,25 @@ export default async function DashboardLayout({
   ) {
     redirect("/complete-profile");
   }
+
   // Check if user has password auth
-  const hasPasswordAuth = user.identities?.some(
+  const hasPasswordAuthFromIdentities = user.identities?.some(
     (identity) =>
       identity.provider === "email" &&
       identity.identity_data?.email === user.email
   );
+
+  // User has a password if either source indicates it
+  const hasPasswordAuth =
+    existingPortfolio?.has_password || hasPasswordAuthFromIdentities;
+
   const portfolio = existingPortfolio as EditorProfile;
-  const isClient = portfolio.account_type === "client";
   const webVersion =
     versionData?.find((v) => v.platform === "web")?.version || "1.0.0";
 
   const extensionVersion =
     versionData?.find((v) => v.platform === "extension")?.version || "1.0.0";
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -76,31 +84,13 @@ export default async function DashboardLayout({
               <SidebarTrigger />
             </span>
             <div className="flex gap-2">
-              {!isClient ? (
-                // Editor buttons
-                <>
-                  <Link href="/dashboard/projects/new">
-                    <RevButtons size={"sm"} variant={"success"}>
-                      <Film className="mr-2 h-4 w-4" />
-                      New Project
-                    </RevButtons>
-                  </Link>
-                  <Link href="/dashboard/clients/new">
-                    <RevButtons size={"sm"} variant="outline">
-                      <Users className="mr-2 h-4 w-4" />
-                      Add Client
-                    </RevButtons>
-                  </Link>
-                </>
-              ) : (
-                // Client buttons
-                <Link href="/support">
-                  <RevButtons size={"sm"} variant="outline">
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Contact Support
-                  </RevButtons>
-                </Link>
-              )}
+              {/* Only need the New Project button now */}
+              <Link href="/dashboard/projects/new">
+                <RevButtons size={"sm"} variant={"success"}>
+                  <Film className="mr-2 h-4 w-4" />
+                  New Project
+                </RevButtons>
+              </Link>
             </div>
           </header>
           <div className="px-4 bg-background">{children}</div>
