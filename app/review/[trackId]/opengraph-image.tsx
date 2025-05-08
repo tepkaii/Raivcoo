@@ -20,13 +20,13 @@ export default async function Image({
 
   const { data: trackData } = await supabase
     .from("project_tracks")
-    .select(`steps, project:projects!inner(title, client:clients!inner(name))`)
+    .select(`steps, project:projects!inner(title, client_name)`)
     .eq("id", trackId)
     .maybeSingle();
 
   const project = trackData?.project;
   const projectTitle = project?.title || "Project Title";
-  const clientName = project?.client?.name || "Client";
+  const clientName = project?.client_name || "Client";
 
   const steps = Array.isArray(trackData?.steps) ? trackData.steps : [];
   const finalStep = steps.find((step: any) => step?.is_final);

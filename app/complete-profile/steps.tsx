@@ -199,30 +199,6 @@ export default function StepByStepProfileForm({
           </div>
         </div>
 
-        {/* Account Type Selection */}
-        <div>
-          <Label htmlFor="account_type">Account Type</Label>
-          <Select
-            name="account_type"
-            value={accountType}
-            onValueChange={(value) =>
-              setAccountType(value as "editor" | "client")
-            }
-          >
-            <SelectTrigger className="mt-2">
-              <SelectValue placeholder="Select account type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="client">Client</SelectItem>
-              <SelectItem value="editor">Editor</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-muted-foreground mt-2">
-            {accountType === "client"
-              ? "Clients review and approve content submitted by editors"
-              : "Editors submit content to clients for review and feedback"}
-          </p>
-        </div>
 
         {/* Submit Button */}
         <RevButtons

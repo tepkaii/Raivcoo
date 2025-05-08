@@ -97,18 +97,14 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
 
   return (
     <Card className="border-0 p-0 m-0">
-      <CardHeader className="p-0 m-0">
-        <CardTitle className="mb-2">
-          Feedback Comments ({comments.length})
-        </CardTitle>
-      </CardHeader>
+      <CardHeader className="p-0 m-0"></CardHeader>
       <CardContent className="p-0 m-0">
         {comments.length === 0 ? (
           <p className="text-center text-muted-foreground py-6">
             No feedback comments yet.
           </p>
         ) : (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-3 -mr-3">
+          <div className="space-y-4 max-h-[60vh]  pr-3 -mr-3">
             {comments.map((comment) => {
               const canModify = comment.isOwnComment && !isDecisionMade;
               const isCurrentlyEditing = isEditingThisComment(comment.id);

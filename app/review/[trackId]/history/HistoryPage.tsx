@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Clock,
   ArrowLeft,
-  FileText,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -50,13 +49,9 @@ interface Project {
   id: string;
   title: string;
   editor_id: string;
-  client: {
-    id: string;
-    name: string;
-    email: string;
-    company: string | null;
-    phone: string | null;
-  };
+  client_name: string;
+  client_email: string;
+  password_protected: boolean;
 }
 
 interface CurrentTrack extends Track {
@@ -121,7 +116,7 @@ export default function HistoryPage({
   const selectedComments = commentsByTrack[selectedTrackId] || [];
 
   return (
-    <div className="container max-w-5xl mx-auto py-6 px-4">
+    <div className="xl:container  mx-auto py-6 px-4">
       <div className="flex items-center mb-6">
         <Link href={`/review/${currentTrack.id}`} className="mr-4">
           <RevButtons variant="outline" size="sm">
@@ -145,17 +140,16 @@ export default function HistoryPage({
             </CardHeader>
             <CardContent className="space-y-3">
               {allTracks.map((track) => (
-                <div className="space-y-2">
+                <div key={track.id} className="space-y-2">
                   <div className="flex justify-between">
                     <span>{""}</span>
                     {getStatusBadge(track.client_decision)}
                   </div>
                   <button
-                    key={track.id}
                     onClick={() => setSelectedTrackId(track.id)}
                     className={`w-full text-left p-3 border-2 border-dashed rounded-lg transition-colors ${
                       selectedTrackId === track.id
-                        ? "bg-primary/10  border-primary/30"
+                        ? "bg-primary/10 border-primary/30"
                         : "hover:bg-muted"
                     }`}
                   >
@@ -180,7 +174,7 @@ export default function HistoryPage({
 
         {/* Track details */}
         <div className="md:col-span-3">
-          <Card>
+          <Card className="overflow-y-scroll">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>

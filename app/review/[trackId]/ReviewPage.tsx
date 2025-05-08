@@ -143,19 +143,8 @@ export default function ReviewPage({
   useEffect(() => {
     setComments(initialComments);
   }, [initialComments]);
+
   const [ownCommentIds, setOwnCommentIds] = useState<string[]>([]);
-  useEffect(() => {
-    if (!isAuthenticated) {
-      try {
-        const savedIds = localStorage.getItem("ownCommentIds");
-        if (savedIds) {
-          setOwnCommentIds(JSON.parse(savedIds));
-        }
-      } catch (e) {
-        console.error("Failed to parse saved comment IDs", e);
-      }
-    }
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -169,6 +158,7 @@ export default function ReviewPage({
       }
     }
   }, [isAuthenticated]);
+
   useEffect(() => {
     const previews = editingNewImageFiles.map((file) =>
       URL.createObjectURL(file)
@@ -367,6 +357,7 @@ export default function ReviewPage({
     comments,
     commenterName,
   ]);
+
   const handleAIInputSubmit = useCallback(
     (value: string) => {
       if (
@@ -450,9 +441,9 @@ export default function ReviewPage({
       editingCommentId,
       commenterName,
       isAuthenticated,
-      ownCommentIds,
     ]
   );
+
   const handleDeleteComment = useCallback(
     async (commentId: string) => {
       if (isAnyActionPending || isDecisionMade) return;
@@ -575,18 +566,37 @@ export default function ReviewPage({
 
   const canInteractWithAddForm =
     !isAnyActionPending && !isDecisionMade && !editingCommentId;
+
   const handleTimeChange = useCallback((newTime: number) => {
     setCurrentTime(newTime);
   }, []);
 
+  // Anonymous commenter name input component
+  const CommenterNameInput = () =>
+    !isAuthenticated &&
+    !isDecisionMade &&
+    !editingCommentId && (
+      <div className="flex items-center space-x-4 mb-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Your Name (Optional)"
+            value={commenterName}
+            onChange={(e) => setCommenterName(e.target.value)}
+            className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isAnyActionPending}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Leave your name so others know who left the comment
+          </p>
+        </div>
+      </div>
+    );
+
   return (
-    <div
-      className={cn(
-        "space-y-6 w-full min-h-screen max-w-5xl px-2 pb-20",
-        comments.length > 0 && "mb-28"
-      )}
-    >
-      <Card className="border-2 border-dashed">
+    <div className="w-full min-h-screen  mx-auto px-4 sm:px-6 pb-24">
+      {/* Project Info Header */}
+      <Card className="border-2 border-dashed mb-6">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between flex-wrap gap-y-2">
             <div>
@@ -624,130 +634,169 @@ export default function ReviewPage({
         </CardHeader>
       </Card>
 
-      <Card className="border-0 p-0 m-0">
-        <CardContent className="p-0 m-0 space-y-5">
+      {/* Main layout grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left column - Media + Input */}
+        <div className="space-y-4">
           {/* Media Container */}
-          <MediaContainer
-            deliverableLink={deliverableLink}
-            deliverableMediaType={deliverableMediaType}
-            projectTitle={project.title}
-            roundNumber={track.roundNumber}
-            setCurrentTime={setCurrentTime}
-          />
-
-          {isDecisionMade && (
-            <div
-              className={`p-4 border-2 border-dashed rounded-md ${
-                track.clientDecision === "approved"
-                  ? "bg-[#064E3B]/40 hover:bg-[#064E3B]/60 text-green-500 "
-                  : "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60"
-              }`}
-            >
-              <div className="flex items-center gap-2 font-semibold">
-                {track.clientDecision === "approved" ? (
-                  <ThumbsUp className="h-5 w-5" />
-                ) : (
-                  <ShieldAlert className="h-5 w-5" />
-                )}
-                {track.clientDecision === "approved"
-                  ? "Project Approved"
-                  : "Revisions Requested"}
-              </div>
-              <p className="text-sm opacity-90 mt-1 pl-7">
-                {track.clientDecision === "approved"
-                  ? "This project has been approved. No further action is needed."
-                  : "The editor has been notified about the revision request."}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Anonymous commenter name input */}
-      {!isAuthenticated && !isDecisionMade && !editingCommentId && (
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Your Name (Optional)"
-              value={commenterName}
-              onChange={(e) => setCommenterName(e.target.value)}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={isAnyActionPending}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Leave your name so others know who left the comment
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Comments Section */}
-      {comments.length > 0 ? (
-        <div>
-          <CommentsSection
-            comments={comments}
-            isVideoFile={isVideoPlayerNeededByType}
-            isAudioFile={false}
-            isDecisionMade={isDecisionMade}
-            editingCommentId={editingCommentId}
-            editedCommentText={editedCommentText}
-            onEdit={handleEditComment}
-            onCancelEdit={handleCancelEdit}
-            onSaveEdit={handleSaveEdit}
-            onDelete={handleDeleteComment}
-            onTextChange={setEditedCommentText}
-            isEditDeletePending={isEditDeletePending}
-            existingImageUrls={editingExistingImageUrls}
-            newImageFiles={editingNewImageFiles}
-            newImagePreviews={editingNewImagePreviews}
-            onRemoveExistingImage={handleRemoveExistingImage}
-            onRemoveNewImage={handleRemoveNewImage}
-            onFileChange={handleEditFileChange}
-            maxImages={MAX_IMAGES_PER_COMMENT}
-            acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
-          />
-        </div>
-      ) : (
-        <Card className="text-center text-muted-foreground text-sm py-8">
-          <CardContent className="py-0">
-            No feedback has been added yet.
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Fixed bottom area with comment input and decision button */}
-      {!isDecisionMade && !editingCommentId && (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <div className="max-w-5xl mx-auto px-2">
-            <FeedbackInput
-              placeholder="Add your feedback..."
-              onSubmit={handleAIInputSubmit}
-              onFileSelect={handleFileSelect}
-              onRemoveImage={(index) =>
-                setImageFiles((prev) => prev.filter((_, i) => i !== index))
-              }
-              disabled={!canInteractWithAddForm || isAddPending}
-              className="pb-4"
-              minHeight={60}
-              maxHeight={180}
-              imageFiles={imageFiles}
-              currentTime={currentTime}
-              isVideoFile={isVideoPlayerNeededByType}
-              formatTime={formatTime}
-              maxImages={MAX_IMAGES_PER_COMMENT}
-              onTimeChange={handleTimeChange}
-              // Decision button props
-              showDecisionButton={true}
-              onRequestRevisions={handleOpenDecisionDialog}
-              isDecisionPending={isDecisionPending}
-              decisionButtonDisabled={isAnyActionPending || !!editingCommentId}
+          <div>
+            <MediaContainer
+              deliverableLink={deliverableLink}
+              deliverableMediaType={deliverableMediaType}
               projectTitle={project.title}
               roundNumber={track.roundNumber}
+              setCurrentTime={setCurrentTime}
             />
+
+            {isDecisionMade && (
+              <div
+                className={`mt-4 p-4 border-2 border-dashed rounded-md ${
+                  track.clientDecision === "approved"
+                    ? "bg-[#064E3B]/40 hover:bg-[#064E3B]/60 text-green-500"
+                    : "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-semibold">
+                  {track.clientDecision === "approved" ? (
+                    <ThumbsUp className="h-5 w-5" />
+                  ) : (
+                    <ShieldAlert className="h-5 w-5" />
+                  )}
+                  {track.clientDecision === "approved"
+                    ? "Project Approved"
+                    : "Revisions Requested"}
+                </div>
+                <p className="text-sm opacity-90 mt-1 pl-7">
+                  {track.clientDecision === "approved"
+                    ? "This project has been approved. No further action is needed."
+                    : "The editor has been notified about the revision request."}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Input directly under media */}
+          {!isDecisionMade && !editingCommentId && (
+            <div className="mt-4">
+              <CommenterNameInput />
+              <div>
+                <FeedbackInput
+                  placeholder="Add your feedback..."
+                  onSubmit={handleAIInputSubmit}
+                  onFileSelect={handleFileSelect}
+                  onRemoveImage={(index) =>
+                    setImageFiles((prev) => prev.filter((_, i) => i !== index))
+                  }
+                  disabled={!canInteractWithAddForm || isAddPending}
+                  className="py-2"
+                  minHeight={60}
+                  maxHeight={120}
+                  imageFiles={imageFiles}
+                  currentTime={currentTime}
+                  isVideoFile={isVideoPlayerNeededByType}
+                  formatTime={formatTime}
+                  maxImages={MAX_IMAGES_PER_COMMENT}
+                  onTimeChange={handleTimeChange}
+                  // Decision button props
+                  showDecisionButton={true}
+                  onRequestRevisions={handleOpenDecisionDialog}
+                  isDecisionPending={isDecisionPending}
+                  decisionButtonDisabled={
+                    isAnyActionPending || !!editingCommentId
+                  }
+                  projectTitle={project.title}
+                  roundNumber={track.roundNumber}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Comments section for mobile only */}
+          <div className="lg:hidden mb-6 mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold">Feedback</h2>
+              <span className="text-sm text-muted-foreground">
+                {comments.length}{" "}
+                {comments.length === 1 ? "comment" : "comments"}
+              </span>
+            </div>
+
+            {comments.length > 0 ? (
+              <CommentsSection
+                comments={comments}
+                isVideoFile={isVideoPlayerNeededByType}
+                isAudioFile={false}
+                isDecisionMade={isDecisionMade}
+                editingCommentId={editingCommentId}
+                editedCommentText={editedCommentText}
+                onEdit={handleEditComment}
+                onCancelEdit={handleCancelEdit}
+                onSaveEdit={handleSaveEdit}
+                onDelete={handleDeleteComment}
+                onTextChange={setEditedCommentText}
+                isEditDeletePending={isEditDeletePending}
+                existingImageUrls={editingExistingImageUrls}
+                newImageFiles={editingNewImageFiles}
+                newImagePreviews={editingNewImagePreviews}
+                onRemoveExistingImage={handleRemoveExistingImage}
+                onRemoveNewImage={handleRemoveNewImage}
+                onFileChange={handleEditFileChange}
+                maxImages={MAX_IMAGES_PER_COMMENT}
+                acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
+              />
+            ) : (
+              <Card className="text-center text-muted-foreground text-sm py-8">
+                <CardContent className="py-0">
+                  No feedback has been added yet.
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Right column - Comments (Desktop only) */}
+        <div className="hidden lg:block">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Feedback</h2>
+            <span className="text-sm text-muted-foreground">
+              {comments.length} {comments.length === 1 ? "comment" : "comments"}
+            </span>
+          </div>
+
+          {comments.length > 0 ? (
+            <div className="pr-2">
+              <CommentsSection
+                comments={comments}
+                isVideoFile={isVideoPlayerNeededByType}
+                isAudioFile={false}
+                isDecisionMade={isDecisionMade}
+                editingCommentId={editingCommentId}
+                editedCommentText={editedCommentText}
+                onEdit={handleEditComment}
+                onCancelEdit={handleCancelEdit}
+                onSaveEdit={handleSaveEdit}
+                onDelete={handleDeleteComment}
+                onTextChange={setEditedCommentText}
+                isEditDeletePending={isEditDeletePending}
+                existingImageUrls={editingExistingImageUrls}
+                newImageFiles={editingNewImageFiles}
+                newImagePreviews={editingNewImagePreviews}
+                onRemoveExistingImage={handleRemoveExistingImage}
+                onRemoveNewImage={handleRemoveNewImage}
+                onFileChange={handleEditFileChange}
+                maxImages={MAX_IMAGES_PER_COMMENT}
+                acceptedImageTypes={ACCEPTED_IMAGE_TYPES_STRING}
+              />
+            </div>
+          ) : (
+            <Card className="text-center text-muted-foreground text-sm py-8">
+              <CardContent className="py-0">
+                No feedback has been added yet.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Decision Dialog with feedback */}
       <Dialog open={decisionDialogOpen} onOpenChange={setDecisionDialogOpen}>

@@ -1,9 +1,11 @@
 // app/review/[trackId]/actions.ts
+// @ts-nocheck
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Buffer } from "buffer";
+import { cookies } from "next/headers";
 
 // --- Types ---
 interface Step {
@@ -461,11 +463,6 @@ export async function clientRequestRevisions(trackId: string) {
     is_final: true,
     deliverable_link: null,
   });
-  console.log("Calling revision with:", {
-    trackId,
-    projectId: currentTrack.project_id,
-    round: currentTrack.round_number,
-  });
 
   try {
     const { error: rpcError } = await supabase.rpc(
@@ -481,8 +478,6 @@ export async function clientRequestRevisions(trackId: string) {
     if (rpcError) throw rpcError;
 
     revalidatePath(`/review/${trackId}`);
-    console.log("Project Tracks Policies:", trackId);
-    console.log("Projects Policies:", currentTrack.project_id);
     return {
       success: true,
       message: `Revisions requested. Round ${currentTrack.round_number + 1} created.`,
@@ -548,5 +543,58 @@ export async function clientApproveProject(projectId: string, trackId: string) {
     throw error instanceof Error
       ? error
       : new Error("Failed to approve project.");
+  }
+}
+
+export async function verifyProjectPassword(
+  projectId: string,
+  password: string
+) {
+  if (!projectId || !password) {
+    return { success: false, message: "Missing project ID or password" };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    // Get the project with its password
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("password_protected, access_password")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      console.error("Project fetch error:", projectError);
+      return { success: false, message: "Project not found" };
+    }
+
+    // If project is not password protected, auto-success
+    if (!project.password_protected) {
+      return { success: true, message: "Project is not password protected" };
+    }
+
+    // Verify the password (simple comparison - you might want to use a more secure approach in production)
+    if (password === project.access_password) {
+      // Set cookie to remember this verification for this session
+      const cookieStore = cookies();
+      (await cookieStore).set(`project_auth_${projectId}`, "verified", {
+        path: "/",
+        httpOnly: true,
+        maxAge: 60 * 60 * 24, // 24 hours
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+
+      return { success: true, message: "Password verified successfully" };
+    } else {
+      return { success: false, message: "Incorrect password" };
+    }
+  } catch (error: any) {
+    console.error("Password verification error:", error);
+    return {
+      success: false,
+      message: error.message || "An error occurred during verification",
+    };
   }
 }

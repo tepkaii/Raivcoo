@@ -43,13 +43,13 @@ export default async function DashboardLayout({
   }
 
   // Redirect to complete-profile if user is logged in but has no display name
-  if (
-    existingPortfolio &&
-    (!existingPortfolio?.display_name ||
-      existingPortfolio.display_name.trim() === "")
-  ) {
-    redirect("/complete-profile");
-  }
+  // if (
+  //   existingPortfolio &&
+  //   (!existingPortfolio?.display_name ||
+  //     existingPortfolio.display_name.trim() === "")
+  // ) {
+  //   redirect("/complete-profile");
+  // }
 
   // Check if user has password auth
   const hasPasswordAuthFromIdentities = user.identities?.some(
@@ -62,7 +62,6 @@ export default async function DashboardLayout({
   const hasPasswordAuth =
     existingPortfolio?.has_password || hasPasswordAuthFromIdentities;
 
-  const portfolio = existingPortfolio as EditorProfile;
   const webVersion =
     versionData?.find((v) => v.platform === "web")?.version || "1.0.0";
 
@@ -73,7 +72,7 @@ export default async function DashboardLayout({
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <AppSidebar
-          portfolio={portfolio}
+          portfolio={existingPortfolio}
           hasPasswordAuth={hasPasswordAuth}
           webVersion={webVersion}
           extensionVersion={extensionVersion}

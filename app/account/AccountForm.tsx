@@ -24,13 +24,12 @@ import Image from "next/image";
 
 import { timeZones } from "@/utils/timezones";
 
-interface AccountData {
-  email: string | number | readonly string[] | undefined;
+export interface AccountData {
+  email: string;
   user_id: string;
   full_name: string;
   display_name: string;
   avatar_url: string;
-  account_type: "editor" | "client";
   timezone?: string;
 }
 
@@ -54,9 +53,6 @@ export default function AccountForm({
   const [isLoading, setIsLoading] = useState(false);
   const [fullName, setFullName] = useState(Account.full_name);
   const [displayName, setDisplayName] = useState(Account.display_name);
-  const [accountType, setAccountType] = useState<"editor" | "client">(
-    Account.account_type || "editor"
-  );
   const [timezone, setTimezone] = useState(Account.timezone || "UTC");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -122,7 +118,6 @@ export default function AccountForm({
       // Add form data
       formData.set("full_name", fullName);
       formData.set("display_name", displayName.toLowerCase());
-      formData.set("account_type", accountType);
       formData.set("timezone", timezone);
 
       // Submit form
@@ -216,7 +211,7 @@ export default function AccountForm({
                         loading="lazy"
                         alt={Account.display_name}
                       />
-                      <AvatarFallback>
+                      <AvatarFallback className="bg-muted rounded-none">
                         <Image
                           src={"/avif/user-profile-avatar.avif"}
                           alt={Account.display_name || "User Avatar"}
@@ -378,31 +373,6 @@ export default function AccountForm({
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
                 Your time zone helps with project deadlines and notifications
-              </p>
-            </div>
-
-            {/* Account Type */}
-            <div>
-              <Label htmlFor="account_type">Account Type</Label>
-              <Select
-                name="account_type"
-                value={accountType}
-                onValueChange={(value) =>
-                  setAccountType(value as "editor" | "client")
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select account type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="client">Client</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                {accountType === "client"
-                  ? "Clients review and approve content submitted by editors"
-                  : "Editors submit content to clients for review and feedback"}
               </p>
             </div>
           </div>

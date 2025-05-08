@@ -27,14 +27,16 @@ export async function updateProject(projectId: string, formData: FormData) {
   }
 
   // Verify project exists and belongs to this editor
-  const { data: project } = await supabase
+  // Remove client_id from the select query since it doesn't exist
+  const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id")
+    .select("id, password_protected") // Removed client_id
     .eq("id", projectId)
     .eq("editor_id", editorProfile.id)
     .single();
 
-  if (!project) {
+  if (projectError || !project) {
+    console.error("Project query error:", projectError);
     throw new Error(
       "Project not found or you don't have permission to edit it."
     );
@@ -47,6 +49,8 @@ export async function updateProject(projectId: string, formData: FormData) {
   const client_email = formData.get("client_email") as string;
   const password_protected =
     (formData.get("password_protected") as string) === "true";
+
+  // Get the access_password from formData only if it was included
   const access_password = formData.has("access_password")
     ? (formData.get("access_password") as string)
     : null;
@@ -61,14 +65,13 @@ export async function updateProject(projectId: string, formData: FormData) {
     throw new Error("Client name cannot be empty.");
   }
 
-  // Verify password requirements
+  // Verify password requirements - only when newly enabling protection
   if (password_protected && !project.password_protected && !access_password) {
     throw new Error("Password is required when enabling protection.");
   }
 
   // Base update data
   const updateData: {
-    access_password: null;
     title: string;
     description?: string | null;
     deadline?: string | null;
@@ -76,6 +79,7 @@ export async function updateProject(projectId: string, formData: FormData) {
     client_email?: string | null;
     password_protected: boolean;
     updated_at: string;
+    access_password?: string | null;
   } = {
     title: title.trim(),
     description: description?.trim() || null,
@@ -88,7 +92,7 @@ export async function updateProject(projectId: string, formData: FormData) {
 
   // Handle password scenarios
   if (access_password !== null) {
-    // A new password was provided
+    // A new password was provided or explicitly set to empty string
     updateData.access_password = access_password.trim();
   } else if (!password_protected) {
     // Password protection was turned off
@@ -107,8 +111,10 @@ export async function updateProject(projectId: string, formData: FormData) {
       throw new Error(`Database error: ${updateError.message}`);
     }
 
+    // Also modify the revalidatePath calls to remove the client_id reference
     revalidatePath(`/dashboard/projects/${projectId}`);
-    if (project.client_id) revalidatePath(`/clients/${project.client_id}`);
+    // Remove this line since client_id doesn't exist
+    // if (project.client_id) revalidatePath(`/clients/${project.client_id}`);
     revalidatePath("/dashboard/projects");
 
     return { message: "Project updated successfully." };
@@ -121,13 +127,41 @@ export async function updateProject(projectId: string, formData: FormData) {
 }
 // --- Delete Project (Editor Action) ---
 export async function deleteProject(projectId: string) {
-  const { project, error: authError } =
-    await verifyEditorProjectOwnership(projectId);
-  if (authError || !project) {
-    throw new Error(authError || "Authorization failed.");
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not authenticated.");
   }
 
-  const supabase = await createClient();
+  // Get the editor profile
+  const { data: editorProfile } = await supabase
+    .from("editor_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!editorProfile) {
+    throw new Error("Editor profile not found.");
+  }
+
+  // Verify project exists and belongs to this editor
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, password_protected")
+    .eq("id", projectId)
+    .eq("editor_id", editorProfile.id)
+    .single();
+
+  if (projectError || !project) {
+    console.error("Project query error:", projectError);
+    throw new Error(
+      "Project not found or you don't have permission to delete it."
+    );
+  }
+
   try {
     const { error: deleteError } = await supabase
       .from("projects")
@@ -142,8 +176,9 @@ export async function deleteProject(projectId: string) {
       throw new Error(`Database error: ${deleteError.message}`);
     }
 
-    if (project.client_id) revalidatePath(`/clients/${project.client_id}`);
-    revalidatePath("/projects");
+    // Revalidate paths
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath("/dashboard/projects");
 
     return { message: "Project deleted successfully." };
   } catch (error) {

@@ -91,8 +91,8 @@ function Footer() {
               </Link>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
-              Showcasing your talent and connecting you with clients in the
-              world of video editing.
+              A simple tool for editors to share videos and get client feedback
+              in one place.
             </p>
           </motion.div>
 

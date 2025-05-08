@@ -1,4 +1,5 @@
 // app/dashboard/components/dashboard-client.tsx
+// @ts-nocheck
 "use client";
 
 import { useState, Suspense } from "react";

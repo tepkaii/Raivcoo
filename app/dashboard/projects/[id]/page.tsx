@@ -153,7 +153,7 @@ export default async function page({
             <span className="text-sm text-muted-foreground">
               {" • "} Client: {project.client_name}
               {project.password_protected && (
-                <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                <span className="ml-2 text-yellow-500 items-center inline-flex">
                   <Lock className="h-3 w-3 mr-1" />
                   Protected
                 </span>
@@ -184,7 +184,7 @@ export default async function page({
             <span className="text-sm text-muted-foreground">
               {" • "} Client: {project.client_name}
               {project.password_protected && (
-                <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                <span className="ml-2 text-yellow-500 items-center inline-flex">
                   <Lock className="h-3 w-3 mr-1" />
                   Protected
                 </span>
@@ -251,7 +251,7 @@ export default async function page({
         <div className="flex items-center text-sm text-muted-foreground">
           <span>Client: {project.client_name}</span>
           {project.password_protected && (
-            <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+            <span className="ml-2 text-yellow-500 items-center inline-flex">
               <Lock className="h-3 w-3 mr-1" />
               Protected
             </span>

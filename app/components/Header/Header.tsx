@@ -37,9 +37,9 @@ export default async function Header() {
         .select("*")
         .eq("user_id", user.id)
         .single();
-  if (user && (!account?.display_name || account.display_name.trim() === "")) {
-    redirect("/complete-profile");
-  }
+  // if (user && (!account?.display_name || account.display_name.trim() === "")) {
+  //   redirect("/complete-profile");
+  // }
   return (
     <header
       className="fixed top-0 z-50 right-0 left-0 md:p-6
@@ -82,7 +82,7 @@ backdrop-blur-sm"
                               loading="lazy"
                               alt={account?.display_name || "Avatar"}
                             />
-                            <AvatarFallback>
+                            <AvatarFallback className="bg-muted rounded-none">
                               <Image
                                 width={32}
                                 height={32}

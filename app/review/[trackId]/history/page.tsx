@@ -1,7 +1,7 @@
 // app/review/[trackId]/history/page.tsx
 // @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import HistoryPage from "./HistoryPage";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
@@ -52,73 +52,19 @@ export default async function Page({
     return notFound();
   }
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  if (userError || !user) {
-    redirect(
-      `/login?message=Please log in to view project history.&redirectTo=${encodeURIComponent(
-        `/review/${trackId}/history`
-      )}`
-    );
-  }
-  if (!user.email) {
-    return (
-      <div className="container mx-auto py-6 mt-24 text-center text-red-600">
-        Error: User email missing. Cannot verify authorization.
-      </div>
-    );
-  }
-
   // Fetch the current project track info
   const { data: currentTrack, error: currentTrackError } = await supabase
     .from("project_tracks")
     .select(
       `id, project_id, round_number, steps, client_decision, created_at, updated_at,
-       project:projects!inner(id, title, editor_id, client:clients!inner(id, name, email, company, phone))`
+       project:projects!inner(id, title, editor_id, client_name, client_email, password_protected)`
     )
     .eq("id", trackId)
     .maybeSingle();
 
-  if (
-    currentTrackError ||
-    !currentTrack ||
-    !currentTrack.project ||
-    !currentTrack.project.client
-  ) {
+  if (currentTrackError || !currentTrack || !currentTrack.project) {
     console.error("Error fetching track data:", currentTrackError);
     return notFound();
-  }
-
-  const { data: editorProfile } = await supabase
-    .from("editor_profiles")
-    .select("id, email")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const isEditor =
-    editorProfile && editorProfile.id === currentTrack.project.editor_id;
-  const isClient = currentTrack.project.client.email === user.email;
-
-  if (!isEditor && !isClient) {
-    console.warn(
-      `AUTH FAILED: User ${user.email} tried accessing track history ${trackId} without matching editor or client`
-    );
-    return (
-      <div className="container mx-auto mt-24 py-12 text-center max-w-xl">
-        <h1 className="text-2xl font-semibold text-red-600 mb-4">
-          Access Denied
-        </h1>
-        <p className="text-muted-foreground text-base">
-          You are not authorized to view this project history. Make sure you're
-          logged in with the correct account associated with the project.
-        </p>
-        <Link href="/dashboard" className="mt-6 inline-block">
-          <RevButtons variant="outline">Back to Dashboard</RevButtons>
-        </Link>
-      </div>
-    );
   }
 
   // Fetch all rounds for this project
@@ -164,9 +110,8 @@ export default async function Page({
     console.error("Error fetching comments:", commentsError);
   }
 
-  // Get client display name
-  const clientDisplayName =
-    currentTrack.project.client.name || user.email || "Client";
+  // Get client display name from project
+  const clientDisplayName = currentTrack.project.client_name || "Client";
 
   // Organize comments by track ID
   const commentsByTrack = (allCommentsData || []).reduce(
@@ -184,27 +129,20 @@ export default async function Page({
           links?: { url: string; text: string }[];
         },
         commenter_display_name: clientDisplayName,
-        isOwnComment: isClient, // Only mark as own comment if user is the client
+        // Everyone is a viewer, not an owner
+        isOwnComment: false,
       });
       return acc;
     },
     {} as Record<string, any[]>
   );
 
-  // Extract client info for improved UI
-  const clientInfo = {
-    name: currentTrack.project.client.name || clientDisplayName,
-    company: currentTrack.project.client.company,
-    email: currentTrack.project.client.email,
-    phone: currentTrack.project.client.phone,
-  };
-
   return (
     <HistoryPage
       currentTrack={currentTrack}
       allTracks={allTracks || []}
       commentsByTrack={commentsByTrack}
-      clientName={clientInfo.name}
+      clientName={clientDisplayName}
       projectTitle={currentTrack.project.title}
     />
   );

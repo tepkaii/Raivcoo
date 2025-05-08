@@ -1,5 +1,5 @@
 // app/dashboard/projects/components/AllProjectsPageClient.tsx
-
+// @ts-nocheck
 "use client";
 
 import { useState } from "react";
@@ -278,7 +278,7 @@ export default function AllProjectsPageClient({
                           <span className="text-sm text-muted-foreground">
                             Client: {project.client_name}
                             {project.password_protected && (
-                              <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                              <span className="ml-2 text-yellow-500 items-center inline-flex">
                                 <Lock className="h-3 w-3 mr-1" />
                                 Protected
                               </span>

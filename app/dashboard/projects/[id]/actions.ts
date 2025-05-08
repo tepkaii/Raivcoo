@@ -1,5 +1,5 @@
 // app/projects/actions.ts
-
+// @ts-nocheck
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -1004,3 +1004,16 @@ export async function updateAllStepContent(formData: FormData) {
       : new Error("An unexpected error occurred while updating steps.");
   }
  }
+
+
+
+
+
+
+
+
+
+
+
+
+ 

@@ -20,11 +20,10 @@ export async function completeInitialProfile(formData: FormData) {
   try {
     // Get required fields from form
     const displayName = (formData.get("display_name") as string)?.toLowerCase();
-    const accountType = formData.get("account_type") as "editor" | "client";
 
     // Basic validation
-    if (!displayName || !accountType) {
-      throw new Error("Display name and account type are required");
+    if (!displayName) {
+      throw new Error("Display name are required");
     }
 
     if (
@@ -69,7 +68,6 @@ export async function completeInitialProfile(formData: FormData) {
     const profileData = {
       user_id: user.id,
       display_name: displayName,
-      account_type: accountType,
       email: user.email,
     };
 

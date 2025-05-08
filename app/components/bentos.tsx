@@ -1,3 +1,4 @@
+// app/home/bento.tsx
 import { BentoCard, BentoGrid } from "@/components/magicui/bento-grid";
 import { InputIcon } from "@radix-ui/react-icons";
 import { FileTextIcon, Globe } from "lucide-react";
@@ -7,9 +8,9 @@ import { InfiniteSliderBasic } from "./Home/Infinite";
 const features = [
   {
     Icon: FileTextIcon,
-    name: "1-on-1 Collaboration",
+    name: "Direct Feedback Workflow",
     description:
-      "Direct editor-to-client workflow with simple project management and feedback.",
+      "A clean editor-to-client system that keeps feedback and revisions simple.",
     href: "/",
     cta: "Learn more",
     background: (
@@ -21,9 +22,9 @@ const features = [
   },
   {
     Icon: InputIcon,
-    name: "Adobe Integration",
+    name: "Adobe Extension Support",
     description:
-      "After Effects and Premiere Pro extensions for seamless workflow integration.",
+      "Feedback inside Premiere Pro, After Effects, Animate, Illustrator, and Photoshop.",
     href: "/",
     cta: "Learn more",
     background: <InfiniteSliderBasic />,
@@ -31,9 +32,9 @@ const features = [
   },
   {
     Icon: Globe,
-    name: "Client Revision Rounds",
+    name: "Automatic Revision Rounds",
     description:
-      "Clients create new revision rounds with their feedback, keeping track of all changes.",
+      "Client comments trigger new revision rounds automatically. no manual setup needed.",
     href: "/",
     cta: "Learn more",
     background: (

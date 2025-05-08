@@ -122,7 +122,7 @@ export function FeedbackInput({
       {/* Images preview */}
       <div className="relative w-full mx-auto">
         {imageFiles.length > 0 && (
-          <div className="flex items-center gap-2 mb-2 px-4">
+          <div className="flex items-center gap-2 mb-2 ">
             {imageFiles.map((file, index) => (
               <div key={index} className="relative w-10 h-10 group">
                 <img
@@ -258,7 +258,7 @@ export function FeedbackInput({
         </div>
 
         {/* Decision button in fixed position */}
-        <div className="mt-2 flex items-center justify-between mb-2 px-4">
+        <div className="mt-2 flex items-center justify-between mb-2">
           {/* Left side placeholder or message */}
           {imageFiles.length > 0 ? (
             !canAddMoreImages ? (

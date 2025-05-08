@@ -1,7 +1,6 @@
 // types/editorProfile.ts
 
 export interface EditorProfile {
-  account_type: string;
   password_data: any;
   is_verified: boolean;
   id: string;

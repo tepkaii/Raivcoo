@@ -16,7 +16,6 @@ import {
 
 import {
   LogOut,
-  User,
   FolderOpenDot,
   SquareUser,
   LayoutDashboard,
@@ -27,7 +26,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RevButtons } from "@/components/ui/RevButtons";
-import { EditorProfile } from "@/app/types/editorProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useLinkStatus } from "next/link";
@@ -45,12 +43,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import AccountForm from "../../account/AccountForm";
+import AccountForm, { AccountData } from "../../account/AccountForm";
 import { updateAccount } from "../../account/actions";
 import PasswordSection from "../../account/PasswordSection";
+import Image from "next/image";
 
 interface ProfileShowProps {
-  portfolio: EditorProfile;
+  portfolio: AccountData;
   hasPasswordAuth: boolean;
   webVersion: string;
   extensionVersion: string;
@@ -92,7 +91,7 @@ function LinkStatus({ href }: { href: string }) {
 }
 
 export function AppSidebar({
-  portfolio: initialPortfolio,
+  portfolio,
   hasPasswordAuth,
   webVersion,
   extensionVersion,
@@ -118,19 +117,26 @@ export function AppSidebar({
         <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
           <Avatar className="h-8 w-8 rounded-lg border-2">
             <AvatarImage
-              src={initialPortfolio?.avatar_url || ""}
-              alt={initialPortfolio?.display_name || "User"}
+              src={portfolio?.avatar_url || ""}
+              alt={portfolio?.display_name || "User"}
             />
-            <AvatarFallback>
-              <User className="h-4 w-4" />
+
+            <AvatarFallback className="bg-muted rounded-none">
+              <Image
+                width={40}
+                height={40}
+                src="/avif/user-profile-avatar.avif"
+                loading="lazy"
+                alt="Avatar"
+              />
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-medium truncate">
-              {initialPortfolio?.display_name || "User"}
+              {portfolio?.display_name || "No display name"}
             </span>
             <span className="text-xs text-muted-foreground truncate">
-              {initialPortfolio?.email || "user@example.com"}
+              {portfolio?.email || "No email"}
             </span>
           </div>
 
@@ -254,7 +260,7 @@ export function AppSidebar({
                     )}
                   >
                     <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#4B1D5B]/40 text-[#A87FC0] shrink-0">
-                      <Puzzle className="w-4 w-4" />
+                      <Puzzle className="w-4 h-4" />
                     </div>
                     <span className="group-data-[collapsible=icon]:hidden">
                       Extensions
@@ -297,15 +303,12 @@ export function AppSidebar({
           <DialogHeader>
             <DialogTitle>Account Settings</DialogTitle>
           </DialogHeader>
-          {initialPortfolio && (
+          {portfolio && (
             <>
-              <AccountForm
-                Account={initialPortfolio}
-                updateAccount={updateAccount}
-              />
+              <AccountForm Account={portfolio} updateAccount={updateAccount} />
               <PasswordSection
                 hasPassword={!!hasPasswordAuth}
-                email={initialPortfolio.email || ""}
+                email={portfolio.email || ""}
               />
             </>
           )}
