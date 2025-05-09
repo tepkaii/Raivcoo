@@ -888,6 +888,11 @@ export default function ReviewPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <a href="https://raivcoo.com">
+        <span className="text-xs text-muted-foreground text-center hover:underline flex justify-center items-center mt-6">
+          Powered by Raivcoo.com
+        </span>
+      </a>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 // @ts-nocheck
 "use client";
 
+
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -23,6 +24,7 @@ import {
   ChevronRight,
   ArrowLeft,
   CheckCircle2,
+  Lock,
 } from "lucide-react";
 import Image from "next/image";
 import { CommentTextWithLinks } from "@/app/dashboard/projects/[id]/CommentRenderer";
@@ -49,10 +51,9 @@ interface Project {
   status: string;
   deadline: string;
   created_at: string;
-  client: {
-    id: string;
-    name: string;
-  };
+  client_name: string;
+  client_email: string;
+  password_protected: boolean;
 }
 
 interface Track {
@@ -207,9 +208,17 @@ export default function LiveTrackClient({
             </HoverCard>
           </div>
           <div className="flex flex-col gap-2 text-sm">
+            {/* Client information */}
             {/* <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <p>Created: {formatFullDate(project.created_at)}</p>
+              <span className="text-muted-foreground">
+                Client: {project.client_name}
+                {project.password_protected && (
+                  <span className="ml-2 text-yellow-500 flex items-center inline-flex">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Protected
+                  </span>
+                )}
+              </span>
             </div> */}
             {project.deadline && (
               <div className="flex items-center gap-2">
@@ -562,9 +571,11 @@ export default function LiveTrackClient({
           </div>
         </DialogContent>
       </Dialog>
-      <span>
-        POWRed by <a href="https://vercel.com">Vercel</a>
-      </span>
+      <a href="https://raivcoo.com">
+        <span className="text-xs text-muted-foreground text-center hover:underline flex justify-center items-center mt-6">
+          Powered by Raivcoo.com
+        </span>
+      </a>
     </div>
   );
 }

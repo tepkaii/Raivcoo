@@ -1,4 +1,4 @@
-// @ts-nocheck
+// app/live-track/[id]/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import LiveTrackClient from "./LiveTrackClient";
@@ -34,7 +34,7 @@ export default async function LiveTrackPage({
   const supabase = await createClient();
   const { id } = await params;
 
-  // Fetch project with client information
+  // Fetch project with client information directly from the projects table
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select(
@@ -45,7 +45,9 @@ export default async function LiveTrackPage({
       status,
       deadline,
       created_at,
-      client:clients(id, name)
+      client_name,
+      client_email,
+      password_protected
     `
     )
     .eq("id", id)
