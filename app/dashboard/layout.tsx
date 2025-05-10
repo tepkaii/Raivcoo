@@ -8,6 +8,7 @@ import { EditorProfile } from "../types/editorProfile";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Film } from "lucide-react";
+import { GlobalSearch } from "./projects/components/GlobalSearch";
 
 export default async function DashboardLayout({
   children,
@@ -82,10 +83,13 @@ export default async function DashboardLayout({
             <span className="border-2 flex items-center justify-center rounded-md">
               <SidebarTrigger />
             </span>
-            <div className="flex gap-2">
-              {/* Only need the New Project button now */}
+            <div className="flex gap-2 items-center">
+              {/* Global Search */}
+              <GlobalSearch />
+
+              {/* New Project button */}
               <Link href="/dashboard/projects/new">
-                <RevButtons size={"sm"} variant={"success"}>
+                <RevButtons size={"sm"}>
                   <Film className="mr-2 h-4 w-4" />
                   New Project
                 </RevButtons>

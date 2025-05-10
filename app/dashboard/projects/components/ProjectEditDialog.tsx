@@ -178,7 +178,9 @@ export function ProjectEditDialog({
               <Checkbox
                 id="password-protection"
                 checked={isPasswordProtected}
-                onCheckedChange={(checked) => setIsPasswordProtected(checked === true)}
+                onCheckedChange={(checked) =>
+                  setIsPasswordProtected(checked === true)
+                }
               />
               <label
                 htmlFor="password-protection"
@@ -194,7 +196,10 @@ export function ProjectEditDialog({
             {isPasswordProtected && (
               <div className="pt-2 space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="access_password" className="flex items-center gap-1.5">
+                  <Label
+                    htmlFor="access_password"
+                    className="flex items-center gap-1.5"
+                  >
                     <KeyRound className="h-3.5 w-3.5" />
                     Project Password
                   </Label>
@@ -205,7 +210,7 @@ export function ProjectEditDialog({
                     </span>
                   )}
                 </div>
-                
+
                 <div className="relative">
                   <Input
                     id="access_password"
@@ -213,9 +218,11 @@ export function ProjectEditDialog({
                     type={showPassword ? "text" : "password"}
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder={hasExistingPassword 
-                      ? "Enter new password to change" 
-                      : "Enter a password"}
+                    placeholder={
+                      hasExistingPassword
+                        ? "Enter new password to change"
+                        : "Enter a password"
+                    }
                     className="pr-10"
                     required={requiresNewPassword}
                   />
@@ -231,7 +238,7 @@ export function ProjectEditDialog({
                     )}
                   </button>
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground mt-1 p-2 border rounded-md bg-muted/50">
                   {hasExistingPassword ? (
                     <div className="flex items-start gap-2">
@@ -244,14 +251,16 @@ export function ProjectEditDialog({
                       </div>
                       <div>
                         {isEnteringNewPassword ? (
-                          <span className="font-medium text-yellow-500">You are changing the password.</span>
+                          <span className="font-medium text-yellow-500">
+                            You are changing the password.
+                          </span>
                         ) : (
                           <span>This project already has a password.</span>
                         )}
                         <br />
-                        {isEnteringNewPassword ? 
-                          "The existing password will be replaced." :
-                          "Leave this field empty to keep the current password."}
+                        {isEnteringNewPassword
+                          ? "The existing password will be replaced."
+                          : "Leave this field empty to keep the current password."}
                       </div>
                     </div>
                   ) : (
@@ -286,7 +295,7 @@ export function ProjectEditDialog({
                 Cancel
               </RevButtons>
             </DialogClose>
-            <RevButtons type="submit" variant={"success"} disabled={isPending}>
+            <RevButtons type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </RevButtons>

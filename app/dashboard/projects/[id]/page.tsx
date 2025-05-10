@@ -1,5 +1,5 @@
 // app/dashboard/projects/[id]/page.tsx
-// @ts-nocheck
+
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -31,10 +31,13 @@ import {
 } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import {
+  formatFullDate,
   formatStatus,
   getStatusDescription,
   getStatusDotColor,
+  isDeadlineApproaching,
 } from "../../components/libs";
+import { Badge } from "@/components/ui/badge";
 
 export async function generateMetadata({
   params,
@@ -231,16 +234,26 @@ export default async function page({
               </HoverCardContent>
             </HoverCard>
           </div>
-          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-            <span className="flex items-center">
+          <div className="flex md:flex-row flex-col w-full md:w-fit items-center gap-4 mt-2 text-sm ">
+            <Badge
+              variant={"outline"}
+              className="flex justify-center w-full md:w-fit items-center gap-2"
+            >
               <Calendar className="h-4 w-4 mr-1.5" />
-              Created {new Date(project.created_at).toLocaleDateString()}
-            </span>
+              Created {formatFullDate(project.created_at)}
+            </Badge>
             {project.deadline && (
-              <span className="flex items-center">
+              <Badge
+                variant={
+                  isDeadlineApproaching(project.deadline)
+                    ? "warning"
+                    : "outline"
+                }
+                className="flex justify-center w-full md:w-fit items-center gap-2"
+              >
                 <Clock className="h-4 w-4 mr-1.5" />
-                Due {new Date(project.deadline).toLocaleDateString()}
-              </span>
+                Due {formatFullDate(project.deadline)}
+              </Badge>
             )}
           </div>
         </div>
@@ -311,12 +324,12 @@ export default async function page({
 
         {tracksWithComments.length > 1 && (
           <div className="mt-16 ">
-            <div className="text-lg text-center font-semibold mt-6 mb-2">
+            <div className="text-lg text-center font-semibold mt-6 mb-4">
               <span className=" text-2xl items-center ">
                 Previous Rounds History{" "}
               </span>
             </div>
-            <hr className="mb-4" />
+
             <div className="space-y-4">
               {tracksWithComments
                 .filter((track) => track.id !== latestTrack?.id)
@@ -340,7 +353,7 @@ export default async function page({
                   return (
                     <Card
                       key={track.id}
-                      className="border-0 p-0 m-0 bg-transparent"
+                      className="border-none p-0 m-0 bg-transparent"
                     >
                       <CardHeader className="p-0 m-0">
                         <div className="flex flex-wrap mb-2 justify-between items-center gap-2">

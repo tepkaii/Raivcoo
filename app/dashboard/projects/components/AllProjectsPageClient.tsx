@@ -126,7 +126,7 @@ export default function AllProjectsPageClient({
   };
 
   return (
-    <div className="min-h-screen py-6 space-y-8">
+    <div className="min-h-screen md:p-6 py-3 space-y-8">
       {/* Dialogs */}
       {editDialogState.project && (
         <ProjectEditDialog
@@ -147,7 +147,7 @@ export default function AllProjectsPageClient({
       />
 
       {/* Header */}
-      <div className="flex justify-between items-center gap-4 flex-wrap border-b pb-4">
+      <div className="flex justify-between items-center gap-4 flex-wrap ">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             All Projects
@@ -355,7 +355,7 @@ export default function AllProjectsPageClient({
                               href={`/dashboard/projects/${project.id}`}
                               className="flex items-center"
                             >
-                              <RevButtons variant={"outline"} size={"sm"}>
+                              <RevButtons variant={"default"} size={"sm"}>
                                 <FolderOpenDot className="mr-2 h-4 w-4" />
                                 <span>View Project</span>
                               </RevButtons>

@@ -148,3 +148,15 @@ export interface Stats {
     totalClients: number;
   };
 }
+
+export function isDeadlineApproaching(
+  deadline: string | undefined | null
+): boolean {
+  if (!deadline) return false;
+  const deadlineDate = new Date(deadline);
+  const now = new Date();
+  const diffDays = Math.ceil(
+    (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  return diffDays <= 3;
+}

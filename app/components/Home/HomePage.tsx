@@ -10,6 +10,9 @@ import { RevButtons } from "@/components/ui/RevButtons";
 import { BorderTrail } from "@/components/ui/border-trail";
 import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
 import { BentoDemo } from "../bentos";
+import { Badge } from "@/components/ui/badge";
+
+import { TextShimmer } from "@/components/ui/text-shimmer";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -29,17 +32,27 @@ function AnimatedSection({ children, className }: any) {
 }
 
 export default function HomePage() {
+  const featuresRef = useRef<HTMLDivElement>(null);
   return (
     <div className="min-h-screen bg-background overflow-hidden text-foreground">
       <GridBackground />
       <Spotlight />
       <div className="relative z-40">
-        <section className="pt-32 pb-10 px-4 text-center container mx-auto">
+        <section className="pt-32 pb-10 px-4  text-center container mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <Badge variant="outline" className="bg-black/70">
+              <TextShimmer> Open beta </TextShimmer>
+            </Badge>
+          </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-5xl md:text-7xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
+            className="text-5xl md:text-7xl mt-3 font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
           >
             Simple Feedback, Faster Revisions.
           </motion.h1>
@@ -56,13 +69,25 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex flex-col md:flex-row gap-4 justify-center mt-8"
+            className="flex  flex-row gap-4 justify-center mt-8"
           >
             <Link href="/signup">
-              <RevButtons size="lg" variant="default">
+              <RevButtons size="lg" variant="default" className="px-4">
                 Start For Free
               </RevButtons>
             </Link>
+            <button
+              onClick={() => {
+                featuresRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }}
+            >
+              <RevButtons size="lg" variant="outline" className="px-4">
+                Explore Features
+              </RevButtons>
+            </button>
           </motion.div>
         </section>
 
@@ -84,7 +109,7 @@ export default function HomePage() {
         </AnimatedSection>
 
         <AnimatedSection className="py-16">
-          <div className="container mx-auto px-4 text-center">
+          <div ref={featuresRef} className="container mx-auto px-4 text-center">
             <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
               Built for Solo Editor Workflows
             </h2>
@@ -96,7 +121,9 @@ export default function HomePage() {
         </AnimatedSection>
 
         <AnimatedSection className="container mx-auto px-4">
-          <BentoDemo />
+          <div className="container mx-auto px-4">
+            <BentoDemo />
+          </div>
         </AnimatedSection>
 
         <AnimatedSection className="py-16">

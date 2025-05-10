@@ -69,7 +69,7 @@ const itemVariants = {
 function Footer() {
   return (
     <motion.footer
-      className="w-full py-12  bg-gray-100 dark:bg-background border-t"
+      className="w-full py-12 bg-background border-t"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -90,7 +90,7 @@ function Footer() {
                 />
               </Link>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
+            <p className="text-sm text-muted-foreground mt-4">
               A simple tool for editors to share videos and get client feedback
               in one place.
             </p>
@@ -103,7 +103,7 @@ function Footer() {
               variants={itemVariants}
               className="col-span-1"
             >
-              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+              <h3 className="text-lg font-semibold mb-4 text-purple-500">
                 {section.title}
               </h3>
               <ul className="space-y-2">
@@ -119,7 +119,7 @@ function Footer() {
                           ? "noopener noreferrer"
                           : undefined
                       }
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors duration-200"
+                      className="text-sm  text-muted-foreground hover:text-foreground transition-colors duration-200"
                     >
                       {link.title}
                     </Link>
@@ -131,13 +131,11 @@ function Footer() {
         </div>
 
         {/* Bottom Section */}
-        <motion.div
-          variants={itemVariants}
-          className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700"
-        >
+        <motion.div variants={itemVariants} className="mt-12 pt-8 border-t ">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              © {new Date().getFullYear()} Raivcoo. All rights reserved.
+            <p className="text-sm text-muted-foreground">
+              <span className="text-purple-500">© </span>{" "}
+              {new Date().getFullYear()} Raivcoo. All rights reserved.
             </p>
           </div>
         </motion.div>

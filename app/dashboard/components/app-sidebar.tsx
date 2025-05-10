@@ -137,6 +137,7 @@ export function AppSidebar({
             </span>
             <span className="text-xs text-muted-foreground truncate">
               {portfolio?.email || "No email"}
+              {/* ravicoo@gmail.com */}
             </span>
           </div>
 
@@ -277,12 +278,6 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t mt-auto px-4 py-3 group-data-[collapsible=icon]:hidden">
-        {/* Open Beta Badge */}
-        <div>
-          <span className="inline-block bg-muted px-2 py-0.5 rounded-md text-[10px] font-semibold text-muted-foreground">
-            Open Beta
-          </span>
-        </div>
         {/* Versions */}
         <div className="text-xs text-muted-foreground font-medium space-y-1">
           <div className="flex justify-between">

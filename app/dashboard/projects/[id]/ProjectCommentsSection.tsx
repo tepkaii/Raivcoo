@@ -43,51 +43,47 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          Feedback History
-          <span className="bg-muted text-muted-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">
-            {comments.length}
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="">
+    <Card className="border-none p-0 m-0 bg-transparent">
+      <CardContent className="p-0 m-0">
         {comments.length === 0 ? (
-          <p className="text-center text-muted-foreground py-6">
+          <p className="text-center text-muted-foreground py-8 text-base">
             No feedback comments yet.
           </p>
         ) : (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-3">
+          <div className="space-y-6 max-h-[65vh] overflow-y-auto pr-4">
             {comments.map((comment) => (
               <div
                 key={comment.id}
-                className="p-3 rounded-md border-[2px] border-dashed"
+                className="p-4 rounded-lg border-[2px] border-dashed hover:border-muted-foreground/40 transition-colors"
               >
-                <div className="flex justify-between items-start gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="size-5 border-2 border-dashed">
-                      <AvatarImage src={`https://avatar.vercel.sh/%50`} />
-                      <AvatarFallback>
+                <div className="flex justify-between items-start gap-3 flex-wrap mb-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-8 border-2 border-dashed">
+                      <AvatarImage
+                        src={`https://avatar.vercel.sh/${comment.commenter_display_name}`}
+                      />
+                      <AvatarFallback className="text-sm font-medium">
                         {comment.commenter_display_name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <p className="font-medium text-sm">
-                      {comment.commenter_display_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      At {formatTime(comment.comment.timestamp)}
-                    </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <p className="font-medium text-base">
+                        {comment.commenter_display_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        at {formatTime(comment.comment.timestamp)}
+                      </p>
+                    </div>
                   </div>
                   <span
-                    className="text-xs text-muted-foreground flex-shrink-0"
+                    className="text-sm text-muted-foreground flex-shrink-0"
                     title={new Date(comment.created_at).toString()}
                   >
                     {formatFullDate(comment.created_at)}
                   </span>
                 </div>
                 {comment.comment.text && (
-                  <div className="mt-2 text-sm whitespace-pre-wrap">
+                  <div className="mt-3 text-base leading-relaxed whitespace-pre-wrap pl-11">
                     <CommentTextWithLinks
                       text={comment.comment.text}
                       links={comment.comment.links}
@@ -96,7 +92,7 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
                 )}
                 {comment.comment.images &&
                   comment.comment.images.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-4 flex flex-wrap gap-3 pl-11">
                       {comment.comment.images.map((imageUrl, idx) => (
                         <div
                           key={`${imageUrl}-${idx}`}
@@ -108,13 +104,13 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
                             )
                           }
                         >
-                          <div className="relative rounded-md overflow-hidden border border-muted hover:border-primary transition-colors cursor-pointer">
+                          <div className="relative rounded-lg overflow-hidden border-2 border-muted hover:border-primary transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md">
                             <Image
                               src={imageUrl}
                               alt={`Reference image ${idx + 1}`}
-                              height={160}
+                              height={180}
                               width={0}
-                              className="max-h-[160px] w-auto group-hover:opacity-90 transition-opacity"
+                              className="max-h-[180px] w-auto group-hover:opacity-90 transition-opacity"
                               style={{ display: "block" }}
                               sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                             />
@@ -134,9 +130,9 @@ export const ProjectCommentsSection: React.FC<ProjectCommentsSectionProps> = ({
 
       {/* Image Dialog */}
       <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
-        <DialogContent className="max-w-6xl w-[95vw] p-4 max-h-[95vh]">
+        <DialogContent className="max-w-7xl w-[95vw] p-6 max-h-[95vh]">
           <DialogHeader className="flex flex-row justify-between items-center p-2"></DialogHeader>
-          <div className="overflow-auto flex justify-center items-center bg-black border border-muted rounded-md max-h-[calc(95vh-100px)]">
+          <div className="overflow-auto flex justify-center items-center bg-black border-2 border-muted rounded-lg max-h-[calc(95vh-120px)]">
             <img
               src={currentImageUrl}
               alt={currentImageAlt}

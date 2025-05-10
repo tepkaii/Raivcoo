@@ -19,7 +19,7 @@ const badgeVariants = cva(
         warning: "bg-[#78350F]/40 text-yellow-500 hover:bg-[#78350F]/60",
         edit: "bg-[#6366F1] text-white hover:bg-[#6366F1]/90",
         settings: "bg-[#64748B] text-white hover:bg-[#64748B]/90",
-        cyan: "bg-[#06B6D4] text-white hover:bg-[#06B6D4]/90",
+        cyan: "bg-[#164E63]/40 text-cyan-500 hover:bg-[#164E63]/60",
         yellow: "bg-[#FACC15] text-white hover:bg-[#FACC15]/90",
         red: "bg-[#EF4444] text-white hover:bg-[#EF4444]/90",
         blue: "bg-[#2563EB] text-white hover:bg-[#2563EB]/90",

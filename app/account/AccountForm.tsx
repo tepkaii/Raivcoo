@@ -380,7 +380,6 @@ export default function AccountForm({
           {/* Submit Button */}
           <div className="">
             <RevButtons
-              variant="success"
               type="submit"
               disabled={isLoading || !isFormValid || isPending}
               className="w-full"

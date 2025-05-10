@@ -1,5 +1,5 @@
 // app/dashboard/components/dashboard-client.tsx
-// @ts-nocheck
+
 "use client";
 
 import { useState, Suspense } from "react";
@@ -23,6 +23,7 @@ import {
   History,
   BarChart,
   Lock,
+  Folders,
 } from "lucide-react";
 import Link from "next/link";
 import { RevButtons } from "@/components/ui/RevButtons";
@@ -38,11 +39,13 @@ import {
   formatStatus,
   getStatusDescription,
   getStatusDotColor,
+  isDeadlineApproaching,
   Project,
   ProjectTrack,
   Stats,
 } from "./libs";
 import { ProjectCardSkeleton, StatCardSkeleton } from "./dashboard-loading";
+import { Badge } from "@/components/ui/badge";
 
 export function DashboardClient({
   recentProjects,
@@ -56,14 +59,13 @@ export function DashboardClient({
   const currentStats = showAllTimeStats ? stats.allTime : stats.monthly;
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className="min-h-screen md:p-6 py-3 space-y-6">
       {/* Header - loads immediately */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             Dashboard
           </h1>
-          <p className="text-muted-foreground">Your video editing workspace</p>
         </div>
         <Button
           onClick={() => setShowAllTimeStats(!showAllTimeStats)}
@@ -160,7 +162,9 @@ function RecentProjectsSection({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Film className="h-5 w-5" />
+          <div className="bg-[#164E63]/40 text-cyan-500 hover:bg-[#164E63]/60 p-1 rounded-[5px] border-2">
+            <Folders className="h-5 w-5" />
+          </div>
           Recent Projects
         </CardTitle>
       </CardHeader>
@@ -204,19 +208,6 @@ function RecentProjectsSection({
                 </Link>
               </div>
 
-              {/* Client Info */}
-              {mostRecentProject.client_name && (
-                <div className="text-sm text-muted-foreground flex items-center">
-                  Client: {mostRecentProject.client_name}
-                  {mostRecentProject.password_protected && (
-                    <span className="ml-2 text-yellow-500 flex items-center inline-flex">
-                      <Lock className="h-3 w-3 mr-1" />
-                      Protected
-                    </span>
-                  )}
-                </div>
-              )}
-
               {/* Project Progress */}
               {mostRecentProject.latestTrack && (
                 <div className="space-y-2">
@@ -243,33 +234,35 @@ function RecentProjectsSection({
               )}
 
               {/* Project Metadata */}
-              <div className="flex flex-wrap justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">Created |</p>
+              <div className="flex gap-4 w-full md:w-auto flex-wrap justify-between items-center text-sm">
+                <Badge
+                  variant="outline"
+                  className="flex justify-center w-full md:w-fit items-center gap-2"
+                >
+                  <Calendar className="h-4 w-4" />
+                  <p>Created</p>
                   <p>{formatFullDate(mostRecentProject.created_at)}</p>
-                </div>
+                </Badge>
                 {mostRecentProject.deadline && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">Deadline |</p>
-                    <p
-                      className={
-                        isDeadlineApproaching(mostRecentProject.deadline)
-                          ? "text-orange-500"
-                          : ""
-                      }
-                    >
-                      {formatFullDate(mostRecentProject.deadline)}
-                    </p>
-                  </div>
+                  <Badge
+                    variant={
+                      isDeadlineApproaching(mostRecentProject.deadline)
+                        ? "warning"
+                        : "outline"
+                    }
+                    className="flex justify-center w-full md:w-fit items-center gap-2"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <p>Deadline</p>
+                    <p>{formatFullDate(mostRecentProject.deadline)}</p>
+                  </Badge>
                 )}
               </div>
 
               {/* Quick Actions */}
               <div className="flex gap-2 pt-4">
                 <Link href={`/dashboard/projects/${mostRecentProject.id}`}>
-                  <RevButtons variant="outline" size="sm" className="gap-1">
+                  <RevButtons variant="default" size="sm" className="gap-1">
                     <FolderOpenDot className="h-4 w-4" />
                     View Project
                   </RevButtons>
@@ -319,17 +312,7 @@ function RecentProjectsSection({
                           </HoverCardContent>
                         </HoverCard>
                       </div>
-                      {project.client_name && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Client: {project.client_name}
-                          {project.password_protected && (
-                            <span className="ml-2 text-yellow-500 flex items-center inline-flex">
-                              <Lock className="h-3 w-3 mr-1" />
-                              Protected
-                            </span>
-                          )}
-                        </div>
-                      )}
+
                       {project.latestTrack && (
                         <div className="flex items-center mt-1 gap-2 text-sm">
                           <span className="text-muted-foreground">
@@ -376,10 +359,12 @@ function RecentProjectsSection({
 // Analytics Section Component
 function AnalyticsSection({ stats }: { stats: Stats }) {
   return (
-    <Card>
+    <Card className="border-2 border-dashed">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <BarChart className="h-5 w-5" />
+          <div className="bg-[#064E3B]/40 text-green-500 hover:bg-[#064E3B]/60 p-1 rounded-[5px] border-2">
+            <BarChart className="h-5 w-5" />
+          </div>
           Monthly Performance
         </CardTitle>
       </CardHeader>
@@ -498,14 +483,4 @@ function StatCard({
       </CardContent>
     </Card>
   );
-}
-
-function isDeadlineApproaching(deadline: string | undefined | null): boolean {
-  if (!deadline) return false;
-  const deadlineDate = new Date(deadline);
-  const now = new Date();
-  const diffDays = Math.ceil(
-    (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  return diffDays <= 3;
 }
