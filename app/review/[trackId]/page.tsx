@@ -193,7 +193,7 @@ export default async function Page({
   });
 
   return (
-    <div className=" xl:container mx-auto py-6 flex justify-center">
+    <div className=" xl:container mx-auto  flex justify-center">
       <ReviewPage
         track={{
           id: trackData.id,

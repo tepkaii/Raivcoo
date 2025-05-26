@@ -8,24 +8,32 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-[#4C1D95]/40 text-purple-500 hover:bg-[#4C1D95]/60",
-        destructive: "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60",
-        secondary: "bg-[#5B21B6]/40 text-[#A78BFA] hover:bg-[#5B21B6]/60",
-        success: "bg-[#064E3B]/40 text-green-500 hover:bg-[#064E3B]/60",
-        info: "bg-[#1E40AF]/40 text-blue-500 hover:bg-[#1E40AF]/60",
-        warning: "bg-[#78350F]/40 text-yellow-500 hover:bg-[#78350F]/60",
+        default:
+          "bg-[#4C1D95]/40 text-purple-500 hover:bg-[#4C1D95]/60 border-2 border-white/5",
+        destructive:
+          "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60 border-2 border-white/5",
+        secondary:
+          "bg-[#5B21B6]/40 text-[#A78BFA] hover:bg-[#5B21B6]/60 border-2 border-white/5",
+        success:
+          "bg-[#064E3B]/40 text-green-500 hover:bg-[#064E3B]/60 border-2 border-white/5",
+        info: "bg-[#1E40AF]/40 text-blue-500 hover:bg-[#1E40AF]/60 border-2 border-white/5",
+        warning:
+          "bg-[#78350F]/40 text-yellow-500 hover:bg-[#78350F]/60 border-2 border-white/5",
         edit: "bg-[#312E81]/40 text-[#6366F1] hover:bg-[#312E81]/60",
-        settings: "bg-[#334155]/40 text-[#64748B] hover:bg-[#334155]/60",
-        cyan: "bg-[#155E75]/40 text-[#06B6D4] hover:bg-[#155E75]/60",
-        yellow: "bg-[#854D0E]/40 text-[#FACC15] hover:bg-[#854D0E]/60",
-        red: "bg-[#7F1D1D]/40 text-[#EF4444] hover:bg-[#7F1D1D]/60",
-        blue: "bg-[#1E3A8A]/40 text-[#2563EB] hover:bg-[#1E3A8A]/60",
-        pink: "bg-[#831843]/40 text-[#EC4899] hover:bg-[#831843]/60",
-        gray: "bg-[#3F3F46]/40 text-[#71717A] hover:bg-[#3F3F46]/60",
-        gold: "bg-[#92400E]/40 text-[#D4A017] hover:bg-[#92400E]/60",
+        settings:
+          "bg-[#334155]/40 text-[#64748B] hover:bg-[#334155]/60 border-2 border-white/5",
+        cyan: "bg-[#155E75]/40 text-[#06B6D4] hover:bg-[#155E75]/60 border-2 border-white/5",
+        yellow:
+          "bg-[#854D0E]/40 text-[#FACC15] hover:bg-[#854D0E]/60 border-2 border-white/5",
+        red: "bg-[#7F1D1D]/40 text-[#EF4444] hover:bg-[#7F1D1D]/60 border-2 border-white/5",
+        blue: "bg-[#1E3A8A]/40 text-[#2563EB] hover:bg-[#1E3A8A]/60 border-2 border-white/5",
+        pink: "bg-[#831843]/40 text-[#EC4899] hover:bg-[#831843]/60 border-2 border-white/5",
+        gray: "bg-[#3F3F46]/40 text-[#71717A] hover:bg-[#3F3F46]/60 border-2 border-white/5",
+        gold: "bg-[#92400E]/40 text-[#D4A017] hover:bg-[#92400E]/60 border-2 border-white/5",
 
         // Exceptions (leave these alone)
-        outline: "bg-[#1F1F1F] hover:bg-[#2D2D2D] text-white",
+        outline:
+          "bg-[#1F1F1F]  hover:bg-[#2D2D2D] text-white border-2 border-white/5",
         ghost: "bg-transparent border-0 hover:bg-[#2D2D2D] text-white",
         link: "bg-transparent text-[#8B5CF6] underline-offset-4 hover:underline border-transparent",
       },

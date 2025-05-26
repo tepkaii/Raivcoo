@@ -98,6 +98,8 @@ interface Step {
   };
 }
 
+
+// Update the createProject function in app/projects/actions.ts
 export async function createProject(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -129,6 +131,14 @@ export async function createProject(formData: FormData) {
   const accessPassword = passwordProtected
     ? (formData.get("access_password") as string)
     : null;
+
+  // Get workflow mode details
+  const useManualSteps = (formData.get("use_manual_steps") as string) === "true";
+  const includeDeliverable = (formData.get("include_deliverable") as string) === "true";
+  
+  // Get deliverable details if included
+  const deliverableLink = formData.get("deliverable_link") as string;
+  const deliverableMediaType = formData.get("deliverable_media_type") as "video" | "image";
 
   if (!title || !commentsData || !clientName)
     throw new Error("Project title, client name, and work steps are required");
@@ -163,6 +173,9 @@ export async function createProject(formData: FormData) {
     // Process images and create steps
     const steps: Step[] = [];
 
+    // Determine if all steps should be completed (when deliverable is included)
+    const shouldCompleteAllSteps = includeDeliverable && deliverableLink && deliverableMediaType;
+
     for (const [index, comment] of comments.entries()) {
       let imageUrls: string[] = [];
 
@@ -188,7 +201,8 @@ export async function createProject(formData: FormData) {
 
       steps.push({
         name: `Step ${index + 1}`,
-        status: "pending" as const,
+        // Mark as completed if deliverable is included, otherwise pending
+        status: shouldCompleteAllSteps ? "completed" : "pending",
         metadata: {
           type: "comment",
           text: processedText,
@@ -200,22 +214,39 @@ export async function createProject(formData: FormData) {
       });
     }
 
-    // Add final step (but marked as pending)
+    // Handle final step based on whether deliverable is included
+    let finalStepStatus: "pending" | "completed" = shouldCompleteAllSteps ? "completed" : "pending";
+    let finalDeliverableLink: string | null = shouldCompleteAllSteps ? deliverableLink : null;
+    let finalMediaType: "video" | "image" | null = shouldCompleteAllSteps ? deliverableMediaType : null;
+
+    // Add final step
     steps.push({
       name: "Finish",
       is_final: true,
-      status: "pending" as const,
-      deliverable_link: null,
+      status: finalStepStatus,
+      deliverable_link: finalDeliverableLink,
     });
 
+    // Determine track status based on completion
+    let trackStatus = "in_progress";
+    if (shouldCompleteAllSteps) {
+      // If deliverable is included, all steps are completed, so track is ready for review
+      trackStatus = "in_review";
+    }
+
     // Create initial track with the steps
-    const { error: trackError } = await supabase.from("project_tracks").insert({
-      project_id: project.id,
-      round_number: 1,
-      status: "in_progress",
-      steps: steps,
-      client_decision: "pending",
-    });
+    const { data: track, error: trackError } = await supabase
+      .from("project_tracks")
+      .insert({
+        project_id: project.id,
+        round_number: 1,
+        status: trackStatus,
+        steps: steps,
+        client_decision: "pending",
+        final_deliverable_media_type: finalMediaType,
+      })
+      .select("id")
+      .single();
 
     if (trackError) {
       console.error("Error creating initial track:", trackError);
@@ -227,7 +258,26 @@ export async function createProject(formData: FormData) {
       `Project ${project.id} created successfully with initial steps.`
     );
     revalidatePath("/projects");
-    return { message: "Project created successfully with work steps", project };
+
+    // Prepare response
+    const response: { 
+      message: string; 
+      project: any; 
+      reviewLink?: string; 
+      trackId?: string;
+    } = {
+      message: "Project created successfully with work steps",
+      project,
+      trackId: track.id,
+    };
+
+    // If deliverable was included, provide the review link
+    if (shouldCompleteAllSteps && track) {
+      response.reviewLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/review/${track.id}`;
+      response.message = "Project created successfully! All steps completed and review link is ready.";
+    }
+
+    return response;
   } catch (error) {
     console.error("Full error during project creation:", error);
     throw error instanceof Error
@@ -235,6 +285,11 @@ export async function createProject(formData: FormData) {
       : new Error("An unexpected error occurred during project creation.");
   }
 }
+
+
+
+
+      
 export async function updateProjectTrackStepStatus(
   trackId: string,
   stepIndex: number,

@@ -594,10 +594,10 @@ export default function ReviewPage({
     );
 
   return (
-    <div className="w-full min-h-screen  mx-auto px-4 sm:px-6 pb-24">
+    <div className="w-full min-h-screen  mx-auto ">
       {/* Project Info Header */}
-      <Card className="border-2 border-dashed mb-6">
-        <CardHeader className="pb-4">
+      <Card className="border-b border-dashed rounded-none mb-6">
+        <CardHeader className="p-2 m-0">
           <div className="flex items-center justify-between flex-wrap gap-y-2">
             <div>
               <CardTitle className="text-xl md:text-2xl font-semibold">
@@ -635,7 +635,7 @@ export default function ReviewPage({
       </Card>
 
       {/* Main layout grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-4 sm:px-6 pb-24">
         {/* Left column - Media + Input */}
         <div className="space-y-4">
           {/* Media Container */}
