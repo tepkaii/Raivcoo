@@ -6,7 +6,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/dashboard", label: "Dashboard" },
+  // { href: "/dashboard", label: "Dashboard" },
   // { href: "/pricing", label: "Pricing", icon: FlaskConical },
   // { href: "/board", label: "board", icon: FlaskConical },
   { href: "/tools", label: "Tools" },

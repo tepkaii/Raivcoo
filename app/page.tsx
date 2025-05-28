@@ -2,6 +2,7 @@ import React from "react";
 import HomePage from "./components/Home/HomePage";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import ToolsPage from "./tools/ToolsPage";
 
 export default async function Page() {
   // const supabase = await createClient();
@@ -23,7 +24,7 @@ export default async function Page() {
   // }
   return (
     <div>
-      <HomePage />
+      <ToolsPage />;
     </div>
   );
 }
