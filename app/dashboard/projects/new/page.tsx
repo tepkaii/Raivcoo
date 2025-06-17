@@ -2,7 +2,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import ProjectForm from "./ProjectForm";
-import { createProject } from "../[id]/actions";
+import { createProject } from "../actions";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

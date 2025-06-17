@@ -1,67 +1,29 @@
 // app/dashboard/projects/page.tsx
-// @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import AllProjectsPageClient from "./components/AllProjectsPageClient";
+import { ProjectsList } from "./ProjectsList";
 import { Metadata } from "next";
+import Link from "next/link";
+import { RevButtons } from "@/components/ui/RevButtons";
+import { Plus } from "lucide-react";
 
-interface Step {
-  name: string;
-  status: "pending" | "completed";
-  is_final?: boolean;
-  deliverable_link?: string;
-  metadata?: {
-    text?: string;
-    type?: string;
-    links?: any[];
-    images?: string[];
-    created_at?: string;
-    step_index?: number;
-  };
-}
-
-interface ProjectTrack {
-  id: string;
-  round_number: number;
-  status: string;
-  client_decision: string;
-  steps: Step[];
-  created_at: string;
-  updated_at: string;
-}
-
-// Updated Project interface with client fields directly in project
-interface Project {
-  id: string;
-  title: string;
-  description?: string;
-  status: string;
-  deadline?: string;
-  created_at: string;
-  updated_at: string;
-  client_name: string;
-  client_email?: string;
-  password_protected: boolean;
-  project_tracks?: ProjectTrack[];
-  latestTrack?: ProjectTrack | null;
-  latestTrackUpdate?: string | null;
-}
-
-// --- Metadata ---
 export const metadata: Metadata = {
-  title: "All Projects | Raivcoo",
-  description: "View and manage all your video editing projects.",
+  title: "Projects | Dashboard",
+  description: "Manage all your video editing projects and workspaces.",
 };
 
-export default async function Page() {
+export default async function ProjectsPage() {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
-    return redirect("/login?message=Please log in.");
+    redirect("/login");
   }
 
+  // Get editor profile
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
     .select("id")
@@ -69,78 +31,91 @@ export default async function Page() {
     .single();
 
   if (profileError || !editorProfile) {
-    return redirect("/account?error=Editor Account needed");
+    redirect("/account");
   }
 
-  // Fetch projects with additional data needed for the new UI
-  let projects: Project[] = [];
-  try {
-    const { data: projectsData, error: projectsError } = await supabase
-      .from("projects")
-      .select(
-        `
-        id, 
-        title,
-        description,
-        status,
-        deadline,
-        created_at,
-        updated_at,
-        client_name,
-        client_email,
-        password_protected,
-        project_tracks(
-          id, 
-          round_number, 
-          status, 
-          client_decision,
-          steps,
-          created_at, 
-          updated_at
-        )
+  // Get all projects with media count
+  const { data: projects, error: projectsError } = await supabase
+    .from("projects")
+    .select(
       `
+      id,
+      name,
+      description,
+      created_at,
+      updated_at,
+      project_media (
+        id,
+        file_type,
+        file_size,
+        uploaded_at
       )
-      .eq("editor_id", editorProfile.id)
-      .order("updated_at", { ascending: false });
+    `
+    )
+    .eq("editor_id", editorProfile.id)
+    .order("updated_at", { ascending: false });
 
-    if (projectsError) {
-      console.error(`Error fetching projects:`, projectsError);
-      throw new Error("Failed to load projects");
-    }
-
-    // Process projects to find latest track for each
-    projects = (projectsData || []).map((project) => {
-      const latestTrack =
-        project.project_tracks?.length > 0
-          ? [...project.project_tracks].sort((a, b) => {
-              // Use updated_at if available, otherwise created_at
-              const timestampA = new Date(
-                a.updated_at && a.updated_at !== a.created_at
-                  ? a.updated_at
-                  : a.created_at
-              ).getTime();
-
-              const timestampB = new Date(
-                b.updated_at && b.updated_at !== b.created_at
-                  ? b.updated_at
-                  : b.created_at
-              ).getTime();
-
-              return timestampB - timestampA;
-            })[0]
-          : null;
-
-      return {
-        ...project,
-        latestTrack,
-        latestTrackUpdate:
-          latestTrack?.updated_at || latestTrack?.created_at || null,
-      };
-    });
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    throw err;
+  if (projectsError) {
+    console.error("Error fetching projects:", projectsError);
   }
 
-  return <AllProjectsPageClient initialProjects={projects} />;
+  // Process projects data to include stats
+  const processedProjects = (projects || []).map((project) => {
+    const mediaFiles = project.project_media || [];
+    const totalFiles = mediaFiles.length;
+    const totalSize = mediaFiles.reduce(
+      (sum, file) => sum + (file.file_size || 0),
+      0
+    );
+    const videoCount = mediaFiles.filter(
+      (file) => file.file_type === "video"
+    ).length;
+    const imageCount = mediaFiles.filter(
+      (file) => file.file_type === "image"
+    ).length;
+    const lastUpload =
+      mediaFiles.length > 0
+        ? mediaFiles.sort(
+            (a, b) =>
+              new Date(b.uploaded_at).getTime() -
+              new Date(a.uploaded_at).getTime()
+          )[0].uploaded_at
+        : null;
+
+    return {
+      ...project,
+      stats: {
+        totalFiles,
+        totalSize,
+        videoCount,
+        imageCount,
+        lastUpload,
+      },
+    };
+  });
+
+  return (
+    <div className="min-h-screen py-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+            Projects
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your video editing projects and workspaces.
+          </p>
+        </div>
+        <Link href="/dashboard/projects/new">
+          <RevButtons className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Project
+          </RevButtons>
+        </Link>
+      </div>
+
+      {/* Projects List */}
+      <ProjectsList projects={processedProjects} />
+    </div>
+  );
 }

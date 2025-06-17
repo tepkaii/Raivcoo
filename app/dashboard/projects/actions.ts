@@ -1,190 +1,204 @@
-// Add these functions to your server actions file (e.g., app/projects/actions.ts)
+// app/dashboard/projects/actions.ts
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { uploadFileToR2, getPublicUrl } from "@/lib/r2";
+import { nanoid } from "nanoid";
 
-// --- Update Project Details (Editor Action) ---
-export async function updateProject(projectId: string, formData: FormData) {
+export async function createProject(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
 
-  if (!user) {
-    throw new Error("Not authenticated.");
-  }
-
-  // Get the editor profile
-  const { data: editorProfile } = await supabase
+  const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
     .select("id")
     .eq("user_id", user.id)
     .single();
+  if (profileError || !editorProfile)
+    throw new Error("Failed to fetch editor profile");
 
-  if (!editorProfile) {
-    throw new Error("Editor profile not found.");
-  }
-
-  // Verify project exists and belongs to this editor
-  // Remove client_id from the select query since it doesn't exist
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("id, password_protected") // Removed client_id
-    .eq("id", projectId)
-    .eq("editor_id", editorProfile.id)
-    .single();
-
-  if (projectError || !project) {
-    console.error("Project query error:", projectError);
-    throw new Error(
-      "Project not found or you don't have permission to edit it."
-    );
-  }
-
-  const title = formData.get("title") as string;
+  const name = formData.get("name") as string;
   const description = formData.get("description") as string;
-  const deadline = formData.get("deadline") as string;
-  const client_name = formData.get("client_name") as string;
-  const client_email = formData.get("client_email") as string;
-  const password_protected =
-    (formData.get("password_protected") as string) === "true";
 
-  // Get the access_password from formData only if it was included
-  const access_password = formData.has("access_password")
-    ? (formData.get("access_password") as string)
-    : null;
-
-  if (!title || title.trim().length === 0) {
-    throw new Error("Project title cannot be empty.");
+  if (!name?.trim()) {
+    throw new Error("Project name is required");
   }
-  if (title.length > 255) {
-    throw new Error("Project title is too long (max 255 chars).");
-  }
-  if (!client_name || client_name.trim().length === 0) {
-    throw new Error("Client name cannot be empty.");
-  }
-
-  // Verify password requirements - only when newly enabling protection
-  if (password_protected && !project.password_protected && !access_password) {
-    throw new Error("Password is required when enabling protection.");
-  }
-
-  // Base update data
-  const updateData: {
-    title: string;
-    description?: string | null;
-    deadline?: string | null;
-    client_name: string;
-    client_email?: string | null;
-    password_protected: boolean;
-    updated_at: string;
-    access_password?: string | null;
-  } = {
-    title: title.trim(),
-    description: description?.trim() || null,
-    deadline: deadline || null,
-    client_name: client_name.trim(),
-    client_email: client_email?.trim() || null,
-    password_protected,
-    updated_at: new Date().toISOString(),
-  };
-
-  // Handle password scenarios
-  if (access_password !== null) {
-    // A new password was provided or explicitly set to empty string
-    updateData.access_password = access_password.trim();
-  } else if (!password_protected) {
-    // Password protection was turned off
-    updateData.access_password = null;
-  }
-  // Do nothing for password_protected=true but no new password - keep existing
 
   try {
-    const { error: updateError } = await supabase
+    const { data: project, error: projectError } = await supabase
       .from("projects")
-      .update(updateData)
-      .eq("id", projectId);
+      .insert({
+        editor_id: editorProfile.id,
+        name: name.trim(),
+        description: description?.trim() || null,
+      })
+      .select("id, name")
+      .single();
 
-    if (updateError) {
-      console.error(`Error updating project ${projectId}:`, updateError);
-      throw new Error(`Database error: ${updateError.message}`);
-    }
+    if (projectError) throw projectError;
 
-    // Also modify the revalidatePath calls to remove the client_id reference
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    // Remove this line since client_id doesn't exist
-    // if (project.client_id) revalidatePath(`/clients/${project.client_id}`);
     revalidatePath("/dashboard/projects");
 
-    return { message: "Project updated successfully." };
+    return {
+      message: "Project workspace created successfully",
+      project,
+    };
   } catch (error) {
-    console.error("Error in updateProject action:", error);
+    console.error("Error creating project:", error);
     throw error instanceof Error
       ? error
-      : new Error("Failed to update project.");
+      : new Error("An unexpected error occurred during project creation.");
   }
 }
-// --- Delete Project (Editor Action) ---
-export async function deleteProject(projectId: string) {
+
+export async function uploadMedia(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
 
-  if (!user) {
-    throw new Error("Not authenticated.");
+  const projectId = formData.get("projectId") as string;
+  const files = formData.getAll("files") as File[];
+
+  if (!projectId || !files.length) {
+    throw new Error("Project ID and files are required");
   }
 
-  // Get the editor profile
+  // Verify project ownership
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, editor_id")
+    .eq("id", projectId)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error("Project not found");
+  }
+
   const { data: editorProfile } = await supabase
     .from("editor_profiles")
     .select("id")
     .eq("user_id", user.id)
     .single();
 
-  if (!editorProfile) {
-    throw new Error("Editor profile not found.");
+  if (project.editor_id !== editorProfile?.id) {
+    throw new Error("Unauthorized");
   }
 
-  // Verify project exists and belongs to this editor
+  const uploadedFiles = [];
+
+  for (const file of files) {
+    try {
+      // Generate unique filename
+      const fileExtension = file.name.split(".").pop();
+      const uniqueFilename = `${nanoid()}.${fileExtension}`;
+      const r2Key = `projects/${projectId}/${uniqueFilename}`;
+
+      // Convert file to buffer
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      // Upload to R2
+      await uploadFileToR2(r2Key, buffer, file.type);
+      const publicUrl = getPublicUrl(r2Key);
+
+      // Determine file type
+      const fileType = file.type.startsWith("video/") ? "video" : "image";
+
+      // Save to database
+      const { data: mediaFile, error: mediaError } = await supabase
+        .from("project_media")
+        .insert({
+          project_id: projectId,
+          filename: uniqueFilename,
+          original_filename: file.name,
+          file_type: fileType,
+          mime_type: file.type,
+          file_size: file.size,
+          r2_key: r2Key,
+          r2_url: publicUrl,
+        })
+        .select()
+        .single();
+
+      if (mediaError) throw mediaError;
+
+      uploadedFiles.push(mediaFile);
+    } catch (error) {
+      console.error(`Error uploading ${file.name}:`, error);
+      throw new Error(`Failed to upload ${file.name}`);
+    }
+  }
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+
+  return {
+    message: `Successfully uploaded ${uploadedFiles.length} file(s)`,
+    files: uploadedFiles,
+  };
+}
+
+export async function createReviewLink(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const projectId = formData.get("projectId") as string;
+  const mediaId = formData.get("mediaId") as string;
+  const title = formData.get("title") as string;
+
+  if (!projectId || !mediaId) {
+    throw new Error("Project ID and Media ID are required");
+  }
+
+  // Verify ownership
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, password_protected")
+    .select("id, editor_id")
     .eq("id", projectId)
-    .eq("editor_id", editorProfile.id)
     .single();
 
   if (projectError || !project) {
-    console.error("Project query error:", projectError);
-    throw new Error(
-      "Project not found or you don't have permission to delete it."
-    );
+    throw new Error("Project not found");
   }
 
-  try {
-    const { error: deleteError } = await supabase
-      .from("projects")
-      .delete()
-      .eq("id", projectId);
+  const { data: editorProfile } = await supabase
+    .from("editor_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
 
-    if (deleteError) {
-      console.error(`Error deleting project ${projectId}:`, deleteError);
-      if (deleteError.code === "23503") {
-        throw new Error(`Cannot delete project: Related data might exist.`);
-      }
-      throw new Error(`Database error: ${deleteError.message}`);
-    }
-
-    // Revalidate paths
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    revalidatePath("/dashboard/projects");
-
-    return { message: "Project deleted successfully." };
-  } catch (error) {
-    console.error("Error in deleteProject action:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to delete project.");
+  if (project.editor_id !== editorProfile?.id) {
+    throw new Error("Unauthorized");
   }
+
+  // Generate unique token
+  const linkToken = nanoid(12);
+
+  const { data: reviewLink, error: linkError } = await supabase
+    .from("review_links")
+    .insert({
+      project_id: projectId,
+      media_id: mediaId,
+      link_token: linkToken,
+      title: title?.trim() || null,
+    })
+    .select()
+    .single();
+
+  if (linkError) throw linkError;
+
+  const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/review/${linkToken}`;
+
+  return {
+    message: "Review link created successfully",
+    reviewLink: reviewLink,
+    reviewUrl: reviewUrl,
+  };
 }
