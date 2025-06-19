@@ -1,59 +1,32 @@
-// app/review/[token]/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
-import { ReviewContent } from "./ReviewContent";
-import { Metadata } from "next";
+import { FrameIOInterface } from "./FrameIOInterface";
 
-interface ReviewPageProps {
-  params: Promise<{ token: string }>;
-}
-
-export async function generateMetadata({
+export default async function ReviewPage({
   params,
-}: ReviewPageProps): Promise<Metadata> {
-  const { token } = await params;
+}: {
+  params: Promise<{ token: string }>;
+}) {
   const supabase = await createClient();
-
-  const { data: reviewLink } = await supabase
-    .from("review_links")
-    .select(
-      `
-      title,
-      project:projects(name)
-    `
-    )
-    .eq("link_token", token)
-    .eq("is_active", true)
-    .single();
-
-  const title =
-    reviewLink?.title || reviewLink?.project?.name || "Media Review";
-
-  return {
-    title: `${title} - Review`,
-    description: "Review shared media content",
-  };
-}
-
-export default async function ReviewPage({ params }: ReviewPageProps) {
   const { token } = await params;
-  const supabase = await createClient();
 
-  // Get review link with associated media and project data
-  const { data: reviewData, error } = await supabase
+  // Get review link with associated media and all its versions
+  const { data: reviewLink, error: linkError } = await supabase
     .from("review_links")
     .select(
       `
       id,
       title,
+      is_active,
       created_at,
       expires_at,
-      project:projects(
+      media_id,
+      project:projects (
         id,
         name,
         description
       ),
-      media:project_media(
+      media:project_media (
         id,
         filename,
         original_filename,
@@ -61,7 +34,10 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
         mime_type,
         file_size,
         r2_url,
-        uploaded_at
+        uploaded_at,
+        parent_media_id,
+        version_number,
+        is_current_version
       )
     `
     )
@@ -69,23 +45,44 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
     .eq("is_active", true)
     .single();
 
-  if (error || !reviewData) {
+  if (linkError || !reviewLink) {
     return notFound();
   }
 
   // Check if link has expired
-  if (reviewData.expires_at && new Date(reviewData.expires_at) < new Date()) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold text-destructive">Link Expired</h1>
-          <p className="text-muted-foreground">
-            This review link has expired and is no longer accessible.
-          </p>
-        </div>
-      </div>
-    );
+  if (reviewLink.expires_at && new Date(reviewLink.expires_at) < new Date()) {
+    return notFound();
   }
 
-  return <ReviewContent reviewData={reviewData} />;
+  // Get all versions if this media has versions
+  let allVersions: any[] = [];
+  if (reviewLink.media) {
+    const mediaId = reviewLink.media.parent_media_id || reviewLink.media.id;
+
+    const { data: versions } = await supabase
+      .from("project_media")
+      .select(
+        `
+        id,
+        filename,
+        original_filename,
+        file_type,
+        mime_type,
+        file_size,
+        r2_url,
+        uploaded_at,
+        parent_media_id,
+        version_number,
+        is_current_version
+      `
+      )
+      .or(`id.eq.${mediaId},parent_media_id.eq.${mediaId}`)
+      .order("version_number", { ascending: false });
+
+    allVersions = versions || [];
+  }
+
+  return (
+    <FrameIOInterface media={reviewLink.media} allVersions={allVersions} />
+  );
 }

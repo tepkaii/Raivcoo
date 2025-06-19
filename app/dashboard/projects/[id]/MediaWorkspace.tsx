@@ -1,7 +1,6 @@
-// app/dashboard/projects/[id]/MediaWorkspace.tsx
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevButtons } from "@/components/ui/RevButtons";
@@ -16,14 +15,16 @@ import {
   Eye,
   Trash2,
   Copy,
-  CheckCircle2,
   Loader2,
-  Plus,
   Download,
   ExternalLink,
-  Calendar,
   Share,
-  AlertCircle,
+  Check,
+  Star,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  GripVertical,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,7 +38,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -51,8 +51,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+
+import {
+  deleteMediaAction,
+  createReviewLinkAction,
+  getReviewLinksAction,
+  toggleReviewLinkAction,
+  setCurrentVersionAction,
+  addVersionToMediaAction,
+} from "./media-actions";
 
 interface MediaFile {
   id: string;
@@ -63,6 +71,9 @@ interface MediaFile {
   file_size: number;
   r2_url: string;
   uploaded_at: string;
+  parent_media_id?: string;
+  version_number: number;
+  is_current_version: boolean;
 }
 
 interface ReviewLink {
@@ -72,6 +83,7 @@ interface ReviewLink {
   is_active: boolean;
   created_at: string;
   expires_at?: string;
+  media_id: string;
 }
 
 interface Project {
@@ -85,109 +97,245 @@ interface MediaWorkspaceProps {
   project: Project;
 }
 
+interface OrganizedMedia {
+  id: string;
+  filename: string;
+  original_filename: string;
+  file_type: "video" | "image";
+  mime_type: string;
+  file_size: number;
+  r2_url: string;
+  uploaded_at: string;
+  version_number: number;
+  is_current_version: boolean;
+  versions: MediaFile[];
+  currentVersion: MediaFile;
+}
+
 export function MediaWorkspace({ project }: MediaWorkspaceProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>(
     project.project_media || []
   );
+  const [draggedOver, setDraggedOver] = useState<string | null>(null);
+  const [expandedMedia, setExpandedMedia] = useState<Set<string>>(new Set());
+  const [draggedMedia, setDraggedMedia] = useState<MediaFile | null>(null);
 
-  // Review link dialog state
-  const [reviewLinkDialog, setReviewLinkDialog] = useState<{
+  // Create review link dialog state
+  const [createLinkDialog, setCreateLinkDialog] = useState<{
     open: boolean;
     mediaFile?: MediaFile;
-  }>({ open: false });
-  const [isCreatingLink, setIsCreatingLink] = useState(false);
+    isCreating: boolean;
+    showSuccess: boolean;
+    createdUrl?: string;
+  }>({ open: false, isCreating: false, showSuccess: false });
 
   // View review links dialog state
   const [viewLinksDialog, setViewLinksDialog] = useState<{
     open: boolean;
     mediaFile?: MediaFile;
     links: ReviewLink[];
-  }>({ open: false, links: [] });
-  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
+    isLoading: boolean;
+  }>({ open: false, links: [], isLoading: false });
 
   // Delete confirmation dialog
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     mediaFile?: MediaFile;
-  }>({ open: false });
-  const [isDeleting, setIsDeleting] = useState(false);
+    isDeleting: boolean;
+  }>({ open: false, isDeleting: false });
+
+  // Organize media files into hierarchical structure
+  const organizedMedia = React.useMemo((): OrganizedMedia[] => {
+    const parentMediaMap = new Map<string, MediaFile>();
+    const childVersionsMap = new Map<string, MediaFile[]>();
+
+    // First pass: identify parent media and group versions
+    mediaFiles.forEach((file) => {
+      if (!file.parent_media_id) {
+        // This is a parent media
+        parentMediaMap.set(file.id, file);
+        if (!childVersionsMap.has(file.id)) {
+          childVersionsMap.set(file.id, []);
+        }
+      } else {
+        // This is a version
+        if (!childVersionsMap.has(file.parent_media_id)) {
+          childVersionsMap.set(file.parent_media_id, []);
+        }
+        childVersionsMap.get(file.parent_media_id)!.push(file);
+      }
+    });
+
+    // Second pass: create organized structure
+    const result: OrganizedMedia[] = [];
+
+    parentMediaMap.forEach((parentMedia, parentId) => {
+      const versions = childVersionsMap.get(parentId) || [];
+
+      // Sort versions by version_number descending (newest first)
+      const sortedVersions = versions.sort(
+        (a, b) => b.version_number - a.version_number
+      );
+
+      // Find current version (could be parent or any version)
+      let currentVersion = parentMedia;
+      if (parentMedia.is_current_version) {
+        currentVersion = parentMedia;
+      } else {
+        const currentVersionFromChildren = sortedVersions.find(
+          (v) => v.is_current_version
+        );
+        if (currentVersionFromChildren) {
+          currentVersion = currentVersionFromChildren;
+        }
+      }
+
+      result.push({
+        id: parentMedia.id,
+        filename: parentMedia.filename,
+        original_filename: parentMedia.original_filename,
+        file_type: parentMedia.file_type,
+        mime_type: parentMedia.mime_type,
+        file_size: parentMedia.file_size,
+        r2_url: parentMedia.r2_url,
+        uploaded_at: parentMedia.uploaded_at,
+        version_number: parentMedia.version_number,
+        is_current_version: parentMedia.is_current_version,
+        versions: sortedVersions,
+        currentVersion: currentVersion,
+      });
+    });
+
+    // Sort by upload date (newest first)
+    return result.sort(
+      (a, b) =>
+        new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
+    );
+  }, [mediaFiles]);
+
+  // Helper function to renumber versions after deletion
+  const renumberVersions = (parentId: string, remainingFiles: MediaFile[]) => {
+    const parentMedia = remainingFiles.find((f) => f.id === parentId);
+    const versions = remainingFiles.filter(
+      (f) => f.parent_media_id === parentId
+    );
+
+    if (!parentMedia) return remainingFiles;
+
+    // Sort versions by upload date (oldest first for renumbering)
+    const sortedVersions = versions.sort(
+      (a, b) =>
+        new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime()
+    );
+
+    // Renumber: parent is always v1, then versions are v2, v3, etc.
+    return remainingFiles.map((file) => {
+      if (file.id === parentId) {
+        return { ...file, version_number: 1 };
+      }
+      if (file.parent_media_id === parentId) {
+        const index = sortedVersions.findIndex((v) => v.id === file.id);
+        return { ...file, version_number: index + 2 }; // +2 because parent is v1
+      }
+      return file;
+    });
+  };
+
+  // Upload files function
+  const uploadFiles = async (files: File[], targetMediaId?: string) => {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      if (targetMediaId) {
+        formData.append("parentMediaId", targetMediaId);
+      }
+
+      const xhr = new XMLHttpRequest();
+
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const result = JSON.parse(xhr.responseText);
+              resolve(result);
+            } catch (e) {
+              reject(new Error("Invalid response format"));
+            }
+          } else {
+            try {
+              const error = JSON.parse(xhr.responseText);
+              reject(new Error(error.error || "Upload failed"));
+            } catch (e) {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Network error during upload"));
+        });
+
+        xhr.open("POST", `/api/projects/${project.id}/media`);
+        xhr.send(formData);
+      });
+
+      const result = (await uploadPromise) as any;
+
+      setMediaFiles((prev) => [...prev, ...result.files]);
+
+      if (targetMediaId) {
+        setExpandedMedia((prev) => new Set(prev).add(targetMediaId));
+      }
+
+      toast({
+        title: "Success",
+        description: targetMediaId
+          ? `Added ${result.files.length} new version(s)`
+          : result.message,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description:
+          error instanceof Error ? error.message : "Failed to upload files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setDraggedOver(null);
+      setDraggedMedia(null);
+    }
+  };
 
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[], rejectedFiles: any[]) => {
       if (acceptedFiles.length === 0) return;
 
-      setIsUploading(true);
-      setUploadProgress(0);
-
-      try {
-        const formData = new FormData();
-        acceptedFiles.forEach((file) => {
-          formData.append("files", file);
-        });
-
-        // Create XMLHttpRequest for progress tracking
-        const xhr = new XMLHttpRequest();
-
-        const uploadPromise = new Promise((resolve, reject) => {
-          xhr.upload.addEventListener("progress", (event) => {
-            if (event.lengthComputable) {
-              const progress = Math.round((event.loaded / event.total) * 100);
-              setUploadProgress(progress);
-            }
-          });
-
-          xhr.addEventListener("load", () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                const result = JSON.parse(xhr.responseText);
-                resolve(result);
-              } catch (e) {
-                reject(new Error("Invalid response format"));
-              }
-            } else {
-              try {
-                const error = JSON.parse(xhr.responseText);
-                reject(new Error(error.error || "Upload failed"));
-              } catch (e) {
-                reject(new Error(`Upload failed with status ${xhr.status}`));
-              }
-            }
-          });
-
-          xhr.addEventListener("error", () => {
-            reject(new Error("Network error during upload"));
-          });
-
-          xhr.open("POST", `/api/projects/${project.id}/media`);
-          xhr.send(formData);
-        });
-
-        const result = (await uploadPromise) as any;
-
-        // Update local state with new files
-        setMediaFiles((prev) => [...prev, ...result.files]);
-
-        toast({
-          title: "Success",
-          description: result.message,
-          variant: "success",
-        });
-      } catch (error) {
-        console.error("Upload error:", error);
-        toast({
-          title: "Upload Failed",
-          description:
-            error instanceof Error ? error.message : "Failed to upload files",
-          variant: "destructive",
-        });
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0);
+      if (draggedOver) {
+        await uploadFiles(acceptedFiles, draggedOver);
+      } else {
+        await uploadFiles(acceptedFiles);
       }
     },
-    [project.id]
+    [draggedOver]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -197,103 +345,276 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
       "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
     },
     disabled: isUploading,
-    maxSize: 50 * 1024 * 1024, // 50MB limit
+    maxSize: 200 * 1024 * 1024,
+    noClick: false,
   });
+
+  const handleDragStart = (e: React.DragEvent, media: MediaFile) => {
+    e.dataTransfer.setData("application/json", JSON.stringify(media));
+    e.dataTransfer.effectAllowed = "copy";
+    setDraggedMedia(media);
+  };
+
+  const handleDragOver = (e: React.DragEvent, mediaId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+
+    if (e.dataTransfer.types.includes("Files") || draggedMedia) {
+      setDraggedOver(mediaId);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent, mediaId: string) => {
+    e.preventDefault();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      if (draggedOver === mediaId) {
+        setDraggedOver(null);
+      }
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetMediaId: string) => {
+    e.preventDefault();
+    setDraggedOver(null);
+
+    if (e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const allowedTypes = [
+        "video/mp4",
+        "video/mov",
+        "video/avi",
+        "video/mkv",
+        "video/webm",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+
+      const validFiles = files.filter((file) =>
+        allowedTypes.includes(file.type)
+      );
+
+      if (validFiles.length > 0) {
+        uploadFiles(validFiles, targetMediaId);
+      } else {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload videos or images only",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    if (draggedMedia) {
+      if (
+        draggedMedia.id === targetMediaId ||
+        draggedMedia.parent_media_id === targetMediaId
+      ) {
+        toast({
+          title: "Invalid Drop",
+          description: "Cannot create version from the same media",
+          variant: "destructive",
+        });
+        setDraggedMedia(null);
+        return;
+      }
+
+      const targetMedia = mediaFiles.find((m) => m.id === targetMediaId);
+      if (
+        targetMedia &&
+        draggedMedia.versions?.some((v) => v.id === targetMediaId)
+      ) {
+        toast({
+          title: "Invalid Drop",
+          description: "Cannot drop parent media onto its own version",
+          variant: "destructive",
+        });
+        setDraggedMedia(null);
+        return;
+      }
+
+      try {
+        const result = await addVersionToMediaAction(
+          targetMediaId,
+          draggedMedia.id
+        );
+
+        if (result.success) {
+          setMediaFiles((prev) =>
+            prev.map((file) => {
+              if (file.id === draggedMedia.id) {
+                return {
+                  ...file,
+                  parent_media_id: targetMediaId,
+                  version_number: result.versionNumber,
+                  is_current_version: true,
+                };
+              }
+              if (file.id === targetMediaId) {
+                return {
+                  ...file,
+                  is_current_version: false,
+                };
+              }
+              if (file.parent_media_id === targetMediaId) {
+                return {
+                  ...file,
+                  is_current_version: false,
+                };
+              }
+              return file;
+            })
+          );
+
+          setExpandedMedia((prev) => new Set(prev).add(targetMediaId));
+
+          const targetName = mediaFiles.find(
+            (m) => m.id === targetMediaId
+          )?.original_filename;
+          toast({
+            title: "Version Created",
+            description: `"${draggedMedia.original_filename}" is now version ${result.versionNumber} of "${targetName}"`,
+            variant: "success",
+          });
+        } else {
+          toast({
+            title: "Failed to Create Version",
+            description: result.error,
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to create version relationship",
+          variant: "destructive",
+        });
+      }
+
+      setDraggedMedia(null);
+    }
+  };
+
+  const handleSetCurrentVersion = async (
+    parentId: string,
+    versionId: string
+  ) => {
+    const result = await setCurrentVersionAction(parentId, versionId);
+
+    if (result.success) {
+      setMediaFiles((prev) =>
+        prev.map((file) => ({
+          ...file,
+          is_current_version:
+            file.parent_media_id === parentId || file.id === parentId
+              ? file.id === versionId
+              : file.is_current_version,
+        }))
+      );
+
+      toast({
+        title: "Current Version Updated",
+        description: "The current version has been changed",
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Failed to Update Version",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleCreateReviewLink = async (
     mediaFile: MediaFile,
     title: string
   ) => {
-    setIsCreatingLink(true);
+    setCreateLinkDialog((prev) => ({ ...prev, isCreating: true }));
 
-    try {
-      const response = await fetch(`/api/projects/${project.id}/review-links`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mediaId: mediaFile.id,
-          title: title,
-        }),
-      });
+    const result = await createReviewLinkAction(
+      project.id,
+      mediaFile.id,
+      title
+    );
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to create review link");
+    if (result.success) {
+      try {
+        await navigator.clipboard.writeText(result.reviewUrl!);
+      } catch (clipboardError) {
+        console.error("Clipboard error:", clipboardError);
       }
 
-      // Copy review URL to clipboard
-      await navigator.clipboard.writeText(result.reviewUrl);
+      setCreateLinkDialog((prev) => ({
+        ...prev,
+        isCreating: false,
+        showSuccess: true,
+        createdUrl: result.reviewUrl,
+      }));
 
       toast({
         title: "Review Link Created",
         description: "Review link has been copied to your clipboard!",
         variant: "success",
       });
-
-      setReviewLinkDialog({ open: false });
-    } catch (error) {
-      console.error("Create review link error:", error);
+    } else {
+      setCreateLinkDialog((prev) => ({ ...prev, isCreating: false }));
       toast({
         title: "Failed to Create Review Link",
-        description:
-          error instanceof Error ? error.message : "Something went wrong",
+        description: result.error,
         variant: "destructive",
       });
-    } finally {
-      setIsCreatingLink(false);
     }
   };
 
   const handleViewReviewLinks = async (mediaFile: MediaFile) => {
-    setIsLoadingLinks(true);
-    setViewLinksDialog({ open: true, mediaFile, links: [] });
+    setViewLinksDialog({ open: true, mediaFile, links: [], isLoading: true });
 
-    try {
-      const response = await fetch(
-        `/api/projects/${project.id}/media/${mediaFile.id}/review-links`
-      );
+    const result = await getReviewLinksAction(project.id, mediaFile.id);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch review links");
-      }
-
-      const result = await response.json();
-      setViewLinksDialog({ open: true, mediaFile, links: result.links || [] });
-    } catch (error) {
-      console.error("Error fetching review links:", error);
+    if (result.success) {
+      setViewLinksDialog((prev) => ({
+        ...prev,
+        links: result.links,
+        isLoading: false,
+      }));
+    } else {
       toast({
         title: "Failed to Load Review Links",
-        description:
-          error instanceof Error ? error.message : "Something went wrong",
+        description: result.error,
         variant: "destructive",
       });
-      setViewLinksDialog({ open: false, links: [] });
-    } finally {
-      setIsLoadingLinks(false);
+      setViewLinksDialog({ open: false, links: [], isLoading: false });
     }
   };
 
   const handleDeleteMedia = async (mediaFile: MediaFile) => {
-    setIsDeleting(true);
+    setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
 
-    try {
-      const response = await fetch(
-        `/api/projects/${project.id}/media/${mediaFile.id}`,
-        {
-          method: "DELETE",
+    const result = await deleteMediaAction(project.id, mediaFile.id);
+
+    if (result.success) {
+      setMediaFiles((prev) => {
+        let updatedFiles = prev.filter((file) => file.id !== mediaFile.id);
+
+        // If we deleted a version, renumber the remaining versions
+        if (mediaFile.parent_media_id) {
+          updatedFiles = renumberVersions(
+            mediaFile.parent_media_id,
+            updatedFiles
+          );
         }
-      );
 
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || "Failed to delete media");
-      }
-
-      // Remove from local state
-      setMediaFiles((prev) => prev.filter((file) => file.id !== mediaFile.id));
+        return updatedFiles;
+      });
 
       toast({
         title: "Media Deleted",
@@ -301,17 +622,14 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
         variant: "success",
       });
 
-      setDeleteDialog({ open: false });
-    } catch (error) {
-      console.error("Delete media error:", error);
+      setDeleteDialog({ open: false, isDeleting: false });
+    } else {
+      setDeleteDialog((prev) => ({ ...prev, isDeleting: false }));
       toast({
         title: "Failed to Delete Media",
-        description:
-          error instanceof Error ? error.message : "Something went wrong",
+        description: result.error,
         variant: "destructive",
       });
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -337,23 +655,9 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
     linkId: string,
     currentStatus: boolean
   ) => {
-    try {
-      const response = await fetch(`/api/review-links/${linkId}/toggle`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          isActive: !currentStatus,
-        }),
-      });
+    const result = await toggleReviewLinkAction(linkId, !currentStatus);
 
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || "Failed to update link");
-      }
-
-      // Update local state
+    if (result.success) {
       setViewLinksDialog((prev) => ({
         ...prev,
         links: prev.links.map((link) =>
@@ -366,11 +670,10 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
         description: `Review link ${!currentStatus ? "activated" : "deactivated"}`,
         variant: "success",
       });
-    } catch (error) {
+    } else {
       toast({
         title: "Failed to Update Link",
-        description:
-          error instanceof Error ? error.message : "Something went wrong",
+        description: result.error,
         variant: "destructive",
       });
     }
@@ -452,7 +755,11 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
                     PNG, GIF, WebP)
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Maximum file size: 50MB per file
+                    Maximum file size: 200MB per file
+                  </p>
+                  <p className="text-xs text-primary font-medium mt-3">
+                    💡 Tip: Use the drag handle (⋮⋮) in media actions to drag
+                    items, or drag files onto media to create versions
                   </p>
                 </div>
               </div>
@@ -461,16 +768,16 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
         </CardContent>
       </Card>
 
-      {/* Media Files Grid */}
+      {/* Media Files */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileVideo className="h-5 w-5" />
-            Media Files ({mediaFiles.length})
+            Media Files ({organizedMedia.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {mediaFiles.length === 0 ? (
+          {organizedMedia.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileVideo className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No media files uploaded yet</p>
@@ -479,117 +786,588 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {mediaFiles.map((file) => (
-                <Card key={file.id} className="overflow-hidden">
-                  <div className="aspect-video bg-muted relative">
-                    {file.file_type === "image" ? (
-                      <img
-                        src={file.r2_url}
-                        alt={file.original_filename}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <video
-                        src={file.r2_url}
-                        className="w-full h-full object-cover"
-                        controls={false}
-                        muted
-                        preload="metadata"
-                      />
-                    )}
+            <div className="space-y-4">
+              {organizedMedia.map((media) => {
+                const hasVersions = media.versions.length > 0;
+                const isExpanded = expandedMedia.has(media.id);
+                const isDropTarget = draggedOver === media.id;
+                const totalVersions = hasVersions
+                  ? media.versions.length + 1
+                  : 1; // +1 for parent
 
-                    {/* File type badge */}
-                    <div className="absolute top-2 left-2">
-                      <Badge
-                        variant="secondary"
-                        className="flex items-center gap-1"
-                      >
-                        {file.file_type === "video" ? (
-                          <FileVideo className="h-3 w-3" />
-                        ) : (
-                          <ImageIcon className="h-3 w-3" />
-                        )}
-                        {file.file_type}
-                      </Badge>
-                    </div>
-
-                    {/* Actions dropdown */}
-                    <div className="absolute top-2 right-2">
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <RevButtons
-                            variant="secondary"
-                            size="icon"
-                            className="h-8 w-8"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </RevButtons>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => window.open(file.r2_url, "_blank")}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Full Size
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setReviewLinkDialog({
-                                open: true,
-                                mediaFile: file,
-                              })
-                            }
-                          >
-                            <Link className="h-4 w-4 mr-2" />
-                            Create Review Link
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleViewReviewLinks(file)}
-                          >
-                            <Share className="h-4 w-4 mr-2" />
-                            View Review Links
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <a
-                              href={file.r2_url}
-                              download={file.original_filename}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
-                            </a>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() =>
-                              setDeleteDialog({ open: true, mediaFile: file })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  <CardContent className="p-4">
-                    <h3
-                      className="font-medium truncate"
-                      title={file.original_filename}
+                return (
+                  <div key={media.id} className="space-y-2">
+                    {/* Main Media Item - Always shows current version */}
+                    <Card
+                      className={`overflow-hidden transition-all ${
+                        isDropTarget
+                          ? "ring-2 ring-primary bg-primary/5 scale-[1.02]"
+                          : ""
+                      }`}
+                      onDragOver={(e) => handleDragOver(e, media.id)}
+                      onDragLeave={(e) => handleDragLeave(e, media.id)}
+                      onDrop={(e) => handleDrop(e, media.id)}
                     >
-                      {file.original_filename}
-                    </h3>
-                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                      <p>{formatFileSize(file.file_size)}</p>
-                      <p>{formatDate(file.uploaded_at)}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="grid grid-cols-1 md:grid-cols-[200px,1fr] gap-4 p-4">
+                        {/* Thumbnail - Shows current version */}
+                        <div className="aspect-video bg-muted rounded overflow-hidden relative">
+                          {media.currentVersion.file_type === "image" ? (
+                            <img
+                              src={media.currentVersion.r2_url}
+                              alt={media.currentVersion.original_filename}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <video
+                              src={media.currentVersion.r2_url}
+                              className="w-full h-full object-cover"
+                              controls={false}
+                              muted
+                              preload="metadata"
+                            />
+                          )}
+
+                          {/* Current version indicator */}
+                          <div className="absolute top-2 left-2">
+                            <Badge variant="default" className="text-xs">
+                              v{media.currentVersion.version_number} (Current)
+                            </Badge>
+                          </div>
+
+                          {/* File type badge */}
+                          <div className="absolute top-2 right-2">
+                            <Badge
+                              variant="secondary"
+                              className="flex items-center gap-1"
+                            >
+                              {media.currentVersion.file_type === "video" ? (
+                                <FileVideo className="h-3 w-3" />
+                              ) : (
+                                <ImageIcon className="h-3 w-3" />
+                              )}
+                              {media.currentVersion.file_type}
+                            </Badge>
+                          </div>
+
+                          {/* Drop overlay */}
+                          {isDropTarget && (
+                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                              <div className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium flex items-center gap-2">
+                                <Plus className="h-4 w-4" />
+                                Add as new version
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="min-w-0 flex-1">
+                              <h3
+                                className="font-medium truncate"
+                                title={media.original_filename}
+                              >
+                                {media.original_filename}
+                              </h3>
+                              <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                                <p>
+                                  {formatFileSize(
+                                    media.currentVersion.file_size
+                                  )}
+                                </p>
+                                <p>
+                                  {formatDate(media.currentVersion.uploaded_at)}
+                                </p>
+                                {hasVersions && (
+                                  <p className="text-primary font-medium">
+                                    {totalVersions} versions available
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {/* Expand/Collapse versions */}
+                              {hasVersions && (
+                                <RevButtons
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newExpanded = new Set(expandedMedia);
+                                    if (isExpanded) {
+                                      newExpanded.delete(media.id);
+                                    } else {
+                                      newExpanded.add(media.id);
+                                    }
+                                    setExpandedMedia(newExpanded);
+                                  }}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </RevButtons>
+                              )}
+
+                              {/* Actions dropdown */}
+                              <DropdownMenu modal={false}>
+                                <DropdownMenuTrigger asChild>
+                                  <RevButtons variant="outline" size="sm">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </RevButtons>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                  >
+                                    <div
+                                      className="flex items-center w-full cursor-grab active:cursor-grabbing"
+                                      draggable
+                                      onDragStart={(e) =>
+                                        handleDragStart(e, media.currentVersion)
+                                      }
+                                      onDragEnd={() => setDraggedMedia(null)}
+                                    >
+                                      <GripVertical className="h-4 w-4 mr-2" />
+                                      Drag to Create Version
+                                    </div>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      window.open(
+                                        media.currentVersion.r2_url,
+                                        "_blank"
+                                      )
+                                    }
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Full Size
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setCreateLinkDialog({
+                                        open: true,
+                                        mediaFile: media.currentVersion,
+                                        isCreating: false,
+                                        showSuccess: false,
+                                      })
+                                    }
+                                  >
+                                    <Link className="h-4 w-4 mr-2" />
+                                    Create Review Link
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleViewReviewLinks(
+                                        media.currentVersion
+                                      )
+                                    }
+                                  >
+                                    <Share className="h-4 w-4 mr-2" />
+                                    View Review Links
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem asChild>
+                                    <a
+                                      href={media.currentVersion.r2_url}
+                                      download={
+                                        media.currentVersion.original_filename
+                                      }
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Download Current
+                                    </a>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() =>
+                                      setDeleteDialog({
+                                        open: true,
+                                        mediaFile: media.currentVersion,
+                                        isDeleting: false,
+                                      })
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Versions (Collapsible) - Show parent as v1 and versions in descending order */}
+                    {hasVersions && isExpanded && (
+                      <div className="ml-4 space-y-2">
+                        {/* Show parent as v1 first */}
+                        <Card
+                          className={`bg-muted/50 transition-all ${
+                            draggedOver === media.id
+                              ? "ring-2 ring-primary bg-primary/5"
+                              : ""
+                          }`}
+                          onDragOver={(e) => handleDragOver(e, media.id)}
+                          onDragLeave={(e) => handleDragLeave(e, media.id)}
+                          onDrop={(e) => handleDrop(e, media.id)}
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-[120px,1fr] gap-3 p-3">
+                            {/* Parent thumbnail */}
+                            <div className="aspect-video bg-muted rounded overflow-hidden relative">
+                              {media.file_type === "image" ? (
+                                <img
+                                  src={media.r2_url}
+                                  alt={media.original_filename}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <video
+                                  src={media.r2_url}
+                                  className="w-full h-full object-cover"
+                                  controls={false}
+                                  muted
+                                  preload="metadata"
+                                />
+                              )}
+
+                              <div className="absolute top-1 left-1">
+                                <Badge
+                                  variant={
+                                    media.is_current_version
+                                      ? "default"
+                                      : "outline"
+                                  }
+                                  className="text-xs"
+                                >
+                                  v1 (Original)
+                                </Badge>
+                              </div>
+
+                              {/* Drop overlay for parent */}
+                              {draggedOver === media.id && (
+                                <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                  <div className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                                    <Plus className="h-3 w-3" />
+                                    Add Version
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Parent details */}
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4
+                                      className="text-sm font-medium truncate"
+                                      title={media.original_filename}
+                                    >
+                                      {media.original_filename}
+                                    </h4>
+                                    {media.is_current_version && (
+                                      <Badge
+                                        variant="default"
+                                        className="text-xs"
+                                      >
+                                        <Star className="h-3 w-3 mr-1" />
+                                        Current
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    <p>
+                                      {formatFileSize(media.file_size)} •{" "}
+                                      {formatDate(media.uploaded_at)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  {!media.is_current_version && (
+                                    <RevButtons
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleSetCurrentVersion(
+                                          media.id,
+                                          media.id
+                                        )
+                                      }
+                                    >
+                                      <Star className="h-3 w-3 mr-1" />
+                                      Set Current
+                                    </RevButtons>
+                                  )}
+                                  <RevButtons
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      window.open(media.r2_url, "_blank")
+                                    }
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                  </RevButtons>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <RevButtons variant="outline" size="sm">
+                                        <MoreVertical className="h-3 w-3" />
+                                      </RevButtons>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onSelect={(e) => e.preventDefault()}
+                                      >
+                                        <div
+                                          className="flex items-center w-full cursor-grab active:cursor-grabbing"
+                                          draggable
+                                          onDragStart={(e) =>
+                                            handleDragStart(e, {
+                                              id: media.id,
+                                              filename: media.filename,
+                                              original_filename:
+                                                media.original_filename,
+                                              file_type: media.file_type,
+                                              mime_type: media.mime_type,
+                                              file_size: media.file_size,
+                                              r2_url: media.r2_url,
+                                              uploaded_at: media.uploaded_at,
+                                              version_number:
+                                                media.version_number,
+                                              is_current_version:
+                                                media.is_current_version,
+                                            })
+                                          }
+                                          onDragEnd={() =>
+                                            setDraggedMedia(null)
+                                          }
+                                        >
+                                          <GripVertical className="h-4 w-4 mr-2" />
+                                          Drag to Create Version
+                                        </div>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem asChild>
+                                        <a
+                                          href={media.r2_url}
+                                          download={media.original_filename}
+                                        >
+                                          <Download className="h-4 w-4 mr-2" />
+                                          Download
+                                        </a>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() =>
+                                          setDeleteDialog({
+                                            open: true,
+                                            mediaFile: {
+                                              id: media.id,
+                                              filename: media.filename,
+                                              original_filename:
+                                                media.original_filename,
+                                              file_type: media.file_type,
+                                              mime_type: media.mime_type,
+                                              file_size: media.file_size,
+                                              r2_url: media.r2_url,
+                                              uploaded_at: media.uploaded_at,
+                                              version_number:
+                                                media.version_number,
+                                              is_current_version:
+                                                media.is_current_version,
+                                            },
+                                            isDeleting: false,
+                                          })
+                                        }
+                                        className="text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete Original
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+
+                        {/* Show versions (newest first) */}
+                        {media.versions.map((version) => (
+                          <Card
+                            key={version.id}
+                            className={`bg-muted/50 transition-all ${
+                              draggedOver === version.id
+                                ? "ring-2 ring-primary bg-primary/5"
+                                : ""
+                            }`}
+                            onDragOver={(e) => handleDragOver(e, version.id)}
+                            onDragLeave={(e) => handleDragLeave(e, version.id)}
+                            onDrop={(e) => handleDrop(e, version.id)}
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-[120px,1fr] gap-3 p-3">
+                              {/* Version thumbnail */}
+                              <div className="aspect-video bg-muted rounded overflow-hidden relative">
+                                {version.file_type === "image" ? (
+                                  <img
+                                    src={version.r2_url}
+                                    alt={version.original_filename}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <video
+                                    src={version.r2_url}
+                                    className="w-full h-full object-cover"
+                                    controls={false}
+                                    muted
+                                    preload="metadata"
+                                  />
+                                )}
+
+                                <div className="absolute top-1 left-1">
+                                  <Badge
+                                    variant={
+                                      version.is_current_version
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    v{version.version_number}
+                                  </Badge>
+                                </div>
+
+                                {/* Drop overlay for versions */}
+                                {draggedOver === version.id && (
+                                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                    <div className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                                      <Plus className="h-3 w-3" />
+                                      Add Version
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Version details */}
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <h4
+                                        className="text-sm font-medium truncate"
+                                        title={version.original_filename}
+                                      >
+                                        {version.original_filename}
+                                      </h4>
+                                      {version.is_current_version && (
+                                        <Badge
+                                          variant="default"
+                                          className="text-xs"
+                                        >
+                                          <Star className="h-3 w-3 mr-1" />
+                                          Current
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      <p>
+                                        {formatFileSize(version.file_size)} •{" "}
+                                        {formatDate(version.uploaded_at)}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1">
+                                    {!version.is_current_version && (
+                                      <RevButtons
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleSetCurrentVersion(
+                                            media.id,
+                                            version.id
+                                          )
+                                        }
+                                      >
+                                        <Star className="h-3 w-3 mr-1" />
+                                        Set Current
+                                      </RevButtons>
+                                    )}
+                                    <RevButtons
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        window.open(version.r2_url, "_blank")
+                                      }
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </RevButtons>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <RevButtons variant="outline" size="sm">
+                                          <MoreVertical className="h-3 w-3" />
+                                        </RevButtons>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                          onSelect={(e) => e.preventDefault()}
+                                        >
+                                          <div
+                                            className="flex items-center w-full cursor-grab active:cursor-grabbing"
+                                            draggable
+                                            onDragStart={(e) =>
+                                              handleDragStart(e, version)
+                                            }
+                                            onDragEnd={() =>
+                                              setDraggedMedia(null)
+                                            }
+                                          >
+                                            <GripVertical className="h-4 w-4 mr-2" />
+                                            Drag to Create Version
+                                          </div>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem asChild>
+                                          <a
+                                            href={version.r2_url}
+                                            download={version.original_filename}
+                                          >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Download
+                                          </a>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setDeleteDialog({
+                                              open: true,
+                                              mediaFile: version,
+                                              isDeleting: false,
+                                            })
+                                          }
+                                          className="text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete Version
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -597,64 +1375,151 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
 
       {/* Create Review Link Dialog */}
       <Dialog
-        open={reviewLinkDialog.open}
-        onOpenChange={(open) => setReviewLinkDialog({ open })}
+        open={createLinkDialog.open}
+        onOpenChange={(open) =>
+          setCreateLinkDialog({
+            open,
+            isCreating: false,
+            showSuccess: false,
+          })
+        }
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Review Link</DialogTitle>
+            <DialogTitle>
+              {createLinkDialog.showSuccess
+                ? "Review Link Created!"
+                : "Create Review Link"}
+            </DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const title = formData.get("title") as string;
-              if (reviewLinkDialog.mediaFile) {
-                handleCreateReviewLink(reviewLinkDialog.mediaFile, title);
-              }
-            }}
-            className="space-y-4"
-          >
-            <div>
-              <Label htmlFor="title">Review Title (Optional)</Label>
-              <Input
-                id="title"
-                name="title"
-                placeholder="Enter a title for this review"
-                defaultValue={reviewLinkDialog.mediaFile?.original_filename}
-              />
-            </div>
 
-            <div className="flex justify-end gap-2">
-              <RevButtons
-                type="button"
-                variant="outline"
-                onClick={() => setReviewLinkDialog({ open: false })}
-              >
-                Cancel
-              </RevButtons>
-              <RevButtons type="submit" disabled={isCreatingLink}>
-                {isCreatingLink ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Link className="h-4 w-4 mr-2" />
-                    Create Review Link
-                  </>
-                )}
-              </RevButtons>
+          {createLinkDialog.showSuccess ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center py-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-100 p-2 rounded-full">
+                    <Check className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Link created successfully!</p>
+                    <p className="text-sm text-muted-foreground">
+                      The link has been copied to your clipboard
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Review Link</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={createLinkDialog.createdUrl || ""}
+                    readOnly
+                    className="font-mono text-sm"
+                  />
+                  <RevButtons
+                    variant="outline"
+                    onClick={() =>
+                      handleCopyReviewLink(
+                        createLinkDialog.createdUrl?.split("/").pop() || ""
+                      )
+                    }
+                  >
+                    <Copy className="h-4 w-4" />
+                  </RevButtons>
+                  <RevButtons
+                    variant="outline"
+                    onClick={() =>
+                      window.open(createLinkDialog.createdUrl, "_blank")
+                    }
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </RevButtons>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <RevButtons
+                  onClick={() =>
+                    setCreateLinkDialog({
+                      open: false,
+                      isCreating: false,
+                      showSuccess: false,
+                    })
+                  }
+                >
+                  Done
+                </RevButtons>
+              </div>
             </div>
-          </form>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const title = formData.get("title") as string;
+                if (createLinkDialog.mediaFile) {
+                  handleCreateReviewLink(createLinkDialog.mediaFile, title);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <Label htmlFor="title">Review Title (Optional)</Label>
+                <Input
+                  id="title"
+                  name="title"
+                  placeholder="Enter a title for this review"
+                  defaultValue={createLinkDialog.mediaFile?.original_filename}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <RevButtons
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setCreateLinkDialog({
+                      open: false,
+                      isCreating: false,
+                      showSuccess: false,
+                    })
+                  }
+                >
+                  Cancel
+                </RevButtons>
+                <RevButtons
+                  type="submit"
+                  disabled={createLinkDialog.isCreating}
+                >
+                  {createLinkDialog.isCreating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Link className="h-4 w-4 mr-2" />
+                      Create & Copy Link
+                    </>
+                  )}
+                </RevButtons>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
       {/* View Review Links Dialog */}
       <Dialog
         open={viewLinksDialog.open}
-        onOpenChange={(open) => setViewLinksDialog({ open, links: [] })}
+        onOpenChange={(open) =>
+          setViewLinksDialog({
+            open,
+            links: [],
+            isLoading: false,
+          })
+        }
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -667,7 +1532,7 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
           </DialogHeader>
 
           <div className="space-y-4">
-            {isLoadingLinks ? (
+            {viewLinksDialog.isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
@@ -744,7 +1609,12 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
       {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ open })}
+        onOpenChange={(open) =>
+          setDeleteDialog({
+            open,
+            isDeleting: false,
+          })
+        }
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -762,10 +1632,10 @@ export function MediaWorkspace({ project }: MediaWorkspaceProps) {
                 deleteDialog.mediaFile &&
                 handleDeleteMedia(deleteDialog.mediaFile)
               }
-              disabled={isDeleting}
+              disabled={deleteDialog.isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? (
+              {deleteDialog.isDeleting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Deleting...
