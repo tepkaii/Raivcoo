@@ -1,33 +1,38 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Badge } from "@/components/ui/badge";
-
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-}
+import React, { useState, useRef, useEffect } from "react";
+import { PinTool } from "./pin";
+import { DrawTool } from "./DrawingTool";
 
 interface MediaDisplayProps {
-  media: MediaFile;
+  media: any;
   videoRef?: React.RefObject<HTMLVideoElement>;
   className?: string;
+  onAddAnnotation?: (annotationData: any) => void;
+  activeCommentPin?: string | null;
+  activeCommentDrawing?: string | null;
+  comments?: any[];
 }
 
 export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   media,
   videoRef,
   className = "",
+  onAddAnnotation,
+  activeCommentPin,
+  activeCommentDrawing,
+  comments = [],
 }) => {
+  const [isPinToolActive, setIsPinToolActive] = useState(false);
+  const [isDrawToolActive, setIsDrawToolActive] = useState(false);
+  const [displaySize, setDisplaySize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [displayPosition, setDisplayPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
   const [mediaDimensions, setMediaDimensions] = useState<{
     width: number;
     height: number;
@@ -35,47 +40,37 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     isVertical: boolean;
   } | null>(null);
 
-  const [displaySize, setDisplaySize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-
+  const containerRef = useRef<HTMLDivElement>(null);
   const mediaElementRef = useRef<HTMLVideoElement | HTMLImageElement>(null);
 
-  // Get media dimensions info
-  const getMediaInfo = () => {
-    const sizeInfo = formatFileSize(media.file_size);
-    const originalDimensions = mediaDimensions
-      ? `${mediaDimensions.width}×${mediaDimensions.height}`
-      : "";
-    const currentSize = displaySize
-      ? `${Math.round(displaySize.width)}×${Math.round(displaySize.height)}`
-      : "";
+  // Calculate current scale percentage
+  const getCurrentScale = () => {
+    if (!mediaDimensions || !displaySize) return 100;
 
-    return {
-      type: media.file_type.toUpperCase(),
-      size: sizeInfo,
-      originalDimensions,
-      currentSize,
-    };
+    const scaleX = displaySize.width / mediaDimensions.width;
+    const scaleY = displaySize.height / mediaDimensions.height;
+    const scale = Math.min(scaleX, scaleY);
+
+    return Math.round(scale * 100);
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  // Track display size changes
-  const updateDisplaySize = () => {
+  // Track display size and position changes
+  const updateDisplayMetrics = () => {
     const element = mediaElementRef.current;
-    if (element) {
-      const rect = element.getBoundingClientRect();
+    const container = containerRef.current;
+    if (element && container) {
+      const elementRect = element.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
       setDisplaySize({
-        width: rect.width,
-        height: rect.height,
+        width: elementRect.width,
+        height: elementRect.height,
+      });
+
+      // Position relative to container
+      setDisplayPosition({
+        left: elementRect.left - containerRect.left,
+        top: elementRect.top - containerRect.top,
       });
     }
   };
@@ -98,8 +93,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
             isVertical,
           });
 
-          // Update display size after metadata loads
-          setTimeout(updateDisplaySize, 100);
+          setTimeout(updateDisplayMetrics, 100);
         };
 
         if (video.readyState >= 1) {
@@ -111,7 +105,6 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         }
       }
     } else {
-      // For images, create a temporary image to get dimensions
       const img = new Image();
       img.onload = () => {
         const width = img.naturalWidth;
@@ -126,34 +119,29 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           isVertical,
         });
 
-        // Update display size after image loads
-        setTimeout(updateDisplaySize, 100);
+        setTimeout(updateDisplayMetrics, 100);
       };
       img.src = media.r2_url;
     }
   }, [media.r2_url, media.file_type, videoRef]);
 
-  // Set up resize observer to track display size changes
+  // Set up resize observer
   useEffect(() => {
     const element = mediaElementRef.current;
     if (!element) return;
 
     const resizeObserver = new ResizeObserver(() => {
-      updateDisplaySize();
+      updateDisplayMetrics();
     });
 
     resizeObserver.observe(element);
-
-    // Also listen to window resize
-    window.addEventListener("resize", updateDisplaySize);
+    window.addEventListener("resize", updateDisplayMetrics);
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateDisplaySize);
+      window.removeEventListener("resize", updateDisplayMetrics);
     };
-  }, [mediaDimensions]); // Re-run when mediaDimensions change
-
-  const mediaInfo = getMediaInfo();
+  }, [mediaDimensions]);
 
   // Get media styling based on orientation
   const getMediaStyles = () => {
@@ -165,10 +153,9 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       };
     }
 
-    const { isVertical, aspectRatio } = mediaDimensions;
+    const { isVertical } = mediaDimensions;
 
     if (isVertical) {
-      // Vertical media: take full height, let width adjust
       return {
         width: "auto",
         height: "100%",
@@ -176,7 +163,6 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         objectFit: "contain" as const,
       };
     } else {
-      // Horizontal media: take full width, let height adjust
       return {
         width: "100%",
         height: "auto",
@@ -195,61 +181,88 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     const { isVertical } = mediaDimensions;
 
     if (isVertical) {
-      // For vertical media, center horizontally and take full height
       return "h-full flex items-center justify-center";
     } else {
-      // For horizontal media, center vertically and take full width
       return "w-full flex items-center justify-center";
     }
   };
 
-  // Calculate scale percentage
-  const getScalePercentage = () => {
-    if (!mediaDimensions || !displaySize) return null;
-
-    const scaleX = displaySize.width / mediaDimensions.width;
-    const scaleY = displaySize.height / mediaDimensions.height;
-    const scale = Math.min(scaleX, scaleY); // object-fit: contain uses the smaller scale
-
-    return Math.round(scale * 100);
+  // Handle pin completion
+  const handlePinComplete = (pin: any) => {
+    if (onAddAnnotation) {
+      onAddAnnotation({
+        type: "pin",
+        data: pin,
+        timestamp: videoRef?.current?.currentTime || 0,
+      });
+    }
+    setIsPinToolActive(false);
   };
 
-  const scalePercentage = getScalePercentage();
+  // Handle drawing completion
+  const handleDrawComplete = (drawing: any) => {
+    if (onAddAnnotation) {
+      onAddAnnotation({
+        type: "drawing",
+        data: drawing,
+        timestamp: videoRef?.current?.currentTime || 0,
+      });
+    }
+    setIsDrawToolActive(false);
+  };
 
-  return (
-    <div
-      className={`relative w-full h-full flex items-center justify-center bg-black ${className}`}
-    >
-      {/* Media Info Badges */}
-      <div className="absolute top-4 left-4 z-10 space-y-2">
-        {/* Original Resolution Badge */}
-        <Badge
-          variant="default"
-          className="bg-black/70 text-white text-xs border border-gray-600 block"
-        >
-          {mediaInfo.type}
-          {mediaInfo.originalDimensions && ` • ${mediaInfo.originalDimensions}`}
-          {` • ${mediaInfo.size}`}
-        </Badge>
+  // Get active comment pin data
+  const getActiveCommentPinData = () => {
+    if (!activeCommentPin || !comments.length) return null;
 
-        {/* Current Display Size Badge */}
-        {mediaInfo.currentSize && (
-          <Badge
-            variant="secondary"
-            className="bg-blue-600/70 text-white text-xs border border-blue-500 block"
+    const comment = comments.find((c) => c.id === activeCommentPin);
+    if (!comment || !comment.annotation_data) return null;
+
+    return [
+      {
+        ...comment.annotation_data,
+        id: comment.id,
+      },
+    ];
+  };
+
+  // Get active comment drawing data
+  const getActiveCommentDrawingData = () => {
+    if (!activeCommentDrawing || !comments.length) return null;
+
+    const comment = comments.find((c) => c.id === activeCommentDrawing);
+    if (!comment || !comment.drawing_data) return null;
+
+    return [comment.drawing_data];
+  };
+
+  const activeCommentPins = getActiveCommentPinData();
+  const activeCommentDrawings = getActiveCommentDrawingData();
+  const currentScale = getCurrentScale();
+
+  // Disable one tool when the other is active
+  const handlePinToolToggle = () => {
+    if (isDrawToolActive) {
+      setIsDrawToolActive(false);
+    }
+    setIsPinToolActive(!isPinToolActive);
+  };
+
+  const handleDrawToolToggle = () => {
+    if (isPinToolActive) {
+      setIsPinToolActive(false);
+    }
+    setIsDrawToolActive(!isDrawToolActive);
+  };
+
+  if (media.file_type === "video") {
+    return (
+      <div ref={containerRef} className={`relative bg-black ${className}`}>
+        {/* Media Container */}
+        <div className="relative w-full h-full flex items-center justify-center">
+          <div
+            className={`relative border-2 border-blue-600 rounded-none overflow-hidden shadow-2xl ${getContainerStyles()}`}
           >
-            Display: {mediaInfo.currentSize}
-            {scalePercentage && ` (${scalePercentage}%)`}
-          </Badge>
-        )}
-      </div>
-
-      {/* Media Container */}
-      <div className="relative w-full h-full flex items-center justify-center">
-        <div
-          className={`relative border-2 border-blue-600 rounded-none overflow-hidden shadow-2xl ${getContainerStyles()}`}
-        >
-          {media.file_type === "video" ? (
             <video
               ref={(el) => {
                 if (videoRef) {
@@ -266,21 +279,180 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
               preload="metadata"
               controls={false}
             />
-          ) : (
-            <img
-              ref={(el) => {
-                mediaElementRef.current = el;
-              }}
-              src={media.r2_url}
-              alt={media.original_filename}
-              style={getMediaStyles()}
-              className="block"
-            />
-          )}
+          </div>
+        </div>
+
+        {/* Pin Tool Overlay */}
+        <PinTool
+          isActive={isPinToolActive}
+          displaySize={displaySize}
+          displayPosition={displayPosition}
+          mediaDimensions={
+            mediaDimensions
+              ? {
+                  width: mediaDimensions.width,
+                  height: mediaDimensions.height,
+                }
+              : null
+          }
+          currentTime={videoRef?.current?.currentTime || 0}
+          currentScale={currentScale}
+          onPinComplete={handlePinComplete}
+          onCancel={() => setIsPinToolActive(false)}
+          existingPins={activeCommentPins || []}
+          mediaElementRef={mediaElementRef}
+        />
+
+        {/* Draw Tool Overlay */}
+        <DrawTool
+          isActive={isDrawToolActive}
+          displaySize={displaySize}
+          displayPosition={displayPosition}
+          mediaDimensions={
+            mediaDimensions
+              ? {
+                  width: mediaDimensions.width,
+                  height: mediaDimensions.height,
+                }
+              : null
+          }
+          currentTime={videoRef?.current?.currentTime || 0}
+          currentScale={currentScale}
+          onDrawingComplete={handleDrawComplete}
+          onCancel={() => setIsDrawToolActive(false)}
+          existingDrawings={activeCommentDrawings || []}
+          mediaElementRef={mediaElementRef}
+        />
+
+        {/* Tool Buttons */}
+        <button
+          onClick={handlePinToolToggle}
+          disabled={isDrawToolActive}
+          className={`absolute top-4 left-4 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            isPinToolActive
+              ? "bg-purple-600 text-white"
+              : isDrawToolActive
+                ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                : "bg-black/70 text-white hover:bg-black/90"
+          }`}
+        >
+          📍 Pin
+        </button>
+
+        <button
+          onClick={handleDrawToolToggle}
+          disabled={isPinToolActive}
+          className={`absolute top-4 left-20 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            isDrawToolActive
+              ? "bg-green-600 text-white"
+              : isPinToolActive
+                ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                : "bg-black/70 text-white hover:bg-black/90"
+          }`}
+        >
+          ✏️ Draw
+        </button>
+
+        {/* Loading state */}
+        {!mediaDimensions && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-gray-500 text-sm">Loading media...</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Image display
+  return (
+    <div ref={containerRef} className={`relative bg-black ${className}`}>
+      {/* Media Container */}
+      <div className="relative w-full h-full flex items-center justify-center">
+        <div
+          className={`relative border-2 border-blue-600 rounded-none overflow-hidden shadow-2xl ${getContainerStyles()}`}
+        >
+          <img
+            ref={(el) => {
+              mediaElementRef.current = el;
+            }}
+            src={media.r2_url}
+            alt={media.original_filename}
+            style={getMediaStyles()}
+            className="block"
+          />
         </div>
       </div>
 
-      {/* Loading state while dimensions are being calculated */}
+      {/* Pin Tool Overlay */}
+      <PinTool
+        isActive={isPinToolActive}
+        displaySize={displaySize}
+        displayPosition={displayPosition}
+        mediaDimensions={
+          mediaDimensions
+            ? {
+                width: mediaDimensions.width,
+                height: mediaDimensions.height,
+              }
+            : null
+        }
+        currentScale={currentScale}
+        onPinComplete={handlePinComplete}
+        onCancel={() => setIsPinToolActive(false)}
+        existingPins={activeCommentPins || []}
+        mediaElementRef={mediaElementRef}
+      />
+
+      {/* Draw Tool Overlay */}
+      <DrawTool
+        isActive={isDrawToolActive}
+        displaySize={displaySize}
+        displayPosition={displayPosition}
+        mediaDimensions={
+          mediaDimensions
+            ? {
+                width: mediaDimensions.width,
+                height: mediaDimensions.height,
+              }
+            : null
+        }
+        currentScale={currentScale}
+        onDrawingComplete={handleDrawComplete}
+        onCancel={() => setIsDrawToolActive(false)}
+        existingDrawings={activeCommentDrawings || []}
+        mediaElementRef={mediaElementRef}
+      />
+
+      {/* Tool Buttons */}
+      <button
+        onClick={handlePinToolToggle}
+        disabled={isDrawToolActive}
+        className={`absolute top-4 left-4 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+          isPinToolActive
+            ? "bg-purple-600 text-white"
+            : isDrawToolActive
+              ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+              : "bg-black/70 text-white hover:bg-black/90"
+        }`}
+      >
+        📍 Pin
+      </button>
+
+      <button
+        onClick={handleDrawToolToggle}
+        disabled={isPinToolActive}
+        className={`absolute top-4 left-20 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+          isDrawToolActive
+            ? "bg-green-600 text-white"
+            : isPinToolActive
+              ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+              : "bg-black/70 text-white hover:bg-black/90"
+        }`}
+      >
+        ✏️ Draw
+      </button>
+
+      {/* Loading state */}
       {!mediaDimensions && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-gray-500 text-sm">Loading media...</div>

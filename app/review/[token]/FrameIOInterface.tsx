@@ -44,14 +44,13 @@ interface MediaComment {
   created_at: string;
   updated_at: string;
   annotation_data?: {
+    id: string;
     x: number;
     y: number;
-    frameWidth: number;
-    frameHeight: number;
-    videoWidth: number;
-    videoHeight: number;
-    scale: number;
-    timestamp: number;
+    mediaWidth: number;
+    mediaHeight: number;
+    createdAtScale: number;
+    timestamp?: number;
   };
 }
 
@@ -73,6 +72,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
+  const [activeCommentPin, setActiveCommentPin] = useState<string | null>(null);
 
   // Desktop sidebar resizing
   const [sidebarWidth, setSidebarWidth] = useState(400);
@@ -96,7 +96,34 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
       console.error("Failed to load comments:", error);
     }
   };
+  const [activeCommentDrawing, setActiveCommentDrawing] = useState<
+    string | null
+  >(null);
 
+  // Add this handler
+  const handleCommentDrawingClick = (comment: MediaComment) => {
+    if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
+      handleSeekToTimestamp(comment.timestamp_seconds);
+      setActiveCommentDrawing(comment.id);
+      // NO automatic timeout - let user control when to hide
+    }
+  };
+
+  // Add useEffect to clear drawing when time changes (similar to pin logic)
+  useEffect(() => {
+    if (activeCommentDrawing && videoRef.current) {
+      const activeComment = comments.find((c) => c.id === activeCommentDrawing);
+      if (activeComment && activeComment.timestamp_seconds !== undefined) {
+        const timeDiff = Math.abs(
+          currentTime - activeComment.timestamp_seconds
+        );
+
+        if (timeDiff > 2 && !videoRef.current.paused) {
+          setActiveCommentDrawing(null);
+        }
+      }
+    }
+  }, [currentTime, activeCommentDrawing, comments]);
   // Handle annotation from MediaDisplay
   const handleAddAnnotation = (annotationData: any) => {
     setPendingAnnotation(annotationData);
@@ -108,7 +135,37 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     loadComments(); // Reload comments to show the new one
   };
 
-  // Helper functions
+  // Handle comment pin click - show pin and jump to timestamp
+  // Handle comment pin click - show pin and jump to timestamp
+  const handleCommentPinClick = (comment: MediaComment) => {
+    if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
+      handleSeekToTimestamp(comment.timestamp_seconds);
+      setActiveCommentPin(comment.id);
+
+      // REMOVE the automatic timeout - let user control when to hide
+      // setTimeout(() => {
+      //   setActiveCommentPin(null);
+      // }, 5000);
+    }
+  };
+
+  // Clear active pin ONLY when time changes significantly AND video is playing
+  useEffect(() => {
+    if (activeCommentPin && videoRef.current) {
+      const activeComment = comments.find((c) => c.id === activeCommentPin);
+      if (activeComment && activeComment.timestamp_seconds !== undefined) {
+        const timeDiff = Math.abs(
+          currentTime - activeComment.timestamp_seconds
+        );
+
+        // Only hide pin if video is playing AND time has moved significantly
+        if (timeDiff > 2 && !videoRef.current.paused) {
+          setActiveCommentPin(null);
+        }
+      }
+    }
+  }, [currentTime, activeCommentPin, comments]);
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -148,11 +205,17 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
   };
 
   // Handle seeking from comments
+  // Remove the complex useEffect time syncing
+  // Just pass currentTime directly and let PlayerControls update it
+
   const handleSeekToTimestamp = (timestamp: number) => {
-    setCurrentTime(timestamp);
+    if (videoRef.current && currentMedia.file_type === "video") {
+      videoRef.current.currentTime = timestamp;
+      // Don't set state here, let the video's timeupdate event handle it
+    }
   };
 
-  // Desktop sidebar resizing
+  // Desktop sidebar resizing handlers (same as before)
   const handleSidebarMouseDown = React.useCallback(
     (e: React.MouseEvent) => {
       if (isMobileLayout) return;
@@ -203,7 +266,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     isMobileLayout,
   ]);
 
-  // Mobile Layout
+  // Mobile Layout (same structure, just pass new props)
   if (isMobileLayout) {
     return (
       <div className="h-screen flex flex-col bg-black">
@@ -252,6 +315,9 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
               media={currentMedia}
               videoRef={videoRef}
               className="h-full"
+              onAddAnnotation={handleAddAnnotation}
+              activeCommentPin={activeCommentPin}
+              comments={comments}
             />
           </div>
 
@@ -306,6 +372,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
                 className="h-full"
                 pendingAnnotation={pendingAnnotation}
                 onAnnotationSaved={handleAnnotationSaved}
+                onCommentPinClick={handleCommentPinClick}
               />
             ) : (
               <div className="p-4 space-y-4 overflow-y-auto h-full">
@@ -354,7 +421,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     );
   }
 
-  // Desktop Layout
+  // Desktop Layout (same structure, just pass new props)
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-black">
       {/* Header */}
@@ -410,6 +477,10 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
               media={currentMedia}
               videoRef={videoRef}
               className="h-full"
+              onAddAnnotation={handleAddAnnotation}
+              activeCommentPin={activeCommentPin}
+              activeCommentDrawing={activeCommentDrawing} // Add this
+              comments={comments}
             />
           </div>
 
@@ -419,6 +490,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
             mediaType={currentMedia.file_type}
             comments={comments}
             onSeekToTimestamp={handleSeekToTimestamp}
+            onTimeUpdate={setCurrentTime} // Add this line
           />
         </div>
 
@@ -473,9 +545,11 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
                 mediaType={currentMedia.file_type}
                 currentTime={currentTime}
                 onSeekToTimestamp={handleSeekToTimestamp}
-                className="flex-1"
+                className="h-full"
                 pendingAnnotation={pendingAnnotation}
                 onAnnotationSaved={handleAnnotationSaved}
+                onCommentPinClick={handleCommentPinClick}
+                onCommentDrawingClick={handleCommentDrawingClick} // Add this
               />
             ) : (
               <div className="p-4 space-y-6 overflow-y-auto">

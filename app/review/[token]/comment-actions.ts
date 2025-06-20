@@ -452,7 +452,38 @@ export async function getCommentsAtTimestampAction(
     return { success: false, error: "Failed to get comments at timestamp" };
   }
 }
-export async function createCommentAction(data: CreateCommentData) {
+
+export async function deleteCommentAction(commentId: string) {
+  try {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("media_comments")
+      .delete()
+      .eq("id", commentId);
+
+    if (error) {
+      console.error("Database error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete comment:", error);
+    return { success: false, error: "Failed to delete comment" };
+  }
+}
+export async function createCommentAction(data: {
+  mediaId: string;
+  userName: string;
+  userEmail?: string;
+  content: string;
+  timestampSeconds?: number;
+  ipAddress?: string;
+  userAgent?: string;
+  annotationData?: any;
+  drawingData?: any;
+}) {
   try {
     const supabase = await createClient();
 
@@ -464,6 +495,10 @@ export async function createCommentAction(data: CreateCommentData) {
       timestamp_seconds: data.timestampSeconds,
       ip_address: data.ipAddress,
       user_agent: data.userAgent,
+      annotation_data: data.annotationData || null,
+      drawing_data: data.drawingData || null,
+      is_approved: true,
+      is_pinned: false,
     };
 
     const { data: comment, error } = await supabase
@@ -500,30 +535,26 @@ export async function getCommentsAction(mediaId: string) {
       return { success: false, error: error.message };
     }
 
-    return { success: true, comments: comments || [] };
+    // Parse annotation_data for each comment
+    const parsedComments =
+      comments?.map((comment) => {
+        if (
+          comment.annotation_data &&
+          typeof comment.annotation_data === "string"
+        ) {
+          try {
+            comment.annotation_data = JSON.parse(comment.annotation_data);
+          } catch (e) {
+            console.error("Error parsing annotation_data:", e);
+            comment.annotation_data = null;
+          }
+        }
+        return comment;
+      }) || [];
+
+    return { success: true, comments: parsedComments };
   } catch (error) {
     console.error("Failed to get comments:", error);
     return { success: false, error: "Failed to get comments" };
-  }
-}
-
-export async function deleteCommentAction(commentId: string) {
-  try {
-    const supabase = await createClient();
-
-    const { error } = await supabase
-      .from("media_comments")
-      .delete()
-      .eq("id", commentId);
-
-    if (error) {
-      console.error("Database error:", error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to delete comment:", error);
-    return { success: false, error: "Failed to delete comment" };
   }
 }

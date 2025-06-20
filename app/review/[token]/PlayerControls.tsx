@@ -35,6 +35,7 @@ interface PlayerControlsProps {
   comments?: MediaComment[];
   onSeekToTimestamp?: (timestamp: number) => void;
   className?: string;
+  onTimeUpdate?: (time: number) => void; // Add this
 }
 
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -43,6 +44,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   comments = [],
   onSeekToTimestamp,
   className = "",
+  onTimeUpdate,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -86,7 +88,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     const handleTimeUpdate = () => {
       if (!isDragging) {
         setCurrentTime(video.currentTime);
-        onSeekToTimestamp?.(video.currentTime);
+        onTimeUpdate?.(video.currentTime); // Update parent
       }
     };
 

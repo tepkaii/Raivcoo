@@ -1,8 +1,8 @@
 "use client";
-// MediaDisplay Drawing Version
+// old media with oin file
 import React, { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Pen, Eraser, X } from "lucide-react";
+import { MapPin, X } from "lucide-react";
 
 interface MediaFile {
   id: string;
@@ -18,14 +18,15 @@ interface MediaFile {
   is_current_version: boolean;
 }
 
-interface DrawingPath {
+interface AnnotationPin {
   id: string;
-  points: { x: number; y: number }[]; // Percentage coordinates (0-100)
+  x: number; // Percentage relative to media (0-100)
+  y: number; // Percentage relative to media (0-100)
   timestamp?: number; // For videos
-  color: string;
-  strokeWidth: number;
-  mediaWidth: number; // Original media resolution when drawn
-  mediaHeight: number;
+  content: string;
+  mediaWidth: number; // Original media width when pin was created
+  mediaHeight: number; // Original media height when pin was created
+  createdAtScale: number; // Scale percentage when pin was created (this is the "original" size for this pin)
 }
 
 interface MediaDisplayProps {
@@ -56,19 +57,12 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     top: number;
   } | null>(null);
 
-  // Drawing state
-  const [drawingPaths, setDrawingPaths] = useState<DrawingPath[]>([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>(
-    []
-  );
-  const [drawingMode, setDrawingMode] = useState<"draw" | "erase">("draw");
-  const [strokeColor, setStrokeColor] = useState("#ff0000");
-  const [strokeWidth, setStrokeWidth] = useState(3);
+  // Test annotation pins
+  const [annotationPins, setAnnotationPins] = useState<AnnotationPin[]>([]);
+  const [selectedPin, setSelectedPin] = useState<string | null>(null);
 
   const mediaElementRef = useRef<HTMLVideoElement | HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
 
   // Get media dimensions info
   const getMediaInfo = () => {
@@ -107,6 +101,19 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     return Math.round(scale * 100);
   };
 
+  // Calculate pin scale factor based on current scale vs creation scale
+  const getPinScaleFactor = (pin: AnnotationPin) => {
+    const currentScale = getCurrentScale();
+
+    // If current scale is smaller than creation scale, scale down the pin
+    if (currentScale < pin.createdAtScale) {
+      return currentScale / pin.createdAtScale;
+    }
+
+    // If current scale is larger than creation scale, keep pin at original size
+    return 1;
+  };
+
   // Track display size and position changes
   const updateDisplayMetrics = () => {
     const element = mediaElementRef.current;
@@ -128,133 +135,52 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
   };
 
-  // Convert screen coordinates to percentage coordinates
-  const screenToPercentage = (screenX: number, screenY: number) => {
-    if (!displaySize) return { x: 0, y: 0 };
-
-    return {
-      x: (screenX / displaySize.width) * 100,
-      y: (screenY / displaySize.height) * 100,
-    };
-  };
-
-  // Convert percentage coordinates to screen coordinates
-  const percentageToScreen = (percentX: number, percentY: number) => {
-    if (!displaySize) return { x: 0, y: 0 };
-
-    return {
-      x: (percentX / 100) * displaySize.width,
-      y: (percentY / 100) * displaySize.height,
-    };
-  };
-
-  // Handle mouse down - start drawing
-  const handleMouseDown = (event: React.MouseEvent) => {
-    if (!mediaDimensions || !displaySize || drawingMode === "erase") return;
+  // Handle click on media to add annotation pin
+  const handleMediaClick = (event: React.MouseEvent) => {
+    if (!mediaDimensions || !displaySize || !displayPosition) return;
 
     const rect = (event.target as HTMLElement).getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
-    // Convert to percentage
-    const percentagePoint = screenToPercentage(clickX, clickY);
+    // Convert to percentage relative to media
+    const percentageX = (clickX / displaySize.width) * 100;
+    const percentageY = (clickY / displaySize.height) * 100;
 
-    // Ensure drawing is within bounds
+    // Ensure pin is within bounds
     if (
-      percentagePoint.x < 0 ||
-      percentagePoint.x > 100 ||
-      percentagePoint.y < 0 ||
-      percentagePoint.y > 100
+      percentageX < 0 ||
+      percentageX > 100 ||
+      percentageY < 0 ||
+      percentageY > 100
     ) {
       return;
     }
 
-    setIsDrawing(true);
-    setCurrentPath([percentagePoint]);
-  };
+    const currentScale = getCurrentScale();
 
-  // Handle mouse move - continue drawing
-  const handleMouseMove = (event: React.MouseEvent) => {
-    if (!isDrawing || !mediaDimensions || !displaySize) return;
-
-    const rect = (event.target as HTMLElement).getBoundingClientRect();
-    const moveX = event.clientX - rect.left;
-    const moveY = event.clientY - rect.top;
-
-    const percentagePoint = screenToPercentage(moveX, moveY);
-
-    // Ensure drawing stays within bounds
-    if (
-      percentagePoint.x < 0 ||
-      percentagePoint.x > 100 ||
-      percentagePoint.y < 0 ||
-      percentagePoint.y > 100
-    ) {
-      return;
-    }
-
-    setCurrentPath((prev) => [...prev, percentagePoint]);
-  };
-
-  // Handle mouse up - finish drawing
-  const handleMouseUp = () => {
-    if (!isDrawing || currentPath.length < 2 || !mediaDimensions) return;
-
-    const newPath: DrawingPath = {
-      id: `path_${Date.now()}`,
-      points: currentPath,
-      color: strokeColor,
-      strokeWidth: strokeWidth,
+    const newPin: AnnotationPin = {
+      id: `pin_${Date.now()}`,
+      x: percentageX,
+      y: percentageY,
+      content: `Pin at ${Math.round(percentageX)}%, ${Math.round(percentageY)}%`,
       mediaWidth: mediaDimensions.width,
       mediaHeight: mediaDimensions.height,
+      createdAtScale: currentScale, // Store the scale when pin was created
       timestamp:
         media.file_type === "video" && videoRef?.current
           ? videoRef.current.currentTime
           : undefined,
     };
 
-    setDrawingPaths((prev) => [...prev, newPath]);
-    setIsDrawing(false);
-    setCurrentPath([]);
+    setAnnotationPins((prev) => [...prev, newPin]);
+    setSelectedPin(newPin.id);
   };
 
-  // Handle eraser click
-  const handleEraserClick = (event: React.MouseEvent) => {
-    if (drawingMode !== "erase" || !displaySize) return;
-
-    const rect = (event.target as HTMLElement).getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
-
-    const clickPoint = screenToPercentage(clickX, clickY);
-
-    // Find and remove paths near the click point
-    setDrawingPaths((prev) =>
-      prev.filter((path) => {
-        // Check if any point in the path is near the click
-        return !path.points.some((point) => {
-          const distance = Math.sqrt(
-            Math.pow(point.x - clickPoint.x, 2) +
-              Math.pow(point.y - clickPoint.y, 2)
-          );
-          return distance < 5; // 5% tolerance
-        });
-      })
-    );
-  };
-
-  // Convert path points to SVG path string
-  const pathToSVG = (points: { x: number; y: number }[]) => {
-    if (points.length < 2) return "";
-
-    const screenPoints = points.map((p) => percentageToScreen(p.x, p.y));
-
-    let path = `M ${screenPoints[0].x} ${screenPoints[0].y}`;
-    for (let i = 1; i < screenPoints.length; i++) {
-      path += ` L ${screenPoints[i].x} ${screenPoints[i].y}`;
-    }
-
-    return path;
+  // Remove annotation pin
+  const removePin = (pinId: string) => {
+    setAnnotationPins((prev) => prev.filter((pin) => pin.id !== pinId));
+    setSelectedPin(null);
   };
 
   // Load media dimensions
@@ -326,7 +252,6 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   }, [mediaDimensions]);
 
   const mediaInfo = getMediaInfo();
-  const currentScale = getCurrentScale();
 
   // Get media styling based on orientation
   const getMediaStyles = () => {
@@ -372,6 +297,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
   };
 
+  const currentScale = getCurrentScale();
+
   return (
     <div
       className={`relative w-full h-full flex items-center justify-center bg-black ${className}`}
@@ -396,73 +323,25 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           </Badge>
         )}
 
-        {/* Drawing count badge */}
-        {drawingPaths.length > 0 && (
+        {/* Pin count badge */}
+        {annotationPins.length > 0 && (
           <Badge
             variant="secondary"
             className="bg-purple-600/70 text-white text-xs border border-purple-500 block"
           >
-            Drawings: {drawingPaths.length}
+            Pins: {annotationPins.length}
           </Badge>
         )}
       </div>
 
-      {/* Drawing Controls */}
+      {/* Test Controls */}
       <div className="absolute top-4 right-4 z-10 space-y-2">
-        <div className="flex gap-2">
-          <Badge
-            variant={drawingMode === "draw" ? "default" : "outline"}
-            className="cursor-pointer hover:bg-gray-700 px-2 py-1"
-            onClick={() => setDrawingMode("draw")}
-          >
-            <Pen className="w-3 h-3 mr-1" />
-            Draw
-          </Badge>
-          <Badge
-            variant={drawingMode === "erase" ? "default" : "outline"}
-            className="cursor-pointer hover:bg-gray-700 px-2 py-1"
-            onClick={() => setDrawingMode("erase")}
-          >
-            <Eraser className="w-3 h-3 mr-1" />
-            Erase
-          </Badge>
-        </div>
-
-        {/* Color picker */}
-        <div className="flex gap-1">
-          {[
-            "#ff0000",
-            "#00ff00",
-            "#0000ff",
-            "#ffff00",
-            "#ff00ff",
-            "#ffffff",
-          ].map((color) => (
-            <button
-              key={color}
-              className={`w-6 h-6 rounded border-2 ${strokeColor === color ? "border-white" : "border-gray-500"}`}
-              style={{ backgroundColor: color }}
-              onClick={() => setStrokeColor(color)}
-            />
-          ))}
-        </div>
-
-        {/* Stroke width */}
-        <input
-          type="range"
-          min="1"
-          max="10"
-          value={strokeWidth}
-          onChange={(e) => setStrokeWidth(Number(e.target.value))}
-          className="w-20"
-        />
-
         <Badge
           variant="outline"
           className="bg-black/70 text-white text-xs border border-gray-600 block cursor-pointer hover:bg-gray-700"
-          onClick={() => setDrawingPaths([])}
+          onClick={() => setAnnotationPins([])}
         >
-          Clear All
+          Clear All Pins
         </Badge>
       </div>
 
@@ -486,14 +365,11 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
               }}
               src={media.r2_url}
               style={getMediaStyles()}
-              className={`block ${drawingMode === "draw" ? "cursor-crosshair" : "cursor-pointer"}`}
+              className="block cursor-crosshair"
               playsInline
               preload="metadata"
               controls={false}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onClick={drawingMode === "erase" ? handleEraserClick : undefined}
+              onClick={handleMediaClick}
             />
           ) : (
             <img
@@ -503,49 +379,99 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
               src={media.r2_url}
               alt={media.original_filename}
               style={getMediaStyles()}
-              className={`block ${drawingMode === "draw" ? "cursor-crosshair" : "cursor-pointer"}`}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onClick={drawingMode === "erase" ? handleEraserClick : undefined}
+              className="block cursor-crosshair"
+              onClick={handleMediaClick}
             />
           )}
 
-          {/* Drawing SVG Overlay */}
-          {displaySize && (
-            <svg
-              ref={svgRef}
-              className="absolute top-0 left-0 pointer-events-none"
-              width={displaySize.width}
-              height={displaySize.height}
-              style={{ zIndex: 10 }}
-            >
-              {/* Existing drawings */}
-              {drawingPaths.map((path) => (
-                <path
-                  key={path.id}
-                  d={pathToSVG(path.points)}
-                  stroke={path.color}
-                  strokeWidth={path.strokeWidth * (currentScale / 100)} // Scale stroke width with media
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ))}
+          {/* Annotation Pins Overlay */}
+          {displaySize &&
+            displayPosition &&
+            annotationPins.map((pin) => {
+              // Calculate pin position based on current display size
+              const pinX = (pin.x / 100) * displaySize.width;
+              const pinY = (pin.y / 100) * displaySize.height;
 
-              {/* Current drawing path */}
-              {isDrawing && currentPath.length > 1 && (
-                <path
-                  d={pathToSVG(currentPath)}
-                  stroke={strokeColor}
-                  strokeWidth={strokeWidth * (currentScale / 100)} // Scale stroke width with media
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              )}
-            </svg>
-          )}
+              // Calculate pin scale factor
+              const scaleFactor = getPinScaleFactor(pin);
+              const minScale = 0.3; // Minimum pin size (30% of original)
+              const finalScale = Math.max(scaleFactor, minScale);
+
+              return (
+                <div
+                  key={pin.id}
+                  className="absolute z-20 group"
+                  style={{
+                    left: `${pinX}px`,
+                    top: `${pinY}px`,
+                    transform: `translate(-50%, -50%) scale(${finalScale})`,
+                    transformOrigin: "center",
+                  }}
+                >
+                  {/* Pin Icon */}
+                  <div
+                    className={`relative cursor-pointer transition-all duration-200 ${
+                      selectedPin === pin.id ? "scale-125" : "hover:scale-110"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPin(selectedPin === pin.id ? null : pin.id);
+                    }}
+                  >
+                    <MapPin
+                      className={`w-6 h-6 ${
+                        selectedPin === pin.id
+                          ? "text-yellow-400"
+                          : "text-red-500"
+                      } drop-shadow-lg`}
+                      fill="currentColor"
+                    />
+
+                    {/* Pin number */}
+                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1 bg-white text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold text-[10px]">
+                      {annotationPins.findIndex((p) => p.id === pin.id) + 1}
+                    </div>
+                  </div>
+
+                  {/* Pin Tooltip */}
+                  {selectedPin === pin.id && (
+                    <div
+                      className="absolute top-8 left-1/2 bg-black/90 text-white text-xs p-2 rounded whitespace-nowrap border border-gray-600 min-w-48"
+                      style={{
+                        transform: `translateX(-50%) scale(${1 / finalScale})`, // Counter-scale the tooltip
+                        transformOrigin: "top center",
+                      }}
+                    >
+                      <div className="font-medium">{pin.content}</div>
+                      <div className="text-gray-300 mt-1">
+                        Position: {pin.x.toFixed(1)}%, {pin.y.toFixed(1)}%
+                      </div>
+                      <div className="text-gray-300">
+                        Created at: {pin.createdAtScale}% scale
+                      </div>
+                      <div className="text-gray-300">
+                        Current scale: {finalScale.toFixed(2)}x
+                      </div>
+                      {pin.timestamp !== undefined && (
+                        <div className="text-gray-300">
+                          Time: {Math.round(pin.timestamp)}s
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePin(pin.id);
+                        }}
+                        className="mt-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
         </div>
       </div>
 
@@ -562,9 +488,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           variant="outline"
           className="bg-black/70 text-white text-xs border border-gray-600"
         >
-          {drawingMode === "draw"
-            ? "Click and drag to draw"
-            : "Click on drawings to erase"}
+          Click on media to add pins
         </Badge>
       </div>
     </div>

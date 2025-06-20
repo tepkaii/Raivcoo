@@ -13,6 +13,8 @@ import {
   Edit,
   Trash,
   Loader2,
+  MapPin,
+  Pencil,
 } from "lucide-react";
 import {
   createCommentAction,
@@ -34,6 +36,32 @@ interface MediaComment {
   is_pinned: boolean;
   created_at: string;
   updated_at: string;
+  annotation_data?: {
+    id: string;
+    x: number;
+    y: number;
+    mediaWidth: number;
+    mediaHeight: number;
+    createdAtScale: number;
+    timestamp?: number;
+  };
+  drawing_data?: {
+    id: string;
+    strokes: Array<{
+      id: string;
+      points: Array<{ x: number; y: number }>;
+      color: string;
+      thickness: number;
+      timestamp?: number;
+      mediaWidth: number;
+      mediaHeight: number;
+      createdAtScale: number;
+    }>;
+    timestamp?: number;
+    mediaWidth: number;
+    mediaHeight: number;
+    createdAtScale: number;
+  };
 }
 
 interface ReviewCommentsProps {
@@ -42,6 +70,10 @@ interface ReviewCommentsProps {
   currentTime?: number;
   onSeekToTimestamp?: (timestamp: number) => void;
   className?: string;
+  pendingAnnotation?: any;
+  onAnnotationSaved?: () => void;
+  onCommentPinClick?: (comment: MediaComment) => void;
+  onCommentDrawingClick?: (comment: MediaComment) => void;
 }
 
 export const ReviewComments: React.FC<ReviewCommentsProps> = ({
@@ -50,6 +82,10 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   currentTime = 0,
   onSeekToTimestamp,
   className = "",
+  pendingAnnotation,
+  onAnnotationSaved,
+  onCommentPinClick,
+  onCommentDrawingClick,
 }) => {
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -58,6 +94,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showUserForm, setShowUserForm] = useState(true);
+  const [isAddingAnnotation, setIsAddingAnnotation] = useState(false);
 
   // Load comments for this media
   useEffect(() => {
@@ -76,6 +113,22 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       setUserEmail(savedEmail);
     }
   }, []);
+
+  // Handle pending annotation (pin or drawing)
+  useEffect(() => {
+    if (pendingAnnotation) {
+      setIsAddingAnnotation(true);
+      if (pendingAnnotation.type === "pin") {
+        setNewComment(
+          `Pin at ${Math.round(pendingAnnotation.data.x)}%, ${Math.round(pendingAnnotation.data.y)}%`
+        );
+      } else if (pendingAnnotation.type === "drawing") {
+        setNewComment(
+          `Drawing with ${pendingAnnotation.data.strokes.length} stroke${pendingAnnotation.data.strokes.length !== 1 ? "s" : ""}`
+        );
+      }
+    }
+  }, [pendingAnnotation]);
 
   const loadComments = async () => {
     try {
@@ -111,21 +164,55 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         localStorage.setItem("reviewUserEmail", userEmail);
       }
 
+      // Prepare annotation or drawing data
+      let annotationData = null;
+      let drawingData = null;
+
+      if (pendingAnnotation) {
+        if (pendingAnnotation.type === "pin") {
+          annotationData = {
+            id: pendingAnnotation.data.id,
+            x: pendingAnnotation.data.x,
+            y: pendingAnnotation.data.y,
+            mediaWidth: pendingAnnotation.data.mediaWidth,
+            mediaHeight: pendingAnnotation.data.mediaHeight,
+            createdAtScale: pendingAnnotation.data.createdAtScale,
+            timestamp: pendingAnnotation.data.timestamp,
+          };
+        } else if (pendingAnnotation.type === "drawing") {
+          drawingData = {
+            id: pendingAnnotation.data.id,
+            strokes: pendingAnnotation.data.strokes,
+            timestamp: pendingAnnotation.data.timestamp,
+            mediaWidth: pendingAnnotation.data.mediaWidth,
+            mediaHeight: pendingAnnotation.data.mediaHeight,
+            createdAtScale: pendingAnnotation.data.createdAtScale,
+          };
+        }
+      }
+
       const result = await createCommentAction({
         mediaId,
         userName: userName.trim(),
         userEmail: userEmail.trim() || undefined,
         content: newComment.trim(),
-        timestampSeconds:
-          mediaType === "video" ? Math.floor(currentTime) : undefined,
-        ipAddress: undefined, // You can get this server-side if needed
+        timestampSeconds: mediaType === "video" ? currentTime : undefined,
+        ipAddress: undefined,
         userAgent: navigator.userAgent,
+        annotationData,
+        drawingData,
       });
 
       if (result.success && result.comment) {
         setComments([...comments, result.comment]);
         setNewComment("");
         setShowUserForm(false);
+        setIsAddingAnnotation(false);
+
+        // Call annotation saved callback
+        if (pendingAnnotation && onAnnotationSaved) {
+          onAnnotationSaved();
+        }
       } else {
         console.error("Failed to add comment:", result.error);
         alert("Failed to add comment: " + result.error);
@@ -171,6 +258,14 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     });
   };
 
+  const cancelAnnotation = () => {
+    setIsAddingAnnotation(false);
+    setNewComment("");
+    if (onAnnotationSaved) {
+      onAnnotationSaved(); // This will clear the pending annotation
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`flex items-center justify-center py-8 ${className}`}>
@@ -214,6 +309,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 mediaType={mediaType}
                 onSeekToTimestamp={onSeekToTimestamp}
                 onDelete={deleteComment}
+                onPinClick={onCommentPinClick}
+                onDrawingClick={onCommentDrawingClick} // Make sure this is passed
                 formatTime={formatTime}
                 formatDate={formatDate}
               />
@@ -225,6 +322,85 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       {/* Comment Input */}
       <div className="border-t border-gray-800 p-4">
         <div className="space-y-3">
+          {/* Annotation Alert */}
+          {isAddingAnnotation && (
+            <div
+              className={`p-3 border rounded-lg ${
+                pendingAnnotation?.type === "pin"
+                  ? "bg-purple-600/20 border-purple-600/50"
+                  : "bg-green-600/20 border-green-600/50"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className={`flex items-center gap-2 ${
+                    pendingAnnotation?.type === "pin"
+                      ? "text-purple-300"
+                      : "text-green-300"
+                  }`}
+                >
+                  {pendingAnnotation?.type === "pin" ? (
+                    <MapPin className="h-4 w-4" />
+                  ) : (
+                    <Pencil className="h-4 w-4" />
+                  )}
+                  <span className="text-sm">
+                    Adding{" "}
+                    {pendingAnnotation?.type === "pin" ? "pin" : "drawing"}{" "}
+                    comment
+                  </span>
+                </div>
+                <button
+                  onClick={cancelAnnotation}
+                  className={`hover:text-white text-sm ${
+                    pendingAnnotation?.type === "pin"
+                      ? "text-purple-300"
+                      : "text-green-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+              </div>
+              {pendingAnnotation && (
+                <div
+                  className={`text-xs mt-1 ${
+                    pendingAnnotation?.type === "pin"
+                      ? "text-purple-200"
+                      : "text-green-200"
+                  }`}
+                >
+                  {pendingAnnotation.type === "pin" ? (
+                    <>
+                      Position: {Math.round(pendingAnnotation.data.x)}%,{" "}
+                      {Math.round(pendingAnnotation.data.y)}%
+                      {mediaType === "video" &&
+                        pendingAnnotation.data.timestamp !== undefined && (
+                          <span>
+                            {" "}
+                            • Time:{" "}
+                            {formatTime(pendingAnnotation.data.timestamp)}
+                          </span>
+                        )}
+                    </>
+                  ) : (
+                    <>
+                      {pendingAnnotation.data.strokes.length} stroke
+                      {pendingAnnotation.data.strokes.length !== 1 ? "s" : ""}
+                      {mediaType === "video" &&
+                        pendingAnnotation.data.timestamp !== undefined && (
+                          <span>
+                            {" "}
+                            • Time:{" "}
+                            {formatTime(pendingAnnotation.data.timestamp)}
+                          </span>
+                        )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* User Info Form */}
           {showUserForm && (
             <div className="space-y-2 p-3 bg-gray-800 rounded-lg border border-gray-700">
@@ -253,7 +429,11 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Add a comment..."
+            placeholder={
+              isAddingAnnotation
+                ? `Describe this ${pendingAnnotation?.type === "pin" ? "pin" : "drawing"}...`
+                : "Add a comment..."
+            }
             className="w-full bg-gray-800 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 border-0"
             rows={3}
             disabled={isSubmitting}
@@ -262,7 +442,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
           {/* Comment Actions */}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              {mediaType === "video" && (
+              {mediaType === "video" && !isAddingAnnotation && (
                 <span className="text-xs text-gray-500">
                   At {formatTime(currentTime)}
                 </span>
@@ -278,24 +458,55 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
               )}
             </div>
 
-            <RevButtons
-              onClick={addComment}
-              disabled={!newComment.trim() || isSubmitting || !userName.trim()}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  Posting...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-1" />
-                  Post
-                </>
+            <div className="flex gap-2">
+              {isAddingAnnotation && (
+                <RevButtons
+                  onClick={cancelAnnotation}
+                  size="sm"
+                  variant="ghost"
+                  className="text-gray-400 hover:text-white"
+                >
+                  Cancel
+                </RevButtons>
               )}
-            </RevButtons>
+
+              <RevButtons
+                onClick={addComment}
+                disabled={
+                  !newComment.trim() || isSubmitting || !userName.trim()
+                }
+                size="sm"
+                className={`${
+                  isAddingAnnotation
+                    ? pendingAnnotation?.type === "pin"
+                      ? "bg-purple-600 hover:bg-purple-700"
+                      : "bg-green-600 hover:bg-green-700"
+                    : "bg-blue-600 hover:bg-blue-700"
+                } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Posting...
+                  </>
+                ) : (
+                  <>
+                    {isAddingAnnotation ? (
+                      pendingAnnotation?.type === "pin" ? (
+                        <MapPin className="h-4 w-4 mr-1" />
+                      ) : (
+                        <Pencil className="h-4 w-4 mr-1" />
+                      )
+                    ) : (
+                      <Send className="h-4 w-4 mr-1" />
+                    )}
+                    {isAddingAnnotation
+                      ? `Add ${pendingAnnotation?.type === "pin" ? "Pin" : "Drawing"}`
+                      : "Post"}
+                  </>
+                )}
+              </RevButtons>
+            </div>
           </div>
         </div>
       </div>
@@ -309,6 +520,8 @@ const CommentItem: React.FC<{
   mediaType: "video" | "image";
   onSeekToTimestamp?: (timestamp: number) => void;
   onDelete: (id: string) => void;
+  onPinClick?: (comment: MediaComment) => void;
+  onDrawingClick?: (comment: MediaComment) => void;
   formatTime: (time: number) => string;
   formatDate: (date: string) => string;
 }> = ({
@@ -316,6 +529,8 @@ const CommentItem: React.FC<{
   mediaType,
   onSeekToTimestamp,
   onDelete,
+  onPinClick,
+  onDrawingClick,
   formatTime,
   formatDate,
 }) => {
@@ -332,15 +547,52 @@ const CommentItem: React.FC<{
       .slice(0, 2);
   };
 
-  // Check if current user can delete (simple check by name)
+  // Check if current user can delete
   const canDelete = () => {
     const savedName = localStorage.getItem("reviewUserName");
     return savedName === comment.user_name;
   };
 
+  // Handle pin click
+  const handlePinClick = () => {
+    if (comment.annotation_data && onPinClick) {
+      if (comment.timestamp_seconds !== undefined && onSeekToTimestamp) {
+        onSeekToTimestamp(comment.timestamp_seconds);
+      }
+      onPinClick(comment);
+    }
+  };
+
+  // Handle drawing click
+
+  const handleDrawingClick = () => {
+    if (comment.drawing_data && onDrawingClick) {
+      if (comment.timestamp_seconds !== undefined && onSeekToTimestamp) {
+        onSeekToTimestamp(comment.timestamp_seconds);
+      }
+      onDrawingClick(comment);
+    }
+  };
+
+  // Handle timestamp click
+  const handleTimestampClick = () => {
+    if (comment.timestamp_seconds !== undefined && onSeekToTimestamp) {
+      onSeekToTimestamp(comment.timestamp_seconds);
+    }
+  };
+
+  const hasPin = !!comment.annotation_data;
+  const hasDrawing = !!comment.drawing_data;
+
   return (
     <div
-      className="bg-gray-800 rounded-lg p-3 hover:bg-gray-750 transition-colors"
+      className={`bg-gray-800 rounded-lg p-3 hover:bg-gray-750 transition-colors ${
+        hasPin
+          ? "border-l-4 border-purple-500"
+          : hasDrawing
+            ? "border-l-4 border-green-500"
+            : ""
+      }`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -348,8 +600,22 @@ const CommentItem: React.FC<{
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {/* User Avatar */}
-          <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xs text-white font-medium">
-            {getInitials(comment.user_name)}
+          <div
+            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs text-white font-medium ${
+              hasPin
+                ? "bg-gradient-to-br from-purple-500 to-pink-600"
+                : hasDrawing
+                  ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                  : "bg-gradient-to-br from-blue-500 to-purple-600"
+            }`}
+          >
+            {hasPin ? (
+              <MapPin className="h-3 w-3" />
+            ) : hasDrawing ? (
+              <Pencil className="h-3 w-3" />
+            ) : (
+              getInitials(comment.user_name)
+            )}
           </div>
           <span className="text-sm font-medium text-white">
             {comment.user_name}
@@ -360,16 +626,49 @@ const CommentItem: React.FC<{
               title="Pinned comment"
             />
           )}
+          {hasPin && (
+            <span className="text-xs bg-purple-600/30 text-purple-300 px-2 py-0.5 rounded">
+              Pin
+            </span>
+          )}
+          {hasDrawing && (
+            <span className="text-xs bg-green-600/30 text-green-300 px-2 py-0.5 rounded">
+              Drawing
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Pin Button */}
+          {hasPin && (
+            <button
+              onClick={handlePinClick}
+              className="text-xs text-purple-400 hover:text-purple-300 font-mono flex items-center gap-1 hover:bg-purple-400/10 px-2 py-1 rounded"
+              title="View pin on media"
+            >
+              <MapPin className="h-3 w-3" />
+              View Pin
+            </button>
+          )}
+
+          {/* Drawing Button */}
+          {hasDrawing && (
+            <button
+              onClick={handleDrawingClick}
+              className="text-xs text-green-400 hover:text-green-300 font-mono flex items-center gap-1 hover:bg-green-400/10 px-2 py-1 rounded"
+              title="View drawing on media"
+            >
+              <Pencil className="h-3 w-3" />
+              View Drawing
+            </button>
+          )}
+
           {/* Timestamp for video comments */}
           {mediaType === "video" &&
             comment.timestamp_seconds !== undefined &&
-            comment.timestamp_seconds !== null &&
-            onSeekToTimestamp && (
+            comment.timestamp_seconds !== null && (
               <button
-                onClick={() => onSeekToTimestamp(comment.timestamp_seconds!)}
+                onClick={handleTimestampClick}
                 className="text-xs text-blue-400 hover:text-blue-300 font-mono flex items-center gap-1 hover:bg-blue-400/10 px-2 py-1 rounded"
               >
                 <Clock className="h-3 w-3" />
@@ -416,6 +715,28 @@ const CommentItem: React.FC<{
       <p className="text-sm text-gray-300 leading-relaxed mb-2">
         {comment.content}
       </p>
+
+      {/* Pin Details */}
+      {hasPin && comment.annotation_data && (
+        <div className="text-xs text-purple-300 bg-purple-600/10 rounded px-2 py-1 mb-2">
+          Pin at {Math.round(comment.annotation_data.x)}%,{" "}
+          {Math.round(comment.annotation_data.y)}%
+          {comment.annotation_data.timestamp !== undefined && (
+            <span> • {formatTime(comment.annotation_data.timestamp)}</span>
+          )}
+        </div>
+      )}
+
+      {/* Drawing Details */}
+      {hasDrawing && comment.drawing_data && (
+        <div className="text-xs text-green-300 bg-green-600/10 rounded px-2 py-1 mb-2">
+          Drawing with {comment.drawing_data.strokes.length} stroke
+          {comment.drawing_data.strokes.length !== 1 ? "s" : ""}
+          {comment.drawing_data.timestamp !== undefined && (
+            <span> • {formatTime(comment.drawing_data.timestamp)}</span>
+          )}
+        </div>
+      )}
 
       {/* Comment Meta */}
       <div className="flex items-center justify-between text-xs text-gray-500">
