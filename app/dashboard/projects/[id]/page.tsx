@@ -1,7 +1,7 @@
 // app/dashboard/projects/[id]/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { MediaWorkspace } from "./MediaWorkspace";
+import { ProjectWorkspace } from "./ProjectWorkspace";
 
 export default async function ProjectWorkspacePage({
   params,
@@ -64,17 +64,8 @@ export default async function ProjectWorkspacePage({
   }
 
   return (
-    <div className="min-h-screen py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">{project.name}</h1>
-          {project.description && (
-            <p className="text-muted-foreground mt-2">{project.description}</p>
-          )}
-        </div>
-      </div>
-
-      <MediaWorkspace project={project} />
+    <div>
+      <ProjectWorkspace project={project} />
     </div>
   );
 }

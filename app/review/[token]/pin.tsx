@@ -25,7 +25,7 @@ interface PinToolProps {
   onPinComplete?: (pin: AnnotationPin) => void;
   onCancel?: () => void;
   existingPins?: AnnotationPin[];
-  mediaElementRef: React.RefObject<HTMLVideoElement | HTMLImageElement>; // ADD THIS
+  mediaElementRef: React.RefObject<HTMLVideoElement | HTMLImageElement>;
 }
 
 export const PinTool: React.FC<PinToolProps> = ({
@@ -38,9 +38,10 @@ export const PinTool: React.FC<PinToolProps> = ({
   onPinComplete,
   onCancel,
   existingPins = [],
-  mediaElementRef, // ADD THIS
+  mediaElementRef,
 }) => {
-  const [annotationPins, setAnnotationPins] = useState<AnnotationPin[]>(existingPins);
+  const [annotationPins, setAnnotationPins] =
+    useState<AnnotationPin[]>(existingPins);
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<AnnotationPin | null>(null);
 
@@ -51,7 +52,7 @@ export const PinTool: React.FC<PinToolProps> = ({
 
   if (!displaySize || !displayPosition || !mediaDimensions) return null;
 
-  // Calculate current scale percentage (EXACT same as original MediaDisplay)
+  // Calculate current scale percentage
   const getCurrentScale = () => {
     if (!mediaDimensions || !displaySize) return 100;
 
@@ -62,29 +63,23 @@ export const PinTool: React.FC<PinToolProps> = ({
     return Math.round(scale * 100);
   };
 
-  // Calculate pin scale factor based on current scale vs creation scale (EXACT same as original)
+  // Calculate pin scale factor (SAME as drawings)
   const getPinScaleFactor = (pin: AnnotationPin) => {
     const currentScale = getCurrentScale();
-
-    // If current scale is smaller than creation scale, scale down the pin
-    if (currentScale < pin.createdAtScale) {
-      return currentScale / pin.createdAtScale;
-    }
-
-    // If current scale is larger than creation scale, keep pin at original size
-    return 1;
+    return currentScale / pin.createdAtScale; // Always scale proportionally
   };
 
-  // Handle click to add pin (EXACT same logic as original MediaDisplay)
+  // Handle click to add pin
   const handleClick = (event: React.MouseEvent) => {
-    if (!isActive || !mediaDimensions || !displaySize || !displayPosition) return;
+    if (!isActive || !mediaDimensions || !displaySize || !displayPosition)
+      return;
 
-    // Get the media element's bounding rect directly (SAME AS ORIGINAL)
+    // Get the media element's bounding rect directly
     const rect = (event.target as HTMLElement).getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
-    // Convert to percentage relative to media (EXACT same as original)
+    // Convert to percentage relative to media
     const percentageX = (clickX / displaySize.width) * 100;
     const percentageY = (clickY / displaySize.height) * 100;
 
@@ -209,15 +204,11 @@ export const PinTool: React.FC<PinToolProps> = ({
           }}
           onClick={handleClick}
         >
-          {/* Pins - EXACT same positioning logic as original MediaDisplay */}
+          {/* Pins - Scale with media like drawings do */}
           {annotationPins.map((pin, index) => {
-            // Calculate pin position based on current display size (EXACT same as original)
-            const pinX = (pin.x / 100) * displaySize.width;
-            const pinY = (pin.y / 100) * displaySize.height;
-
-            // Calculate pin scale factor (EXACT same as original)
+            // Calculate pin scale factor (SAME as drawings)
             const scaleFactor = getPinScaleFactor(pin);
-            const minScale = 0.3; // Minimum pin size (30% of original)
+            const minScale = 0.3; // Minimum pin size (same as drawings)
             const finalScale = Math.max(scaleFactor, minScale);
 
             return (
@@ -225,9 +216,9 @@ export const PinTool: React.FC<PinToolProps> = ({
                 key={pin.id}
                 className="absolute group"
                 style={{
-                  left: `${pinX}px`,
-                  top: `${pinY}px`,
-                  transform: `translate(-50%, -50%) scale(${finalScale})`,
+                  left: `${pin.x}%`,
+                  top: `${pin.y}%`,
+                  transform: `translate(-50%, -50%) scale(${finalScale})`, // Apply scaling like drawings
                   transformOrigin: "center",
                   pointerEvents: isActive ? "auto" : "none",
                 }}
@@ -254,18 +245,18 @@ export const PinTool: React.FC<PinToolProps> = ({
                   </div>
                 </div>
 
-                {/* Small position indicator - always visible */}
+                {/* Small position indicator - counter-scale to stay readable */}
                 <div
                   className="absolute left-8 top-0 bg-black/80 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap"
                   style={{
-                    transform: `scale(${1 / finalScale})`,
+                    transform: `scale(${1 / finalScale})`, // Counter-scale text
                     transformOrigin: "left center",
                   }}
                 >
                   {Math.round(pin.x)}%, {Math.round(pin.y)}%
                 </div>
 
-                {/* Remove button - only when selected */}
+                {/* Remove button - counter-scale to stay usable */}
                 {isActive && selectedPin === pin.id && (
                   <button
                     onClick={(e) => {
@@ -274,7 +265,7 @@ export const PinTool: React.FC<PinToolProps> = ({
                     }}
                     className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                     style={{
-                      transform: `scale(${1 / finalScale})`,
+                      transform: `scale(${1 / finalScale})`, // Counter-scale button
                       transformOrigin: "center",
                     }}
                   >

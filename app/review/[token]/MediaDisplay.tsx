@@ -12,6 +12,7 @@ interface MediaDisplayProps {
   activeCommentPin?: string | null;
   activeCommentDrawing?: string | null;
   comments?: any[];
+  currentTime?: number;
 }
 
 export const MediaDisplay: React.FC<MediaDisplayProps> = ({
@@ -22,6 +23,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   activeCommentPin,
   activeCommentDrawing,
   comments = [],
+  currentTime = 0,
 }) => {
   const [isPinToolActive, setIsPinToolActive] = useState(false);
   const [isDrawToolActive, setIsDrawToolActive] = useState(false);
@@ -218,6 +220,15 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     const comment = comments.find((c) => c.id === activeCommentPin);
     if (!comment || !comment.annotation_data) return null;
 
+    // Check if we should show this pin based on current time
+    if (comment.timestamp_seconds !== undefined && videoRef?.current) {
+      const timeDiff = Math.abs(currentTime - comment.timestamp_seconds);
+      // Only show if within 0.5 seconds and video is paused
+      if (timeDiff > 0.5 || !videoRef.current.paused) {
+        return null;
+      }
+    }
+
     return [
       {
         ...comment.annotation_data,
@@ -232,6 +243,15 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
     const comment = comments.find((c) => c.id === activeCommentDrawing);
     if (!comment || !comment.drawing_data) return null;
+
+    // Check if we should show this drawing based on current time
+    if (comment.timestamp_seconds !== undefined && videoRef?.current) {
+      const timeDiff = Math.abs(currentTime - comment.timestamp_seconds);
+      // Only show if within 0.5 seconds and video is paused
+      if (timeDiff > 0.5 || !videoRef.current.paused) {
+        return null;
+      }
+    }
 
     return [comment.drawing_data];
   };

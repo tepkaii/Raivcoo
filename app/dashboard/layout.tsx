@@ -96,7 +96,7 @@ export default async function DashboardLayout({
               </Link>
             </div>
           </header>
-          <div className="px-4 bg-background">{children}</div>
+          <div className=" bg-background">{children}</div>
         </main>
       </div>
     </SidebarProvider>

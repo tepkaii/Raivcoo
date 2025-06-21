@@ -1,3 +1,4 @@
+// app/dashboard/projects/[id]/ProjectWorkspace.tsx
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
@@ -41,7 +42,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [comments, setComments] = useState<any[]>([]);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
 
-  // Panel visibility states
+  // Panel visibility states - BACK TO ORIGINAL 3 PANELS
   const [showMediaLibrary, setShowMediaLibrary] = useState(true);
   const [showMediaPlayer, setShowMediaPlayer] = useState(false);
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
@@ -71,6 +72,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const handleMediaSelect = (media: MediaFile) => {
     setSelectedMedia(media);
     setCurrentTime(0);
+    // DON'T auto-show media player - let user decide
   };
 
   const handleMediaUpdated = (newFiles: MediaFile[]) => {
@@ -106,7 +108,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     showCommentsPanel,
   ].filter(Boolean).length;
 
-  // Complex locking rules
+  // Complex locking rules - BACK TO ORIGINAL
   const canToggleMediaLibrary = (() => {
     if (!showMediaLibrary) return true; // Can always enable Media Library
 
@@ -144,6 +146,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     } else if (canToggleMediaLibrary) {
       // Allow disabling if other panels exist
       setShowMediaLibrary(false);
+      // DON'T auto-hide other panels - let them stay but become locked
     }
   };
 
@@ -216,7 +219,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   const widths = calculateWidths();
 
-  // Resizing handlers
+  // All your resizing handlers stay the same...
   const handleResizeStart = useCallback(
     (
       type: "library-player" | "player-comments" | "library-comments",
@@ -287,14 +290,16 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <div className="h-screen flex flex-col bg-black overflow-hidden">
-      {/* Header with 3 Toggle Buttons */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex-shrink-0">
+    <div className="h-screen flex flex-col  overflow-hidden">
+      {/* Header with 3 Toggle Buttons - BACK TO ORIGINAL */}
+      <div className=" border-b  px-6 py-4 flex-shrink-0">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-white">{project.name}</h1>
             {project.description && (
-              <p className="text-gray-400 mt-1">{project.description}</p>
+              <p className="text-muted-foreground mt-1">
+                {project.description}
+              </p>
             )}
           </div>
 
@@ -306,11 +311,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               variant={showMediaLibrary ? "default" : "outline"}
               size="sm"
               disabled={showMediaLibrary && !canToggleMediaLibrary}
-              className={
-                showMediaLibrary
-                  ? "bg-green-600 text-white"
-                  : "text-gray-400 hover:text-white"
-              }
               title={
                 showMediaLibrary && !canToggleMediaLibrary
                   ? openPanelsCount === 1
@@ -331,19 +331,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             {/* Media Player Toggle */}
             <RevButtons
               onClick={handleMediaPlayerToggle}
-              variant={showMediaPlayer ? "default" : "outline"}
+              variant={showMediaPlayer ? "info" : "outline"}
               size="sm"
               disabled={
                 playerLocked ||
                 (!showMediaPlayer && !showMediaLibrary) ||
                 (showMediaPlayer && openPanelsCount === 1)
-              }
-              className={
-                showMediaPlayer
-                  ? playerLocked
-                    ? "bg-blue-400 text-white opacity-75" // Locked state - dimmed
-                    : "bg-blue-600 text-white"
-                  : "text-gray-400 hover:text-white"
               }
               title={
                 playerLocked
@@ -367,19 +360,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             {/* Comments Toggle */}
             <RevButtons
               onClick={handleCommentsToggle}
-              variant={showCommentsPanel ? "default" : "outline"}
+              variant={showCommentsPanel ? "info" : "outline"}
               size="sm"
               disabled={
                 commentsLocked ||
                 (!showCommentsPanel && !showMediaLibrary) ||
                 (showCommentsPanel && openPanelsCount === 1)
-              }
-              className={
-                showCommentsPanel
-                  ? commentsLocked
-                    ? "bg-purple-400 text-white opacity-75" // Locked state - dimmed
-                    : "bg-purple-600 text-white"
-                  : "text-gray-400 hover:text-white"
               }
               title={
                 commentsLocked
@@ -408,10 +394,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         {/* Media Library Panel */}
         {showMediaLibrary && (
           <div
-            className="bg-gray-900 border-r border-gray-800 flex flex-col flex-shrink-0 min-w-0"
+            className="border-r flex flex-col flex-shrink-0 min-w-0"
             style={{ width: `${widths.library}%` }}
           >
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <MediaGrid
                 mediaFiles={mediaFiles}
                 selectedMedia={selectedMedia}
@@ -426,22 +412,22 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         {/* Resize Handle between Library and Player */}
         {showMediaLibrary && showMediaPlayer && (
           <div
-            className="w-1 bg-gray-800 hover:bg-gray-600 cursor-col-resize relative group flex-shrink-0"
+            className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
             onMouseDown={(e) => handleResizeStart("library-player", e)}
           >
             <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         )}
 
         {/* Resize Handle between Library and Comments (when no player) */}
         {showMediaLibrary && showCommentsPanel && !showMediaPlayer && (
           <div
-            className="w-1 bg-gray-800 hover:bg-gray-600 cursor-col-resize relative group flex-shrink-0"
+            className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
             onMouseDown={(e) => handleResizeStart("library-comments", e)}
           >
             <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         )}
 
@@ -468,11 +454,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 onCommentsUpdate={handleCommentsUpdate}
                 onAnnotationCreate={handleAnnotationCreate}
                 onCommentPinClick={(comment) => {
+                  // Handle pin click from MediaViewer
                   if (mediaViewerRef.current) {
                     mediaViewerRef.current.handleCommentPinClick(comment);
                   }
                 }}
                 onCommentDrawingClick={(comment) => {
+                  // Handle drawing click from MediaViewer
                   if (mediaViewerRef.current) {
                     mediaViewerRef.current.handleCommentDrawingClick(comment);
                   }
@@ -480,7 +468,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               />
             ) : (
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center text-gray-500">
+                <div className="text-center ">
                   <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">Select Media</h3>
                   <p className="text-sm">Choose a video or image to view</p>
@@ -493,18 +481,18 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         {/* Resize Handle between Player and Comments */}
         {showMediaPlayer && showCommentsPanel && (
           <div
-            className="w-1 bg-gray-800 hover:bg-gray-600 cursor-col-resize relative group flex-shrink-0"
+            className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
             onMouseDown={(e) => handleResizeStart("player-comments", e)}
           >
             <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         )}
 
         {/* Comments Panel */}
         {showCommentsPanel && (
           <div
-            className="bg-gray-900 border-l border-gray-800 flex flex-col flex-shrink-0 min-w-0"
+            className=" border-l  flex flex-col flex-shrink-0 min-w-0"
             style={{ width: `${widths.comments}%` }}
           >
             {commentsLocked && (
@@ -512,9 +500,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 🔒 Locked - Enable Media Library to toggle
               </div>
             )}
-            <div className="p-4 border-b border-gray-800">
-              <h3 className="text-lg font-medium text-white">Comments</h3>
-            </div>
 
             <div className="flex-1 min-h-0 overflow-hidden">
               {selectedMedia ? (
@@ -537,15 +522,18 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                     );
                   }}
                   onCommentDeleted={(deletedCommentId) => {
+                    // ← FIX THIS - was using arguments[0]
                     setComments(
                       comments.filter((c) => c.id !== deletedCommentId)
                     );
+                    // Also reload comments in MediaViewer
                     if (mediaViewerRef.current?.loadComments) {
                       mediaViewerRef.current.loadComments();
                     }
                   }}
                   onCommentAdded={(newComment) => {
                     setComments([...comments, newComment]);
+                    // Also reload comments in MediaViewer
                     if (mediaViewerRef.current?.loadComments) {
                       mediaViewerRef.current.loadComments();
                     }
@@ -553,7 +541,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 />
               ) : (
                 <div className="flex-1 flex items-center justify-center p-8">
-                  <div className="text-center text-gray-500">
+                  <div className="text-center ">
                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <h3 className="text-lg font-medium mb-2">Select Media</h3>
                     <p className="text-sm">Choose media to view comments</p>

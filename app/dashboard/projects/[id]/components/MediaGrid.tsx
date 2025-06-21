@@ -1,0 +1,614 @@
+"use client";
+
+import React, { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
+import { Upload, Loader2, FileVideo } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "@/hooks/use-toast";
+import { MediaCard } from "./MediaCard";
+import { MediaDialogs } from "./MediaDialogs";
+import {
+  deleteMediaAction,
+  createReviewLinkAction,
+  getReviewLinksAction,
+  toggleReviewLinkAction,
+  setCurrentVersionAction,
+  addVersionToMediaAction,
+} from "../media-actions";
+
+interface MediaFile {
+  id: string;
+  filename: string;
+  original_filename: string;
+  file_type: "video" | "image";
+  mime_type: string;
+  file_size: number;
+  r2_url: string;
+  uploaded_at: string;
+  parent_media_id?: string;
+  version_number: number;
+  is_current_version: boolean;
+}
+
+interface ReviewLink {
+  id: string;
+  link_token: string;
+  title?: string;
+  is_active: boolean;
+  created_at: string;
+  expires_at?: string;
+  media_id: string;
+}
+
+interface OrganizedMedia {
+  id: string;
+  filename: string;
+  original_filename: string;
+  file_type: "video" | "image";
+  mime_type: string;
+  file_size: number;
+  r2_url: string;
+  uploaded_at: string;
+  version_number: number;
+  is_current_version: boolean;
+  versions: MediaFile[];
+  currentVersion: MediaFile;
+}
+
+interface MediaGridProps {
+  mediaFiles: MediaFile[];
+  selectedMedia: MediaFile | null;
+  onMediaSelect: (media: MediaFile) => void;
+  onMediaUpdated: (newFiles: MediaFile[]) => void;
+  projectId: string;
+}
+
+export function MediaGrid({
+  mediaFiles,
+  selectedMedia,
+  onMediaSelect,
+  onMediaUpdated,
+  projectId,
+}: MediaGridProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [draggedOver, setDraggedOver] = useState<string | null>(null);
+  const [expandedMedia, setExpandedMedia] = useState<Set<string>>(new Set());
+  const [draggedMedia, setDraggedMedia] = useState<MediaFile | null>(null);
+
+  // Dialog states
+  const [createLinkDialog, setCreateLinkDialog] = useState<{
+    open: boolean;
+    mediaFile?: MediaFile;
+    isCreating: boolean;
+    showSuccess: boolean;
+    createdUrl?: string;
+  }>({ open: false, isCreating: false, showSuccess: false });
+
+  const [viewLinksDialog, setViewLinksDialog] = useState<{
+    open: boolean;
+    mediaFile?: MediaFile;
+    links: ReviewLink[];
+    isLoading: boolean;
+  }>({ open: false, links: [], isLoading: false });
+
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    mediaFile?: MediaFile;
+    isDeleting: boolean;
+  }>({ open: false, isDeleting: false });
+
+  // Organize media files into hierarchical structure
+  const organizedMedia = React.useMemo((): OrganizedMedia[] => {
+    const parentMediaMap = new Map<string, MediaFile>();
+    const childVersionsMap = new Map<string, MediaFile[]>();
+
+    // First pass: identify parent media and group versions
+    mediaFiles.forEach((file) => {
+      if (!file.parent_media_id) {
+        parentMediaMap.set(file.id, file);
+        if (!childVersionsMap.has(file.id)) {
+          childVersionsMap.set(file.id, []);
+        }
+      } else {
+        if (!childVersionsMap.has(file.parent_media_id)) {
+          childVersionsMap.set(file.parent_media_id, []);
+        }
+        childVersionsMap.get(file.parent_media_id)!.push(file);
+      }
+    });
+
+    // Second pass: create organized structure
+    const result: OrganizedMedia[] = [];
+
+    parentMediaMap.forEach((parentMedia, parentId) => {
+      const versions = childVersionsMap.get(parentId) || [];
+      const sortedVersions = versions.sort(
+        (a, b) => b.version_number - a.version_number
+      );
+
+      // Find current version
+      let currentVersion = parentMedia;
+      if (parentMedia.is_current_version) {
+        currentVersion = parentMedia;
+      } else {
+        const currentVersionFromChildren = sortedVersions.find(
+          (v) => v.is_current_version
+        );
+        if (currentVersionFromChildren) {
+          currentVersion = currentVersionFromChildren;
+        }
+      }
+
+      result.push({
+        id: parentMedia.id,
+        filename: parentMedia.filename,
+        original_filename: parentMedia.original_filename,
+        file_type: parentMedia.file_type,
+        mime_type: parentMedia.mime_type,
+        file_size: parentMedia.file_size,
+        r2_url: parentMedia.r2_url,
+        uploaded_at: parentMedia.uploaded_at,
+        version_number: parentMedia.version_number,
+        is_current_version: parentMedia.is_current_version,
+        versions: sortedVersions,
+        currentVersion: currentVersion,
+      });
+    });
+
+    return result.sort(
+      (a, b) =>
+        new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
+    );
+  }, [mediaFiles]);
+
+  // Upload files function
+  const uploadFiles = async (files: File[], targetMediaId?: string) => {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      if (targetMediaId) {
+        formData.append("parentMediaId", targetMediaId);
+      }
+
+      const xhr = new XMLHttpRequest();
+
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const result = JSON.parse(xhr.responseText);
+              resolve(result);
+            } catch (e) {
+              reject(new Error("Invalid response format"));
+            }
+          } else {
+            try {
+              const error = JSON.parse(xhr.responseText);
+              reject(new Error(error.error || "Upload failed"));
+            } catch (e) {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Network error during upload"));
+        });
+
+        xhr.open("POST", `/api/projects/${projectId}/media`);
+        xhr.send(formData);
+      });
+
+      const result = (await uploadPromise) as any;
+      const newFiles = [...mediaFiles, ...result.files];
+      onMediaUpdated(newFiles);
+
+      if (targetMediaId) {
+        setExpandedMedia((prev) => new Set(prev).add(targetMediaId));
+      }
+
+      toast({
+        title: "Success",
+        description: targetMediaId
+          ? `Added ${result.files.length} new version(s)`
+          : result.message,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description:
+          error instanceof Error ? error.message : "Failed to upload files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setDraggedOver(null);
+      setDraggedMedia(null);
+    }
+  };
+
+  const onDrop = useCallback(
+    async (acceptedFiles: File[], rejectedFiles: any[]) => {
+      if (acceptedFiles.length === 0) return;
+
+      if (draggedOver) {
+        await uploadFiles(acceptedFiles, draggedOver);
+      } else {
+        await uploadFiles(acceptedFiles);
+      }
+    },
+    [draggedOver]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "video/*": [".mp4", ".mov", ".avi", ".mkv", ".webm"],
+      "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+    },
+    disabled: isUploading,
+    maxSize: 200 * 1024 * 1024,
+    noClick: false,
+  });
+
+  // Action handlers
+  const handleSetCurrentVersion = async (
+    parentId: string,
+    versionId: string
+  ) => {
+    const result = await setCurrentVersionAction(parentId, versionId);
+
+    if (result.success) {
+      const newFiles = mediaFiles.map((file) => ({
+        ...file,
+        is_current_version:
+          file.parent_media_id === parentId || file.id === parentId
+            ? file.id === versionId
+            : file.is_current_version,
+      }));
+
+      onMediaUpdated(newFiles);
+
+      toast({
+        title: "Current Version Updated",
+        description: "The current version has been changed",
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Failed to Update Version",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateVersion = async (
+    targetMediaId: string,
+    sourceMediaId: string
+  ) => {
+    try {
+      const result = await addVersionToMediaAction(
+        targetMediaId,
+        sourceMediaId
+      );
+
+      if (result.success) {
+        const newFiles = mediaFiles.map((file) => {
+          if (file.id === sourceMediaId) {
+            return {
+              ...file,
+              parent_media_id: targetMediaId,
+              version_number: result.versionNumber,
+              is_current_version: true,
+            };
+          }
+          if (file.id === targetMediaId) {
+            return {
+              ...file,
+              is_current_version: false,
+            };
+          }
+          if (file.parent_media_id === targetMediaId) {
+            return {
+              ...file,
+              is_current_version: false,
+            };
+          }
+          return file;
+        });
+
+        onMediaUpdated(newFiles);
+        setExpandedMedia((prev) => new Set(prev).add(targetMediaId));
+
+        const targetName = mediaFiles.find(
+          (m) => m.id === targetMediaId
+        )?.original_filename;
+        const sourceName = mediaFiles.find(
+          (m) => m.id === sourceMediaId
+        )?.original_filename;
+
+        toast({
+          title: "Version Created",
+          description: `"${sourceName}" is now version ${result.versionNumber} of "${targetName}"`,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "Failed to Create Version",
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create version relationship",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteMedia = async (mediaFile: MediaFile) => {
+    setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
+
+    const result = await deleteMediaAction(projectId, mediaFile.id);
+
+    if (result.success) {
+      let updatedFiles = mediaFiles.filter((file) => file.id !== mediaFile.id);
+      onMediaUpdated(updatedFiles);
+
+      toast({
+        title: "Media Deleted",
+        description: "Media file has been permanently deleted",
+        variant: "success",
+      });
+
+      setDeleteDialog({ open: false, isDeleting: false });
+    } else {
+      setDeleteDialog((prev) => ({ ...prev, isDeleting: false }));
+      toast({
+        title: "Failed to Delete Media",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateReviewLink = async (
+    mediaFile: MediaFile,
+    title: string
+  ) => {
+    setCreateLinkDialog((prev) => ({ ...prev, isCreating: true }));
+
+    const result = await createReviewLinkAction(projectId, mediaFile.id, title);
+
+    if (result.success) {
+      try {
+        await navigator.clipboard.writeText(result.reviewUrl!);
+      } catch (clipboardError) {
+        console.error("Clipboard error:", clipboardError);
+      }
+
+      setCreateLinkDialog((prev) => ({
+        ...prev,
+        isCreating: false,
+        showSuccess: true,
+        createdUrl: result.reviewUrl,
+      }));
+
+      toast({
+        title: "Review Link Created",
+        description: "Review link has been copied to your clipboard!",
+        variant: "success",
+      });
+    } else {
+      setCreateLinkDialog((prev) => ({ ...prev, isCreating: false }));
+      toast({
+        title: "Failed to Create Review Link",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewReviewLinks = async (mediaFile: MediaFile) => {
+    setViewLinksDialog({ open: true, mediaFile, links: [], isLoading: true });
+
+    const result = await getReviewLinksAction(projectId, mediaFile.id);
+
+    if (result.success) {
+      setViewLinksDialog((prev) => ({
+        ...prev,
+        links: result.links,
+        isLoading: false,
+      }));
+    } else {
+      toast({
+        title: "Failed to Load Review Links",
+        description: result.error,
+        variant: "destructive",
+      });
+      setViewLinksDialog({ open: false, links: [], isLoading: false });
+    }
+  };
+
+  const handleToggleReviewLink = async (
+    linkId: string,
+    currentStatus: boolean
+  ) => {
+    const result = await toggleReviewLinkAction(linkId, !currentStatus);
+
+    if (result.success) {
+      setViewLinksDialog((prev) => ({
+        ...prev,
+        links: prev.links.map((link) =>
+          link.id === linkId ? { ...link, is_active: !currentStatus } : link
+        ),
+      }));
+
+      toast({
+        title: "Link Updated",
+        description: `Review link ${!currentStatus ? "activated" : "deactivated"}`,
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Failed to Update Link",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col  text-white">
+      {/* Upload Area */}
+      <div className="p-4 border-b  flex-shrink-0">
+        <div
+          {...getRootProps()}
+          className={`
+            border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
+            ${
+              isDragActive
+                ? "border-primary bg-primary/10"
+                : " hover:border-white/30 "
+            }
+            ${isUploading ? "pointer-events-none opacity-50" : ""}
+          `}
+        >
+          <input {...getInputProps()} />
+          {isUploading ? (
+            <div className="space-y-2">
+              <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" />
+              <div className="space-y-1">
+                <p className="text-xs text-gray-400">
+                  Uploading... {uploadProgress}%
+                </p>
+                <Progress
+                  value={uploadProgress}
+                  className="w-full max-w-md mx-auto h-1"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
+              <div>
+                <p className="text-xs font-medium ">
+                  {isDragActive ? "Drop files here" : "Drag & drop or click"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  💡 Drag onto media to create versions
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Media Grid */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {organizedMedia.length === 0 ? (
+          <div className="text-center py-12 ">
+            <FileVideo className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
+            <p className="text-lg">No media files</p>
+            <p className="text-sm text-muted-foreground">
+              Upload videos or images to get started
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+            {organizedMedia.map((media) => (
+              <MediaCard
+                key={media.id}
+                media={media}
+                selectedMedia={selectedMedia}
+                expandedMedia={expandedMedia}
+                draggedOver={draggedOver}
+                draggedMedia={draggedMedia}
+                onMediaSelect={onMediaSelect}
+                onExpandToggle={(mediaId) => {
+                  const newExpanded = new Set(expandedMedia);
+                  if (expandedMedia.has(mediaId)) {
+                    newExpanded.delete(mediaId);
+                  } else {
+                    newExpanded.add(mediaId);
+                  }
+                  setExpandedMedia(newExpanded);
+                }}
+                onDragStart={(media) => setDraggedMedia(media)}
+                onDragEnd={() => setDraggedMedia(null)}
+                onDragOver={(mediaId) => setDraggedOver(mediaId)}
+                onDragLeave={() => setDraggedOver(null)}
+                onDrop={(targetId, files) => {
+                  if (files.length > 0) {
+                    uploadFiles(files, targetId);
+                  } else if (draggedMedia) {
+                    handleCreateVersion(targetId, draggedMedia.id);
+                  }
+                  setDraggedOver(null);
+                  setDraggedMedia(null);
+                }}
+                onSetCurrentVersion={handleSetCurrentVersion}
+                onCreateReviewLink={(mediaFile) =>
+                  setCreateLinkDialog({
+                    open: true,
+                    mediaFile,
+                    isCreating: false,
+                    showSuccess: false,
+                  })
+                }
+                onViewReviewLinks={handleViewReviewLinks}
+                onDeleteMedia={(mediaFile) =>
+                  setDeleteDialog({
+                    open: true,
+                    mediaFile,
+                    isDeleting: false,
+                  })
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dialogs */}
+      <MediaDialogs
+        createLinkDialog={createLinkDialog}
+        viewLinksDialog={viewLinksDialog}
+        deleteDialog={deleteDialog}
+        onCreateLinkDialogChange={setCreateLinkDialog}
+        onViewLinksDialogChange={setViewLinksDialog}
+        onDeleteDialogChange={setDeleteDialog}
+        onCreateReviewLink={handleCreateReviewLink}
+        onToggleReviewLink={handleToggleReviewLink}
+        onDeleteMedia={handleDeleteMedia}
+      />
+
+      {/* Global drag message */}
+      {draggedMedia && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg">
+          Drag to another media to create a version
+        </div>
+      )}
+    </div>
+  );
+}

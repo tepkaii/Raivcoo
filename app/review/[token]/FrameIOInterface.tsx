@@ -1,18 +1,13 @@
+// app/review/[token]/FrameIOInterface.tsx
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { RevButtons } from "@/components/ui/RevButtons";
 import { ReviewComments } from "./ReviewComments";
 import { VersionSelector } from "./VersionSelector";
 import { MediaDisplay } from "./MediaDisplay";
 import { PlayerControls } from "./PlayerControls";
-import {
-  Download,
-  MessageSquare,
-  Eye,
-  MoreVertical,
-  ArrowLeft,
-} from "lucide-react";
+import { SplitPanel } from "@/app/components/SplitPanel";
+import { Download, ArrowLeft, Eye, MessageSquare } from "lucide-react";
 import { getCommentsAction } from "./comment-actions";
 
 interface MediaFile {
@@ -52,6 +47,23 @@ interface MediaComment {
     createdAtScale: number;
     timestamp?: number;
   };
+  drawing_data?: {
+    id: string;
+    strokes: Array<{
+      id: string;
+      points: Array<{ x: number; y: number }>;
+      color: string;
+      thickness: number;
+      timestamp?: number;
+      mediaWidth: number;
+      mediaHeight: number;
+      createdAtScale: number;
+    }>;
+    timestamp?: number;
+    mediaWidth: number;
+    mediaHeight: number;
+    createdAtScale: number;
+  };
 }
 
 interface FrameIOInterfaceProps {
@@ -73,19 +85,28 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [activeCommentPin, setActiveCommentPin] = useState<string | null>(null);
+  const [activeCommentDrawing, setActiveCommentDrawing] = useState<
+    string | null
+  >(null);
+  const [commentsVisible, setCommentsVisible] = useState(true);
 
-  // Desktop sidebar resizing
-  const [sidebarWidth, setSidebarWidth] = useState(400);
-  const [isSidebarResizing, setIsSidebarResizing] = useState(false);
-
-  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null); // Add this
   // Load comments when media changes
   useEffect(() => {
     loadComments();
   }, [currentMedia.id]);
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
 
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
   const loadComments = async () => {
     try {
       const result = await getCommentsAction(currentMedia.id);
@@ -96,16 +117,12 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
       console.error("Failed to load comments:", error);
     }
   };
-  const [activeCommentDrawing, setActiveCommentDrawing] = useState<
-    string | null
-  >(null);
 
   // Add this handler
   const handleCommentDrawingClick = (comment: MediaComment) => {
     if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
       handleSeekToTimestamp(comment.timestamp_seconds);
       setActiveCommentDrawing(comment.id);
-      // NO automatic timeout - let user control when to hide
     }
   };
 
@@ -124,28 +141,26 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
       }
     }
   }, [currentTime, activeCommentDrawing, comments]);
+
   // Handle annotation from MediaDisplay
   const handleAddAnnotation = (annotationData: any) => {
     setPendingAnnotation(annotationData);
   };
 
+  const handleCommentAdded = (newComment: MediaComment) => {
+    setComments([...comments, newComment]);
+  };
+
   // Handle annotation saved from ReviewComments
   const handleAnnotationSaved = () => {
     setPendingAnnotation(null);
-    loadComments(); // Reload comments to show the new one
   };
 
-  // Handle comment pin click - show pin and jump to timestamp
   // Handle comment pin click - show pin and jump to timestamp
   const handleCommentPinClick = (comment: MediaComment) => {
     if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
       handleSeekToTimestamp(comment.timestamp_seconds);
       setActiveCommentPin(comment.id);
-
-      // REMOVE the automatic timeout - let user control when to hide
-      // setTimeout(() => {
-      //   setActiveCommentPin(null);
-      // }, 5000);
     }
   };
 
@@ -205,82 +220,181 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
   };
 
   // Handle seeking from comments
-  // Remove the complex useEffect time syncing
-  // Just pass currentTime directly and let PlayerControls update it
-
   const handleSeekToTimestamp = (timestamp: number) => {
     if (videoRef.current && currentMedia.file_type === "video") {
       videoRef.current.currentTime = timestamp;
-      // Don't set state here, let the video's timeupdate event handle it
     }
   };
 
-  // Desktop sidebar resizing handlers (same as before)
-  const handleSidebarMouseDown = React.useCallback(
-    (e: React.MouseEvent) => {
-      if (isMobileLayout) return;
-      setIsSidebarResizing(true);
-      e.preventDefault();
-      e.stopPropagation();
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-    },
-    [isMobileLayout]
+  const handleCommentDeleted = (deletedCommentId: string) => {
+    setComments(comments.filter((c) => c.id !== deletedCommentId));
+  };
+
+  // Create the main media content
+  const mediaContent = (
+    <div
+      ref={fullscreenContainerRef}
+      className={`flex flex-col h-full ${isFullscreen ? "bg-black relative" : ""}`}
+    >
+      <div
+        className={`${isFullscreen ? "absolute inset-0" : "flex-1 min-h-0"}`}
+      >
+        <MediaDisplay
+          media={currentMedia}
+          videoRef={videoRef}
+          className="h-full"
+          onAddAnnotation={handleAddAnnotation}
+          activeCommentPin={activeCommentPin}
+          activeCommentDrawing={activeCommentDrawing}
+          comments={comments}
+          currentTime={currentTime}
+        />
+      </div>
+
+      {/* Player Controls */}
+      <PlayerControls
+        videoRef={videoRef}
+        mediaType={currentMedia.file_type}
+        comments={comments}
+        onSeekToTimestamp={handleSeekToTimestamp}
+        onTimeUpdate={setCurrentTime}
+        fullscreenContainerRef={fullscreenContainerRef}
+        className={isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""}
+      />
+    </div>
   );
 
-  const handleSidebarMouseMove = React.useCallback(
-    (e: MouseEvent) => {
-      if (!isSidebarResizing || !containerRef.current || isMobileLayout) return;
+  // Create the comments content
+  const commentsContent =
+    selectedTab === "comments" ? (
+      <ReviewComments
+        mediaId={currentMedia.id}
+        mediaType={currentMedia.file_type}
+        currentTime={currentTime}
+        onSeekToTimestamp={handleSeekToTimestamp}
+        className="h-full"
+        pendingAnnotation={pendingAnnotation}
+        onAnnotationSaved={handleAnnotationSaved}
+        onCommentPinClick={handleCommentPinClick}
+        onCommentDrawingClick={handleCommentDrawingClick}
+        onCommentDeleted={handleCommentDeleted}
+        onCommentAdded={handleCommentAdded}
+      />
+    ) : (
+      <div className="p-4 space-y-4 overflow-y-auto h-full">
+        <div>
+          <h3 className="text-sm font-medium  mb-3">Media Details</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Name:</span>
+              <span className=" truncate ml-2">
+                {currentMedia.original_filename}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Type:</span>
+              <span className="">{currentMedia.file_type}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Size:</span>
+              <span className="">{formatFileSize(currentMedia.file_size)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Version:</span>
+              <span className="">v{currentMedia.version_number}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Uploaded:</span>
+              <span className="">{formatDate(currentMedia.uploaded_at)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
 
-      e.preventDefault();
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newWidth = containerRect.right - e.clientX;
-      const minWidth = 300;
-      const maxWidth = containerRect.width * 0.6;
+  // Create the right panel with tabs
+  const rightPanelContent = (
+    <div className="flex flex-col h-full">
+      {/* Mobile Tabs (only show on mobile) */}
+      {isMobileLayout && (
+        <div className="border-b border px-4 py-3 flex-shrink-0">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setSelectedTab("comments")}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                selectedTab === "comments"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4 inline mr-1" />
+              Comments
+            </button>
 
-      setSidebarWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
-    },
-    [isSidebarResizing, isMobileLayout]
+            <button
+              onClick={() => setSelectedTab("details")}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                selectedTab === "details"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              <Eye className="h-4 w-4 inline mr-1" />
+              Details
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Tabs (only show on desktop) */}
+      {!isMobileLayout && (
+        <div className="border-b border px-4 py-3 flex-shrink-0">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setSelectedTab("comments")}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                selectedTab === "comments"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4 inline mr-1" />
+              Comments
+            </button>
+
+            <button
+              onClick={() => setSelectedTab("details")}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                selectedTab === "details"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              <Eye className="h-4 w-4 inline mr-1" />
+              Details
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="flex-1 min-h-0">{commentsContent}</div>
+    </div>
   );
 
-  const handleSidebarMouseUp = React.useCallback(() => {
-    setIsSidebarResizing(false);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-  }, []);
-
-  // Event listeners for resizing
-  useEffect(() => {
-    if (isSidebarResizing && !isMobileLayout) {
-      document.addEventListener("mousemove", handleSidebarMouseMove);
-      document.addEventListener("mouseup", handleSidebarMouseUp);
-      return () => {
-        document.removeEventListener("mousemove", handleSidebarMouseMove);
-        document.removeEventListener("mouseup", handleSidebarMouseUp);
-      };
-    }
-  }, [
-    isSidebarResizing,
-    handleSidebarMouseMove,
-    handleSidebarMouseUp,
-    isMobileLayout,
-  ]);
-
-  // Mobile Layout (same structure, just pass new props)
+  // Mobile Layout
   if (isMobileLayout) {
     return (
-      <div className="h-screen flex flex-col bg-black">
+      <div className="h-screen flex flex-col bg-background">
         {/* Header */}
-        <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div className=" border-b  px-4 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <RevButtons
-              variant="ghost"
-              size="sm"
+            <button
               onClick={handleBack}
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-white p-1"
             >
               <ArrowLeft className="h-4 w-4" />
-            </RevButtons>
+            </button>
 
             <h1 className="text-base font-medium text-white truncate">
               {currentMedia.original_filename}
@@ -288,18 +402,15 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <RevButtons variant="ghost" size="sm" className="text-gray-400">
+            <button className="text-muted-foreground hover:text-white p-1">
               <Download className="h-4 w-4" />
-            </RevButtons>
-            <RevButtons variant="ghost" size="sm" className="text-gray-400">
-              <MoreVertical className="h-4 w-4" />
-            </RevButtons>
+            </button>
           </div>
         </div>
 
         {/* Version Selector */}
         {allVersions.length > 0 && (
-          <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 flex-shrink-0">
+          <div className="bg-background border-b  px-4 py-2 flex-shrink-0">
             <VersionSelector
               currentMedia={currentMedia}
               allVersions={allVersions}
@@ -308,133 +419,42 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
           </div>
         )}
 
-        {/* Media Display */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 min-h-0">
-            <MediaDisplay
-              media={currentMedia}
-              videoRef={videoRef}
-              className="h-full"
-              onAddAnnotation={handleAddAnnotation}
-              activeCommentPin={activeCommentPin}
-              comments={comments}
-            />
-          </div>
-
-          {/* Player Controls */}
-          <PlayerControls
-            videoRef={videoRef}
-            mediaType={currentMedia.file_type}
-            comments={comments}
-            onSeekToTimestamp={handleSeekToTimestamp}
+        {/* Main Content with Split Panel */}
+        <div className="flex-1 min-h-0">
+          <SplitPanel
+            mode="review"
+            leftPanel={mediaContent}
+            rightPanel={rightPanelContent}
+            showRightPanel={commentsVisible}
+            onRightPanelToggle={setCommentsVisible}
+            allowCloseRight={true}
+            allowCloseLeft={false}
+            rightPanelTitle={
+              selectedTab === "comments" ? "Comments" : "Details"
+            }
+            leftPanelTitle="Media"
+            defaultRightPanelWidth={350}
+            minRightPanelWidth={300}
+            maxRightPanelWidth={500}
+            className="h-full"
           />
-        </div>
-
-        {/* Comments Panel */}
-        <div className="flex-1 bg-gray-900 flex flex-col min-h-0">
-          {/* Mobile Tabs */}
-          <div className="border-b border-gray-800 px-4 py-3 flex-shrink-0">
-            <div className="flex gap-1">
-              <button
-                onClick={() => setSelectedTab("comments")}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  selectedTab === "comments"
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:text-gray-300"
-                }`}
-              >
-                <MessageSquare className="h-4 w-4 inline mr-1" />
-                Comments
-              </button>
-
-              <button
-                onClick={() => setSelectedTab("details")}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  selectedTab === "details"
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:text-gray-300"
-                }`}
-              >
-                <Eye className="h-4 w-4 inline mr-1" />
-                Details
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile Content */}
-          <div className="flex-1 min-h-0">
-            {selectedTab === "comments" ? (
-              <ReviewComments
-                mediaId={currentMedia.id}
-                mediaType={currentMedia.file_type}
-                currentTime={currentTime}
-                onSeekToTimestamp={handleSeekToTimestamp}
-                className="h-full"
-                pendingAnnotation={pendingAnnotation}
-                onAnnotationSaved={handleAnnotationSaved}
-                onCommentPinClick={handleCommentPinClick}
-              />
-            ) : (
-              <div className="p-4 space-y-4 overflow-y-auto h-full">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-300 mb-3">
-                    Media Details
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Name:</span>
-                      <span className="text-gray-300 truncate ml-2">
-                        {currentMedia.original_filename}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Type:</span>
-                      <span className="text-gray-300">
-                        {currentMedia.file_type}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Size:</span>
-                      <span className="text-gray-300">
-                        {formatFileSize(currentMedia.file_size)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Version:</span>
-                      <span className="text-gray-300">
-                        v{currentMedia.version_number}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Uploaded:</span>
-                      <span className="text-gray-300">
-                        {formatDate(currentMedia.uploaded_at)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     );
   }
 
-  // Desktop Layout (same structure, just pass new props)
+  // Desktop Layout
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-black">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between flex-shrink-0">
+      <div className=" border-b  px-6 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
-          <RevButtons
-            variant="ghost"
-            size="sm"
+          <button
             onClick={handleBack}
-            className="text-gray-400 hover:text-white"
+            className="text-muted-foreground hover:text-white p-1"
           >
             <ArrowLeft className="h-4 w-4" />
-          </RevButtons>
+          </button>
 
           <h1 className="text-lg font-medium text-white">
             {currentMedia.original_filename}
@@ -449,151 +469,34 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-sm text-gray-400">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span>{formatFileSize(currentMedia.file_size)}</span>
           <span>•</span>
           <span>{formatDate(currentMedia.uploaded_at)}</span>
 
-          <RevButtons variant="ghost" size="sm" className="text-gray-400">
+          <button className="text-muted-foreground hover:text-white p-1">
             <Download className="h-4 w-4" />
-          </RevButtons>
-
-          <RevButtons variant="ghost" size="sm" className="text-gray-400">
-            <MoreVertical className="h-4 w-4" />
-          </RevButtons>
+          </button>
         </div>
       </div>
 
-      {/* Main Layout */}
-      <div ref={containerRef} className="flex-1 flex min-h-0">
-        {/* Left Panel - Media Display + Player Controls */}
-        <div
-          className="flex-shrink-0 flex flex-col"
-          style={{ width: `calc(100% - ${sidebarWidth}px)` }}
-        >
-          {/* Media Display */}
-          <div className="flex-1 min-h-0">
-            <MediaDisplay
-              media={currentMedia}
-              videoRef={videoRef}
-              className="h-full"
-              onAddAnnotation={handleAddAnnotation}
-              activeCommentPin={activeCommentPin}
-              activeCommentDrawing={activeCommentDrawing} // Add this
-              comments={comments}
-            />
-          </div>
-
-          {/* Player Controls */}
-          <PlayerControls
-            videoRef={videoRef}
-            mediaType={currentMedia.file_type}
-            comments={comments}
-            onSeekToTimestamp={handleSeekToTimestamp}
-            onTimeUpdate={setCurrentTime} // Add this line
-          />
-        </div>
-
-        {/* Sidebar Resize Handle */}
-        <div
-          className="w-1 bg-gray-800 hover:bg-gray-600 cursor-col-resize group relative select-none flex-shrink-0"
-          onMouseDown={handleSidebarMouseDown}
-        >
-          <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-
-        {/* Right Sidebar - Comments */}
-        <div
-          className="bg-gray-900 flex flex-col flex-shrink-0"
-          style={{ width: `${sidebarWidth}px` }}
-        >
-          {/* Sidebar Tabs */}
-          <div className="border-b border-gray-800 px-4 py-3 flex-shrink-0">
-            <div className="flex gap-1">
-              <button
-                onClick={() => setSelectedTab("comments")}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  selectedTab === "comments"
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:text-gray-300"
-                }`}
-              >
-                <MessageSquare className="h-4 w-4 inline mr-1" />
-                Comments
-              </button>
-
-              <button
-                onClick={() => setSelectedTab("details")}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  selectedTab === "details"
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:text-gray-300"
-                }`}
-              >
-                <Eye className="h-4 w-4 inline mr-1" />
-                Details
-              </button>
-            </div>
-          </div>
-
-          {/* Sidebar Content */}
-          <div className="flex-1 flex flex-col min-h-0">
-            {selectedTab === "comments" ? (
-              <ReviewComments
-                mediaId={currentMedia.id}
-                mediaType={currentMedia.file_type}
-                currentTime={currentTime}
-                onSeekToTimestamp={handleSeekToTimestamp}
-                className="h-full"
-                pendingAnnotation={pendingAnnotation}
-                onAnnotationSaved={handleAnnotationSaved}
-                onCommentPinClick={handleCommentPinClick}
-                onCommentDrawingClick={handleCommentDrawingClick} // Add this
-              />
-            ) : (
-              <div className="p-4 space-y-6 overflow-y-auto">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-300 mb-3">
-                    Media Details
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Name:</span>
-                      <span className="text-gray-300">
-                        {currentMedia.original_filename}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Type:</span>
-                      <span className="text-gray-300">
-                        {currentMedia.file_type}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Size:</span>
-                      <span className="text-gray-300">
-                        {formatFileSize(currentMedia.file_size)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Version:</span>
-                      <span className="text-gray-300">
-                        v{currentMedia.version_number}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Uploaded:</span>
-                      <span className="text-gray-300">
-                        {formatDate(currentMedia.uploaded_at)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Main Layout with Split Panel */}
+      <div className="flex-1 min-h-0">
+        <SplitPanel
+          mode="review"
+          leftPanel={mediaContent}
+          rightPanel={rightPanelContent}
+          showRightPanel={commentsVisible}
+          onRightPanelToggle={setCommentsVisible}
+          allowCloseRight={true}
+          allowCloseLeft={false}
+          rightPanelTitle={selectedTab === "comments" ? "Comments" : "Details"}
+          leftPanelTitle="Media"
+          defaultRightPanelWidth={400}
+          minRightPanelWidth={300}
+          maxRightPanelWidth={600}
+          className="h-full"
+        />
       </div>
     </div>
   );

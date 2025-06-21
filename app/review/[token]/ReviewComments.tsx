@@ -21,6 +21,8 @@ import {
   getCommentsAction,
   deleteCommentAction,
 } from "./comment-actions";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface MediaComment {
   id: string;
@@ -74,6 +76,8 @@ interface ReviewCommentsProps {
   onAnnotationSaved?: () => void;
   onCommentPinClick?: (comment: MediaComment) => void;
   onCommentDrawingClick?: (comment: MediaComment) => void;
+  onCommentDeleted?: (commentId: string) => void;
+  onCommentAdded?: (comment: MediaComment) => void; // ← ADD THIS
 }
 
 export const ReviewComments: React.FC<ReviewCommentsProps> = ({
@@ -86,6 +90,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   onAnnotationSaved,
   onCommentPinClick,
   onCommentDrawingClick,
+  onCommentDeleted,
+  onCommentAdded, // ← ADD THIS
 }) => {
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -205,6 +211,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
       if (result.success && result.comment) {
         setComments([...comments, result.comment]);
+        onCommentAdded?.(result.comment); // ← NEW: Pass the new comment to parent
         setNewComment("");
         setShowUserForm(false);
         setIsAddingAnnotation(false);
@@ -232,6 +239,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       const result = await deleteCommentAction(commentId);
       if (result.success) {
         setComments(comments.filter((c) => c.id !== commentId));
+        onCommentDeleted?.(commentId); // ← ADD THIS LINE
       } else {
         console.error("Failed to delete comment:", result.error);
         alert("Failed to delete comment: " + result.error);
@@ -269,7 +277,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   if (isLoading) {
     return (
       <div className={`flex items-center justify-center py-8 ${className}`}>
-        <div className="flex items-center gap-2 text-gray-500">
+        <div className="flex items-center gap-2 ">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading comments...
         </div>
@@ -280,25 +288,24 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Comments Header */}
-      <div className="px-4 py-3 border-b border-gray-800">
+      <div className="px-4 py-3 border-b ">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-white flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             Comments ({comments.length})
           </h3>
-          <RevButtons variant="ghost" size="sm" className="text-gray-400">
-            <MoreVertical className="h-4 w-4" />
-          </RevButtons>
         </div>
       </div>
 
       {/* Comments List */}
       <div className="flex-1 overflow-y-auto">
         {comments.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 px-4">
-            <MessageSquare className="h-8 w-8 mx-auto mb-3 opacity-50" />
+          <div className="text-center py-12  px-4">
+            <MessageSquare className="h-8 w-8 mx-auto mb-3 opacity-50 text-muted-foreground" />
             <p className="text-sm">No comments yet</p>
-            <p className="text-xs mt-1 opacity-75">Start the conversation</p>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Start the conversation
+            </p>
           </div>
         ) : (
           <div className="p-4 space-y-4">
@@ -320,7 +327,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       </div>
 
       {/* Comment Input */}
-      <div className="border-t border-gray-800 p-4">
+      <div className="border-t border p-4">
         <div className="space-y-3">
           {/* Annotation Alert */}
           {isAddingAnnotation && (
@@ -403,30 +410,30 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
           {/* User Info Form */}
           {showUserForm && (
-            <div className="space-y-2 p-3 bg-gray-800 rounded-lg border border-gray-700">
-              <div className="text-xs text-gray-400 mb-2">
+            <div className="space-y-2 p-3 bg-primary-foreground rounded-lg border ">
+              <div className="text-xs  mb-2">
                 Enter your details to comment:
               </div>
-              <input
+              <Input
                 type="text"
                 placeholder="Your name *"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
-                className="w-full bg-gray-700 text-white placeholder-gray-500 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-0"
                 required
+                className="bg-background"
               />
-              <input
+              <Input
                 type="email"
                 placeholder="Your email (optional)"
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
-                className="w-full bg-gray-700 text-white placeholder-gray-500 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-0"
+                className="bg-background"
               />
             </div>
           )}
 
           {/* Comment Text Area */}
-          <textarea
+          <Textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder={
@@ -434,7 +441,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 ? `Describe this ${pendingAnnotation?.type === "pin" ? "pin" : "drawing"}...`
                 : "Add a comment..."
             }
-            className="w-full bg-gray-800 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 border-0"
+            className="bg-primary-foreground"
             rows={3}
             disabled={isSubmitting}
           />
@@ -443,7 +450,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               {mediaType === "video" && !isAddingAnnotation && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-muted-foreground">
                   At {formatTime(currentTime)}
                 </span>
               )}
@@ -464,7 +471,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   onClick={cancelAnnotation}
                   size="sm"
                   variant="ghost"
-                  className="text-gray-400 hover:text-white"
+                  className="text-muted-foreground hover:text-white"
                 >
                   Cancel
                 </RevButtons>
@@ -586,7 +593,7 @@ const CommentItem: React.FC<{
 
   return (
     <div
-      className={`bg-gray-800 rounded-lg p-3 hover:bg-gray-750 transition-colors ${
+      className={`border bg-primary-foreground rounded-lg p-3  transition-colors ${
         hasPin
           ? "border-l-4 border-purple-500"
           : hasDrawing
@@ -679,7 +686,7 @@ const CommentItem: React.FC<{
           {/* Actions Menu */}
           {showActions && (
             <div className="flex items-center gap-1">
-              <RevButtons
+              {/* <RevButtons
                 variant="ghost"
                 size="sm"
                 onClick={() => setLiked(!liked)}
@@ -695,13 +702,13 @@ const CommentItem: React.FC<{
                 className="text-gray-400 hover:text-gray-300 p-1"
               >
                 <Reply className="h-3 w-3" />
-              </RevButtons>
+              </RevButtons> */}
               {canDelete() && (
                 <RevButtons
                   variant="ghost"
                   size="sm"
                   onClick={() => onDelete(comment.id)}
-                  className="text-gray-400 hover:text-red-400 p-1"
+                  className="text-muted-foreground hover:text-red-400 p-1"
                 >
                   <Trash className="h-3 w-3" />
                 </RevButtons>
@@ -712,9 +719,7 @@ const CommentItem: React.FC<{
       </div>
 
       {/* Comment Content */}
-      <p className="text-sm text-gray-300 leading-relaxed mb-2">
-        {comment.content}
-      </p>
+      <p className="text-sm leading-relaxed mb-2">{comment.content}</p>
 
       {/* Pin Details */}
       {hasPin && comment.annotation_data && (
@@ -739,7 +744,7 @@ const CommentItem: React.FC<{
       )}
 
       {/* Comment Meta */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{formatDate(comment.created_at)}</span>
         <div className="flex items-center gap-2">
           {comment.user_email && (
