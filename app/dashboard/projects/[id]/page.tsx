@@ -27,7 +27,7 @@ export default async function ProjectWorkspacePage({
     redirect("/account");
   }
 
-  // Get project with media files (including versioning data)
+  // Get project with media files and review links
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select(
@@ -48,7 +48,18 @@ export default async function ProjectWorkspacePage({
         uploaded_at,
         parent_media_id,
         version_number,
-        is_current_version
+        is_current_version,
+        version_name
+      ),
+      review_links (
+        id,
+        link_token,
+        title,
+        is_active,
+        created_at,
+        expires_at,
+        media_id,
+        requires_password
       )
     `
     )

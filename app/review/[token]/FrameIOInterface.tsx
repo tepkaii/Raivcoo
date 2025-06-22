@@ -447,7 +447,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className=" border-b  px-6 py-3 flex items-center justify-between flex-shrink-0">
+      <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <button
             onClick={handleBack}
@@ -478,7 +478,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
             <Download className="h-4 w-4" />
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Main Layout with Split Panel */}
       <div className="flex-1 min-h-0">

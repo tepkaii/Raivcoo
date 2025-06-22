@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+
 import {
   Dialog,
   DialogContent,
@@ -30,8 +32,17 @@ import {
   Share,
   Check,
   Trash2,
+  Calendar,
+  Lock,
+  Settings,
+  Star,
+  Eye,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { formatFileSize } from "./MediaCard";
+import { VersionDragList } from "./VersionDragList";
 
 interface MediaFile {
   id: string;
@@ -45,6 +56,7 @@ interface MediaFile {
   parent_media_id?: string;
   version_number: number;
   is_current_version: boolean;
+  version_name?: string;
 }
 
 interface ReviewLink {
@@ -55,6 +67,25 @@ interface ReviewLink {
   created_at: string;
   expires_at?: string;
   media_id: string;
+  password_hash?: string;
+  requires_password: boolean;
+}
+
+interface OrganizedMedia {
+  id: string;
+  filename: string;
+  original_filename: string;
+  file_type: "video" | "image";
+  mime_type: string;
+  file_size: number;
+  r2_url: string;
+  uploaded_at: string;
+  version_number: number;
+  is_current_version: boolean;
+  version_name?: string;
+  versions: MediaFile[];
+  currentVersion: MediaFile;
+  hasReviewLinks: boolean;
 }
 
 interface MediaDialogsProps {
@@ -71,45 +102,72 @@ interface MediaDialogsProps {
     links: ReviewLink[];
     isLoading: boolean;
   };
+  manageLinksDialog: {
+    open: boolean;
+    mediaFile?: MediaFile;
+    links: ReviewLink[];
+    isLoading: boolean;
+  };
+  versionManagerDialog: {
+    open: boolean;
+    media?: OrganizedMedia;
+    isUpdating: boolean;
+  };
   deleteDialog: {
     open: boolean;
     mediaFile?: MediaFile;
     isDeleting: boolean;
   };
-  onCreateLinkDialogChange: (dialog: {
-    open: boolean;
-    mediaFile?: MediaFile;
-    isCreating: boolean;
-    showSuccess: boolean;
-    createdUrl?: string;
-  }) => void;
-  onViewLinksDialogChange: (dialog: {
-    open: boolean;
-    mediaFile?: MediaFile;
-    links: ReviewLink[];
-    isLoading: boolean;
-  }) => void;
-  onDeleteDialogChange: (dialog: {
-    open: boolean;
-    mediaFile?: MediaFile;
-    isDeleting: boolean;
-  }) => void;
-  onCreateReviewLink: (mediaFile: MediaFile, title: string) => void;
+  onCreateLinkDialogChange: (dialog: any) => void;
+  onViewLinksDialogChange: (dialog: any) => void;
+  onManageLinksDialogChange: (dialog: any) => void;
+  onVersionManagerDialogChange: (dialog: any) => void;
+  onDeleteDialogChange: (dialog: any) => void;
+  onCreateReviewLink: (
+    mediaFile: MediaFile,
+    options: {
+      title: string;
+      expiresAt?: string;
+      requiresPassword: boolean;
+      password?: string;
+    }
+  ) => void;
   onToggleReviewLink: (linkId: string, currentStatus: boolean) => void;
+  onUpdateReviewLink: (linkId: string, updates: any) => void;
+  onDeleteReviewLink: (linkId: string) => void;
+  onVersionReorder: (parentId: string, reorderedVersions: MediaFile[]) => void;
+  onUpdateVersionName: (versionId: string, name: string) => void;
+  onDeleteVersion: (versionId: string) => void;
   onDeleteMedia: (mediaFile: MediaFile) => void;
 }
 
 export function MediaDialogs({
   createLinkDialog,
   viewLinksDialog,
+  manageLinksDialog,
+  versionManagerDialog,
   deleteDialog,
   onCreateLinkDialogChange,
   onViewLinksDialogChange,
+  onManageLinksDialogChange,
+  onVersionManagerDialogChange,
   onDeleteDialogChange,
   onCreateReviewLink,
   onToggleReviewLink,
+  onUpdateReviewLink,
+  onDeleteReviewLink,
+  onVersionReorder,
+  onUpdateVersionName,
+  onDeleteVersion,
   onDeleteMedia,
 }: MediaDialogsProps) {
+  const [linkFormData, setLinkFormData] = useState({
+    title: "",
+    expiresAt: "",
+    requiresPassword: false,
+    password: "",
+  });
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -142,6 +200,50 @@ export function MediaDialogs({
     }
   };
 
+  const getAllVersionsOrdered = (media: OrganizedMedia) => {
+    const parent = {
+      id: media.id,
+      filename: media.filename,
+      original_filename: media.original_filename,
+      file_type: media.file_type,
+      mime_type: media.mime_type,
+      file_size: media.file_size,
+      r2_url: media.r2_url,
+      uploaded_at: media.uploaded_at,
+      version_number: media.version_number,
+      is_current_version: media.is_current_version,
+      version_name: media.version_name,
+    };
+
+    const allVersions = [parent, ...media.versions].sort(
+      (a, b) => a.version_number - b.version_number
+    );
+
+    // Current version is always first
+    const currentIndex = allVersions.findIndex((v) => v.is_current_version);
+    const currentVersion = allVersions[currentIndex];
+    const otherVersions = allVersions.filter((_, i) => i !== currentIndex);
+
+    return [currentVersion, ...otherVersions];
+  };
+
+  const onVersionDragEnd = (result: any) => {
+    if (!result.destination || !versionManagerDialog.media) return;
+
+    const versions = getAllVersionsOrdered(versionManagerDialog.media);
+    const [reorderedItem] = versions.splice(result.source.index, 1);
+    versions.splice(result.destination.index, 0, reorderedItem);
+
+    // Update version numbers based on new order
+    const reorderedVersions = versions.map((version, index) => ({
+      ...version,
+      version_number: index + 1,
+      is_current_version: index === 0, // First item is current
+    }));
+
+    onVersionReorder(versionManagerDialog.media.id, reorderedVersions);
+  };
+
   return (
     <>
       {/* Create Review Link Dialog */}
@@ -155,7 +257,7 @@ export function MediaDialogs({
           })
         }
       >
-        <DialogContent className="bg-gray-800 border-gray-700 text-white">
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {createLinkDialog.showSuccess
@@ -231,10 +333,13 @@ export function MediaDialogs({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const title = formData.get("title") as string;
                 if (createLinkDialog.mediaFile) {
-                  onCreateReviewLink(createLinkDialog.mediaFile, title);
+                  onCreateReviewLink(createLinkDialog.mediaFile, {
+                    title: linkFormData.title,
+                    expiresAt: linkFormData.expiresAt || undefined,
+                    requiresPassword: linkFormData.requiresPassword,
+                    password: linkFormData.password || undefined,
+                  });
                 }
               }}
               className="space-y-4"
@@ -245,12 +350,77 @@ export function MediaDialogs({
                 </Label>
                 <Input
                   id="title"
-                  name="title"
+                  value={linkFormData.title}
+                  onChange={(e) =>
+                    setLinkFormData((prev) => ({
+                      ...prev,
+                      title: e.target.value,
+                    }))
+                  }
                   placeholder="Enter a title for this review"
-                  defaultValue={createLinkDialog.mediaFile?.original_filename}
                   className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                 />
               </div>
+
+              <div>
+                <Label htmlFor="expiresAt" className="text-gray-300">
+                  Expiration Date (Optional)
+                </Label>
+                <Input
+                  id="expiresAt"
+                  type="datetime-local"
+                  value={linkFormData.expiresAt}
+                  onChange={(e) =>
+                    setLinkFormData((prev) => ({
+                      ...prev,
+                      expiresAt: e.target.value,
+                    }))
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave blank for permanent link
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="requiresPassword"
+                  checked={linkFormData.requiresPassword}
+                  onCheckedChange={(checked) =>
+                    setLinkFormData((prev) => ({
+                      ...prev,
+                      requiresPassword: checked,
+                    }))
+                  }
+                />
+                <Label htmlFor="requiresPassword" className="text-gray-300">
+                  Require password to access
+                </Label>
+              </div>
+
+              {linkFormData.requiresPassword && (
+                <div>
+                  <Label htmlFor="password" className="text-gray-300">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={linkFormData.password}
+                    onChange={(e) =>
+                      setLinkFormData((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter password"
+                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    required={linkFormData.requiresPassword}
+                  />
+                </div>
+              )}
 
               <div className="flex justify-end gap-2">
                 <RevButtons
@@ -341,9 +511,27 @@ export function MediaDialogs({
                           >
                             {link.is_active ? "Active" : "Inactive"}
                           </Badge>
+                          {link.requires_password && (
+                            <Badge variant="outline">
+                              <Lock className="h-3 w-3 mr-1" />
+                              Protected
+                            </Badge>
+                          )}
+                          {link.expires_at && (
+                            <Badge variant="outline">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              Expires
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-gray-400 mb-2">
                           Created {formatDate(link.created_at)}
+                          {link.expires_at && (
+                            <span>
+                              {" "}
+                              • Expires {formatDate(link.expires_at)}
+                            </span>
+                          )}
                         </p>
                         <div className="flex items-center gap-2">
                           <code className="text-xs bg-gray-600 px-2 py-1 rounded flex-1 truncate text-gray-300">
@@ -387,6 +575,109 @@ export function MediaDialogs({
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Review Links Dialog */}
+      <Dialog
+        open={versionManagerDialog.open}
+        onOpenChange={(open) =>
+          onVersionManagerDialogChange({
+            open,
+            isUpdating: false,
+          })
+        }
+      >
+        <DialogContent className="max-w-2xl bg-gray-800 border-gray-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Manage Versions</DialogTitle>
+            {versionManagerDialog.media && (
+              <p className="text-sm text-gray-400">
+                Managing versions for:{" "}
+                {versionManagerDialog.media.original_filename}
+              </p>
+            )}
+          </DialogHeader>
+
+          {versionManagerDialog.media && (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-400">
+                <p>
+                  Drag versions to reorder them. Higher version numbers appear
+                  at the top. The current version is marked with a star.
+                </p>
+              </div>
+
+              <VersionDragList
+                versions={getAllVersionsOrdered(versionManagerDialog.media)}
+                onReorder={(reorderedVersions) => {
+                  // Update dialog state immediately for dynamic UI
+                  const updatedMedia = {
+                    ...versionManagerDialog.media!,
+                    versions: reorderedVersions.slice(1), // Remove parent from versions array
+                    currentVersion: reorderedVersions[0],
+                    version_number:
+                      reorderedVersions.find(
+                        (v) => v.id === versionManagerDialog.media!.id
+                      )?.version_number || 1,
+                    is_current_version:
+                      reorderedVersions.find(
+                        (v) => v.id === versionManagerDialog.media!.id
+                      )?.is_current_version || false,
+                  };
+
+                  onVersionManagerDialogChange({
+                    open: true,
+                    media: updatedMedia,
+                    isUpdating: false,
+                  });
+
+                  // Call backend
+                  onVersionReorder(
+                    versionManagerDialog.media!.id,
+                    reorderedVersions
+                  );
+                }}
+                onDeleteVersion={(versionId, updatedVersions) => {
+                  // Update dialog state immediately for dynamic UI
+                  const updatedMedia = {
+                    ...versionManagerDialog.media!,
+                    versions: updatedVersions.slice(1), // Remove parent from versions array
+                    currentVersion: updatedVersions[0],
+                    version_number:
+                      updatedVersions.find(
+                        (v) => v.id === versionManagerDialog.media!.id
+                      )?.version_number || 1,
+                    is_current_version:
+                      updatedVersions.find(
+                        (v) => v.id === versionManagerDialog.media!.id
+                      )?.is_current_version || false,
+                  };
+
+                  onVersionManagerDialogChange({
+                    open: true,
+                    media: updatedMedia,
+                    isUpdating: false,
+                  });
+
+                  // Call backend
+                  onDeleteVersion(versionId);
+                }}
+                formatDate={formatDate}
+                formatFileSize={(bytes: number) => {
+                  if (bytes === 0) return "0 Bytes";
+                  const k = 1024;
+                  const sizes = ["Bytes", "KB", "MB", "GB"];
+                  const i = Math.floor(Math.log(bytes) / Math.log(k));
+                  return (
+                    parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +
+                    " " +
+                    sizes[i]
+                  );
+                }}
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

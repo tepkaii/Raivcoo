@@ -12,7 +12,11 @@ import {
   createReviewLinkAction,
   getReviewLinksAction,
   toggleReviewLinkAction,
-  setCurrentVersionAction,
+  updateReviewLinkAction,
+  deleteReviewLinkAction,
+  reorderVersionsAction,
+  updateVersionNameAction,
+  deleteVersionAction,
   addVersionToMediaAction,
 } from "../media-actions";
 
@@ -28,6 +32,7 @@ interface MediaFile {
   parent_media_id?: string;
   version_number: number;
   is_current_version: boolean;
+  version_name?: string;
 }
 
 interface ReviewLink {
@@ -38,6 +43,8 @@ interface ReviewLink {
   created_at: string;
   expires_at?: string;
   media_id: string;
+  password_hash?: string;
+  requires_password: boolean;
 }
 
 interface OrganizedMedia {
@@ -51,23 +58,29 @@ interface OrganizedMedia {
   uploaded_at: string;
   version_number: number;
   is_current_version: boolean;
+  version_name?: string;
   versions: MediaFile[];
   currentVersion: MediaFile;
+  hasReviewLinks: boolean;
 }
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];
+  reviewLinks: ReviewLink[];
   selectedMedia: MediaFile | null;
   onMediaSelect: (media: MediaFile) => void;
   onMediaUpdated: (newFiles: MediaFile[]) => void;
+  onReviewLinksUpdated: (newLinks: ReviewLink[]) => void;
   projectId: string;
 }
 
 export function MediaGrid({
   mediaFiles,
+  reviewLinks,
   selectedMedia,
   onMediaSelect,
   onMediaUpdated,
+  onReviewLinksUpdated,
   projectId,
 }: MediaGridProps) {
   const [isUploading, setIsUploading] = useState(false);
@@ -91,6 +104,19 @@ export function MediaGrid({
     links: ReviewLink[];
     isLoading: boolean;
   }>({ open: false, links: [], isLoading: false });
+
+  const [manageLinksDialog, setManageLinksDialog] = useState<{
+    open: boolean;
+    mediaFile?: MediaFile;
+    links: ReviewLink[];
+    isLoading: boolean;
+  }>({ open: false, links: [], isLoading: false });
+
+  const [versionManagerDialog, setVersionManagerDialog] = useState<{
+    open: boolean;
+    media?: OrganizedMedia;
+    isUpdating: boolean;
+  }>({ open: false, isUpdating: false });
 
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
@@ -124,7 +150,7 @@ export function MediaGrid({
     parentMediaMap.forEach((parentMedia, parentId) => {
       const versions = childVersionsMap.get(parentId) || [];
       const sortedVersions = versions.sort(
-        (a, b) => b.version_number - a.version_number
+        (a, b) => a.version_number - b.version_number
       );
 
       // Find current version
@@ -140,6 +166,11 @@ export function MediaGrid({
         }
       }
 
+      // Check if this parent media has review links
+      const hasReviewLinks = reviewLinks.some(
+        (link) => link.media_id === parentId
+      );
+
       result.push({
         id: parentMedia.id,
         filename: parentMedia.filename,
@@ -151,8 +182,10 @@ export function MediaGrid({
         uploaded_at: parentMedia.uploaded_at,
         version_number: parentMedia.version_number,
         is_current_version: parentMedia.is_current_version,
+        version_name: parentMedia.version_name,
         versions: sortedVersions,
         currentVersion: currentVersion,
+        hasReviewLinks,
       });
     });
 
@@ -160,7 +193,7 @@ export function MediaGrid({
       (a, b) =>
         new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
     );
-  }, [mediaFiles]);
+  }, [mediaFiles, reviewLinks]);
 
   // Upload files function
   const uploadFiles = async (files: File[], targetMediaId?: string) => {
@@ -269,31 +302,36 @@ export function MediaGrid({
   });
 
   // Action handlers
-  const handleSetCurrentVersion = async (
+  const handleVersionReorder = async (
     parentId: string,
-    versionId: string
+    reorderedVersions: MediaFile[]
   ) => {
-    const result = await setCurrentVersionAction(parentId, versionId);
+    const result = await reorderVersionsAction(parentId, reorderedVersions);
 
     if (result.success) {
-      const newFiles = mediaFiles.map((file) => ({
-        ...file,
-        is_current_version:
-          file.parent_media_id === parentId || file.id === parentId
-            ? file.id === versionId
-            : file.is_current_version,
-      }));
+      // Update the mediaFiles state with new version numbers and current version
+      const updatedFiles = mediaFiles.map((file) => {
+        const updatedVersion = reorderedVersions.find((v) => v.id === file.id);
+        if (updatedVersion) {
+          return {
+            ...file,
+            version_number: updatedVersion.version_number,
+            is_current_version: updatedVersion.is_current_version,
+          };
+        }
+        return file;
+      });
 
-      onMediaUpdated(newFiles);
+      onMediaUpdated(updatedFiles);
 
       toast({
-        title: "Current Version Updated",
-        description: "The current version has been changed",
+        title: "Versions Reordered",
+        description: "Version order has been updated",
         variant: "success",
       });
     } else {
       toast({
-        title: "Failed to Update Version",
+        title: "Failed to Reorder Versions",
         description: result.error,
         variant: "destructive",
       });
@@ -375,6 +413,12 @@ export function MediaGrid({
       let updatedFiles = mediaFiles.filter((file) => file.id !== mediaFile.id);
       onMediaUpdated(updatedFiles);
 
+      // Also remove any review links for this media
+      const updatedLinks = reviewLinks.filter(
+        (link) => link.media_id !== mediaFile.id
+      );
+      onReviewLinksUpdated(updatedLinks);
+
       toast({
         title: "Media Deleted",
         description: "Media file has been permanently deleted",
@@ -394,11 +438,20 @@ export function MediaGrid({
 
   const handleCreateReviewLink = async (
     mediaFile: MediaFile,
-    title: string
+    options: {
+      title: string;
+      expiresAt?: string;
+      requiresPassword: boolean;
+      password?: string;
+    }
   ) => {
     setCreateLinkDialog((prev) => ({ ...prev, isCreating: true }));
 
-    const result = await createReviewLinkAction(projectId, mediaFile.id, title);
+    const result = await createReviewLinkAction(
+      projectId,
+      mediaFile.id,
+      options
+    );
 
     if (result.success) {
       try {
@@ -406,6 +459,10 @@ export function MediaGrid({
       } catch (clipboardError) {
         console.error("Clipboard error:", clipboardError);
       }
+
+      // Update review links
+      const updatedLinks = [...reviewLinks, result.reviewLink];
+      onReviewLinksUpdated(updatedLinks);
 
       setCreateLinkDialog((prev) => ({
         ...prev,
@@ -450,6 +507,27 @@ export function MediaGrid({
     }
   };
 
+  const handleManageReviewLinks = async (mediaFile: MediaFile) => {
+    setManageLinksDialog({ open: true, mediaFile, links: [], isLoading: true });
+
+    const result = await getReviewLinksAction(projectId, mediaFile.id);
+
+    if (result.success) {
+      setManageLinksDialog((prev) => ({
+        ...prev,
+        links: result.links,
+        isLoading: false,
+      }));
+    } else {
+      toast({
+        title: "Failed to Load Review Links",
+        description: result.error,
+        variant: "destructive",
+      });
+      setManageLinksDialog({ open: false, links: [], isLoading: false });
+    }
+  };
+
   const handleToggleReviewLink = async (
     linkId: string,
     currentStatus: boolean
@@ -457,12 +535,23 @@ export function MediaGrid({
     const result = await toggleReviewLinkAction(linkId, !currentStatus);
 
     if (result.success) {
+      // Update all dialogs and main state
+      const updateLinks = (links: ReviewLink[]) =>
+        links.map((link) =>
+          link.id === linkId ? { ...link, is_active: !currentStatus } : link
+        );
+
       setViewLinksDialog((prev) => ({
         ...prev,
-        links: prev.links.map((link) =>
-          link.id === linkId ? { ...link, is_active: !currentStatus } : link
-        ),
+        links: updateLinks(prev.links),
       }));
+
+      setManageLinksDialog((prev) => ({
+        ...prev,
+        links: updateLinks(prev.links),
+      }));
+
+      onReviewLinksUpdated(updateLinks(reviewLinks));
 
       toast({
         title: "Link Updated",
@@ -478,10 +567,113 @@ export function MediaGrid({
     }
   };
 
+  const handleUpdateReviewLink = async (linkId: string, updates: any) => {
+    const result = await updateReviewLinkAction(linkId, updates);
+
+    if (result.success) {
+      const updateLinks = (links: ReviewLink[]) =>
+        links.map((link) =>
+          link.id === linkId ? { ...link, ...updates } : link
+        );
+
+      setManageLinksDialog((prev) => ({
+        ...prev,
+        links: updateLinks(prev.links),
+      }));
+
+      onReviewLinksUpdated(updateLinks(reviewLinks));
+    } else {
+      toast({
+        title: "Failed to Update Link",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteReviewLink = async (linkId: string) => {
+    const result = await deleteReviewLinkAction(linkId);
+
+    if (result.success) {
+      const filterLinks = (links: ReviewLink[]) =>
+        links.filter((link) => link.id !== linkId);
+
+      setViewLinksDialog((prev) => ({
+        ...prev,
+        links: filterLinks(prev.links),
+      }));
+
+      setManageLinksDialog((prev) => ({
+        ...prev,
+        links: filterLinks(prev.links),
+      }));
+
+      onReviewLinksUpdated(filterLinks(reviewLinks));
+
+      toast({
+        title: "Link Deleted",
+        description: "Review link has been deleted",
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Failed to Delete Link",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateVersionName = async (versionId: string, name: string) => {
+    const result = await updateVersionNameAction(versionId, name);
+
+    if (result.success) {
+      const updatedFiles = mediaFiles.map((file) =>
+        file.id === versionId ? { ...file, version_name: name } : file
+      );
+      onMediaUpdated(updatedFiles);
+    } else {
+      toast({
+        title: "Failed to Update Version Name",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteVersion = async (versionId: string) => {
+    const result = await deleteVersionAction(versionId);
+
+    if (result.success) {
+      const updatedFiles = mediaFiles.filter((file) => file.id !== versionId);
+      onMediaUpdated(updatedFiles);
+
+      toast({
+        title: "Version Deleted",
+        description: "Version has been deleted",
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Failed to Delete Version",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenVersionManager = (media: OrganizedMedia) => {
+    setVersionManagerDialog({
+      open: true,
+      media,
+      isUpdating: false,
+    });
+  };
+
   return (
-    <div className="h-full flex flex-col  text-white">
+    <div className="h-full flex flex-col text-white">
       {/* Upload Area */}
-      <div className="p-4 border-b  flex-shrink-0">
+      <div className="p-4 border-b flex-shrink-0">
         <div
           {...getRootProps()}
           className={`
@@ -489,7 +681,7 @@ export function MediaGrid({
             ${
               isDragActive
                 ? "border-primary bg-primary/10"
-                : " hover:border-white/30 "
+                : "hover:border-white/30"
             }
             ${isUploading ? "pointer-events-none opacity-50" : ""}
           `}
@@ -512,7 +704,7 @@ export function MediaGrid({
             <div className="space-y-2">
               <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
               <div>
-                <p className="text-xs font-medium ">
+                <p className="text-xs font-medium">
                   {isDragActive ? "Drop files here" : "Drag & drop or click"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -527,7 +719,7 @@ export function MediaGrid({
       {/* Media Grid */}
       <div className="flex-1 overflow-y-auto p-4">
         {organizedMedia.length === 0 ? (
-          <div className="text-center py-12 ">
+          <div className="text-center py-12">
             <FileVideo className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
             <p className="text-lg">No media files</p>
             <p className="text-sm text-muted-foreground">
@@ -535,7 +727,14 @@ export function MediaGrid({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div
+            className="grid gap-4"
+            style={{
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
+              width: "100%",
+            }}
+          >
             {organizedMedia.map((media) => (
               <MediaCard
                 key={media.id}
@@ -567,7 +766,7 @@ export function MediaGrid({
                   setDraggedOver(null);
                   setDraggedMedia(null);
                 }}
-                onSetCurrentVersion={handleSetCurrentVersion}
+                onVersionReorder={handleVersionReorder}
                 onCreateReviewLink={(mediaFile) =>
                   setCreateLinkDialog({
                     open: true,
@@ -577,6 +776,7 @@ export function MediaGrid({
                   })
                 }
                 onViewReviewLinks={handleViewReviewLinks}
+                onManageReviewLinks={handleManageReviewLinks}
                 onDeleteMedia={(mediaFile) =>
                   setDeleteDialog({
                     open: true,
@@ -584,6 +784,7 @@ export function MediaGrid({
                     isDeleting: false,
                   })
                 }
+                onOpenVersionManager={handleOpenVersionManager}
               />
             ))}
           </div>
@@ -594,12 +795,21 @@ export function MediaGrid({
       <MediaDialogs
         createLinkDialog={createLinkDialog}
         viewLinksDialog={viewLinksDialog}
+        manageLinksDialog={manageLinksDialog}
+        versionManagerDialog={versionManagerDialog}
         deleteDialog={deleteDialog}
         onCreateLinkDialogChange={setCreateLinkDialog}
         onViewLinksDialogChange={setViewLinksDialog}
+        onManageLinksDialogChange={setManageLinksDialog}
+        onVersionManagerDialogChange={setVersionManagerDialog}
         onDeleteDialogChange={setDeleteDialog}
         onCreateReviewLink={handleCreateReviewLink}
         onToggleReviewLink={handleToggleReviewLink}
+        onUpdateReviewLink={handleUpdateReviewLink}
+        onDeleteReviewLink={handleDeleteReviewLink}
+        onVersionReorder={handleVersionReorder}
+        onUpdateVersionName={handleUpdateVersionName}
+        onDeleteVersion={handleDeleteVersion}
         onDeleteMedia={handleDeleteMedia}
       />
 

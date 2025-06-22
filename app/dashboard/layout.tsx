@@ -70,7 +70,7 @@ export default async function DashboardLayout({
     versionData?.find((v) => v.platform === "extension")?.version || "1.0.0";
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full">
         <AppSidebar
           portfolio={existingPortfolio}
@@ -79,23 +79,15 @@ export default async function DashboardLayout({
           extensionVersion={extensionVersion}
         />
         <main className="w-full">
-          <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
+          {/* <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
             <span className="border-2 flex items-center justify-center rounded-md">
               <SidebarTrigger />
             </span>
             <div className="flex gap-2 items-center">
-              {/* Global Search */}
+            
               <GlobalSearch />
-
-              {/* New Project button */}
-              <Link href="/dashboard/projects/new">
-                <RevButtons size={"sm"}>
-                  <Film className="mr-2 h-4 w-4" />
-                  New Project
-                </RevButtons>
-              </Link>
             </div>
-          </header>
+          </header> */}
           <div className=" bg-background">{children}</div>
         </main>
       </div>

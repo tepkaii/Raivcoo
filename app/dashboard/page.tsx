@@ -1,20 +1,20 @@
-// app/dashboard/page.tsx
-// @ts-nocheck
+// app/dashboard/projects/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardClient } from "./components/dashboard-client";
+import { ProjectsList } from "./projects/ProjectsList";
 import { Metadata } from "next";
+import Link from "next/link";
+import { RevButtons } from "@/components/ui/RevButtons";
+import { Plus } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Dashboard | Raivcoo",
-  description:
-    "Track projects, manage client feedback, and stay organized in your video editing workspace.",
+  title: "Projects | Dashboard",
+  description: "Manage all your video editing projects and workspaces.",
 };
 
-export default async function DashboardPage() {
+export default async function ProjectsPage() {
   const supabase = await createClient();
 
-  // Authentication
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -23,173 +23,118 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Get user profile
-  const { data: userProfile, error: profileError } = await supabase
+  // Get editor profile
+  const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
-    .select("*")
+    .select("id")
     .eq("user_id", user.id)
     .single();
 
-  if (profileError || !userProfile) {
+  if (profileError || !editorProfile) {
     redirect("/account");
   }
 
-  // Get current month's start date
-  const currentDate = new Date();
-  const monthStart = new Date(
-    currentDate.getFullYear(),
-    currentDate.getMonth(),
-    1
-  ).toISOString();
-
-  // We're removing client-specific view - only editor dashboard is needed
-  return await getEditorDashboard(supabase, userProfile, monthStart);
-}
-
-// EDITOR VIEW - Simplified and optimized
-async function getEditorDashboard(supabase, userProfile, monthStart) {
-  // Parallel queries for better performance
-  const [
-    allProjectsData,
-    // Individual stats queries
-    activeProjectsCount,
-    pendingProjectsCount,
-    completedProjectsCount,
-    monthlyActiveProjectsCount,
-    monthlyPendingProjectsCount,
-    monthlyCompletedProjectsCount,
-  ] = await Promise.all([
-    // Updated project query to use client_name instead of client:clients
-    supabase
-      .from("projects")
-      .select(
-        `
-        id,
-        title,
-        description,
-        status,
-        deadline,
-        created_at,
-        updated_at,
-        client_name,
-        client_email,
-        password_protected,
-        project_tracks(
-          id,
-          round_number,
-          status,
-          client_decision,
-          steps,
-          created_at,
-          updated_at
-        )
+  // Get all projects with media data (limit first 4 for thumbnails)
+  const { data: projects, error: projectsError } = await supabase
+    .from("projects")
+    .select(
       `
+      id,
+      name,
+      description,
+      created_at,
+      updated_at,
+      project_media (
+        id,
+        filename,
+        original_filename,
+        file_type,
+        mime_type,
+        file_size,
+        r2_url,
+        uploaded_at,
+        parent_media_id,
+        version_number,
+        is_current_version,
+        version_name
       )
-      .eq("editor_id", userProfile.id),
+    `
+    )
+    .eq("editor_id", editorProfile.id)
+    .order("updated_at", { ascending: false });
 
-    // All-time stats
-    supabase
-      .from("projects")
-      .select("*", { count: "exact", head: true })
-      .eq("editor_id", userProfile.id)
-      .eq("status", "active"),
+  if (projectsError) {
+    console.error("Error fetching projects:", projectsError);
+  }
 
-    supabase
-      .from("projects")
-      .select("*", { count: "exact", head: true })
-      .eq("editor_id", userProfile.id)
-      .eq("status", "pending"),
+  // Process projects data to include stats and limit media for thumbnails
+  const processedProjects = (projects || []).map((project) => {
+    const allMediaFiles = project.project_media || [];
 
-    supabase
-      .from("projects")
-      .select("*", { count: "exact", head: true })
-      .eq("editor_id", userProfile.id)
-      .eq("status", "completed"),
+    // Get only parent media (not versions) for thumbnails, limit to 4
+    const parentMedia = allMediaFiles
+      .filter((file) => !file.parent_media_id)
+      .sort(
+        (a, b) =>
+          new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
+      )
+      .slice(0, 4);
 
-    // Monthly stats
-    supabase
-      .from("projects")
-      .select("*", { count: "exact", head: true })
-      .eq("editor_id", userProfile.id)
-      .eq("status", "active")
-      .gte("created_at", monthStart),
+    const totalFiles = allMediaFiles.length;
+    const totalSize = allMediaFiles.reduce(
+      (sum, file) => sum + (file.file_size || 0),
+      0
+    );
+    const videoCount = allMediaFiles.filter(
+      (file) => file.file_type === "video"
+    ).length;
+    const imageCount = allMediaFiles.filter(
+      (file) => file.file_type === "image"
+    ).length;
+    const lastUpload =
+      allMediaFiles.length > 0
+        ? allMediaFiles.sort(
+            (a, b) =>
+              new Date(b.uploaded_at).getTime() -
+              new Date(a.uploaded_at).getTime()
+          )[0].uploaded_at
+        : null;
 
-    supabase
-      .from("projects")
-      .select("*", { count: "exact", head: true })
-      .eq("editor_id", userProfile.id)
-      .eq("status", "pending")
-      .gte("created_at", monthStart),
-
-    supabase
-      .from("projects")
-      .select("*", { count: "exact", head: true })
-      .eq("editor_id", userProfile.id)
-      .eq("status", "completed")
-      .gte("created_at", monthStart),
-  ]);
-
-  // Process projects (same logic as before but with client_name)
-  const recentProjects = allProjectsData.data
-    ? allProjectsData.data
-        .map((project) => {
-          const latestTrack =
-            project.project_tracks?.length > 0
-              ? [...project.project_tracks].sort((a, b) => {
-                  const timestampA = new Date(
-                    a.updated_at && a.updated_at !== a.created_at
-                      ? a.updated_at
-                      : a.created_at
-                  ).getTime();
-                  const timestampB = new Date(
-                    b.updated_at && b.updated_at !== b.created_at
-                      ? b.updated_at
-                      : b.created_at
-                  ).getTime();
-                  return timestampB - timestampA;
-                })[0]
-              : null;
-
-          const mostRecentActivity = latestTrack
-            ? latestTrack.updated_at &&
-              latestTrack.updated_at !== latestTrack.created_at
-              ? latestTrack.updated_at
-              : latestTrack.created_at
-            : null;
-
-          return {
-            ...project,
-            latestTrack,
-            latestTrackUpdate: mostRecentActivity,
-          };
-        })
-        .sort((a, b) => {
-          const dateA = a.latestTrackUpdate
-            ? new Date(a.latestTrackUpdate).getTime()
-            : 0;
-          const dateB = b.latestTrackUpdate
-            ? new Date(b.latestTrackUpdate).getTime()
-            : 0;
-          return dateB - dateA;
-        })
-        .slice(0, 3)
-    : [];
+    return {
+      ...project,
+      project_media: parentMedia, // Only first 4 for thumbnails
+      stats: {
+        totalFiles,
+        totalSize,
+        videoCount,
+        imageCount,
+        lastUpload,
+      },
+    };
+  });
 
   return (
-    <DashboardClient
-      recentProjects={recentProjects}
-      stats={{
-        monthly: {
-          activeProjects: monthlyActiveProjectsCount.count || 0,
-          pendingProjects: monthlyPendingProjectsCount.count || 0,
-          completedProjects: monthlyCompletedProjectsCount.count || 0,
-        },
-        allTime: {
-          activeProjects: activeProjectsCount.count || 0,
-          pendingProjects: pendingProjectsCount.count || 0,
-          completedProjects: completedProjectsCount.count || 0,
-        },
-      }}
-    />
+    <div className="min-h-screen p-3 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+            Projects
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your video editing projects and workspaces.
+          </p>
+        </div>
+        <Link href="/dashboard/projects/new">
+          <RevButtons className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Project
+          </RevButtons>
+        </Link>
+      </div>
+
+      {/* Projects List */}
+      <ProjectsList projects={processedProjects} />
+    </div>
   );
 }

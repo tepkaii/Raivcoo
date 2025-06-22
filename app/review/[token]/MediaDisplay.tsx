@@ -3,6 +3,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { PinTool } from "./pin";
 import { DrawTool } from "./DrawingTool";
+import { Brush, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { getDetailedQuality, getQualityLabel } from "./mediaQuality";
 
 interface MediaDisplayProps {
   media: any;
@@ -55,7 +58,17 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
     return Math.round(scale * 100);
   };
+  const getQualityInfo = () => {
+    if (!mediaDimensions) return null;
 
+    const { width, height } = mediaDimensions;
+    return {
+      label: getQualityLabel(width, height),
+      detailed: getDetailedQuality(width, height),
+      dimensions: `${width}×${height}`,
+      aspectRatio: (width / height).toFixed(2),
+    };
+  };
   // Track display size and position changes
   const updateDisplayMetrics = () => {
     const element = mediaElementRef.current;
@@ -280,6 +293,11 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       <div ref={containerRef} className={`relative bg-black ${className}`}>
         {/* Media Container */}
         <div className="relative w-full h-full flex items-center justify-center">
+          {mediaDimensions && (
+            <div className="absolute top-4 right-4 z-30 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-mono">
+              {getQualityInfo()?.label}
+            </div>
+          )}
           <div
             className={`relative border-2 border-blue-600 rounded-none overflow-hidden shadow-2xl ${getContainerStyles()}`}
           >
@@ -345,33 +363,23 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         />
 
         {/* Tool Buttons */}
-        <button
+        <Button
           onClick={handlePinToolToggle}
           disabled={isDrawToolActive}
-          className={`absolute top-4 left-4 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-            isPinToolActive
-              ? "bg-purple-600 text-white"
-              : isDrawToolActive
-                ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                : "bg-black/70 text-white hover:bg-black/90"
-          }`}
+          className={`absolute top-4 left-4 z-30`}
+          variant={isPinToolActive ? "default" : "outline"}
         >
-          📍 Pin
-        </button>
+          <MapPin className="w-4 h-4" />
+        </Button>
 
-        <button
+        <Button
           onClick={handleDrawToolToggle}
           disabled={isPinToolActive}
-          className={`absolute top-4 left-20 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-            isDrawToolActive
-              ? "bg-green-600 text-white"
-              : isPinToolActive
-                ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                : "bg-black/70 text-white hover:bg-black/90"
-          }`}
+          className={`absolute top-4 left-[68px] z-30  `}
+          variant={isDrawToolActive ? "default" : "outline"}
         >
-          ✏️ Draw
-        </button>
+          <Brush className="w-4 h-4" />
+        </Button>
 
         {/* Loading state */}
         {!mediaDimensions && (
@@ -444,33 +452,23 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       />
 
       {/* Tool Buttons */}
-      <button
+      <Button
         onClick={handlePinToolToggle}
         disabled={isDrawToolActive}
-        className={`absolute top-4 left-4 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-          isPinToolActive
-            ? "bg-purple-600 text-white"
-            : isDrawToolActive
-              ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-              : "bg-black/70 text-white hover:bg-black/90"
-        }`}
+        className={`absolute top-4 left-4 z-30`}
+        variant={isPinToolActive ? "default" : "outline"}
       >
-        📍 Pin
-      </button>
+        <MapPin className="w-4 h-4" />
+      </Button>
 
-      <button
+      <Button
         onClick={handleDrawToolToggle}
         disabled={isPinToolActive}
-        className={`absolute top-4 left-20 z-30 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-          isDrawToolActive
-            ? "bg-green-600 text-white"
-            : isPinToolActive
-              ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-              : "bg-black/70 text-white hover:bg-black/90"
-        }`}
+        className={`absolute top-4 left-[68px] z-30  `}
+        variant={isDrawToolActive ? "default" : "outline"}
       >
-        ✏️ Draw
-      </button>
+        <Brush className="w-4 h-4" />
+      </Button>
 
       {/* Loading state */}
       {!mediaDimensions && (

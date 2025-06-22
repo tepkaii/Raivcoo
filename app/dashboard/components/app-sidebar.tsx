@@ -115,22 +115,24 @@ export function AppSidebar({
       {/* Logo/Website Header - Top */}
       <SidebarHeader className="border-b p-0 m-0 bg-background">
         <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
-          <Avatar className="h-8 w-8 rounded-lg border-2">
-            <AvatarImage
-              src={portfolio?.avatar_url || ""}
-              alt={portfolio?.display_name || "User"}
-            />
-
-            <AvatarFallback className="bg-muted rounded-none">
-              <Image
-                width={40}
-                height={40}
-                src="/avif/user-profile-avatar.avif"
-                loading="lazy"
-                alt="Avatar"
+          <Link href="/" className="flex items-center gap-2">
+            <Avatar className="h-8 w-8 rounded-lg border-2">
+              <AvatarImage
+                src={portfolio?.avatar_url || ""}
+                alt={portfolio?.display_name || "User"}
               />
-            </AvatarFallback>
-          </Avatar>
+
+              <AvatarFallback className="bg-muted rounded-none">
+                <Image
+                  width={40}
+                  height={40}
+                  src="/avif/user-profile-avatar.avif"
+                  loading="lazy"
+                  alt="Avatar"
+                />
+              </AvatarFallback>
+            </Avatar>
+          </Link>
           <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-medium truncate">
               {portfolio?.display_name || "No display name"}

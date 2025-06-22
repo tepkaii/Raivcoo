@@ -32,6 +32,21 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatFullDate } from "../components/libs";
 
+interface MediaFile {
+  id: string;
+  filename: string;
+  original_filename: string;
+  file_type: "video" | "image";
+  mime_type: string;
+  file_size: number;
+  r2_url: string;
+  uploaded_at: string;
+  parent_media_id?: string;
+  version_number: number;
+  is_current_version: boolean;
+  version_name?: string;
+}
+
 interface ProjectStats {
   totalFiles: number;
   totalSize: number;
@@ -47,6 +62,7 @@ interface Project {
   created_at: string;
   updated_at: string;
   stats: ProjectStats;
+  project_media: MediaFile[];
 }
 
 interface ProjectsListProps {
@@ -126,16 +142,6 @@ export function ProjectsList({ projects }: ProjectsListProps) {
       year: "numeric",
       month: "short",
       day: "numeric",
-    });
-  };
-
-  const formatDatetime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
@@ -282,7 +288,13 @@ export function ProjectsList({ projects }: ProjectsListProps) {
           </CardContent>
         </Card>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            width: "100%",
+          }}
+        >
           {filteredAndSortedProjects.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
@@ -298,71 +310,159 @@ export function ProjectsList({ projects }: ProjectsListProps) {
   );
 }
 
+// Media Gallery Thumbnail Component
+function MediaThumbnail({ media }: { media: MediaFile }) {
+  return (
+    <div className="relative bg-black rounded overflow-hidden aspect-video">
+      {media.file_type === "image" ? (
+        <img
+          src={media.r2_url}
+          alt={media.original_filename}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <video
+          src={media.r2_url}
+          className="w-full h-full object-cover"
+          muted
+          preload="metadata"
+        />
+      )}
+    </div>
+  );
+}
+
+// Empty Gallery Placeholder
+function EmptyGallery() {
+  return (
+    <div className="aspect-video bg-black rounded flex items-center justify-center">
+      <div className="text-center">
+        <FolderOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-xs ">No media</p>
+      </div>
+    </div>
+  );
+}
+
+// Media Gallery Component
+function MediaGallery({ project }: { project: Project }) {
+  // Get first 4 media files for thumbnail display
+  const displayMedia = project.project_media?.slice(0, 4) || [];
+  const hasMedia = displayMedia.length > 0;
+
+  if (!hasMedia) {
+    return <EmptyGallery />;
+  }
+
+  // Multiple media items - create grid
+  const getGridLayout = (count: number) => {
+    switch (count) {
+      case 2:
+        return "grid-cols-2";
+      case 3:
+        return "grid-cols-2 grid-rows-2";
+      case 4:
+      default:
+        return "grid-cols-2 grid-rows-2";
+    }
+  };
+
+  return (
+    <div
+      className={`grid gap-1 aspect-video ${getGridLayout(displayMedia.length)} relative`}
+    >
+      {displayMedia.map((media, index) => {
+        // For 3 items, make first item span 2 rows
+        const className =
+          displayMedia.length === 3 && index === 0 ? "row-span-2" : "";
+
+        return (
+          <div key={media.id} className={className}>
+            <MediaThumbnail media={media} />
+          </div>
+        );
+      })}
+
+      {/* Show remaining count if more than 4 items */}
+      {project.stats.totalFiles > 4 && (
+        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+          +{project.stats.totalFiles - 4} more
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Grid Card Component
 function ProjectCard({ project }: { project: Project }) {
   const stats = getProjectStats(project);
 
   return (
     <Link href={`/dashboard/projects/${project.id}`}>
-      <Card className="hover:shadow-md transition-all duration-200 cursor-pointer group">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg truncate group-hover:text-primary transition-colors">
-                {project.name}
-              </CardTitle>
-              {project.description && (
-                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                  {project.description}
-                </p>
-              )}
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 ml-2" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Media Stats */}
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-4">
-              {project.stats.videoCount > 0 && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <FileVideo className="h-4 w-4" />
-                  <span>{project.stats.videoCount}</span>
-                </div>
-              )}
-              {project.stats.imageCount > 0 && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <ImageIcon className="h-4 w-4" />
-                  <span>{project.stats.imageCount}</span>
-                </div>
-              )}
-              {project.stats.totalFiles === 0 && (
-                <span className="text-muted-foreground italic">Empty</span>
-              )}
-            </div>
-            {project.stats.totalSize > 0 && (
-              <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                <HardDrive className="h-3 w-3" />
-                <span>{stats.sizeText}</span>
-              </div>
-            )}
-          </div>
+      <Card className="hover:shadow-md transition-all duration-200 cursor-pointer group overflow-hidden ">
+        {/* Media Thumbnail Gallery */}
+        <div className="relative bg-black">
+          <MediaGallery project={project} />
+        </div>
 
-          {/* Dates */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>Created {formatDate(project.created_at)}</span>
+        {/* Content */}
+        <div className="p-4 bg-primary-foreground">
+          <div className="space-y-3">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-white text-sm truncate group-hover:text-primary transition-colors">
+                  {project.name}
+                </h3>
+                {project.description && (
+                  <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                    {project.description}
+                  </p>
+                )}
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 ml-2" />
             </div>
-            <span>Updated {formatDate(project.updated_at)}</span>
+
+            {/* Media Stats */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                {project.stats.totalFiles > 0 ? (
+                  <span className="text-muted-foreground">
+                    {project.stats.totalFiles}{" "}
+                    {project.stats.totalFiles === 1 ? "file" : "files"}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground italic">
+                    Empty project
+                  </span>
+                )}
+              </div>
+
+              {project.stats.totalSize > 0 && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <HardDrive className="h-3 w-3" />
+                  <span>{stats.sizeText}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Dates */}
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                <span>{formatDate(project.created_at)}</span>
+              </div>
+              <span>Updated {formatDate(project.updated_at)}</span>
+            </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </Link>
   );
 }
 
-// List Item Component
+// List Item Component (unchanged but simplified)
 function ProjectListItem({ project }: { project: Project }) {
   const stats = getProjectStats(project);
 
@@ -422,6 +522,7 @@ function ProjectListItem({ project }: { project: Project }) {
   );
 }
 
+// Helper functions
 function getProjectStats(project: Project) {
   const { stats } = project;
   return {

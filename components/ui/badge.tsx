@@ -4,41 +4,38 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "border-2 inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none",
+  "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-xs font-semibold transition-all border-2 border-black/20 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] shrink-0",
   {
     variants: {
       variant: {
-        default:
-          "bg-[#4C1D95]/40 text-purple-500 hover:bg-[#4C1D95]/60  border-2 border-white/5",
+        default: "bg-[#0070F3] text-white hover:bg-[#0070F3]/90",
         destructive:
-          "bg-[#7F1D1D]/40 text-red-500 hover:bg-[#7F1D1D]/60  border-2 border-white/5",
+          "bg-[#E5484D] text-white hover:bg-[#E5484D]/90 focus-visible:ring-[#E5484D]/20 dark:focus-visible:ring-[#E5484D]/40",
         outline:
-          "bg-[#1F1F1F] hover:bg-[#2D2D2D] hover:text-white border-2 border-white/5",
+          "border bg-primary-foreground border-2 border-black/20 hover:bg-accent hover:text-accent-foreground ",
         secondary:
-          "bg-[#5B21B6]/40 text-[#A78BFA] hover:bg-[#5B21B6]/60 border-2 border-white/5",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
-          "bg-transparent hover:bg-[#2D2D2D] hover:text-white border-2 border-white/5",
-        link: "bg-transparent text-[#8B5CF6] underline-offset-4 hover:underline border-transparent border-2 border-white/5",
-        success:
-          "bg-[#064E3B]/40 text-green-500 hover:bg-[#064E3B]/60 border-2 border-white/5",
-        info: "bg-[#1E40AF]/40 text-blue-500 hover:bg-[#1E40AF]/60 border-2 border-white/5",
-        warning:
-          "bg-[#78350F]/40 text-yellow-500 hover:bg-[#78350F]/60 border-2 border-white/5",
-        edit: "bg-[#6366F1] text-white hover:bg-[#6366F1]/90 border-2 border-white/5",
-        settings:
-          "bg-[#64748B] text-white hover:bg-[#64748B]/90 border-2 border-white/5",
-        cyan: "bg-[#164E63]/40 text-cyan-500 hover:bg-[#164E63]/60 border-2 border-white/5",
-        yellow:
-          "bg-[#FACC15] text-white hover:bg-[#FACC15]/90 border-2 border-white/5",
-        red: "bg-[#EF4444] text-white hover:bg-[#EF4444]/90 border-2 border-white/5",
-        blue: "bg-[#2563EB] text-white hover:bg-[#2563EB]/90 border-2 border-white/5",
-        pink: "bg-[#EC4899] text-white hover:bg-[#EC4899]/90 border-2 border-white/5",
-        gray: "bg-[#71717A] text-white hover:bg-[#71717A]/90 border-2 border-white/5",
-        gold: "bg-[#D4A017] text-white hover:bg-[#D4A017]/90 border-2 border-white/5",
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 border-transparent",
+        link: "text-primary underline-offset-4 hover:underline border-transparent",
+        warning: "bg-[#FFB224] text-white hover:bg-[#FFB224]/90",
+        teal: "bg-[#12A594] text-white hover:bg-[#12A594]/90",
+        red: "bg-[#E5484D] text-white hover:bg-[#E5484D]/90",
+        blue: "bg-[#0070F3] text-white hover:bg-[#0070F3]/90",
+        amber: "bg-[#FFB224] text-white hover:bg-[#FFB224]/90",
+        green: "bg-[#46A758] text-white hover:bg-[#46A758]/90",
+        purple: "bg-[#8E4EC6] text-white hover:bg-[#8E4EC6]/90",
+        pink: "bg-[#E93D82] text-white hover:bg-[#E93D82]/90",
+      },
+      size: {
+        default: "px-2.5 py-0.5",
+        sm: "px-2 py-0.5 text-[10px]",
+        lg: "px-3 py-1 text-sm",
       },
     },
     defaultVariants: {
       variant: "default",
+      size: "default",
     },
   }
 );
@@ -47,9 +44,12 @@ export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+function Badge({ className, variant, size, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <div
+      className={cn(badgeVariants({ variant, size }), className)}
+      {...props}
+    />
   );
 }
 
