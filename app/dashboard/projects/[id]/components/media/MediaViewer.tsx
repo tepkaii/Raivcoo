@@ -1,0 +1,301 @@
+// app/dashboard/projects/[id]/components/MediaViewer.tsx
+"use client";
+
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { MediaDisplay } from "@/app/review/[token]/review_components/MediaDisplay";
+import { PlayerControls } from "@/app/review/[token]/review_components/PlayerControls";
+import { VersionSelector } from "@/app/review/[token]/review_components/VersionSelector";
+import { getCommentsAction } from "@/app/review/[token]/lib/actions";
+
+interface MediaFile {
+  id: string;
+  filename: string;
+  original_filename: string;
+  file_type: "video" | "image";
+  mime_type: string;
+  file_size: number;
+  r2_url: string;
+  uploaded_at: string;
+  parent_media_id?: string;
+  version_number: number;
+  is_current_version: boolean;
+}
+
+interface MediaComment {
+  id: string;
+  media_id: string;
+  parent_comment_id?: string;
+  user_name: string;
+  user_email?: string;
+  content: string;
+  timestamp_seconds?: number;
+  ip_address?: string;
+  user_agent?: string;
+  is_approved: boolean;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+  annotation_data?: {
+    id: string;
+    x: number;
+    y: number;
+    mediaWidth: number;
+    mediaHeight: number;
+    createdAtScale: number;
+    timestamp?: number;
+  };
+  drawing_data?: {
+    id: string;
+    strokes: Array<{
+      id: string;
+      points: Array<{ x: number; y: number }>;
+      color: string;
+      thickness: number;
+      timestamp?: number;
+      mediaWidth: number;
+      mediaHeight: number;
+      createdAtScale: number;
+    }>;
+    timestamp?: number;
+    mediaWidth: number;
+    mediaHeight: number;
+    createdAtScale: number;
+  };
+}
+
+interface MediaViewerProps {
+  media: MediaFile;
+  allVersions?: MediaFile[];
+  onClose?: () => void;
+  onMediaChange?: (media: MediaFile) => void;
+  onTimeUpdate?: (time: number) => void;
+  currentTime?: number;
+  showHeaderControls?: boolean;
+  onCommentsUpdate?: (comments: MediaComment[]) => void;
+  onAnnotationCreate?: (annotation: any) => void;
+  onCommentPinClick?: (comment: MediaComment) => void;
+  onCommentDrawingClick?: (comment: MediaComment) => void;
+}
+
+export interface MediaViewerRef {
+  handleCommentPinClick: (comment: MediaComment) => void;
+  handleCommentDrawingClick: (comment: MediaComment) => void;
+  handleSeekToTimestamp: (timestamp: number) => void;
+  comments: MediaComment[];
+  loadComments: () => void;
+}
+
+export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
+  (
+    {
+      media,
+      allVersions = [],
+      onClose,
+      onMediaChange,
+      onTimeUpdate,
+      currentTime = 0,
+      showHeaderControls = true,
+      onCommentsUpdate,
+      onAnnotationCreate,
+      onCommentPinClick,
+      onCommentDrawingClick,
+    },
+    ref
+  ) => {
+    const [currentMedia, setCurrentMedia] = useState<MediaFile>(media);
+    const [comments, setComments] = useState<MediaComment[]>([]);
+    const [activeCommentPin, setActiveCommentPin] = useState<string | null>(
+      null
+    );
+    const [activeCommentDrawing, setActiveCommentDrawing] = useState<
+      string | null
+    >(null);
+    const [internalCurrentTime, setInternalCurrentTime] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+    // Update current media when prop changes
+    useEffect(() => {
+      setCurrentMedia(media);
+    }, [media]);
+
+    // Load comments when media changes
+    useEffect(() => {
+      loadComments();
+    }, [currentMedia.id]);
+
+    // Add fullscreen event listener
+    useEffect(() => {
+      const handleFullscreenChange = () => {
+        setIsFullscreen(!!document.fullscreenElement);
+      };
+
+      document.addEventListener("fullscreenchange", handleFullscreenChange);
+      return () => {
+        document.removeEventListener(
+          "fullscreenchange",
+          handleFullscreenChange
+        );
+      };
+    }, []);
+
+    // Load comments function
+    const loadComments = async () => {
+      try {
+        const result = await getCommentsAction(currentMedia.id);
+        if (result.success && result.comments) {
+          setComments(result.comments);
+          onCommentsUpdate?.(result.comments);
+        }
+      } catch (error) {
+        console.error("Failed to load comments:", error);
+      }
+    };
+
+    // Handle annotation from MediaDisplay
+    const handleAddAnnotation = (annotationData: any) => {
+      console.log("MediaViewer: Annotation created", annotationData);
+      onAnnotationCreate?.(annotationData);
+    };
+
+    // Handle comment pin click
+    const handleCommentPinClick = (comment: MediaComment) => {
+      if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
+        handleSeekToTimestamp(comment.timestamp_seconds);
+        setActiveCommentPin(comment.id);
+      }
+      onCommentPinClick?.(comment);
+    };
+
+    // Handle comment drawing click
+    const handleCommentDrawingClick = (comment: MediaComment) => {
+      if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
+        handleSeekToTimestamp(comment.timestamp_seconds);
+        setActiveCommentDrawing(comment.id);
+      }
+      onCommentDrawingClick?.(comment);
+    };
+
+    // Clear active pin/drawing when time changes
+    useEffect(() => {
+      if (activeCommentPin && videoRef.current) {
+        const activeComment = comments.find((c) => c.id === activeCommentPin);
+        if (activeComment && activeComment.timestamp_seconds !== undefined) {
+          const timeDiff = Math.abs(
+            internalCurrentTime - activeComment.timestamp_seconds
+          );
+          if (timeDiff > 2 && !videoRef.current.paused) {
+            setActiveCommentPin(null);
+          }
+        }
+      }
+    }, [internalCurrentTime, activeCommentPin, comments]);
+
+    useEffect(() => {
+      if (activeCommentDrawing && videoRef.current) {
+        const activeComment = comments.find(
+          (c) => c.id === activeCommentDrawing
+        );
+        if (activeComment && activeComment.timestamp_seconds !== undefined) {
+          const timeDiff = Math.abs(
+            internalCurrentTime - activeComment.timestamp_seconds
+          );
+          if (timeDiff > 2 && !videoRef.current.paused) {
+            setActiveCommentDrawing(null);
+          }
+        }
+      }
+    }, [internalCurrentTime, activeCommentDrawing, comments]);
+
+    // Handlers
+    const handleVersionChange = (version: MediaFile) => {
+      setCurrentMedia(version);
+      onMediaChange?.(version);
+    };
+
+    const handleTimeUpdate = (time: number) => {
+      setInternalCurrentTime(time);
+      onTimeUpdate?.(time);
+    };
+
+    const handleSeekToTimestamp = (timestamp: number) => {
+      if (videoRef.current && currentMedia.file_type === "video") {
+        videoRef.current.currentTime = timestamp;
+        handleTimeUpdate(timestamp);
+      }
+    };
+
+    // Expose methods to parent via ref
+    useImperativeHandle(ref, () => ({
+      handleCommentPinClick,
+      handleCommentDrawingClick,
+      handleSeekToTimestamp,
+      comments,
+      loadComments,
+    }));
+
+    // Create the media content - EXACTLY like FrameIOInterface
+    const mediaContent = (
+      <div
+        ref={fullscreenContainerRef}
+        className={`flex flex-col h-full ${isFullscreen ? "bg-black relative" : ""}`}
+      >
+        <div
+          className={`${isFullscreen ? "absolute inset-0" : "flex-1 min-h-0"}`}
+        >
+          <MediaDisplay
+            media={currentMedia}
+            videoRef={videoRef}
+            className="h-full"
+            onAddAnnotation={handleAddAnnotation}
+            activeCommentPin={activeCommentPin}
+            activeCommentDrawing={activeCommentDrawing}
+            comments={comments}
+            currentTime={currentTime || internalCurrentTime}
+          />
+        </div>
+
+        {/* Player Controls */}
+        <PlayerControls
+          videoRef={videoRef}
+          mediaType={currentMedia.file_type}
+          comments={comments}
+          onSeekToTimestamp={handleSeekToTimestamp}
+          onTimeUpdate={handleTimeUpdate}
+          fullscreenContainerRef={fullscreenContainerRef}
+          className={
+            isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""
+          }
+        />
+      </div>
+    );
+
+    return (
+      <div className="flex flex-col h-full">
+        {/* Optional Header */}
+        {showHeaderControls && allVersions.length > 0 && (
+          <div className="bg-background border-b border-gray-800 px-4 py-2 flex-shrink-0">
+            <VersionSelector
+              currentMedia={currentMedia}
+              allVersions={allVersions}
+              onVersionChange={handleVersionChange}
+            />
+          </div>
+        )}
+
+        {/* Media Content - Use the same structure as FrameIOInterface */}
+        <div className="flex-1 min-h-0">{mediaContent}</div>
+      </div>
+    );
+  }
+);
+
+MediaViewer.displayName = "MediaViewer";

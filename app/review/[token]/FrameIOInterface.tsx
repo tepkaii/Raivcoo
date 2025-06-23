@@ -2,13 +2,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ReviewComments } from "./ReviewComments";
-import { VersionSelector } from "./VersionSelector";
-import { MediaDisplay } from "./MediaDisplay";
-import { PlayerControls } from "./PlayerControls";
+import { ReviewComments } from "./review_components/ReviewComments";
+import { VersionSelector } from "./review_components/VersionSelector";
+import { MediaDisplay } from "./review_components/MediaDisplay";
+import { PlayerControls } from "./review_components/PlayerControls";
 import { SplitPanel } from "@/app/components/SplitPanel";
 import { Download, ArrowLeft, Eye, MessageSquare } from "lucide-react";
-import { getCommentsAction } from "./comment-actions";
+import { getCommentsAction } from "./lib/actions";
 
 interface MediaFile {
   id: string;

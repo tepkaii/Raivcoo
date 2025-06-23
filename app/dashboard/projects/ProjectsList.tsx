@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RevButtons } from "@/components/ui/RevButtons";
@@ -29,7 +29,6 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { formatFullDate } from "../components/libs";
 
 interface MediaFile {
@@ -129,38 +128,6 @@ export function ProjectsList({ projects }: ProjectsListProps) {
     return filtered;
   }, [projects, searchQuery, filterBy, sortBy, sortOrder]);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const getProjectStats = (project: Project) => {
-    const { stats } = project;
-    return {
-      mediaText:
-        stats.totalFiles === 0
-          ? "No files"
-          : stats.totalFiles === 1
-            ? "1 file"
-            : `${stats.totalFiles} files`,
-      sizeText: formatFileSize(stats.totalSize),
-      lastActivity: stats.lastUpload
-        ? formatDate(stats.lastUpload)
-        : formatDate(project.updated_at),
-    };
-  };
-
   if (projects.length === 0) {
     return (
       <Card>
@@ -182,7 +149,7 @@ export function ProjectsList({ projects }: ProjectsListProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4">
       {/* Filters and Controls */}
       <Card>
         <CardContent className="p-4">
@@ -300,7 +267,7 @@ export function ProjectsList({ projects }: ProjectsListProps) {
           ))}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="gap-4 flex flex-col">
           {filteredAndSortedProjects.map((project) => (
             <ProjectListItem key={project.id} project={project} />
           ))}
@@ -370,7 +337,7 @@ function MediaGallery({ project }: { project: Project }) {
 
   return (
     <div
-      className={`grid gap-1 aspect-video ${getGridLayout(displayMedia.length)} relative`}
+      className={`grid gap-1 aspect-video p-1 ${getGridLayout(displayMedia.length)} relative`}
     >
       {displayMedia.map((media, index) => {
         // For 3 items, make first item span 2 rows
@@ -378,7 +345,7 @@ function MediaGallery({ project }: { project: Project }) {
           displayMedia.length === 3 && index === 0 ? "row-span-2" : "";
 
         return (
-          <div key={media.id} className={className}>
+          <div key={media.id} className={`${className}`}>
             <MediaThumbnail media={media} />
           </div>
         );
@@ -400,9 +367,9 @@ function ProjectCard({ project }: { project: Project }) {
 
   return (
     <Link href={`/dashboard/projects/${project.id}`}>
-      <Card className="hover:shadow-md transition-all duration-200 cursor-pointer group overflow-hidden ">
+      <Card className="hover:shadow-md transition-all  duration-200 cursor-pointer group overflow-hidden ">
         {/* Media Thumbnail Gallery */}
-        <div className="relative bg-black">
+        <div className="relative bg-gradient-to-br from-blue-300 to-blue-800">
           <MediaGallery project={project} />
         </div>
 
@@ -415,11 +382,6 @@ function ProjectCard({ project }: { project: Project }) {
                 <h3 className="font-medium text-white text-sm truncate group-hover:text-primary transition-colors">
                   {project.name}
                 </h3>
-                {project.description && (
-                  <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                    {project.description}
-                  </p>
-                )}
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 ml-2" />
             </div>

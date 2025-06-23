@@ -1,12 +1,24 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
-import { MediaGrid } from "./components/MediaGrid";
-import { MediaViewer } from "./components/MediaViewer";
-import { ReviewComments } from "@/app/review/[token]/ReviewComments";
+import { MediaGrid } from "./components/media/MediaGrid";
+import { MediaViewer } from "./components/media/MediaViewer";
+import { ReviewComments } from "@/app/review/[token]/review_components/ReviewComments";
 
-import { MessageSquare, Eye, Grid3x3, SquarePlay } from "lucide-react";
+import {
+  MessageSquare,
+  Eye,
+  Grid3x3,
+  SquarePlay,
+  ArrowLeft,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import {
+  CommentsPanel,
+  MediaCardsPanel,
+  MediaPlayerPanel,
+} from "@/app/components/icons";
 
 interface MediaFile {
   id: string;
@@ -135,11 +147,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     if (openPanelsCount === 3) return true;
     return false;
   })();
-
-  const canTogglePlayer =
-    showMediaLibrary || (!showMediaLibrary && showMediaPlayer);
-  const canToggleComments =
-    showMediaLibrary || (!showMediaLibrary && showCommentsPanel);
 
   const playerLocked = !showMediaLibrary && showMediaPlayer;
   const commentsLocked = !showMediaLibrary && showCommentsPanel;
@@ -288,7 +295,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       {/* Header with 3 Toggle Buttons */}
       <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
         <div>
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="flex gap-1 items-center text-white">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>{" "}
             {project.name}-Project
           </h1>
           {/* {project.description && (
@@ -299,10 +311,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         </div>
 
         {/* 3 Panel Toggle Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center">
           <Button
             onClick={handleMediaLibraryToggle}
-            variant={showMediaLibrary ? "default" : "outline"}
+            variant={"ghost"}
+            className="border-none bg-none"
             size="sm"
             disabled={showMediaLibrary && !canToggleMediaLibrary}
             title={
@@ -315,16 +328,21 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 : undefined
             }
           >
-            <Grid3x3 className="h-4 w-4 " />
-
-            {showMediaLibrary && !canToggleMediaLibrary && (
-              <span className="ml-1 text-xs opacity-60">🔒</span>
-            )}
+            <MediaCardsPanel
+              className={`size-5 ${
+                showMediaLibrary && !canToggleMediaLibrary
+                  ? "opacity-50"
+                  : showMediaLibrary
+                    ? "text-blue-500"
+                    : ""
+              }`}
+            />
           </Button>
 
           <Button
             onClick={handleMediaPlayerToggle}
-            variant={showMediaPlayer ? "destructive" : "outline"}
+            variant={"ghost"}
+            className="border-none bg-none"
             size="sm"
             disabled={
               playerLocked ||
@@ -341,18 +359,23 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                     : undefined
             }
           >
-            <SquarePlay className="h-4 " />
-
-            {(playerLocked ||
-              (!showMediaPlayer && !showMediaLibrary) ||
-              (showMediaPlayer && openPanelsCount === 1)) && (
-              <span className="ml-1 text-xs opacity-60">🔒</span>
-            )}
+            <MediaPlayerPanel
+              className={`size-5 ${
+                playerLocked ||
+                (!showMediaPlayer && !showMediaLibrary) ||
+                (showMediaPlayer && openPanelsCount === 1)
+                  ? "opacity-50"
+                  : showMediaPlayer
+                    ? "text-blue-500"
+                    : ""
+              }`}
+            />
           </Button>
 
           <Button
             onClick={handleCommentsToggle}
-            variant={showCommentsPanel ? "destructive" : "outline"}
+            variant={"ghost"}
+            className="border-none bg-none"
             size="sm"
             disabled={
               commentsLocked ||
@@ -369,13 +392,17 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                     : undefined
             }
           >
-            <MessageSquare className="h-4 w-4 " />
-
-            {(commentsLocked ||
-              (!showCommentsPanel && !showMediaLibrary) ||
-              (showCommentsPanel && openPanelsCount === 1)) && (
-              <span className="ml-1 text-xs opacity-60">🔒</span>
-            )}
+            <CommentsPanel
+              className={`size-5 ${
+                commentsLocked ||
+                (!showCommentsPanel && !showMediaLibrary) ||
+                (showCommentsPanel && openPanelsCount === 1)
+                  ? "opacity-50"
+                  : showCommentsPanel
+                    ? "text-blue-500"
+                    : ""
+              }`}
+            />
           </Button>
         </div>
       </header>

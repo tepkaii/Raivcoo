@@ -26,7 +26,7 @@ export default async function ProjectsPage() {
   // Get editor profile
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
-    .select("id")
+    .select("id , full_name")
     .eq("user_id", user.id)
     .single();
 
@@ -114,27 +114,22 @@ export default async function ProjectsPage() {
   });
 
   return (
-    <div className="min-h-screen p-3 space-y-6">
+    <header className="min-h-screen  space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-            Projects
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your video editing projects and workspaces.
-          </p>
+      <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
+        <div className="border-r flex items-center h-full">
+          <h1 className="text-xl mr-4">{editorProfile.full_name}'s Projects</h1>
         </div>
         <Link href="/dashboard/projects/new">
-          <RevButtons className="gap-2">
+          <RevButtons className="gap-2" size={"sm"}>
             <Plus className="h-4 w-4" />
             New Project
           </RevButtons>
         </Link>
-      </div>
+      </header>
 
       {/* Projects List */}
       <ProjectsList projects={processedProjects} />
-    </div>
+    </header>
   );
 }
