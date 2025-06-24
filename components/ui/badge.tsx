@@ -4,28 +4,28 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-xs font-semibold transition-all border-2 border-black/20 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] shrink-0",
+  "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-xs font-semibold transition-all border-2 border-black/20 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-[#0070F3] text-white hover:bg-[#0070F3]/90",
+        default: "bg-[#0070F3] text-primary shadow-xs hover:bg-[#0070F3]/80",
         destructive:
-          "bg-[#E5484D] text-white hover:bg-[#E5484D]/90 focus-visible:ring-[#E5484D]/20 dark:focus-visible:ring-[#E5484D]/40",
+          "bg-[#E5484D] text-white shadow-xs hover:bg-[#E5484D]/80 focus-visible:ring-[#E5484D]/20 dark:focus-visible:ring-[#E5484D]/40 dark:bg-[#E5484D]/60",
         outline:
-          "border bg-primary-foreground border-2 border-black/20 hover:bg-accent hover:text-accent-foreground ",
+          "border bg-background border-2 border-black/20 shadow-xs hover:bg-accent hover:text-accent-foreground border-2 bg-[#121212] border-[#262626]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 border-transparent",
+          "hover:bg-accent border-transparent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline border-transparent",
-        warning: "bg-[#FFB224] text-white hover:bg-[#FFB224]/90",
-        teal: "bg-[#12A594] text-white hover:bg-[#12A594]/90",
-        red: "bg-[#E5484D] text-white hover:bg-[#E5484D]/90",
-        blue: "bg-[#0070F3] text-white hover:bg-[#0070F3]/90",
-        amber: "bg-[#FFB224] text-white hover:bg-[#FFB224]/90",
-        green: "bg-[#46A758] text-white hover:bg-[#46A758]/90",
-        purple: "bg-[#8E4EC6] text-white hover:bg-[#8E4EC6]/90",
-        pink: "bg-[#E93D82] text-white hover:bg-[#E93D82]/90",
+        warning: "bg-[#FFB224] text-white shadow-xs hover:bg-[#FFB224]/80",
+        teal: "bg-[#12A594] text-white shadow-xs hover:bg-[#12A594]/80",
+        red: "bg-[#E5484D] text-white shadow-xs hover:bg-[#E5484D]/80",
+        blue: "bg-[#0070F3] text-white shadow-xs hover:bg-[#0070F3]/80",
+        amber: "bg-[#FFB224] text-white shadow-xs hover:bg-[#FFB224]/80",
+        green: "bg-[#46A758] text-white shadow-xs hover:bg-[#46A758]/80",
+        purple: "bg-[#8E4EC6] text-white shadow-xs hover:bg-[#8E4EC6]/80",
+        Pink: "bg-[#E93D82] text-white shadow-xs hover:bg-[#E93D82]/80",
       },
       size: {
         default: "px-2.5 py-0.5",

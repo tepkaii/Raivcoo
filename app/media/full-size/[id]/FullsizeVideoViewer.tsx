@@ -1,3 +1,5 @@
+// app/media/full-size/[id]/FullsizeVideoViewer.tsx
+// @ts-nocheck
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";

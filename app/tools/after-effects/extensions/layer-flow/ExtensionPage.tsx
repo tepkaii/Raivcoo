@@ -960,7 +960,7 @@ function ExtensionPage() {
                     </ul>
 
                     <Link href="https://payhip.com/b/9aevr" className="mt-auto">
-                      <Button variant="blue_plus" size="lg" className="w-full">
+                      <Button variant="default" size="lg" className="w-full">
                         Buy Now
                         <ArrowRight className="ml-2" />
                       </Button>

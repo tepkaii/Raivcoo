@@ -6,7 +6,6 @@ import {
   Play,
   Pause,
   Volume2,
-  VolumeX,
   SkipBack,
   SkipForward,
   Settings,

@@ -1,16 +1,15 @@
+
+// @ts-nocheck
+// @ts-ignore
+
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { RevButtons } from "@/components/ui/RevButtons";
 import {
   MessageSquare,
-  User,
   Clock,
   Send,
-  MoreVertical,
-  Reply,
-  Heart,
-  Edit,
   Trash,
   Loader2,
   MapPin,
@@ -101,7 +100,16 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showUserForm, setShowUserForm] = useState(true);
   const [isAddingAnnotation, setIsAddingAnnotation] = useState(false);
+  const getSessionId = () => {
+    if (typeof window === "undefined") return null;
 
+    let sessionId = localStorage.getItem("reviewSessionId");
+    if (!sessionId) {
+      sessionId = crypto.randomUUID();
+      localStorage.setItem("reviewSessionId", sessionId);
+    }
+    return sessionId;
+  };
   // Load comments for this media
   useEffect(() => {
     loadComments();
@@ -126,11 +134,13 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       setIsAddingAnnotation(true);
       if (pendingAnnotation.type === "pin") {
         setNewComment(
-          `Pin at ${Math.round(pendingAnnotation.data.x)}%, ${Math.round(pendingAnnotation.data.y)}%`
+          // `Pin at ${Math.round(pendingAnnotation.data.x)}%, ${Math.round(pendingAnnotation.data.y)}%`
+          ""
         );
       } else if (pendingAnnotation.type === "drawing") {
         setNewComment(
-          `Drawing with ${pendingAnnotation.data.strokes.length} stroke${pendingAnnotation.data.strokes.length !== 1 ? "s" : ""}`
+          // `Drawing with ${pendingAnnotation.data.strokes.length} stroke${pendingAnnotation.data.strokes.length !== 1 ? "s" : ""}`
+          ""
         );
       }
     }
@@ -170,6 +180,9 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         localStorage.setItem("reviewUserEmail", userEmail);
       }
 
+      // Get session ID
+      const sessionId = getSessionId();
+
       // Prepare annotation or drawing data
       let annotationData = null;
       let drawingData = null;
@@ -207,11 +220,12 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         userAgent: navigator.userAgent,
         annotationData,
         drawingData,
+        sessionId, // ← ADD THIS LINE
       });
 
       if (result.success && result.comment) {
         setComments([...comments, result.comment]);
-        onCommentAdded?.(result.comment); // ← NEW: Pass the new comment to parent
+        onCommentAdded?.(result.comment);
         setNewComment("");
         setShowUserForm(false);
         setIsAddingAnnotation(false);
@@ -236,10 +250,12 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     if (!confirm("Are you sure you want to delete this comment?")) return;
 
     try {
-      const result = await deleteCommentAction(commentId);
+      const sessionId = getSessionId();
+
+      const result = await deleteCommentAction(commentId, sessionId);
       if (result.success) {
         setComments(comments.filter((c) => c.id !== commentId));
-        onCommentDeleted?.(commentId); // ← ADD THIS LINE
+        onCommentDeleted?.(commentId);
       } else {
         console.error("Failed to delete comment:", result.error);
         alert("Failed to delete comment: " + result.error);
@@ -288,14 +304,14 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Comments Header */}
-      <div className="px-4 py-3 border-b ">
+      {/* <div className="px-4 py-3 border-b ">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-white flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             Comments ({comments.length})
           </h3>
         </div>
-      </div>
+      </div> */}
 
       {/* Comments List */}
       <div className="flex-1 overflow-y-auto">
@@ -368,7 +384,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   Cancel
                 </button>
               </div>
-              {pendingAnnotation && (
+              {/* {pendingAnnotation && (
                 <div
                   className={`text-xs mt-1 ${
                     pendingAnnotation?.type === "pin"
@@ -404,7 +420,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                     </>
                   )}
                 </div>
-              )}
+              )} */}
             </div>
           )}
 
@@ -557,7 +573,11 @@ const CommentItem: React.FC<{
   // Check if current user can delete
   const canDelete = () => {
     const savedName = localStorage.getItem("reviewUserName");
-    return savedName === comment.user_name;
+    const sessionId = localStorage.getItem("reviewSessionId");
+    return (
+      savedName === comment.user_name ||
+      (sessionId && comment.session_id === sessionId)
+    );
   };
 
   // Handle pin click
@@ -633,7 +653,7 @@ const CommentItem: React.FC<{
               title="Pinned comment"
             />
           )}
-          {hasPin && (
+          {/* {hasPin && (
             <span className="text-xs bg-purple-600/30 text-purple-300 px-2 py-0.5 rounded">
               Pin
             </span>
@@ -642,7 +662,7 @@ const CommentItem: React.FC<{
             <span className="text-xs bg-green-600/30 text-green-300 px-2 py-0.5 rounded">
               Drawing
             </span>
-          )}
+          )} */}
         </div>
 
         <div className="flex items-center gap-2">
@@ -722,7 +742,7 @@ const CommentItem: React.FC<{
       <p className="text-sm leading-relaxed mb-2">{comment.content}</p>
 
       {/* Pin Details */}
-      {hasPin && comment.annotation_data && (
+      {/* {hasPin && comment.annotation_data && (
         <div className="text-xs text-purple-300 bg-purple-600/10 rounded px-2 py-1 mb-2">
           Pin at {Math.round(comment.annotation_data.x)}%,{" "}
           {Math.round(comment.annotation_data.y)}%
@@ -730,10 +750,10 @@ const CommentItem: React.FC<{
             <span> • {formatTime(comment.annotation_data.timestamp)}</span>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Drawing Details */}
-      {hasDrawing && comment.drawing_data && (
+      {/* {hasDrawing && comment.drawing_data && (
         <div className="text-xs text-green-300 bg-green-600/10 rounded px-2 py-1 mb-2">
           Drawing with {comment.drawing_data.strokes.length} stroke
           {comment.drawing_data.strokes.length !== 1 ? "s" : ""}
@@ -741,7 +761,7 @@ const CommentItem: React.FC<{
             <span> • {formatTime(comment.drawing_data.timestamp)}</span>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Comment Meta */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">

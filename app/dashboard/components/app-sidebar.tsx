@@ -117,34 +117,12 @@ export function AppSidebar({
         <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
           <Link href="/" className="flex items-center gap-2">
             <Avatar className="h-8 w-8 rounded-lg border-2">
-              <AvatarImage
-                src={portfolio?.avatar_url || ""}
-                alt={portfolio?.display_name || "User"}
-              />
-
-              <AvatarFallback className="bg-muted rounded-none">
-                <Image
-                  width={40}
-                  height={40}
-                  src="/avif/user-profile-avatar.avif"
-                  loading="lazy"
-                  alt="Avatar"
-                />
-              </AvatarFallback>
+              <AvatarImage src={"MainLogo.png"} alt={"Raivcoo Logo"} />
             </Avatar>
           </Link>
-          <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-medium truncate">
-              {portfolio?.display_name || "No display name"}
-            </span>
-            <span className="text-xs text-muted-foreground truncate">
-              {portfolio?.email || "No email"}
-              {/* ravicoo@gmail.com */}
-            </span>
-          </div>
 
           {/* User dropdown menu */}
-          <div className="absolute group-data-[collapsible=icon]:hidden right-3 top-1/2 -translate-y-1/2">
+          {/* <div className="absolute group-data-[collapsible=icon]:hidden right-3 top-1/2 -translate-y-1/2">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <RevButtons size={"icon"} variant={"ghost"} title="User Menu">
@@ -185,7 +163,7 @@ export function AppSidebar({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </div> */}
         </div>
       </SidebarHeader>
 
@@ -206,8 +184,11 @@ export function AppSidebar({
                       isActiveSection("/dashboard") && "bg-muted"
                     )}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#581C87]/40 text-[#C084FC] shrink-0">
-                      <LayoutDashboard className="size-4" />
+                    <div>
+                      <LayoutDashboard
+                        strokeWidth={1.5}
+                        className={`size-5 ${isActiveSection("/dashboard") ? "text-[#0070F3]" : ""}`}
+                      />
                     </div>
                     <span className="group-data-[collapsible=icon]:hidden">
                       Main
@@ -221,9 +202,48 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* PROJECTS SECTION */}
+        {/* ACCOUNT SECTION */}
         <SidebarGroup>
+          <SidebarGroupContent>
+            <div className="text-xs mb-2 mt-1 font-medium text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
+              Account
+            </div>
+
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setAccountDialogOpen(true)}
+                  className="flex items-center w-full group-data-[collapsible=icon]:justify-center cursor-pointer"
+                >
+                  <div>
+                    <SquareUser strokeWidth={1.5} className="size-5" />
+                  </div>
+                  <span className="group-data-[collapsible=icon]:hidden">
+                    Account
+                  </span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <form action="/auth/signout" method="post" className="w-full">
+                  <SidebarMenuButton
+                    type="submit"
+                    className="flex items-center w-full group-data-[collapsible=icon]:justify-center cursor-pointer text-red-500 hover:text-red-600"
+                  >
+                    <div>
+                      <LogOut strokeWidth={1.5} className="size-5" />
+                    </div>
+                    <span className="group-data-[collapsible=icon]:hidden">
+                      Sign out
+                    </span>
+                  </SidebarMenuButton>
+                </form>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        {/* PROJECTS SECTION */}
+        {/* <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -234,8 +254,11 @@ export function AppSidebar({
                       isActiveSection("/dashboard/projects") && "bg-muted"
                     )}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center rounded-md border-2 bg-[#064E3B]/40 text-[#10B981] shrink-0">
-                      <FolderOpenDot className="w-4 h-4" />
+                    <div>
+                      <FolderOpenDot
+                        strokeWidth={1.5}
+                        className={`size-5 ${isActiveSection("/dashboard/projects") ? "text-[#0070F3]" : ""}`}
+                      />
                     </div>
                     <span className="group-data-[collapsible=icon]:hidden">
                       Projects
@@ -248,10 +271,10 @@ export function AppSidebar({
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
 
         {/* EXTENSIONS SECTION */}
-        <SidebarGroup>
+        {/* <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -262,8 +285,11 @@ export function AppSidebar({
                       isActiveSection("/dashboard/extensions") && "bg-muted"
                     )}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center border-2 rounded-md bg-[#4B1D5B]/40 text-[#A87FC0] shrink-0">
-                      <Puzzle className="w-4 h-4" />
+                    <div>
+                      <Puzzle
+                        strokeWidth={1.5}
+                        className={`size-5 ${isActiveSection("/dashboard/extensions") ? "text-[#0070F3]" : ""}`}
+                      />
                     </div>
                     <span className="group-data-[collapsible=icon]:hidden">
                       Extensions
@@ -276,7 +302,7 @@ export function AppSidebar({
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
       </SidebarContent>
 
       <SidebarFooter className="border-t mt-auto px-4 py-3 group-data-[collapsible=icon]:hidden">

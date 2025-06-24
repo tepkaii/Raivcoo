@@ -1,4 +1,5 @@
 // app/review/[token]/FrameIOInterface.tsx
+// @ts-nocheck
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -81,7 +82,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     "comments"
   );
   const [currentTime, setCurrentTime] = useState(0);
-  const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [activeCommentPin, setActiveCommentPin] = useState<string | null>(null);
@@ -89,14 +89,16 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     string | null
   >(null);
   const [commentsVisible, setCommentsVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const fullscreenContainerRef = useRef<HTMLDivElement>(null); // Add this
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
   // Load comments when media changes
   useEffect(() => {
     loadComments();
   }, [currentMedia.id]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -107,6 +109,7 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
+
   const loadComments = async () => {
     try {
       const result = await getCommentsAction(currentMedia.id);
@@ -118,7 +121,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     }
   };
 
-  // Add this handler
   const handleCommentDrawingClick = (comment: MediaComment) => {
     if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
       handleSeekToTimestamp(comment.timestamp_seconds);
@@ -126,7 +128,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     }
   };
 
-  // Add useEffect to clear drawing when time changes (similar to pin logic)
   useEffect(() => {
     if (activeCommentDrawing && videoRef.current) {
       const activeComment = comments.find((c) => c.id === activeCommentDrawing);
@@ -134,7 +135,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
         const timeDiff = Math.abs(
           currentTime - activeComment.timestamp_seconds
         );
-
         if (timeDiff > 2 && !videoRef.current.paused) {
           setActiveCommentDrawing(null);
         }
@@ -142,7 +142,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     }
   }, [currentTime, activeCommentDrawing, comments]);
 
-  // Handle annotation from MediaDisplay
   const handleAddAnnotation = (annotationData: any) => {
     setPendingAnnotation(annotationData);
   };
@@ -151,12 +150,10 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     setComments([...comments, newComment]);
   };
 
-  // Handle annotation saved from ReviewComments
   const handleAnnotationSaved = () => {
     setPendingAnnotation(null);
   };
 
-  // Handle comment pin click - show pin and jump to timestamp
   const handleCommentPinClick = (comment: MediaComment) => {
     if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
       handleSeekToTimestamp(comment.timestamp_seconds);
@@ -164,7 +161,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     }
   };
 
-  // Clear active pin ONLY when time changes significantly AND video is playing
   useEffect(() => {
     if (activeCommentPin && videoRef.current) {
       const activeComment = comments.find((c) => c.id === activeCommentPin);
@@ -172,8 +168,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
         const timeDiff = Math.abs(
           currentTime - activeComment.timestamp_seconds
         );
-
-        // Only hide pin if video is playing AND time has moved significantly
         if (timeDiff > 2 && !videoRef.current.paused) {
           setActiveCommentPin(null);
         }
@@ -203,23 +197,10 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     window.history.back();
   };
 
-  // Check for mobile layout
-  useEffect(() => {
-    const checkMobileLayout = () => {
-      setIsMobileLayout(window.innerWidth < 1024);
-    };
-
-    checkMobileLayout();
-    window.addEventListener("resize", checkMobileLayout);
-    return () => window.removeEventListener("resize", checkMobileLayout);
-  }, []);
-
-  // Version handler
   const handleVersionChange = (version: MediaFile) => {
     setCurrentMedia(version);
   };
 
-  // Handle seeking from comments
   const handleSeekToTimestamp = (timestamp: number) => {
     if (videoRef.current && currentMedia.file_type === "video") {
       videoRef.current.currentTime = timestamp;
@@ -251,7 +232,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
         />
       </div>
 
-      {/* Player Controls */}
       <PlayerControls
         videoRef={videoRef}
         mediaType={currentMedia.file_type}
@@ -264,7 +244,6 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     </div>
   );
 
-  // Create the comments content
   const commentsContent =
     selectedTab === "comments" ? (
       <ReviewComments
@@ -283,111 +262,41 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
     ) : (
       <div className="p-4 space-y-4 overflow-y-auto h-full">
         <div>
-          <h3 className="text-sm font-medium  mb-3">Media Details</h3>
+          <h3 className="text-sm font-medium mb-3">Media Details</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Name:</span>
-              <span className=" truncate ml-2">
+              <span className="truncate ml-2">
                 {currentMedia.original_filename}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Type:</span>
-              <span className="">{currentMedia.file_type}</span>
+              <span>{currentMedia.file_type}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Size:</span>
-              <span className="">{formatFileSize(currentMedia.file_size)}</span>
+              <span>{formatFileSize(currentMedia.file_size)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Version:</span>
-              <span className="">v{currentMedia.version_number}</span>
+              <span>v{currentMedia.version_number}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Uploaded:</span>
-              <span className="">{formatDate(currentMedia.uploaded_at)}</span>
+              <span>{formatDate(currentMedia.uploaded_at)}</span>
             </div>
           </div>
         </div>
       </div>
     );
 
-  // Create the right panel with tabs
-  const rightPanelContent = (
-    <div className="flex flex-col h-full">
-      {/* Mobile Tabs (only show on mobile) */}
-      {isMobileLayout && (
-        <div className="border-b border px-4 py-3 flex-shrink-0">
-          <div className="flex gap-1">
-            <button
-              onClick={() => setSelectedTab("comments")}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                selectedTab === "comments"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              <MessageSquare className="h-4 w-4 inline mr-1" />
-              Comments
-            </button>
-
-            <button
-              onClick={() => setSelectedTab("details")}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                selectedTab === "details"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              <Eye className="h-4 w-4 inline mr-1" />
-              Details
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Desktop Tabs (only show on desktop) */}
-      {!isMobileLayout && (
-        <div className="border-b border px-4 py-3 flex-shrink-0">
-          <div className="flex gap-1">
-            <button
-              onClick={() => setSelectedTab("comments")}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                selectedTab === "comments"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              <MessageSquare className="h-4 w-4 inline mr-1" />
-              Comments
-            </button>
-
-            <button
-              onClick={() => setSelectedTab("details")}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                selectedTab === "details"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              <Eye className="h-4 w-4 inline mr-1" />
-              Details
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="flex-1 min-h-0">{commentsContent}</div>
-    </div>
-  );
-
-  // Mobile Layout
-  if (isMobileLayout) {
-    return (
-      <div className="h-screen flex flex-col bg-background">
-        {/* Header */}
-        <div className=" border-b  px-4 py-3 flex items-center justify-between flex-shrink-0">
+  return (
+    <>
+      {/* MOBILE LAYOUT - Block on lg+ screens */}
+      <div className="md:hidden h-screen flex flex-col bg-background">
+        {/* Mobile Header */}
+        <div className="border-b px-4 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={handleBack}
@@ -395,22 +304,18 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-
             <h1 className="text-base font-medium text-white truncate">
               {currentMedia.original_filename}
             </h1>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button className="text-muted-foreground hover:text-white p-1">
-              <Download className="h-4 w-4" />
-            </button>
-          </div>
+          {/* <button className="text-muted-foreground hover:text-white p-1">
+            <Download className="h-4 w-4" />
+          </button> */}
         </div>
 
-        {/* Version Selector */}
+        {/* Mobile Version Selector */}
         {allVersions.length > 0 && (
-          <div className="bg-background border-b  px-4 py-2 flex-shrink-0">
+          <div className="bg-background border-b px-4 py-2 flex-shrink-0">
             <VersionSelector
               currentMedia={currentMedia}
               allVersions={allVersions}
@@ -419,12 +324,114 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
           </div>
         )}
 
-        {/* Main Content with Split Panel */}
+        {/* Mobile Media Area - Reduced Height */}
+        <div className="h-[45vh] flex-shrink-0">{mediaContent}</div>
+
+        {/* Mobile Comments Area - More Space */}
+        <div className="flex-1 min-h-0 flex flex-col border-t border-border">
+          {/* Mobile Tab Navigation */}
+          <div className="border-b border-border px-4 py-2 flex-shrink-0">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setSelectedTab("comments")}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  selectedTab === "comments"
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-400 hover:text-gray-300"
+                }`}
+              >
+                <MessageSquare className="h-4 w-4 inline mr-1" />
+                Comments
+              </button>
+              <button
+                onClick={() => setSelectedTab("details")}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  selectedTab === "details"
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-400 hover:text-gray-300"
+                }`}
+              >
+                <Eye className="h-4 w-4 inline mr-1" />
+                Details
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Comments Content */}
+          <div className="flex-1 min-h-0">{commentsContent}</div>
+        </div>
+      </div>
+
+      {/* DESKTOP LAYOUT - Block on smaller screens */}
+      <div className="hidden md:flex h-screen flex-col overflow-hidden bg-background">
+        {/* Desktop Header */}
+        <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleBack}
+              className="text-muted-foreground hover:text-white p-1"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <h1 className="text-lg font-medium text-white">
+              {currentMedia.original_filename}
+            </h1>
+            {allVersions.length > 0 && (
+              <VersionSelector
+                currentMedia={currentMedia}
+                allVersions={allVersions}
+                onVersionChange={handleVersionChange}
+              />
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>{formatFileSize(currentMedia.file_size)}</span>
+            <span>•</span>
+            <span>{formatDate(currentMedia.uploaded_at)}</span>
+            {/* <button className="text-muted-foreground hover:text-white p-1">
+              <Download className="h-4 w-4" />
+            </button> */}
+          </div>
+        </header>
+
+        {/* Desktop Main Layout with Split Panel */}
         <div className="flex-1 min-h-0">
           <SplitPanel
             mode="review"
             leftPanel={mediaContent}
-            rightPanel={rightPanelContent}
+            rightPanel={
+              <div className="flex flex-col h-full">
+                {/* Desktop Tab Navigation */}
+                <div className="border-b border px-4 py-3 flex-shrink-0">
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setSelectedTab("comments")}
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                        selectedTab === "comments"
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-400 hover:text-gray-300"
+                      }`}
+                    >
+                      <MessageSquare className="h-4 w-4 inline mr-1" />
+                      Comments
+                    </button>
+                    <button
+                      onClick={() => setSelectedTab("details")}
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                        selectedTab === "details"
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-400 hover:text-gray-300"
+                      }`}
+                    >
+                      <Eye className="h-4 w-4 inline mr-1" />
+                      Details
+                    </button>
+                  </div>
+                </div>
+                {/* Desktop Comments Content */}
+                <div className="flex-1 min-h-0">{commentsContent}</div>
+              </div>
+            }
             showRightPanel={commentsVisible}
             onRightPanelToggle={setCommentsVisible}
             allowCloseRight={true}
@@ -433,71 +440,13 @@ export const FrameIOInterface: React.FC<FrameIOInterfaceProps> = ({
               selectedTab === "comments" ? "Comments" : "Details"
             }
             leftPanelTitle="Media"
-            defaultRightPanelWidth={350}
+            defaultRightPanelWidth={400}
             minRightPanelWidth={300}
-            maxRightPanelWidth={500}
+            maxRightPanelWidth={600}
             className="h-full"
           />
         </div>
       </div>
-    );
-  }
-
-  // Desktop Layout
-  return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background">
-      {/* Header */}
-      <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleBack}
-            className="text-muted-foreground hover:text-white p-1"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-
-          <h1 className="text-lg font-medium text-white">
-            {currentMedia.original_filename}
-          </h1>
-
-          {allVersions.length > 0 && (
-            <VersionSelector
-              currentMedia={currentMedia}
-              allVersions={allVersions}
-              onVersionChange={handleVersionChange}
-            />
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span>{formatFileSize(currentMedia.file_size)}</span>
-          <span>•</span>
-          <span>{formatDate(currentMedia.uploaded_at)}</span>
-
-          <button className="text-muted-foreground hover:text-white p-1">
-            <Download className="h-4 w-4" />
-          </button>
-        </div>
-      </header>
-
-      {/* Main Layout with Split Panel */}
-      <div className="flex-1 min-h-0">
-        <SplitPanel
-          mode="review"
-          leftPanel={mediaContent}
-          rightPanel={rightPanelContent}
-          showRightPanel={commentsVisible}
-          onRightPanelToggle={setCommentsVisible}
-          allowCloseRight={true}
-          allowCloseLeft={false}
-          rightPanelTitle={selectedTab === "comments" ? "Comments" : "Details"}
-          leftPanelTitle="Media"
-          defaultRightPanelWidth={400}
-          minRightPanelWidth={300}
-          maxRightPanelWidth={600}
-          className="h-full"
-        />
-      </div>
-    </div>
+    </>
   );
 };

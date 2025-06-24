@@ -117,7 +117,7 @@ export function PasswordProtectedReview({
                 placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-background pr-10"
+                className="pr-10"
                 disabled={isVerifying}
                 autoFocus
               />

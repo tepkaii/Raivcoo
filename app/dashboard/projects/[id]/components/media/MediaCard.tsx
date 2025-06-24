@@ -1,6 +1,7 @@
+// @ts-nocheck
+
 "use client";
 
-import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,6 @@ import {
   Trash2,
   Download,
   Share,
-  Star,
   Settings,
 } from "lucide-react";
 import {

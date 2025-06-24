@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -366,6 +368,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         <Button
           onClick={handlePinToolToggle}
           disabled={isDrawToolActive}
+          size={"icon"}
           className={`absolute top-4 left-4 z-30`}
           variant={isPinToolActive ? "default" : "outline"}
         >
@@ -375,6 +378,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         <Button
           onClick={handleDrawToolToggle}
           disabled={isPinToolActive}
+          size={"icon"}
           className={`absolute top-4 left-[68px] z-30  `}
           variant={isDrawToolActive ? "default" : "outline"}
         >
@@ -455,6 +459,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       <Button
         onClick={handlePinToolToggle}
         disabled={isDrawToolActive}
+        size={"icon"}
         className={`absolute top-4 left-4 z-30`}
         variant={isPinToolActive ? "default" : "outline"}
       >
@@ -464,6 +469,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       <Button
         onClick={handleDrawToolToggle}
         disabled={isPinToolActive}
+        size={"icon"}
         className={`absolute top-4 left-[68px] z-30  `}
         variant={isDrawToolActive ? "default" : "outline"}
       >

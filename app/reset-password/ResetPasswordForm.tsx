@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resetPassword } from "./actions";
 import Image from "next/image";
-import { TextureButton } from "@/components/ui/texture-button";
+
 
 interface ResetPasswordFormProps {
   token_hash?: string;
@@ -210,7 +210,7 @@ export default function ResetPasswordForm({
           <CardFooter>
             <Button
               type="submit"
-              variant={token_hash ? "blue_plus" : "secondary"}
+              variant={token_hash ? "default" : "secondary"}
               className={"w-full "}
               disabled={isLoading}
             >
@@ -219,8 +219,8 @@ export default function ResetPasswordForm({
                   ? "Updating Password..."
                   : "Sending Reset Instructions..."
                 : token_hash
-                ? "Set New Password"
-                : "Send Reset Instructions"}
+                  ? "Set New Password"
+                  : "Send Reset Instructions"}
             </Button>
           </CardFooter>
         </form>

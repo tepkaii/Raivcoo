@@ -1,3 +1,4 @@
+// aa/app/dashboard/projects/[id]/components/reviews_Dialogs/ManageReviewLinksDialog.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -196,9 +197,9 @@ export function ManageReviewLinksDialog({
                                 }
                               }}
                               placeholder="Link title"
-                              className="bg-background"
+                            
                             />
-                            <Button
+                            <Button 
                               variant="destructive"
                               onClick={() => onDeleteReviewLink(link.id)}
                             >
@@ -236,7 +237,7 @@ export function ManageReviewLinksDialog({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <code className="text-xs bg-background px-2 py-1 rounded flex-1 truncate text-gray-300">
+                        <code className="text-xs border-2 bg-[#121212] border-[#262626] px-2 py-1 rounded flex-1 truncate text-gray-300">
                           {getReviewUrl(link.link_token)}
                         </code>
                         <Button

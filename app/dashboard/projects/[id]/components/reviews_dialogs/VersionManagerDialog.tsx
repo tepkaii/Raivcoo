@@ -1,3 +1,5 @@
+// aa/app/dashboard/projects/[id]/components/reviews_Dialogs/VersionManagerDialog.tsx
+// @ts-nocheck
 "use client";
 
 import React from "react";

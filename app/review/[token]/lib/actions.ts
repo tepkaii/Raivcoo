@@ -444,26 +444,84 @@ export async function getCommentsAtTimestampAction(
   }
 }
 
-export async function deleteCommentAction(commentId: string) {
+export async function deleteCommentAction(
+  commentId: string,
+  sessionId?: string
+) {
   try {
     const supabase = await createClient();
 
-    const { error } = await supabase
-      .from("media_comments")
-      .delete()
-      .eq("id", commentId);
+    // Get the current user to determine if they're authenticated
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (error) {
-      console.error("Database error:", error);
-      return { success: false, error: error.message };
+    if (user) {
+      // Authenticated user - use existing logic (editors can delete comments on their media)
+      const { error } = await supabase
+        .from("media_comments")
+        .delete()
+        .eq("id", commentId);
+
+      if (error) {
+        console.error("Database error:", error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } else {
+      // Anonymous user - need to check session ID
+      if (!sessionId) {
+        return {
+          success: false,
+          error: "Session ID required for anonymous deletion",
+        };
+      }
+
+      // First, get the comment to check if it belongs to this session
+      const { data: comment, error: fetchError } = await supabase
+        .from("media_comments")
+        .select("id, session_id")
+        .eq("id", commentId)
+        .single();
+
+      if (fetchError) {
+        console.error("Error fetching comment:", fetchError);
+        return { success: false, error: "Comment not found" };
+      }
+
+      if (!comment) {
+        return { success: false, error: "Comment not found" };
+      }
+
+      // Check if the session ID matches
+      if (comment.session_id !== sessionId) {
+        return {
+          success: false,
+          error: "You can only delete your own comments",
+        };
+      }
+
+      // Delete the comment
+      const { error: deleteError } = await supabase
+        .from("media_comments")
+        .delete()
+        .eq("id", commentId)
+        .eq("session_id", sessionId); // Double-check session ID in the delete
+
+      if (deleteError) {
+        console.error("Database error:", deleteError);
+        return { success: false, error: deleteError.message };
+      }
+
+      return { success: true };
     }
-
-    return { success: true };
   } catch (error) {
     console.error("Failed to delete comment:", error);
     return { success: false, error: "Failed to delete comment" };
   }
 }
+
 export async function createCommentAction(data: {
   mediaId: string;
   userName: string;
@@ -474,6 +532,7 @@ export async function createCommentAction(data: {
   userAgent?: string;
   annotationData?: any;
   drawingData?: any;
+  sessionId?: string; // Add this
 }) {
   try {
     const supabase = await createClient();
@@ -488,6 +547,7 @@ export async function createCommentAction(data: {
       user_agent: data.userAgent,
       annotation_data: data.annotationData || null,
       drawing_data: data.drawingData || null,
+      session_id: data.sessionId, // Add this
       is_approved: true,
       is_pinned: false,
     };

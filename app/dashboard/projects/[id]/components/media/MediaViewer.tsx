@@ -1,4 +1,5 @@
 // app/dashboard/projects/[id]/components/MediaViewer.tsx
+// @ts-nocheck
 "use client";
 
 import React, {

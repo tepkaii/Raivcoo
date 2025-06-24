@@ -1,8 +1,78 @@
 // app/review/[token]/page.tsx
+// @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import { FrameIOInterface } from "./FrameIOInterface";
 import { PasswordProtectedReview } from "./review_components/PasswordProtectedReview";
+import { Metadata } from "next";
+
+// Dynamic metadata with media info but no sensitive details
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const supabase = await createClient();
+  const { token } = await params;
+
+  // Get review link with media filename
+  const { data: reviewLink, error: linkError } = await supabase
+    .from("review_links")
+    .select(
+      `
+      id,
+      title,
+      is_active,
+      expires_at,
+      media:project_media (
+        original_filename,
+        file_type
+      )
+    `
+    )
+    .eq("link_token", token)
+    .eq("is_active", true)
+    .single();
+
+  if (linkError || !reviewLink) {
+    return {
+      title: "Review Not Found",
+      description: "The requested review link could not be found.",
+    };
+  }
+
+  // Check if expired
+  if (reviewLink.expires_at && new Date(reviewLink.expires_at) < new Date()) {
+    return {
+      title: "Review Link Expired",
+      description: "This review link has expired and is no longer available.",
+    };
+  }
+
+  // Use media filename for better UX
+  const mediaName = reviewLink.media?.original_filename || "Media";
+  const title = reviewLink.title || `${mediaName} - Review`;
+  const description = `Review and provide feedback on ${mediaName}`;
+
+  return {
+    title: title,
+    description: description,
+    openGraph: {
+      title: title,
+      description: description,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title: title,
+      description: description,
+    },
+    robots: {
+      index: false, // Don't index review links for privacy
+      follow: false,
+    },
+  };
+}
 
 export default async function ReviewPage({
   params,

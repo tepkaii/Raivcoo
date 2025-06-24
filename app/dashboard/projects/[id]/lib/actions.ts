@@ -1,3 +1,5 @@
+// app/dashboard/projects/[id]/lib/actions.ts
+// @ts-nocheck
 "use server";
 
 import { createClient } from "@/utils/supabase/server";

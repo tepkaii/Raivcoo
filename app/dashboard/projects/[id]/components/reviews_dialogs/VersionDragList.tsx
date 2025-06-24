@@ -1,11 +1,13 @@
+// aa/app/dashboard/projects/[id]/components/reviews_Dialogs/VersionDragList.tsx
 "use client";
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { RevButtons } from "@/components/ui/RevButtons";
+
 import { Badge } from "@/components/ui/badge";
 import { Star, Eye, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
 
 interface MediaFile {
   id: string;
@@ -210,7 +212,7 @@ export function VersionDragList({
             <div className="flex items-center gap-4">
               {/* Arrow controls */}
               <div className="flex flex-col gap-1">
-                <RevButtons
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleMoveUp(version.id, index)}
@@ -218,8 +220,8 @@ export function VersionDragList({
                   title="Move up (increase version)"
                 >
                   <ChevronUp className="h-4 w-4" />
-                </RevButtons>
-                <RevButtons
+                </Button>
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleMoveDown(version.id, index)}
@@ -227,7 +229,7 @@ export function VersionDragList({
                   title="Move down (decrease version)"
                 >
                   <ChevronDown className="h-4 w-4" />
-                </RevButtons>
+                </Button>
               </div>
 
               {/* Thumbnail */}
@@ -270,7 +272,7 @@ export function VersionDragList({
 
               {/* Actions */}
               <div className="flex items-center gap-2">
-                <RevButtons
+                <Button
                   variant="ghost"
                   size="sm"
                   onClick={(e) => {
@@ -279,15 +281,15 @@ export function VersionDragList({
                   }}
                 >
                   <Eye className="h-4 w-4" />
-                </RevButtons>
+                </Button>
                 {!version.is_current_version && (
-                  <RevButtons
+                  <Button
                     variant="destructive"
                     size="sm"
                     onClick={() => handleDeleteVersion(version.id)}
                   >
                     <Trash2 className="h-4 w-4" />
-                  </RevButtons>
+                  </Button>
                 )}
               </div>
             </div>

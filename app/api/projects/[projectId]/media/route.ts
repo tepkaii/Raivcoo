@@ -58,13 +58,54 @@ export async function POST(
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
+    // Calculate total size of files being uploaded
+    const totalUploadSize = files.reduce((sum, file) => sum + file.size, 0);
+    const MAX_PROJECT_SIZE = 2 * 1024 * 1024 * 1024; // 2GB in bytes
+
+    // Get current total size of project media
+    const { data: currentMedia, error: mediaSizeError } = await supabase
+      .from("project_media")
+      .select("file_size")
+      .eq("project_id", projectId);
+
+    if (mediaSizeError) {
+      return NextResponse.json(
+        { error: "Failed to check project size" },
+        { status: 500 }
+      );
+    }
+
+    const currentTotalSize =
+      currentMedia?.reduce((sum, media) => sum + Number(media.file_size), 0) ||
+      0;
+    const newTotalSize = currentTotalSize + totalUploadSize;
+
+    // Check if adding these files would exceed the 2GB limit
+    if (newTotalSize > MAX_PROJECT_SIZE) {
+      const remainingSpace = MAX_PROJECT_SIZE - currentTotalSize;
+      const formatBytes = (bytes: number) => {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      };
+
+      return NextResponse.json(
+        {
+          error: `Upload would exceed 2GB project limit. Current size: ${formatBytes(currentTotalSize)}, Upload size: ${formatBytes(totalUploadSize)}, Available space: ${formatBytes(remainingSpace)}`,
+        },
+        { status: 413 }
+      ); // 413 Payload Too Large
+    }
+
     const uploadedFiles = [];
 
     for (const file of files) {
       try {
-        // Validate file size (200MB limit)
-        if (file.size > 200 * 1024 * 1024) {
-          throw new Error(`File ${file.name} exceeds 200MB limit`);
+        // Validate individual file size (1GB limit per file)
+        if (file.size > 1024 * 1024 * 1024) {
+          throw new Error(`File ${file.name} exceeds 1GB limit`);
         }
 
         // Validate file type

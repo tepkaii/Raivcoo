@@ -113,12 +113,12 @@ export default function ProjectForm({ createProject }: ProjectFormProps) {
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label className="font-medium">Project Name</Label>
               <Input name="name" placeholder="Enter project name" required />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label className="font-medium">Description (Optional)</Label>
               <Textarea
                 name="description"

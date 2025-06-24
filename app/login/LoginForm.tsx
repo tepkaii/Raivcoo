@@ -1,5 +1,6 @@
-"use client";
 // LoginForm.tsx
+"use client";
+
 import { useTransition } from "react";
 import Link from "next/link";
 import { Loader2, HelpCircle } from "lucide-react";

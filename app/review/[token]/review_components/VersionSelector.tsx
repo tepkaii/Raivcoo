@@ -3,14 +3,7 @@
 import React, { useState } from "react";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Badge } from "@/components/ui/badge";
-import {
-  ChevronDown,
-  Check,
-  GitCompare,
-  Calendar,
-  FileText,
-  X,
-} from "lucide-react";
+import { ChevronDown, Check, Calendar } from "lucide-react";
 
 interface MediaVersion {
   id: string;

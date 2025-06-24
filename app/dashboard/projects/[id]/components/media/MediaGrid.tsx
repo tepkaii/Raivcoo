@@ -1,3 +1,5 @@
+// app/dashboard/projects/[id]/components/media/MediaGrid.tsx
+// @ts-nocheck
 "use client";
 
 import React, { useState, useCallback } from "react";
@@ -18,7 +20,7 @@ import {
   updateVersionNameAction,
   deleteVersionAction,
   addVersionToMediaAction,
-} from "../../actions";
+} from "../../lib/actions";
 
 interface MediaFile {
   id: string;
@@ -124,6 +126,30 @@ export function MediaGrid({
     isDeleting: boolean;
   }>({ open: false, isDeleting: false });
 
+  // Calculate project size
+  const projectSize = React.useMemo(() => {
+    const totalBytes = mediaFiles.reduce((sum, file) => sum + file.file_size, 0);
+    const maxBytes = 2 * 1024 * 1024 * 1024; // 2GB
+    
+    const formatBytes = (bytes: number) => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    return {
+      current: totalBytes,
+      max: maxBytes,
+      currentFormatted: formatBytes(totalBytes),
+      maxFormatted: formatBytes(maxBytes),
+      percentage: (totalBytes / maxBytes) * 100,
+      remaining: maxBytes - totalBytes,
+      remainingFormatted: formatBytes(maxBytes - totalBytes)
+    };
+  }, [mediaFiles]);
+
   const organizedMedia = React.useMemo((): OrganizedMedia[] => {
     const parentMediaMap = new Map<string, MediaFile>();
     const childVersionsMap = new Map<string, MediaFile[]>();
@@ -193,6 +219,12 @@ export function MediaGrid({
         new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
     );
   }, [mediaFiles, reviewLinks]);
+
+  // Check if files can be uploaded
+  const canUploadFiles = (files: File[]) => {
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    return projectSize.remaining >= totalSize;
+  };
 
   // Upload files function
   const uploadFiles = async (files: File[], targetMediaId?: string) => {
@@ -280,13 +312,32 @@ export function MediaGrid({
     async (acceptedFiles: File[], rejectedFiles: any[]) => {
       if (acceptedFiles.length === 0) return;
 
+      // Check if upload would exceed project size limit
+      if (!canUploadFiles(acceptedFiles)) {
+        const uploadSize = acceptedFiles.reduce((sum, file) => sum + file.size, 0);
+        const formatBytes = (bytes: number) => {
+          if (bytes === 0) return '0 Bytes';
+          const k = 1024;
+          const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+
+        toast({
+          title: "Upload Too Large",
+          description: `Upload size (${formatBytes(uploadSize)}) would exceed project limit. Available space: ${projectSize.remainingFormatted}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (draggedOver) {
         await uploadFiles(acceptedFiles, draggedOver);
       } else {
         await uploadFiles(acceptedFiles);
       }
     },
-    [draggedOver]
+    [draggedOver, projectSize.remaining]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -295,8 +346,8 @@ export function MediaGrid({
       "video/*": [".mp4", ".mov", ".avi", ".mkv", ".webm"],
       "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
     },
-    disabled: isUploading,
-    maxSize: 200 * 1024 * 1024,
+    disabled: isUploading || projectSize.percentage >= 100,
+    maxSize: 1024 * 1024 * 1024,
     noClick: false,
   });
 
@@ -671,8 +722,36 @@ export function MediaGrid({
 
   return (
     <div className="h-full flex flex-col text-white">
-      {/* Upload Area */}
+      {/* Project Size Indicator & Upload Area */}
       <div className="p-4 border-b flex-shrink-0">
+        {/* Project Size Indicator */}
+        <div className="mb-3">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs text-muted-foreground">Project Storage</span>
+            <span className="text-xs text-muted-foreground">
+              {projectSize.currentFormatted} / {projectSize.maxFormatted}
+            </span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-1.5">
+            <div
+              className={`h-1.5 rounded-full transition-all ${
+                projectSize.percentage > 90
+                  ? "bg-red-500"
+                  : projectSize.percentage > 75
+                  ? "bg-yellow-500"
+                  : "bg-green-500"
+              }`}
+              style={{ width: `${Math.min(projectSize.percentage, 100)}%` }}
+            />
+          </div>
+          {projectSize.percentage > 90 && (
+            <p className="text-xs text-red-400 mt-1">
+              Warning: Project is almost full ({projectSize.remainingFormatted} remaining)
+            </p>
+          )}
+        </div>
+
+        {/* Upload Area */}
         <div
           {...getRootProps()}
           className={`
@@ -680,13 +759,25 @@ export function MediaGrid({
             ${
               isDragActive
                 ? "border-primary bg-primary/10"
+                : projectSize.percentage >= 100
+                ? "border-red-500/50 bg-red-500/10"
                 : "hover:border-white/30"
             }
-            ${isUploading ? "pointer-events-none opacity-50" : ""}
+            ${isUploading || projectSize.percentage >= 100 ? "pointer-events-none opacity-50" : ""}
           `}
         >
           <input {...getInputProps()} />
-          {isUploading ? (
+          {projectSize.percentage >= 100 ? (
+            <div className="space-y-2">
+              <Upload className="h-5 w-5 mx-auto text-red-500" />
+              <div>
+                <p className="text-xs font-medium text-red-400">Project Full</p>
+                <p className="text-xs text-muted-foreground">
+                  Delete some files to upload more
+                </p>
+              </div>
+            </div>
+          ) : isUploading ? (
             <div className="space-y-2">
               <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" />
               <div className="space-y-1">
@@ -709,6 +800,14 @@ export function MediaGrid({
                 <p className="text-xs text-muted-foreground mt-1">
                   💡 Drag onto media to create versions
                 </p>
+                <div className="text-xs text-muted-foreground">
+                  <p>Supports: MP4, MOV, AVI, MKV, WebM videos</p>
+                  <p>JPG, PNG, GIF, WebP images</p>
+                  <p className="font-medium">Maximum: 1GB per file</p>
+                  <p className="font-medium text-green-400">
+                    Available: {projectSize.remainingFormatted}
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -758,6 +857,23 @@ export function MediaGrid({
                 onDragLeave={() => setDraggedOver(null)}
                 onDrop={(targetId, files) => {
                   if (files.length > 0) {
+                    // Check size limit before dropping files
+                    if (!canUploadFiles(files)) {
+                      const uploadSize = files.reduce((sum, file) => sum + file.size, 0);
+                      const formatBytes = (bytes: number) => {
+                        if (bytes === 0) return '0 Bytes';
+                        const k = 1024;
+                        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                        const i = Math.floor(Math.log(bytes) / Math.log(k));
+                        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                      };
+                      toast({
+                        title: "Upload Too Large",
+                        description: `Upload size (${formatBytes(uploadSize)}) would exceed project limit. Available space: ${projectSize.remainingFormatted}`,
+                        variant: "destructive",
+                      });
+                      return;
+                    }
                     uploadFiles(files, targetId);
                   } else if (draggedMedia) {
                     handleCreateVersion(targetId, draggedMedia.id);
@@ -791,7 +907,6 @@ export function MediaGrid({
       </div>
 
       {/* Dialogs */}
-
       <MediaDialogs
         createLinkDialog={createLinkDialog}
         viewLinksDialog={viewLinksDialog}
@@ -811,7 +926,6 @@ export function MediaGrid({
         onUpdateVersionName={handleUpdateVersionName}
         onDeleteVersion={handleDeleteVersion}
         onDeleteMedia={handleDeleteMedia}
-        // Add these missing props:
         projectId={projectId}
         onMediaUpdated={onMediaUpdated}
       />

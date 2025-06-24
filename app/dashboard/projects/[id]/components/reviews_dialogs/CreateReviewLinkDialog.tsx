@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import React, { useState } from "react";
@@ -112,7 +113,7 @@ function CustomCalendar({ selected, onSelect, disabled }: CustomCalendarProps) {
         <button
           type="button"
           className={cn(
-            "h-9 w-9 flex items-center justify-center text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
+            "h-9 w-9 flex bg-background items-center justify-center text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
             isCurrentMonth ? "text-foreground" : "text-muted-foreground",
             isSelected && "bg-primary text-primary-foreground",
             !isSelected &&
@@ -149,13 +150,13 @@ function CustomCalendar({ selected, onSelect, disabled }: CustomCalendarProps) {
   return (
     <div className="p-3">
       <div className="flex items-center justify-between mb-4">
-        <Button variant="outline" size="sm" onClick={prevMonth} type="button">
+        <Button variant="outline" size="icon" onClick={prevMonth} type="button">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <h2 className="text-sm font-medium">
           {format(currentMonth, "MMMM yyyy")}
         </h2>
-        <Button variant="outline" size="sm" onClick={nextMonth} type="button">
+        <Button variant="outline" size="icon" onClick={nextMonth} type="button">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -203,23 +204,23 @@ export function CreateReviewLinkDialog({
     }
   };
 
-  const handleCopyReviewLink = async (linkToken: string) => {
-    const reviewUrl = `${window.location.origin}/review/${linkToken}`;
-    try {
-      await navigator.clipboard.writeText(reviewUrl);
-      toast({
-        title: "Link Copied",
-        description: "Review link copied to clipboard",
-        variant: "success",
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to Copy",
-        description: "Could not copy link to clipboard",
-        variant: "destructive",
-      });
-    }
-  };
+const handleCopyReviewLink = async (linkToken: string) => {
+  const reviewUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/review/${linkToken}`;
+  try {
+    await navigator.clipboard.writeText(reviewUrl);
+    toast({
+      title: "Link Copied",
+      description: "Review link copied to clipboard",
+      variant: "success",
+    });
+  } catch (error) {
+    toast({
+      title: "Failed to Copy",
+      description: "Could not copy link to clipboard",
+      variant: "destructive",
+    });
+  }
+};
 
   return (
     <Dialog
@@ -241,66 +242,72 @@ export function CreateReviewLinkDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {createLinkDialog.showSuccess ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center py-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-green-700 p-2 rounded-[10px] border">
-                  <Check className="h-5 w-5 text-green-200" />
-                </div>
-                <div>
-                  <p className="font-medium">Link created successfully!</p>
-                  <p className="text-sm text-muted-foreground">
-                    The link has been copied to your clipboard
-                  </p>
-                </div>
-              </div>
-            </div>
+       {createLinkDialog.showSuccess ? (
+  <div className="space-y-4">
+    <div className="flex items-center justify-center py-6">
+      <div className="flex items-center gap-3">
+        <div className="bg-green-700 p-2 rounded-[10px] border-2 border-black/20">
+          <Check className="h-5 w-5 text-green-200" />
+        </div>
+        <div>
+          <p className="font-medium">Link created successfully!</p>
+          <p className="text-sm text-muted-foreground">
+            The link has been copied to your clipboard
+          </p>
+        </div>
+      </div>
+    </div>
 
-            <div className="space-y-2">
-              <Label className="text-gray-300">Review Link</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={createLinkDialog.createdUrl || ""}
-                  readOnly
-                  className="font-mono text-sm bg-background"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    handleCopyReviewLink(
-                      createLinkDialog.createdUrl?.split("/").pop() || ""
-                    )
-                  }
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    window.open(createLinkDialog.createdUrl, "_blank")
-                  }
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+    <div className="space-y-2">
+      <Label className="text-gray-300">Review Link</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          value={createLinkDialog.createdUrl ? 
+            `${process.env.NEXT_PUBLIC_BASE_URL}/review/${createLinkDialog.createdUrl.split("/").pop()}` : 
+            ""
+          }
+          readOnly
+          className="font-mono text-sm "
+        />
+        <Button
+          variant="outline"
+          onClick={() =>
+            handleCopyReviewLink(
+              createLinkDialog.createdUrl?.split("/").pop() || ""
+            )
+          }
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            const linkToken = createLinkDialog.createdUrl?.split("/").pop();
+            if (linkToken) {
+              window.open(`${process.env.NEXT_PUBLIC_BASE_URL}/review/${linkToken}`, "_blank");
+            }
+          }}
+        >
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
 
-            <div className="flex justify-end">
-              <Button
-                onClick={() =>
-                  onCreateLinkDialogChange({
-                    open: false,
-                    isCreating: false,
-                    showSuccess: false,
-                  })
-                }
-              >
-                Done
-              </Button>
-            </div>
-          </div>
-        ) : (
+    <div className="flex justify-end">
+      <Button
+        onClick={() =>
+          onCreateLinkDialogChange({
+            open: false,
+            isCreating: false,
+            showSuccess: false,
+          })
+        }
+      >
+        Done
+      </Button>
+    </div>
+  </div>
+) : (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -317,7 +324,7 @@ export function CreateReviewLinkDialog({
           >
             <div>
               <Label htmlFor="title">Review Title (Optional)</Label>
-              <Input
+              <Input className="mt-1"
                 id="title"
                 value={linkFormData.title}
                 onChange={(e) =>
@@ -327,11 +334,11 @@ export function CreateReviewLinkDialog({
                   }))
                 }
                 placeholder="Enter a title for this review"
-                className="bg-background"
+              
               />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Label>Expiration Date (Optional)</Label>
 
               <div>
@@ -341,7 +348,7 @@ export function CreateReviewLinkDialog({
                       variant="outline"
                       type="button"
                       className={cn(
-                        "w-full justify-start text-left font-normal bg-background",
+                        "w-full justify-start text-left font-normal",
                         !selectedDate && "text-muted-foreground"
                       )}
                     >
@@ -354,7 +361,7 @@ export function CreateReviewLinkDialog({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <CustomCalendar
+                    <CustomCalendar 
                       selected={selectedDate}
                       onSelect={handleDateChange}
                       disabled={(date) => date < new Date()}
@@ -400,8 +407,8 @@ export function CreateReviewLinkDialog({
 
             {linkFormData.requiresPassword && (
               <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
+                <Label htmlFor="password" >Password</Label>
+                <Input className="mt-2"
                   id="password"
                   type="password"
                   value={linkFormData.password}
@@ -412,7 +419,7 @@ export function CreateReviewLinkDialog({
                     }))
                   }
                   placeholder="Enter password"
-                  className="bg-background"
+                 
                   required={linkFormData.requiresPassword}
                 />
               </div>

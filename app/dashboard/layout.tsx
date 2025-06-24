@@ -1,14 +1,10 @@
 // app/dashboard/layout.tsx
 
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./components/app-sidebar";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import { EditorProfile } from "../types/editorProfile";
-import Link from "next/link";
-import { RevButtons } from "@/components/ui/RevButtons";
-import { Film } from "lucide-react";
-import { GlobalSearch } from "./projects/components/GlobalSearch";
+
 
 export default async function DashboardLayout({
   children,

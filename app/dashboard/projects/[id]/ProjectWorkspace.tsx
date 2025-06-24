@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { MediaGrid } from "./components/media/MediaGrid";
 import { MediaViewer } from "./components/media/MediaViewer";
 import { ReviewComments } from "@/app/review/[token]/review_components/ReviewComments";
@@ -71,7 +71,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [comments, setComments] = useState<any[]>([]);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
 
-  // Panel visibility states
+  // Track screen size
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Panel visibility states - force mobile layout on small screens
   const [showMediaLibrary, setShowMediaLibrary] = useState(true);
   const [showMediaPlayer, setShowMediaPlayer] = useState(false);
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
@@ -87,6 +90,25 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mediaViewerRef = useRef<any>(null);
+
+  // Check screen size on mount and resize
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const isMobileSize = window.innerWidth < 768; // md breakpoint
+      setIsMobile(isMobileSize);
+
+      if (isMobileSize) {
+        // Force mobile layout - only show media library
+        setShowMediaLibrary(true);
+        setShowMediaPlayer(false);
+        setShowCommentsPanel(false);
+      }
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
   // Get all versions for selected media
   const getAllVersionsForMedia = (mediaFile: MediaFile | null) => {
@@ -127,20 +149,20 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   // Handle annotation creation from MediaViewer
   const handleAnnotationCreate = (annotation: any) => {
     setPendingAnnotation(annotation);
-    if (!showCommentsPanel) {
+    if (!showCommentsPanel && !isMobile) {
       setShowCommentsPanel(true);
     }
   };
 
-  // Count open panels
-  const openPanelsCount = [
-    showMediaLibrary,
-    showMediaPlayer,
-    showCommentsPanel,
-  ].filter(Boolean).length;
+  // Count open panels (only for desktop)
+  const openPanelsCount = !isMobile
+    ? [showMediaLibrary, showMediaPlayer, showCommentsPanel].filter(Boolean)
+        .length
+    : 1;
 
-  // Panel toggle logic
+  // Panel toggle logic (disabled on mobile)
   const canToggleMediaLibrary = (() => {
+    if (isMobile) return false; // Disable on mobile
     if (!showMediaLibrary) return true;
     if (openPanelsCount === 1) return false;
     if (openPanelsCount === 2) return false;
@@ -152,6 +174,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const commentsLocked = !showMediaLibrary && showCommentsPanel;
 
   const handleMediaLibraryToggle = () => {
+    if (isMobile) return; // Disable on mobile
+
     if (!showMediaLibrary) {
       setShowMediaLibrary(true);
     } else if (canToggleMediaLibrary) {
@@ -160,7 +184,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const handleMediaPlayerToggle = () => {
-    if (playerLocked) return;
+    if (isMobile || playerLocked) return; // Disable on mobile
 
     if (!showMediaPlayer) {
       if (showMediaLibrary) {
@@ -174,7 +198,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const handleCommentsToggle = () => {
-    if (commentsLocked) return;
+    if (isMobile || commentsLocked) return; // Disable on mobile
 
     if (!showCommentsPanel) {
       if (showMediaLibrary) {
@@ -189,6 +213,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   // Calculate widths based on what panels are open
   const calculateWidths = () => {
+    // On mobile, always full width for media library
+    if (isMobile) {
+      return { library: 100, player: 0, comments: 0 };
+    }
+
     if (openPanelsCount === 1) {
       if (showMediaLibrary) return { library: 100, player: 0, comments: 0 };
       if (showMediaPlayer) return { library: 0, player: 100, comments: 0 };
@@ -222,23 +251,25 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   const widths = calculateWidths();
 
-  // Resizing handlers (same as before)
+  // Resizing handlers (disabled on mobile)
   const handleResizeStart = useCallback(
     (
       type: "library-player" | "player-comments" | "library-comments",
       e: React.MouseEvent
     ) => {
+      if (isMobile) return; // Disable on mobile
+
       setIsResizing(type);
       e.preventDefault();
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
-    []
+    [isMobile]
   );
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
+      if (!isResizing || !containerRef.current || isMobile) return;
 
       const containerRect = containerRef.current.getBoundingClientRect();
       const containerWidth = containerRect.width;
@@ -270,7 +301,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         setLibraryWidth(newLibraryWidth);
       }
     },
-    [isResizing, libraryWidth, showMediaLibrary, showCommentsPanel]
+    [isResizing, libraryWidth, showMediaLibrary, showCommentsPanel, isMobile]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -280,7 +311,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   }, []);
 
   React.useEffect(() => {
-    if (isResizing) {
+    if (isResizing && !isMobile) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       return () => {
@@ -288,137 +319,133 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         document.removeEventListener("mouseup", handleMouseUp);
       };
     }
-  }, [isResizing, handleMouseMove, handleMouseUp]);
+  }, [isResizing, handleMouseMove, handleMouseUp, isMobile]);
 
   return (
-    <header className="h-screen flex flex-col overflow-hidden">
-      {/* Header with 3 Toggle Buttons */}
+    <div className="h-screen flex flex-col overflow-hidden">
+      {/* Header */}
       <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
-        <div>
+        <div className="flex-1">
           <h1 className="flex gap-1 items-center text-white">
             <Link href="/dashboard">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-            </Link>{" "}
-            {project.name}-Project
+            </Link>
+            <span className="hidden sm:inline">{project.name}-Project</span>
+            <span className="sm:hidden truncate">{project.name}</span>
           </h1>
-          {/* {project.description && (
-              <p className="text-muted-foreground mt-1">
-                {project.description}
-              </p>
-            )} */}
         </div>
 
-        {/* 3 Panel Toggle Buttons */}
-        <div className="flex items-center">
-          <Button
-            onClick={handleMediaLibraryToggle}
-            variant={"ghost"}
-            className="border-none bg-none"
-            size="sm"
-            disabled={showMediaLibrary && !canToggleMediaLibrary}
-            title={
-              showMediaLibrary && !canToggleMediaLibrary
-                ? openPanelsCount === 1
-                  ? "Cannot hide Media Library when it's the only panel open"
-                  : openPanelsCount === 2
-                    ? "Cannot hide Media Library - other panels cannot be alone"
-                    : undefined
-                : undefined
-            }
-          >
-            <MediaCardsPanel
-              className={`size-5 ${
+        {/* Panel Toggle Buttons - Only show on desktop (md and up) */}
+        {!isMobile && (
+          <div className="flex items-center gap-1">
+            <Button
+              onClick={handleMediaLibraryToggle}
+              variant="ghost"
+              className="border-none bg-none"
+              size="sm"
+              disabled={showMediaLibrary && !canToggleMediaLibrary}
+              title={
                 showMediaLibrary && !canToggleMediaLibrary
-                  ? "opacity-50"
-                  : showMediaLibrary
-                    ? "text-blue-500"
-                    : ""
-              }`}
-            />
-          </Button>
+                  ? openPanelsCount === 1
+                    ? "Cannot hide Media Library when it's the only panel open"
+                    : openPanelsCount === 2
+                      ? "Cannot hide Media Library - other panels cannot be alone"
+                      : undefined
+                  : undefined
+              }
+            >
+              <MediaCardsPanel
+                className={`size-5 ${
+                  showMediaLibrary && !canToggleMediaLibrary
+                    ? "opacity-50"
+                    : showMediaLibrary
+                      ? "text-blue-500"
+                      : ""
+                }`}
+              />
+            </Button>
 
-          <Button
-            onClick={handleMediaPlayerToggle}
-            variant={"ghost"}
-            className="border-none bg-none"
-            size="sm"
-            disabled={
-              playerLocked ||
-              (!showMediaPlayer && !showMediaLibrary) ||
-              (showMediaPlayer && openPanelsCount === 1)
-            }
-            title={
-              playerLocked
-                ? "Enable Media Library to toggle Media Player"
-                : !showMediaPlayer && !showMediaLibrary
-                  ? "Enable Media Library first to use Media Player"
-                  : showMediaPlayer && openPanelsCount === 1
-                    ? "Cannot hide the only remaining panel"
-                    : undefined
-            }
-          >
-            <MediaPlayerPanel
-              className={`size-5 ${
+            <Button
+              onClick={handleMediaPlayerToggle}
+              variant="ghost"
+              className="border-none bg-none"
+              size="sm"
+              disabled={
                 playerLocked ||
                 (!showMediaPlayer && !showMediaLibrary) ||
                 (showMediaPlayer && openPanelsCount === 1)
-                  ? "opacity-50"
-                  : showMediaPlayer
-                    ? "text-blue-500"
-                    : ""
-              }`}
-            />
-          </Button>
+              }
+              title={
+                playerLocked
+                  ? "Enable Media Library to toggle Media Player"
+                  : !showMediaPlayer && !showMediaLibrary
+                    ? "Enable Media Library first to use Media Player"
+                    : showMediaPlayer && openPanelsCount === 1
+                      ? "Cannot hide the only remaining panel"
+                      : undefined
+              }
+            >
+              <MediaPlayerPanel
+                className={`size-5 ${
+                  playerLocked ||
+                  (!showMediaPlayer && !showMediaLibrary) ||
+                  (showMediaPlayer && openPanelsCount === 1)
+                    ? "opacity-50"
+                    : showMediaPlayer
+                      ? "text-blue-500"
+                      : ""
+                }`}
+              />
+            </Button>
 
-          <Button
-            onClick={handleCommentsToggle}
-            variant={"ghost"}
-            className="border-none bg-none"
-            size="sm"
-            disabled={
-              commentsLocked ||
-              (!showCommentsPanel && !showMediaLibrary) ||
-              (showCommentsPanel && openPanelsCount === 1)
-            }
-            title={
-              commentsLocked
-                ? "Enable Media Library to toggle Comments"
-                : !showCommentsPanel && !showMediaLibrary
-                  ? "Enable Media Library first to use Comments"
-                  : showCommentsPanel && openPanelsCount === 1
-                    ? "Cannot hide the only remaining panel"
-                    : undefined
-            }
-          >
-            <CommentsPanel
-              className={`size-5 ${
+            <Button
+              onClick={handleCommentsToggle}
+              variant="ghost"
+              className="border-none bg-none"
+              size="sm"
+              disabled={
                 commentsLocked ||
                 (!showCommentsPanel && !showMediaLibrary) ||
                 (showCommentsPanel && openPanelsCount === 1)
-                  ? "opacity-50"
-                  : showCommentsPanel
-                    ? "text-blue-500"
-                    : ""
-              }`}
-            />
-          </Button>
-        </div>
+              }
+              title={
+                commentsLocked
+                  ? "Enable Media Library to toggle Comments"
+                  : !showCommentsPanel && !showMediaLibrary
+                    ? "Enable Media Library first to use Comments"
+                    : showCommentsPanel && openPanelsCount === 1
+                      ? "Cannot hide the only remaining panel"
+                      : undefined
+              }
+            >
+              <CommentsPanel
+                className={`size-5 ${
+                  commentsLocked ||
+                  (!showCommentsPanel && !showMediaLibrary) ||
+                  (showCommentsPanel && openPanelsCount === 1)
+                    ? "opacity-50"
+                    : showCommentsPanel
+                      ? "text-blue-500"
+                      : ""
+                }`}
+              />
+            </Button>
+          </div>
+        )}
       </header>
 
-      {/* Main Content Area - 3 Panel Layout */}
+      {/* Main Content Area */}
       <div ref={containerRef} className="flex-1 flex overflow-hidden min-h-0">
         {/* Media Library Panel */}
-        {showMediaLibrary && (
+        {(showMediaLibrary || isMobile) && (
           <div
             className="border-r flex flex-col flex-shrink-0 min-w-0"
-            style={{ width: `${widths.library}%` }}
+            style={{ width: isMobile ? "100%" : `${widths.library}%` }}
           >
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="w-full h-full">
-                {" "}
-                {/* Add this wrapper */}
                 <MediaGrid
                   mediaFiles={mediaFiles}
                   reviewLinks={reviewLinks}
@@ -433,8 +460,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         )}
 
-        {/* Resize Handle between Library and Player */}
-        {showMediaLibrary && showMediaPlayer && (
+        {/* Resize Handle between Library and Player - Desktop only */}
+        {!isMobile && showMediaLibrary && showMediaPlayer && (
           <div
             className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
             onMouseDown={(e) => handleResizeStart("library-player", e)}
@@ -444,19 +471,22 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         )}
 
-        {/* Resize Handle between Library and Comments (when no player) */}
-        {showMediaLibrary && showCommentsPanel && !showMediaPlayer && (
-          <div
-            className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
-            onMouseDown={(e) => handleResizeStart("library-comments", e)}
-          >
-            <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        )}
+        {/* Resize Handle between Library and Comments - Desktop only */}
+        {!isMobile &&
+          showMediaLibrary &&
+          showCommentsPanel &&
+          !showMediaPlayer && (
+            <div
+              className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
+              onMouseDown={(e) => handleResizeStart("library-comments", e)}
+            >
+              <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          )}
 
-        {/* Media Player Panel */}
-        {showMediaPlayer && (
+        {/* Media Player Panel - Desktop only */}
+        {!isMobile && showMediaPlayer && (
           <div
             className="bg-black flex flex-col min-w-0 flex-shrink-0"
             style={{ width: `${widths.player}%` }}
@@ -500,8 +530,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         )}
 
-        {/* Resize Handle between Player and Comments */}
-        {showMediaPlayer && showCommentsPanel && (
+        {/* Resize Handle between Player and Comments - Desktop only */}
+        {!isMobile && showMediaPlayer && showCommentsPanel && (
           <div
             className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
             onMouseDown={(e) => handleResizeStart("player-comments", e)}
@@ -511,8 +541,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         )}
 
-        {/* Comments Panel */}
-        {showCommentsPanel && (
+        {/* Comments Panel - Desktop only */}
+        {!isMobile && showCommentsPanel && (
           <div
             className="border-l flex flex-col flex-shrink-0 min-w-0"
             style={{ width: `${widths.comments}%` }}
@@ -571,6 +601,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         )}
       </div>
-    </header>
+    </div>
   );
 }

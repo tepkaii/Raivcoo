@@ -5,7 +5,6 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RevButtons } from "@/components/ui/RevButtons";
 import {
   Select,
   SelectContent,
@@ -30,6 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatFullDate } from "../components/libs";
+import { Button } from "@/components/ui/button";
 
 interface MediaFile {
   id: string;
@@ -138,10 +138,10 @@ export function ProjectsList({ projects }: ProjectsListProps) {
             Create your first project workspace to get started.
           </p>
           <Link href="/dashboard/projects/new">
-            <RevButtons className="gap-2">
+            <Button className="gap-2">
               <Plus className="h-4 w-4" />
               Create First Project
-            </RevButtons>
+            </Button>
           </Link>
         </CardContent>
       </Card>
@@ -161,7 +161,7 @@ export function ProjectsList({ projects }: ProjectsListProps) {
                 placeholder="Search projects..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-2 bg-[#121212] border-[#262626]"
               />
             </div>
 
@@ -197,7 +197,7 @@ export function ProjectsList({ projects }: ProjectsListProps) {
                 </SelectContent>
               </Select>
 
-              <RevButtons
+              <Button
                 variant="outline"
                 size="icon"
                 onClick={() =>
@@ -210,25 +210,25 @@ export function ProjectsList({ projects }: ProjectsListProps) {
                 ) : (
                   <SortDesc className="h-4 w-4" />
                 )}
-              </RevButtons>
+              </Button>
 
-              <div className="flex border rounded-md">
-                <RevButtons
-                  variant={viewMode === "grid" ? "default" : "ghost"}
+              <div className="flex ">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "outline"}
                   size="icon"
                   onClick={() => setViewMode("grid")}
                   className="rounded-r-none"
                 >
                   <Grid3X3 className="h-4 w-4" />
-                </RevButtons>
-                <RevButtons
-                  variant={viewMode === "list" ? "default" : "ghost"}
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "outline"}
                   size="icon"
                   onClick={() => setViewMode("list")}
                   className="rounded-l-none"
                 >
                   <List className="h-4 w-4" />
-                </RevButtons>
+                </Button>
               </div>
             </div>
           </div>

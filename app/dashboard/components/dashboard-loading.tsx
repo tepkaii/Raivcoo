@@ -9,14 +9,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Film,
-  Users,
-  BarChart,
-  CircleDot,
-  Clock,
-  CheckCircle2,
-} from "lucide-react";
+import { Film, Users, BarChart } from "lucide-react";
 
 export function DashboardSkeleton() {
   return (

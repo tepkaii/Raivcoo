@@ -14,7 +14,7 @@ export function ThemeToggle() {
 
   return (
     <Button
-      variant="gray_plus"
+      variant="outline"
       className="rounded-full"
       size="icon"
       onClick={toggleTheme}

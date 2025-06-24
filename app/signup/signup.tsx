@@ -4,14 +4,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Loader2,
-  HelpCircle,
-  Layout,
-  BarChart3,
-  Lock,
-  Globe,
-} from "lucide-react";
+import { Loader2, HelpCircle } from "lucide-react";
 import { signUp } from "../auth/actions/auth";
 import { RevButtons } from "@/components/ui/RevButtons";
 import { Input } from "@/components/ui/input";

@@ -436,7 +436,7 @@ function ShapeManagerPage() {
                     {/* Pro Version Column */}
                     <div className="flex flex-col p-6 bg-card/60 border rounded-xl relative">
                       <Badge
-                        variant={"info"}
+                        variant={"default"}
                         className="absolute -top-4 right-4 px-3 py-1 text-sm"
                       >
                         Pro Version
@@ -486,11 +486,7 @@ function ShapeManagerPage() {
                         href="https://payhip.com/b/JsQBf"
                         className="mt-auto pt-8"
                       >
-                        <Button
-                          variant="blue_plus"
-                          className="w-full"
-                          size="lg"
-                        >
+                        <Button variant="default" className="w-full" size="lg">
                           Get Pro Version
                           <ArrowRight className="ml-2" />
                         </Button>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, X, Undo, Redo, Palette } from "lucide-react";
+import { Pencil, X, Undo } from "lucide-react";
 
 interface DrawingStroke {
   id: string;

@@ -2,6 +2,81 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ProjectWorkspace } from "./ProjectWorkspace";
+import { Metadata } from "next";
+
+// Lightweight metadata generation - only basic project info
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const supabase = await createClient();
+  const { id } = await params;
+
+  // Get user first
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      title: "Login Required",
+      description: "Please login to access this project workspace.",
+    };
+  }
+
+  // Get editor profile
+  const { data: editorProfile } = await supabase
+    .from("editor_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!editorProfile) {
+    return {
+      title: "Account Setup Required",
+      description: "Please complete your account setup to access projects.",
+    };
+  }
+
+  // Get ONLY basic project info - no media files
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, name, description, editor_id")
+    .eq("id", id)
+    .single();
+
+  if (projectError || !project || project.editor_id !== editorProfile.id) {
+    return {
+      title: "Project Not Found",
+      description:
+        "The requested project could not be found or you don't have access to it.",
+    };
+  }
+
+  const description =
+    project.description ||
+    "Project workspace for media review and collaboration";
+
+  return {
+    title: `${project.name} - Project Workspace`,
+    description: description,
+    openGraph: {
+      title: `${project.name} - Project Workspace`,
+      description: description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: `${project.name} - Project Workspace`,
+      description: description,
+    },
+    robots: {
+      index: false, // Don't index private project workspaces
+      follow: false,
+    },
+  };
+}
 
 export default async function ProjectWorkspacePage({
   params,
@@ -27,7 +102,7 @@ export default async function ProjectWorkspacePage({
     redirect("/account");
   }
 
-  // Get project with media files and review links
+  // Get project with media files and review links (full data for the component)
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select(

@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { ProjectsList } from "./projects/ProjectsList";
 import { Metadata } from "next";
 import Link from "next/link";
-import { RevButtons } from "@/components/ui/RevButtons";
 import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Projects | Dashboard",
@@ -121,10 +121,10 @@ export default async function ProjectsPage() {
           <h1 className="text-xl mr-4">{editorProfile.full_name}'s Projects</h1>
         </div>
         <Link href="/dashboard/projects/new">
-          <RevButtons className="gap-2" size={"sm"}>
+          <Button className="gap-2" size={"sm"}>
             <Plus className="h-4 w-4" />
             New Project
-          </RevButtons>
+          </Button>
         </Link>
       </header>
 
