@@ -6,9 +6,9 @@ import {
   Play,
   Pause,
   Volume2,
+  VolumeX,
   SkipBack,
   SkipForward,
-  Settings,
   Maximize,
   Minimize,
 } from "lucide-react";
@@ -36,8 +36,9 @@ interface PlayerControlsProps {
   onSeekToTimestamp?: (timestamp: number) => void;
   className?: string;
   onTimeUpdate?: (time: number) => void;
-  fullscreenContainerRef?: React.RefObject<HTMLDivElement>; // Add this
+  fullscreenContainerRef?: React.RefObject<HTMLDivElement>;
 }
+
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
   videoRef,
   mediaType,
@@ -45,9 +46,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   onSeekToTimestamp,
   className = "",
   onTimeUpdate,
-  fullscreenContainerRef, // Add this
+  fullscreenContainerRef,
 }) => {
-  // ✅ ALL hooks must be declared first, regardless of mediaType
+  // All hooks must be declared first, regardless of mediaType
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -57,14 +58,30 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const progressRef = useRef<HTMLDivElement>(null);
+  const volumeRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Add fullscreen handlers after your other handlers
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) || window.innerWidth < 768;
+      setIsMobile(isMobileDevice);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Fullscreen handlers
   const toggleFullscreen = useCallback(async () => {
     if (!document.fullscreenElement) {
-      // Enter fullscreen
       try {
         const element =
           fullscreenContainerRef?.current ||
@@ -75,7 +92,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
         console.error("Failed to enter fullscreen:", error);
       }
     } else {
-      // Exit fullscreen
       try {
         await document.exitFullscreen();
       } catch (error) {
@@ -83,6 +99,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       }
     }
   }, [videoRef, fullscreenContainerRef]);
+
   // Format time helper
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
@@ -101,7 +118,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       .slice(0, 2);
   };
 
-  // ✅ Reset states when mediaType changes or video source changes
+  // Reset states when mediaType changes or video source changes
   useEffect(() => {
     if (mediaType === "image") {
       setIsVideoReady(false);
@@ -125,7 +142,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
     const checkVideoReady = () => {
       if (video.readyState >= 1) {
-        // HAVE_METADATA
         setDuration(video.duration);
         setCurrentTime(video.currentTime);
         setIsPlaying(!video.paused);
@@ -135,7 +151,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       }
     };
 
-    // Check immediately if already loaded
     checkVideoReady();
 
     const handleLoadedMetadata = () => {
@@ -155,7 +170,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     };
   }, [mediaType, videoRef, volume, isMuted]);
 
-  // ✅ Video event handlers useEffect - runs for all mediaTypes but guards inside
+  // Video event handlers
   useEffect(() => {
     const video = videoRef.current;
     if (!video || mediaType === "image" || !isVideoReady) return;
@@ -171,10 +186,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
-
-    const handleDurationChange = () => {
-      setDuration(video.duration);
-    };
+    const handleDurationChange = () => setDuration(video.duration);
 
     video.addEventListener("timeupdate", handleTimeUpdate);
     video.addEventListener("play", handlePlay);
@@ -191,17 +203,28 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     };
   }, [isDragging, onTimeUpdate, videoRef, mediaType, isVideoReady]);
 
-  // ✅ Control handlers (useCallback hooks)
-  const togglePlayPause = useCallback(() => {
+  // Control handlers
+  const handlePlayClick = useCallback(async () => {
     const video = videoRef.current;
     if (!video || mediaType === "image" || !isVideoReady) return;
 
-    if (isPlaying) {
-      video.pause();
-    } else {
-      video.play().catch(console.error);
+    try {
+      if (isPlaying) {
+        video.pause();
+      } else {
+        await video.play();
+      }
+    } catch (error) {
+      console.error("Playback failed:", error);
+      // Fallback for mobile: briefly show native controls
+      if (isMobile) {
+        video.controls = true;
+        setTimeout(() => {
+          video.controls = false;
+        }, 1000);
+      }
     }
-  }, [isPlaying, videoRef, mediaType, isVideoReady]);
+  }, [isPlaying, videoRef, mediaType, isVideoReady, isMobile]);
 
   const skipTime = useCallback(
     (seconds: number) => {
@@ -211,10 +234,12 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
       video.currentTime = newTime;
       setCurrentTime(newTime);
-      onTimeUpdate?.(newTime); // ← ADD THIS LINE
+      onTimeUpdate?.(newTime);
     },
-    [currentTime, duration, videoRef, mediaType, isVideoReady, onTimeUpdate] // ← ADD onTimeUpdate to deps
+    [currentTime, duration, videoRef, mediaType, isVideoReady, onTimeUpdate]
   );
+
+  // Fullscreen change listener
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -241,26 +266,24 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       );
     };
   }, []);
-  const handleProgressClick = useCallback(
-    (e: React.MouseEvent) => {
+
+  // Progress bar handlers
+  const handleProgressInteraction = useCallback(
+    (clientX: number) => {
       if (mediaType === "image" || !isVideoReady) return;
 
       const video = videoRef.current;
       const progressElement = progressRef.current;
-
       if (!progressElement || !video || duration === 0) return;
 
       const rect = progressElement.getBoundingClientRect();
-      const pos = Math.max(
-        0,
-        Math.min(1, (e.clientX - rect.left) / rect.width)
-      );
+      const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       const newTime = pos * duration;
 
       video.currentTime = newTime;
       setCurrentTime(newTime);
       onSeekToTimestamp?.(newTime);
-      onTimeUpdate?.(newTime); // ← ADD THIS LINE
+      onTimeUpdate?.(newTime);
     },
     [
       duration,
@@ -269,20 +292,39 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       isVideoReady,
       onSeekToTimestamp,
       onTimeUpdate,
-    ] // ← ADD onTimeUpdate to deps
+    ]
+  );
+
+  const handleProgressClick = useCallback(
+    (e: React.MouseEvent) => {
+      handleProgressInteraction(e.clientX);
+    },
+    [handleProgressInteraction]
   );
 
   const handleProgressMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (mediaType === "image" || !isVideoReady) return;
-
       e.preventDefault();
       e.stopPropagation();
-
       setIsDragging(true);
       handleProgressClick(e);
     },
     [handleProgressClick, mediaType, isVideoReady]
+  );
+
+  // Touch handlers for progress bar
+  const handleProgressTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (mediaType === "image" || !isVideoReady) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
+
+      const touch = e.touches[0];
+      handleProgressInteraction(touch.clientX);
+    },
+    [handleProgressInteraction, mediaType, isVideoReady]
   );
 
   const handleProgressHover = useCallback(
@@ -304,60 +346,56 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     [duration, mediaType, isVideoReady]
   );
 
-  // ✅ Mouse drag handlers useEffect - runs for all mediaTypes but guards inside
+  // Mouse and touch drag handlers
   useEffect(() => {
     if (mediaType === "image" || !isVideoReady) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
-        const video = videoRef.current;
-        const progressElement = progressRef.current;
-        if (!progressElement || !video || duration === 0) return;
-
-        const rect = progressElement.getBoundingClientRect();
-        const pos = Math.max(
-          0,
-          Math.min(1, (e.clientX - rect.left) / rect.width)
-        );
-        const newTime = pos * duration;
-
-        video.currentTime = newTime;
-        setCurrentTime(newTime);
-        onSeekToTimestamp?.(newTime);
-        onTimeUpdate?.(newTime); // ← ADD THIS LINE
+        handleProgressInteraction(e.clientX);
       }
     };
 
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isDragging && e.touches.length > 0) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleProgressInteraction(touch.clientX);
+      }
+    };
+
+    const handleEnd = (e: MouseEvent | TouchEvent) => {
+      if (isDragging) {
+        e.preventDefault();
+        setIsDragging(false);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
     };
 
     if (isDragging) {
       document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("mouseup", handleEnd);
+      document.addEventListener("touchmove", handleTouchMove, {
+        passive: false,
+      });
+      document.addEventListener("touchend", handleEnd);
       document.body.style.cursor = "grabbing";
       document.body.style.userSelect = "none";
 
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("mouseup", handleEnd);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleEnd);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
       };
     }
-  }, [
-    isDragging,
-    duration,
-    videoRef,
-    mediaType,
-    isVideoReady,
-    onSeekToTimestamp,
-  ]);
+  }, [isDragging, handleProgressInteraction, mediaType, isVideoReady]);
 
-  // ✅ Regular functions (not hooks)
-  const toggleMute = () => {
+  // Volume handlers
+  const toggleMute = useCallback(() => {
     if (mediaType === "image" || !isVideoReady) return;
 
     setIsMuted(!isMuted);
@@ -365,20 +403,47 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     if (video) {
       video.muted = !isMuted;
     }
-  };
+  }, [isMuted, videoRef, mediaType, isVideoReady]);
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (mediaType === "image" || !isVideoReady) return;
+  const handleVolumeInteraction = useCallback(
+    (clientX: number) => {
+      if (mediaType === "image" || !isVideoReady) return;
 
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    setIsMuted(newVolume === 0);
-    const video = videoRef.current;
-    if (video) {
-      video.volume = newVolume;
-      video.muted = newVolume === 0;
-    }
-  };
+      const volumeElement = volumeRef.current;
+      if (!volumeElement) return;
+
+      const rect = volumeElement.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+
+      setVolume(pos);
+      setIsMuted(pos === 0);
+
+      const video = videoRef.current;
+      if (video) {
+        video.volume = pos;
+        video.muted = pos === 0;
+      }
+    },
+    [mediaType, isVideoReady, videoRef]
+  );
+
+  const handleVolumeClick = useCallback(
+    (e: React.MouseEvent) => {
+      handleVolumeInteraction(e.clientX);
+    },
+    [handleVolumeInteraction]
+  );
+
+  const handleVolumeTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (mediaType === "image" || !isVideoReady) return;
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      handleVolumeInteraction(touch.clientX);
+    },
+    [handleVolumeInteraction, mediaType, isVideoReady]
+  );
 
   const handleTimelineCommentClick = (timestamp: number) => {
     const video = videoRef.current;
@@ -387,10 +452,10 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     video.currentTime = timestamp;
     setCurrentTime(timestamp);
     onSeekToTimestamp?.(timestamp);
-    onTimeUpdate?.(timestamp); // ← ADD THIS LINE
+    onTimeUpdate?.(timestamp);
   };
 
-  // ✅ Early return AFTER all hooks are declared
+  // Early return AFTER all hooks are declared
   if (mediaType === "image") {
     return null;
   }
@@ -445,7 +510,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   return (
     <div
-      className={`bg-gradient-to-t from-black via-black/90 to-transparent px-6 py-4 ${className}`}
+      className={`bg-gradient-to-t from-black via-black/90 to-transparent px-6 py-4 video-controls ${className}`}
     >
       <div className="space-y-4">
         {/* Progress Bar with Playhead */}
@@ -459,6 +524,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               ref={progressRef}
               className="h-2 bg-white/20 rounded-full cursor-pointer hover:bg-white/30 transition-colors relative"
               onMouseDown={handleProgressMouseDown}
+              onTouchStart={handleProgressTouchStart}
+              onClick={handleProgressClick}
               onMouseMove={handleProgressHover}
               onMouseLeave={() => {
                 setHoverTime(null);
@@ -473,18 +540,17 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
               {/* Playhead - Always visible and draggable */}
               <div
-                className="absolute top-1/2 w-2 h-4 bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110 pointer-events-none"
+                className={`absolute top-1/2 ${isMobile ? "w-3 h-5" : "w-2 h-4"} bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110 pointer-events-none`}
                 style={{
                   left: `${progressPercentage}%`,
                   transform: "translateX(-50%) translateY(-50%)",
                   zIndex: 20,
                 }}
-                onMouseDown={handleProgressMouseDown}
               />
             </div>
 
             {/* Time tooltip */}
-            {hoverTime !== null && hoverPosition !== null && (
+            {hoverTime !== null && hoverPosition !== null && !isMobile && (
               <div
                 className="absolute -top-8 bg-black/80 text-white text-xs px-2 py-1 rounded pointer-events-none z-30"
                 style={{
@@ -511,8 +577,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               comment.timestamp_seconds <= duration
           ) && (
             <div className="flex items-center gap-4">
-              <div className="min-w-12"></div>{" "}
-              {/* Spacer to align with timeline */}
+              <div className="min-w-12"></div>
               <div className="flex-1 relative h-8">
                 {comments
                   .filter(
@@ -557,8 +622,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     );
                   })}
               </div>
-              <div className="min-w-12"></div>{" "}
-              {/* Spacer to align with timeline */}
+              <div className="min-w-12"></div>
             </div>
           )}
 
@@ -576,7 +640,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           {/* Play/Pause */}
           <RevButtons
             variant="ghost"
-            onClick={togglePlayPause}
+            onClick={handlePlayClick}
             className="text-white hover:bg-white/20 p-4"
           >
             {isPlaying ? (
@@ -595,45 +659,46 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             <SkipForward className="h-5 w-5" />
           </RevButtons>
 
-          {/* Custom Volume Slider */}
-          <div className="relative w-20 h-2 bg-white/20 rounded-full cursor-pointer hover:bg-white/30 transition-colors">
-            {/* Volume fill */}
-            <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-150 pointer-events-none"
-              style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
-            />
-
-            {/* Volume handle - Always visible line */}
-            <div
-              className="absolute top-1/2 w-2 h-4 bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110 pointer-events-none"
-              style={{
-                left: `${(isMuted ? 0 : volume) * 100}%`,
-                transform: "translateX(-50%) translateY(-50%)",
-                zIndex: 20,
-              }}
-            />
-
-            {/* Hidden input for functionality */}
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-          </div>
-
-          {/* Settings */}
+          {/* Volume Controls */}
           <div className="flex items-center gap-2 ml-4">
+            {/* Mute Toggle Button */}
             <RevButtons
               variant="ghost"
+              onClick={toggleMute}
               className="text-white hover:bg-white/20 p-3"
             >
-              <Settings className="h-5 w-5" />
+              {isMuted ? (
+                <VolumeX className="h-5 w-5" />
+              ) : (
+                <Volume2 className="h-5 w-5" />
+              )}
             </RevButtons>
 
+            {/* Custom Volume Slider */}
+            <div
+              ref={volumeRef}
+              className={`relative ${isMobile ? "w-16 h-3" : "w-20 h-2"} bg-white/20 rounded-full cursor-pointer hover:bg-white/30 transition-colors volume-slider`}
+              onClick={handleVolumeClick}
+              onTouchStart={handleVolumeTouchStart}
+            >
+              {/* Volume fill */}
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-150 pointer-events-none"
+                style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
+              />
+
+              {/* Volume handle */}
+              <div
+                className={`absolute top-1/2 ${isMobile ? "w-3 h-5" : "w-2 h-4"} bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110 pointer-events-none`}
+                style={{
+                  left: `${(isMuted ? 0 : volume) * 100}%`,
+                  transform: "translateX(-50%) translateY(-50%)",
+                  zIndex: 20,
+                }}
+              />
+            </div>
+
+            {/* Fullscreen */}
             <RevButtons
               variant="ghost"
               onClick={toggleFullscreen}

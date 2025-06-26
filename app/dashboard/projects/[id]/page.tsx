@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { ProjectWorkspace } from "./ProjectWorkspace";
 import { Metadata } from "next";
 
-// Lightweight metadata generation - only basic project info
+// Dynamic metadata
 export async function generateMetadata({
   params,
 }: {
@@ -78,6 +78,7 @@ export async function generateMetadata({
   };
 }
 
+// Dynamic page
 export default async function ProjectWorkspacePage({
   params,
 }: {
@@ -93,14 +94,23 @@ export default async function ProjectWorkspacePage({
     redirect("/login");
   }
 
+  // Get editor profile with additional fields for authenticated user data
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
-    .select("id")
+    .select("id, full_name, display_name, email") // Add the additional fields
     .eq("user_id", user.id)
     .single();
+  
   if (profileError || !editorProfile) {
     redirect("/account");
   }
+
+  // Create authenticatedUser object matching the pattern from MediaInterface
+  const authenticatedUser = {
+    id: user.id,
+    email: editorProfile.email || user.email || "",
+    name: editorProfile.display_name || editorProfile.full_name || user.email || "",
+  };
 
   // Get project with media files and review links (full data for the component)
   const { data: project, error: projectError } = await supabase
@@ -151,7 +161,10 @@ export default async function ProjectWorkspacePage({
 
   return (
     <div>
-      <ProjectWorkspace project={project} />
+      <ProjectWorkspace 
+        project={project} 
+        authenticatedUser={authenticatedUser}
+      />
     </div>
   );
 }

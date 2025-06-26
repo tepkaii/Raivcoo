@@ -6,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 import AnimatedGridPattern from "@/components/ui/animated-grid-pattern";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { RevButtons } from "@/components/ui/RevButtons";
+import { Button } from "@/components/ui/button";
 
 export const tools = [
   {
@@ -29,7 +29,7 @@ export const tools = [
       "Save and organize After Effects shapes into collections for quick access",
     category: "shape management",
     price: "Free",
-    downloads: 6,
+    downloads: 21,
     thumbnail: "/extension/ShapeManager/Shape Manager.png",
     software: {
       icon: "/app/Adobe After Effects.png",
@@ -41,7 +41,7 @@ export const tools = [
     title: "Re-Duplicate",
     description: "Layer Duplication Tool for After Effects",
     price: "Free",
-    downloads: 0,
+    downloads: 12,
     thumbnail: "/extension/re-duplicate/re-duplicate.png",
     software: {
       icon: "/app/Adobe After Effects.png",
@@ -55,7 +55,7 @@ export const tools = [
       "Simple and efficient color labeling system with 16 preset colors and random assignment functionality",
     category: "layer management",
     price: "Free",
-    downloads: 2,
+    downloads: 7,
     thumbnail: "/extension/labelColorPicker.png",
     software: {
       icon: "/app/Adobe After Effects.png",
@@ -68,7 +68,7 @@ export const tools = [
     description: "Algin layers and anchor points position easily",
     category: "alignment",
     price: "Free",
-    downloads: 54,
+    downloads: 115,
     thumbnail: "/extension/realign/ReAlign.png",
     software: {
       icon: "/app/Adobe After Effects.png",
@@ -157,20 +157,20 @@ export default function ToolsPage() {
                       href={`/tools/after-effects/extensions/${tool.id}`}
                       className="flex-1"
                     >
-                      <RevButtons
+                      <Button
                         variant="outline"
                         className="w-full hover:scale-[1.02] transition-transform duration-200"
                       >
                         {tool.price === "Free" ? "Download Free" : "Learn More"}
                         <ArrowRight className="ml-2 h-4 w-4" />
-                      </RevButtons>
+                      </Button>
                     </Link>
-                    <RevButtons
-                      variant={tool.price === "Free" ? "success" : "default"}
+                    <Button
+                      variant={tool.price === "Free" ? "green" : "default"}
                       className="text-sm font-medium "
                     >
                       {tool.price}
-                    </RevButtons>
+                    </Button>
                   </div>
                 </div>
               </motion.div>

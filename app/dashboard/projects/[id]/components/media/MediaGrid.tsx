@@ -1,5 +1,5 @@
 // app/dashboard/projects/[id]/components/media/MediaGrid.tsx
-// @ts-nocheck
+
 "use client";
 
 import React, { useState, useCallback } from "react";
@@ -21,50 +21,11 @@ import {
   deleteVersionAction,
   addVersionToMediaAction,
 } from "../../lib/actions";
-
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-}
-
-interface ReviewLink {
-  id: string;
-  link_token: string;
-  title?: string;
-  is_active: boolean;
-  created_at: string;
-  expires_at?: string;
-  media_id: string;
-  password_hash?: string;
-  requires_password: boolean;
-}
-
-interface OrganizedMedia {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-  versions: MediaFile[];
-  currentVersion: MediaFile;
-  hasReviewLinks: boolean;
-}
+import {
+  MediaFile,
+  OrganizedMedia,
+  ReviewLink,
+} from "@/app/dashboard/lib/types";
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];
@@ -128,15 +89,18 @@ export function MediaGrid({
 
   // Calculate project size
   const projectSize = React.useMemo(() => {
-    const totalBytes = mediaFiles.reduce((sum, file) => sum + file.file_size, 0);
+    const totalBytes = mediaFiles.reduce(
+      (sum, file) => sum + file.file_size,
+      0
+    );
     const maxBytes = 2 * 1024 * 1024 * 1024; // 2GB
-    
+
     const formatBytes = (bytes: number) => {
-      if (bytes === 0) return '0 Bytes';
+      if (bytes === 0) return "0 Bytes";
       const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const sizes = ["Bytes", "KB", "MB", "GB"];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
     };
 
     return {
@@ -146,7 +110,7 @@ export function MediaGrid({
       maxFormatted: formatBytes(maxBytes),
       percentage: (totalBytes / maxBytes) * 100,
       remaining: maxBytes - totalBytes,
-      remainingFormatted: formatBytes(maxBytes - totalBytes)
+      remainingFormatted: formatBytes(maxBytes - totalBytes),
     };
   }, [mediaFiles]);
 
@@ -314,13 +278,18 @@ export function MediaGrid({
 
       // Check if upload would exceed project size limit
       if (!canUploadFiles(acceptedFiles)) {
-        const uploadSize = acceptedFiles.reduce((sum, file) => sum + file.size, 0);
+        const uploadSize = acceptedFiles.reduce(
+          (sum, file) => sum + file.size,
+          0
+        );
         const formatBytes = (bytes: number) => {
-          if (bytes === 0) return '0 Bytes';
+          if (bytes === 0) return "0 Bytes";
           const k = 1024;
-          const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+          const sizes = ["Bytes", "KB", "MB", "GB"];
           const i = Math.floor(Math.log(bytes) / Math.log(k));
-          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+          return (
+            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+          );
         };
 
         toast({
@@ -544,7 +513,7 @@ export function MediaGrid({
     if (result.success) {
       setViewLinksDialog((prev) => ({
         ...prev,
-        links: result.links,
+        links: result.links || [],
         isLoading: false,
       }));
     } else {
@@ -565,7 +534,7 @@ export function MediaGrid({
     if (result.success) {
       setManageLinksDialog((prev) => ({
         ...prev,
-        links: result.links,
+        links: result.links || [],
         isLoading: false,
       }));
     } else {
@@ -727,7 +696,9 @@ export function MediaGrid({
         {/* Project Size Indicator */}
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-xs text-muted-foreground">Project Storage</span>
+            <span className="text-xs text-muted-foreground">
+              Project Storage
+            </span>
             <span className="text-xs text-muted-foreground">
               {projectSize.currentFormatted} / {projectSize.maxFormatted}
             </span>
@@ -738,15 +709,16 @@ export function MediaGrid({
                 projectSize.percentage > 90
                   ? "bg-red-500"
                   : projectSize.percentage > 75
-                  ? "bg-yellow-500"
-                  : "bg-green-500"
+                    ? "bg-yellow-500"
+                    : "bg-green-500"
               }`}
               style={{ width: `${Math.min(projectSize.percentage, 100)}%` }}
             />
           </div>
           {projectSize.percentage > 90 && (
             <p className="text-xs text-red-400 mt-1">
-              Warning: Project is almost full ({projectSize.remainingFormatted} remaining)
+              Warning: Project is almost full ({projectSize.remainingFormatted}{" "}
+              remaining)
             </p>
           )}
         </div>
@@ -760,8 +732,8 @@ export function MediaGrid({
               isDragActive
                 ? "border-primary bg-primary/10"
                 : projectSize.percentage >= 100
-                ? "border-red-500/50 bg-red-500/10"
-                : "hover:border-white/30"
+                  ? "border-red-500/50 bg-red-500/10"
+                  : "hover:border-white/30"
             }
             ${isUploading || projectSize.percentage >= 100 ? "pointer-events-none opacity-50" : ""}
           `}
@@ -859,13 +831,20 @@ export function MediaGrid({
                   if (files.length > 0) {
                     // Check size limit before dropping files
                     if (!canUploadFiles(files)) {
-                      const uploadSize = files.reduce((sum, file) => sum + file.size, 0);
+                      const uploadSize = files.reduce(
+                        (sum, file) => sum + file.size,
+                        0
+                      );
                       const formatBytes = (bytes: number) => {
-                        if (bytes === 0) return '0 Bytes';
+                        if (bytes === 0) return "0 Bytes";
                         const k = 1024;
-                        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                        const sizes = ["Bytes", "KB", "MB", "GB"];
                         const i = Math.floor(Math.log(bytes) / Math.log(k));
-                        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                        return (
+                          parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +
+                          " " +
+                          sizes[i]
+                        );
                       };
                       toast({
                         title: "Upload Too Large",

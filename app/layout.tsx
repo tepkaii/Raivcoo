@@ -6,7 +6,7 @@ import Footer from "./components/Footer";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import HideOnPaths from "./HideOnPaths";
+import HideOnPaths from "./components/HideOnPaths";
 import { Inter } from "next/font/google";
 export const metadata: Metadata = {
   title: {

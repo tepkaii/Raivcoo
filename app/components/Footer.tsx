@@ -103,7 +103,7 @@ function Footer() {
               variants={itemVariants}
               className="col-span-1"
             >
-              <h3 className="text-lg font-semibold mb-4 text-purple-500">
+              <h3 className="text-lg font-semibold mb-4 text-blue-500">
                 {section.title}
               </h3>
               <ul className="space-y-2">
@@ -134,7 +134,7 @@ function Footer() {
         <motion.div variants={itemVariants} className="mt-12 pt-8 border-t ">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              <span className="text-purple-500">© </span>{" "}
+              <span className="text-blue-500">© </span>{" "}
               {new Date().getFullYear()} Raivcoo. All rights reserved.
             </p>
           </div>

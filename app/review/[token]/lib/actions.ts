@@ -1,3 +1,4 @@
+// app/review/[token]/lib/actions.ts
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -457,11 +458,32 @@ export async function deleteCommentAction(
     } = await supabase.auth.getUser();
 
     if (user) {
-      // Authenticated user - use existing logic (editors can delete comments on their media)
+      // Authenticated user - check if they own the comment
+      const { data: comment, error: fetchError } = await supabase
+        .from("media_comments")
+        .select("id, user_id")
+        .eq("id", commentId)
+        .single();
+
+      if (fetchError) {
+        console.error("Error fetching comment:", fetchError);
+        return { success: false, error: "Comment not found" };
+      }
+
+      // Check if the user owns this comment
+      if (comment.user_id !== user.id) {
+        return {
+          success: false,
+          error: "You can only delete your own comments",
+        };
+      }
+
+      // Delete the comment
       const { error } = await supabase
         .from("media_comments")
         .delete()
-        .eq("id", commentId);
+        .eq("id", commentId)
+        .eq("user_id", user.id); // Double-check user ownership
 
       if (error) {
         console.error("Database error:", error);
@@ -526,19 +548,26 @@ export async function createCommentAction(data: {
   mediaId: string;
   userName: string;
   userEmail?: string;
+  userId?: string; // Add this new field
   content: string;
   timestampSeconds?: number;
   ipAddress?: string;
   userAgent?: string;
   annotationData?: any;
   drawingData?: any;
-  sessionId?: string; // Add this
+  sessionId?: string;
 }) {
   try {
     const supabase = await createClient();
 
+    // Get current user if authenticated
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     const insertData = {
       media_id: data.mediaId,
+      user_id: data.userId || user?.id || null, // Use provided userId or authenticated user's ID
       user_name: data.userName,
       user_email: data.userEmail,
       content: data.content,
@@ -547,7 +576,7 @@ export async function createCommentAction(data: {
       user_agent: data.userAgent,
       annotation_data: data.annotationData || null,
       drawing_data: data.drawingData || null,
-      session_id: data.sessionId, // Add this
+      session_id: data.sessionId,
       is_approved: true,
       is_pinned: false,
     };

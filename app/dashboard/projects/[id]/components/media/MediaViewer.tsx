@@ -13,20 +13,8 @@ import { MediaDisplay } from "@/app/review/[token]/review_components/MediaDispla
 import { PlayerControls } from "@/app/review/[token]/review_components/PlayerControls";
 import { VersionSelector } from "@/app/review/[token]/review_components/VersionSelector";
 import { getCommentsAction } from "@/app/review/[token]/lib/actions";
+import { MediaFile } from "@/app/dashboard/lib/types";
 
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-}
 
 interface MediaComment {
   id: string;

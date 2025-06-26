@@ -2,11 +2,12 @@
 // @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
-import { FrameIOInterface } from "./FrameIOInterface";
+
 import { PasswordProtectedReview } from "./review_components/PasswordProtectedReview";
 import { Metadata } from "next";
+import { MediaInterface } from "./MediaInterface";
 
-// Dynamic metadata with media info but no sensitive details
+// Dynamic metadata - keep existing code...
 export async function generateMetadata({
   params,
 }: {
@@ -60,10 +61,10 @@ export async function generateMetadata({
     openGraph: {
       title: title,
       description: description,
-      type: 'website',
+      type: "website",
     },
     twitter: {
-      card: 'summary',
+      card: "summary",
       title: title,
       description: description,
     },
@@ -74,7 +75,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function ReviewPage({
+// Review page
+export default async function Page({
   params,
   searchParams,
 }: {
@@ -84,6 +86,23 @@ export default async function ReviewPage({
   const supabase = await createClient();
   const { token } = await params;
   const search = await searchParams;
+
+  // Get current user if authenticated
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Get user profile data if user is authenticated
+  let userProfile = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("editor_profiles")
+      .select("full_name, display_name, email")
+      .eq("user_id", user.id)
+      .single();
+
+    userProfile = profile;
+  }
 
   // Get review link with associated media and all its versions
   const { data: reviewLink, error: linkError } = await supabase
@@ -187,11 +206,24 @@ export default async function ReviewPage({
   }
 
   return (
-    <FrameIOInterface
+    <MediaInterface
       media={reviewLink.media}
       allVersions={allVersions}
       reviewTitle={reviewLink.title}
       projectName={reviewLink.project?.name}
+      authenticatedUser={
+        user && userProfile
+          ? {
+              id: user.id,
+              email: userProfile.email || user.email || "",
+              name:
+                userProfile.display_name ||
+                userProfile.full_name ||
+                user.email ||
+                "",
+            }
+          : null
+      }
     />
   );
 }

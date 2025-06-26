@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import React, { useState } from "react";
 import Image from "next/image";
-import { RevButtons } from "@/components/ui/RevButtons";
-import BG from "../../public/LLL.png";
+
+import BG from "../../public/BackgroundImage.png";
+import { Button } from "@/components/ui/button";
 export default function LoginForm() {
   // Separate loading states for each method
   const [isEmailLoading, startEmailTransition] = useTransition();
@@ -164,13 +165,13 @@ export default function LoginForm() {
               <div className="flex items-center justify-between">
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-purple-600 hover:underline dark:text-purple-500"
+                  className="text-sm text-blue-600 hover:underline dark:text-blue-500"
                 >
                   Forgot password?
                 </Link>
               </div>
 
-              <RevButtons
+              <Button
                 className="w-full"
                 type="submit"
                 variant={isEmailLoading ? "outline" : "default"}
@@ -181,7 +182,7 @@ export default function LoginForm() {
                 ) : (
                   "Sign In"
                 )}
-              </RevButtons>
+              </Button>
             </form>
 
             <div className="relative my-6">
@@ -196,7 +197,7 @@ export default function LoginForm() {
             </div>
 
             <div className="space-y-3">
-              <RevButtons
+              <Button
                 className="w-full"
                 onClick={() => handleSocialAuth("google")}
                 variant="outline"
@@ -222,9 +223,9 @@ export default function LoginForm() {
                   </svg>
                 )}
                 Continue with Google
-              </RevButtons>
+              </Button>
 
-              <RevButtons
+              <Button
                 className="w-full"
                 onClick={() => handleSocialAuth("discord")}
                 variant="outline"
@@ -242,14 +243,14 @@ export default function LoginForm() {
                   </svg>
                 )}
                 Continue with Discord
-              </RevButtons>
+              </Button>
             </div>
 
             <p className="text-center text-sm text-muted-foreground mt-6">
               Don't have an account?{" "}
               <Link
                 href="/signup"
-                className="font-medium text-purple-600 hover:underline dark:text-purple-500"
+                className="font-medium text-blue-600 hover:underline dark:text-blue-500"
               >
                 Sign up
               </Link>
@@ -258,7 +259,7 @@ export default function LoginForm() {
         </div>
 
         {/* Right Column - Visual Element */}
-        <div className="hidden lg:flex w-1/2 bg-[#8B5CF6] items-center justify-center relative overflow-hidden">
+        <div className="hidden lg:flex w-1/2 bg-[#0070F3] items-center justify-center relative overflow-hidden">
           {/* Background Image that fills the entire column */}
           <Image
             src={BG}

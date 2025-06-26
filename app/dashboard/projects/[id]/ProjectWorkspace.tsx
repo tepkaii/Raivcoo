@@ -1,3 +1,4 @@
+// app/dashboard/projects/[id]/ProjectWorkspace.tsx
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
@@ -19,33 +20,8 @@ import {
   MediaCardsPanel,
   MediaPlayerPanel,
 } from "@/app/components/icons";
-
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-}
-
-interface ReviewLink {
-  id: string;
-  link_token: string;
-  title?: string;
-  is_active: boolean;
-  created_at: string;
-  expires_at?: string;
-  media_id: string;
-  password_hash?: string;
-  requires_password: boolean;
-}
+import { MediaFile, ReviewLink } from "../../lib/types";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 interface Project {
   id: string;
@@ -57,9 +33,17 @@ interface Project {
 
 interface ProjectWorkspaceProps {
   project: Project;
+  authenticatedUser?: {
+    id: string;
+    email: string;
+    name: string;
+  } | null;
 }
 
-export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({
+  project,
+  authenticatedUser,
+}: ProjectWorkspaceProps) {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>(
     project.project_media || []
   );
@@ -324,17 +308,25 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
-        <div className="flex-1">
-          <h1 className="flex gap-1 items-center text-white">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <span className="hidden sm:inline">{project.name}-Project</span>
-            <span className="sm:hidden truncate">{project.name}</span>
-          </h1>
+      <header className="bg-background border-b h-[50px] flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center  h-full">
+          <div className="flex gap-1 h-full items-center  text-white">
+            <div className="flex items-center mr-1 ml-1 h-full">
+              <Link href="/dashboard" className="p-2">
+                <ArrowLeft className="size-4" />
+              </Link>{" "}
+            </div>
+          </div>
+          <div className="flex items-center justify-center  border-l border-r h-full mr-3">
+            <div className="flex items-center mr-2 ml-2 h-full">
+              <SidebarTrigger />
+            </div>
+          </div>
+          <div className="border-r  flex items-center h-full">
+            <div className=" mr-3">
+              <span>{project.name}-Project</span>
+            </div>
+          </div>
         </div>
 
         {/* Panel Toggle Buttons - Only show on desktop (md and up) */}
@@ -491,11 +483,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             className="bg-black flex flex-col min-w-0 flex-shrink-0"
             style={{ width: `${widths.player}%` }}
           >
-            {playerLocked && (
-              <div className="bg-orange-600 text-white text-xs px-2 py-1 text-center">
-                🔒 Locked - Enable Media Library to toggle
-              </div>
-            )}
             {selectedMedia ? (
               <MediaViewer
                 ref={mediaViewerRef}
@@ -547,12 +534,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             className="border-l flex flex-col flex-shrink-0 min-w-0"
             style={{ width: `${widths.comments}%` }}
           >
-            {commentsLocked && (
-              <div className="bg-orange-600 text-white text-xs px-2 py-1 text-center">
-                🔒 Locked - Enable Media Library to toggle
-              </div>
-            )}
-
             <div className="flex-1 min-h-0 overflow-hidden">
               {selectedMedia ? (
                 <ReviewComments
@@ -587,6 +568,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                       mediaViewerRef.current.loadComments();
                     }
                   }}
+                  authenticatedUser={authenticatedUser} // Add this line
                 />
               ) : (
                 <div className="flex-1 flex items-center justify-center p-8">

@@ -8,21 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Eye, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
-
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-}
+import { MediaFile } from "@/app/dashboard/lib/types";
 
 interface VersionDragListProps {
   versions: MediaFile[];

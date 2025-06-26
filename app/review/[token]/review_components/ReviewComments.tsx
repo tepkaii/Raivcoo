@@ -1,6 +1,4 @@
-
-// @ts-nocheck
-// @ts-ignore
+// app/review/[token]/review_components/ReviewComments.tsx
 
 "use client";
 
@@ -27,6 +25,7 @@ interface MediaComment {
   id: string;
   media_id: string;
   parent_comment_id?: string;
+  user_id?: string;
   user_name: string;
   user_email?: string;
   content: string;
@@ -37,6 +36,7 @@ interface MediaComment {
   is_pinned: boolean;
   created_at: string;
   updated_at: string;
+  session_id?: string;
   annotation_data?: {
     id: string;
     x: number;
@@ -45,6 +45,7 @@ interface MediaComment {
     mediaHeight: number;
     createdAtScale: number;
     timestamp?: number;
+    color?: string;
   };
   drawing_data?: {
     id: string;
@@ -76,7 +77,12 @@ interface ReviewCommentsProps {
   onCommentPinClick?: (comment: MediaComment) => void;
   onCommentDrawingClick?: (comment: MediaComment) => void;
   onCommentDeleted?: (commentId: string) => void;
-  onCommentAdded?: (comment: MediaComment) => void; // ← ADD THIS
+  onCommentAdded?: (comment: MediaComment) => void;
+  authenticatedUser?: {
+    id: string;
+    email: string;
+    name?: string;
+  } | null;
 }
 
 export const ReviewComments: React.FC<ReviewCommentsProps> = ({
@@ -90,7 +96,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   onCommentPinClick,
   onCommentDrawingClick,
   onCommentDeleted,
-  onCommentAdded, // ← ADD THIS
+  onCommentAdded,
+  authenticatedUser,
 }) => {
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -100,6 +107,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showUserForm, setShowUserForm] = useState(true);
   const [isAddingAnnotation, setIsAddingAnnotation] = useState(false);
+
   const getSessionId = () => {
     if (typeof window === "undefined") return null;
 
@@ -110,38 +118,41 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     }
     return sessionId;
   };
+
   // Load comments for this media
   useEffect(() => {
     loadComments();
   }, [mediaId]);
 
-  // Load user info from localStorage if available
+  // Initialize user data based on authentication status
   useEffect(() => {
-    const savedName = localStorage.getItem("reviewUserName");
-    const savedEmail = localStorage.getItem("reviewUserEmail");
-    if (savedName) {
-      setUserName(savedName);
+    if (authenticatedUser) {
+      // User is logged in, use their data
+      setUserName(authenticatedUser.name || authenticatedUser.email);
+      setUserEmail(authenticatedUser.email);
       setShowUserForm(false);
+    } else {
+      // User is not logged in, check localStorage
+      const savedName = localStorage.getItem("reviewUserName");
+      const savedEmail = localStorage.getItem("reviewUserEmail");
+      if (savedName) {
+        setUserName(savedName);
+        setShowUserForm(false);
+      }
+      if (savedEmail) {
+        setUserEmail(savedEmail);
+      }
     }
-    if (savedEmail) {
-      setUserEmail(savedEmail);
-    }
-  }, []);
+  }, [authenticatedUser]);
 
   // Handle pending annotation (pin or drawing)
   useEffect(() => {
     if (pendingAnnotation) {
       setIsAddingAnnotation(true);
       if (pendingAnnotation.type === "pin") {
-        setNewComment(
-          // `Pin at ${Math.round(pendingAnnotation.data.x)}%, ${Math.round(pendingAnnotation.data.y)}%`
-          ""
-        );
+        setNewComment("");
       } else if (pendingAnnotation.type === "drawing") {
-        setNewComment(
-          // `Drawing with ${pendingAnnotation.data.strokes.length} stroke${pendingAnnotation.data.strokes.length !== 1 ? "s" : ""}`
-          ""
-        );
+        setNewComment("");
       }
     }
   }, [pendingAnnotation]);
@@ -165,8 +176,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   const addComment = async () => {
     if (!newComment.trim() || isSubmitting) return;
 
-    // Check if we need user info
-    if (!userName.trim()) {
+    // For authenticated users, skip user info validation
+    if (!authenticatedUser && !userName.trim()) {
       setShowUserForm(true);
       return;
     }
@@ -174,10 +185,12 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     try {
       setIsSubmitting(true);
 
-      // Save user info to localStorage
-      localStorage.setItem("reviewUserName", userName);
-      if (userEmail) {
-        localStorage.setItem("reviewUserEmail", userEmail);
+      // Only save to localStorage if user is not authenticated
+      if (!authenticatedUser) {
+        localStorage.setItem("reviewUserName", userName);
+        if (userEmail) {
+          localStorage.setItem("reviewUserEmail", userEmail);
+        }
       }
 
       // Get session ID
@@ -197,6 +210,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             mediaHeight: pendingAnnotation.data.mediaHeight,
             createdAtScale: pendingAnnotation.data.createdAtScale,
             timestamp: pendingAnnotation.data.timestamp,
+            color: pendingAnnotation.data.color || "#ff0000",
           };
         } else if (pendingAnnotation.type === "drawing") {
           drawingData = {
@@ -212,15 +226,20 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
       const result = await createCommentAction({
         mediaId,
-        userName: userName.trim(),
-        userEmail: userEmail.trim() || undefined,
+        userName: authenticatedUser
+          ? authenticatedUser.name || authenticatedUser.email
+          : userName.trim(),
+        userEmail: authenticatedUser
+          ? authenticatedUser.email
+          : userEmail.trim() || undefined,
+        userId: authenticatedUser?.id,
         content: newComment.trim(),
         timestampSeconds: mediaType === "video" ? currentTime : undefined,
         ipAddress: undefined,
         userAgent: navigator.userAgent,
         annotationData,
         drawingData,
-        sessionId, // ← ADD THIS LINE
+        sessionId,
       });
 
       if (result.success && result.comment) {
@@ -266,6 +285,18 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     }
   };
 
+  // Check if current user can delete a comment
+  const canDeleteComment = (comment: MediaComment) => {
+    if (authenticatedUser) {
+      // Authenticated user can delete their own comments
+      return comment.user_id === authenticatedUser.id;
+    } else {
+      // Anonymous user can delete comments from their session
+      const sessionId = localStorage.getItem("reviewSessionId");
+      return sessionId && comment.session_id === sessionId;
+    }
+  };
+
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
     const minutes = Math.floor(time / 60);
@@ -303,16 +334,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      {/* Comments Header */}
-      {/* <div className="px-4 py-3 border-b ">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-white flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Comments ({comments.length})
-          </h3>
-        </div>
-      </div> */}
-
       {/* Comments List */}
       <div className="flex-1 overflow-y-auto">
         {comments.length === 0 ? (
@@ -333,9 +354,10 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 onSeekToTimestamp={onSeekToTimestamp}
                 onDelete={deleteComment}
                 onPinClick={onCommentPinClick}
-                onDrawingClick={onCommentDrawingClick} // Make sure this is passed
+                onDrawingClick={onCommentDrawingClick}
                 formatTime={formatTime}
                 formatDate={formatDate}
+                canDelete={canDeleteComment(comment)}
               />
             ))}
           </div>
@@ -384,48 +406,11 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   Cancel
                 </button>
               </div>
-              {/* {pendingAnnotation && (
-                <div
-                  className={`text-xs mt-1 ${
-                    pendingAnnotation?.type === "pin"
-                      ? "text-purple-200"
-                      : "text-green-200"
-                  }`}
-                >
-                  {pendingAnnotation.type === "pin" ? (
-                    <>
-                      Position: {Math.round(pendingAnnotation.data.x)}%,{" "}
-                      {Math.round(pendingAnnotation.data.y)}%
-                      {mediaType === "video" &&
-                        pendingAnnotation.data.timestamp !== undefined && (
-                          <span>
-                            {" "}
-                            • Time:{" "}
-                            {formatTime(pendingAnnotation.data.timestamp)}
-                          </span>
-                        )}
-                    </>
-                  ) : (
-                    <>
-                      {pendingAnnotation.data.strokes.length} stroke
-                      {pendingAnnotation.data.strokes.length !== 1 ? "s" : ""}
-                      {mediaType === "video" &&
-                        pendingAnnotation.data.timestamp !== undefined && (
-                          <span>
-                            {" "}
-                            • Time:{" "}
-                            {formatTime(pendingAnnotation.data.timestamp)}
-                          </span>
-                        )}
-                    </>
-                  )}
-                </div>
-              )} */}
             </div>
           )}
 
-          {/* User Info Form */}
-          {showUserForm && (
+          {/* User Info Form - only show for non-authenticated users */}
+          {!authenticatedUser && showUserForm && (
             <div className="space-y-2 p-3 bg-primary-foreground rounded-lg border ">
               <div className="text-xs  mb-2">
                 Enter your details to comment:
@@ -448,6 +433,13 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             </div>
           )}
 
+          {/* Show authenticated user info */}
+          {authenticatedUser && (
+            <div className="text-xs text-muted-foreground">
+              Commenting as: {authenticatedUser.name || authenticatedUser.email}
+            </div>
+          )}
+
           {/* Comment Text Area */}
           <Textarea
             value={newComment}
@@ -458,7 +450,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 : "Add a comment..."
             }
             className="bg-primary-foreground"
-            rows={3}
+            rows={1}
             disabled={isSubmitting}
           />
 
@@ -471,7 +463,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 </span>
               )}
 
-              {!showUserForm && userName && (
+              {/* Only show change name option for non-authenticated users */}
+              {!authenticatedUser && !showUserForm && userName && (
                 <button
                   onClick={() => setShowUserForm(true)}
                   className="text-xs text-blue-400 hover:text-blue-300"
@@ -496,7 +489,9 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
               <RevButtons
                 onClick={addComment}
                 disabled={
-                  !newComment.trim() || isSubmitting || !userName.trim()
+                  !newComment.trim() ||
+                  isSubmitting ||
+                  (!authenticatedUser && !userName.trim())
                 }
                 size="sm"
                 className={`${
@@ -547,6 +542,7 @@ const CommentItem: React.FC<{
   onDrawingClick?: (comment: MediaComment) => void;
   formatTime: (time: number) => string;
   formatDate: (date: string) => string;
+  canDelete: boolean;
 }> = ({
   comment,
   mediaType,
@@ -556,9 +552,9 @@ const CommentItem: React.FC<{
   onDrawingClick,
   formatTime,
   formatDate,
+  canDelete,
 }) => {
   const [showActions, setShowActions] = useState(false);
-  const [liked, setLiked] = useState(false);
 
   // Get user initials for avatar
   const getInitials = (name: string) => {
@@ -568,16 +564,6 @@ const CommentItem: React.FC<{
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  // Check if current user can delete
-  const canDelete = () => {
-    const savedName = localStorage.getItem("reviewUserName");
-    const sessionId = localStorage.getItem("reviewSessionId");
-    return (
-      savedName === comment.user_name ||
-      (sessionId && comment.session_id === sessionId)
-    );
   };
 
   // Handle pin click
@@ -591,7 +577,6 @@ const CommentItem: React.FC<{
   };
 
   // Handle drawing click
-
   const handleDrawingClick = () => {
     if (comment.drawing_data && onDrawingClick) {
       if (comment.timestamp_seconds !== undefined && onSeekToTimestamp) {
@@ -613,13 +598,7 @@ const CommentItem: React.FC<{
 
   return (
     <div
-      className={`border bg-primary-foreground rounded-lg p-3  transition-colors ${
-        hasPin
-          ? "border-l-4 border-purple-500"
-          : hasDrawing
-            ? "border-l-4 border-green-500"
-            : ""
-      }`}
+      className={`border bg-primary-foreground rounded-lg p-3  transition-colors `}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -653,16 +632,6 @@ const CommentItem: React.FC<{
               title="Pinned comment"
             />
           )}
-          {/* {hasPin && (
-            <span className="text-xs bg-purple-600/30 text-purple-300 px-2 py-0.5 rounded">
-              Pin
-            </span>
-          )}
-          {hasDrawing && (
-            <span className="text-xs bg-green-600/30 text-green-300 px-2 py-0.5 rounded">
-              Drawing
-            </span>
-          )} */}
         </div>
 
         <div className="flex items-center gap-2">
@@ -706,24 +675,7 @@ const CommentItem: React.FC<{
           {/* Actions Menu */}
           {showActions && (
             <div className="flex items-center gap-1">
-              {/* <RevButtons
-                variant="ghost"
-                size="sm"
-                onClick={() => setLiked(!liked)}
-                className="text-gray-400 hover:text-red-400 p-1"
-              >
-                <Heart
-                  className={`h-3 w-3 ${liked ? "fill-red-400 text-red-400" : ""}`}
-                />
-              </RevButtons>
-              <RevButtons
-                variant="ghost"
-                size="sm"
-                className="text-gray-400 hover:text-gray-300 p-1"
-              >
-                <Reply className="h-3 w-3" />
-              </RevButtons> */}
-              {canDelete() && (
+              {canDelete && (
                 <RevButtons
                   variant="ghost"
                   size="sm"
@@ -740,29 +692,6 @@ const CommentItem: React.FC<{
 
       {/* Comment Content */}
       <p className="text-sm leading-relaxed mb-2">{comment.content}</p>
-
-      {/* Pin Details */}
-      {/* {hasPin && comment.annotation_data && (
-        <div className="text-xs text-purple-300 bg-purple-600/10 rounded px-2 py-1 mb-2">
-          Pin at {Math.round(comment.annotation_data.x)}%,{" "}
-          {Math.round(comment.annotation_data.y)}%
-          {comment.annotation_data.timestamp !== undefined && (
-            <span> • {formatTime(comment.annotation_data.timestamp)}</span>
-          )}
-        </div>
-      )} */}
-
-      {/* Drawing Details */}
-      {/* {hasDrawing && comment.drawing_data && (
-        <div className="text-xs text-green-300 bg-green-600/10 rounded px-2 py-1 mb-2">
-          Drawing with {comment.drawing_data.strokes.length} stroke
-          {comment.drawing_data.strokes.length !== 1 ? "s" : ""}
-          {comment.drawing_data.timestamp !== undefined && (
-            <span> • {formatTime(comment.drawing_data.timestamp)}</span>
-          )}
-        </div>
-      )} */}
-
       {/* Comment Meta */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{formatDate(comment.created_at)}</span>

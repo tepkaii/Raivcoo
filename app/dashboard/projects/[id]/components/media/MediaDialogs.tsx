@@ -1,4 +1,4 @@
-// @ts-nocheck
+// app/dashboard/projects/[id]/components/media/MediaDialogs.tsx
 "use client";
 
 import React from "react";
@@ -7,21 +7,7 @@ import { ViewReviewLinksDialog } from "../reviews_dialogs/ViewReviewLinksDialog"
 import { ManageReviewLinksDialog } from "../reviews_dialogs/ManageReviewLinksDialog";
 import { VersionManagerDialog } from "../reviews_dialogs/VersionManagerDialog";
 import { DeleteMediaDialog } from "../reviews_dialogs/DeleteMediaDialog";
-
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-}
+import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
 
 interface ReviewLink {
   id: string;
@@ -33,23 +19,6 @@ interface ReviewLink {
   media_id: string;
   password_hash?: string;
   requires_password: boolean;
-}
-
-interface OrganizedMedia {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-  versions: MediaFile[];
-  currentVersion: MediaFile;
-  hasReviewLinks: boolean;
 }
 
 interface MediaDialogsProps {

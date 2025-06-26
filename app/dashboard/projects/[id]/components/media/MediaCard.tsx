@@ -1,5 +1,4 @@
-// @ts-nocheck
-
+// app/dashboard/projects/[id]/components/media/MediaCard.tsx
 "use client";
 
 import { Card } from "@/components/ui/card";
@@ -23,38 +22,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-}
-
-interface OrganizedMedia {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-  versions: MediaFile[];
-  currentVersion: MediaFile;
-  hasReviewLinks: boolean;
-}
+import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
 
 interface MediaCardProps {
   media: OrganizedMedia;

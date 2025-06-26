@@ -59,11 +59,7 @@ export default async function DashboardLayout({
   const hasPasswordAuth =
     existingPortfolio?.has_password || hasPasswordAuthFromIdentities;
 
-  const webVersion =
-    versionData?.find((v) => v.platform === "web")?.version || "1.0.0";
-
-  const extensionVersion =
-    versionData?.find((v) => v.platform === "extension")?.version || "1.0.0";
+  
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -71,8 +67,6 @@ export default async function DashboardLayout({
         <AppSidebar
           portfolio={existingPortfolio}
           hasPasswordAuth={hasPasswordAuth}
-          webVersion={webVersion}
-          extensionVersion={extensionVersion}
         />
         <main className="w-full">
           {/* <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">

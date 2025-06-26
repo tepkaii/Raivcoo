@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, HelpCircle } from "lucide-react";
 import { signUp } from "../auth/actions/auth";
-import { RevButtons } from "@/components/ui/RevButtons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import BG from "../../public/LLL.png";
+import BG from "../../public/BackgroundImage.png";
+import { Button } from "@/components/ui/button";
 export default function SignUpForm() {
   const [isFormSubmitting, startFormTransition] = useTransition();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
@@ -215,7 +215,7 @@ export default function SignUpForm() {
                 />
               </div>
 
-              <RevButtons
+              <Button
                 className="w-full"
                 type="submit"
                 variant={isFormSubmitting ? "outline" : "default"}
@@ -226,7 +226,7 @@ export default function SignUpForm() {
                 ) : (
                   "Create Account"
                 )}
-              </RevButtons>
+              </Button>
             </form>
 
             <div className="relative my-6">
@@ -241,7 +241,7 @@ export default function SignUpForm() {
             </div>
 
             <div className="space-y-3">
-              <RevButtons
+              <Button
                 className="w-full"
                 onClick={() => handleSocialSignUp("google")}
                 variant="outline"
@@ -267,9 +267,9 @@ export default function SignUpForm() {
                   </svg>
                 )}
                 Sign up with Google
-              </RevButtons>
+              </Button>
 
-              <RevButtons
+              <Button
                 className="w-full"
                 onClick={() => handleSocialSignUp("discord")}
                 variant="outline"
@@ -287,7 +287,7 @@ export default function SignUpForm() {
                   </svg>
                 )}
                 Sign up with Discord
-              </RevButtons>
+              </Button>
             </div>
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
@@ -295,14 +295,14 @@ export default function SignUpForm() {
                 By signing up, you agree to our{" "}
                 <Link
                   href="/legal/TermsOfService"
-                  className="font-medium text-purple-600 hover:underline dark:text-purple-500"
+                  className="font-medium text-blue-600 hover:underline dark:text-blue-500"
                 >
                   Terms of Service
                 </Link>{" "}
                 and{" "}
                 <Link
                   href="/legal/PrivacyPolicy"
-                  className="font-medium text-purple-600 hover:underline dark:text-purple-500"
+                  className="font-medium text-blue-600 hover:underline dark:text-blue-500"
                 >
                   Privacy Policy
                 </Link>
@@ -311,7 +311,7 @@ export default function SignUpForm() {
                 Already have an account?{" "}
                 <Link
                   href="/login"
-                  className="font-medium text-purple-600 hover:underline dark:text-purple-500"
+                  className="font-medium text-blue-600 hover:underline dark:text-blue-500"
                 >
                   Log in
                 </Link>
@@ -322,7 +322,7 @@ export default function SignUpForm() {
 
         {/* Right Column - Visual Element */}
 
-        <div className="hidden  lg:flex w-1/2 bg-[#8B5CF6] items-center justify-center relative overflow-hidden">
+        <div className="hidden  lg:flex w-1/2 bg-[#0070F3] items-center justify-center relative overflow-hidden">
           <Image
             src={BG}
             placeholder="blur"

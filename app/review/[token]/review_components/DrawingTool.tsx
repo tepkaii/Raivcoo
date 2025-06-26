@@ -1,14 +1,24 @@
+// app/review/[token]/review_components/DrawingTool.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, X, Undo } from "lucide-react";
+import {
+  Pencil,
+  X,
+  Undo,
+  Circle,
+  Square,
+  ArrowRight,
+  Minus,
+} from "lucide-react";
 
 interface DrawingStroke {
   id: string;
-  points: { x: number; y: number }[]; // Percentage coordinates relative to media
+  points: { x: number; y: number }[];
   color: string;
   thickness: number;
+  shape?: "freehand" | "line" | "circle" | "square" | "arrow";
   timestamp?: number;
   mediaWidth: number;
   mediaHeight: number;
@@ -59,17 +69,21 @@ export const DrawTool: React.FC<DrawToolProps> = ({
   );
   const [selectedColor, setSelectedColor] = useState("#ff0000");
   const [selectedThickness, setSelectedThickness] = useState(3);
+  const [selectedShape, setSelectedShape] = useState<
+    "freehand" | "line" | "circle" | "square" | "arrow"
+  >("freehand");
+  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
+    null
+  );
 
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Update existing drawings when prop changes
   useEffect(() => {
     setDrawings(existingDrawings);
   }, [existingDrawings]);
 
   if (!displaySize || !displayPosition || !mediaDimensions) return null;
 
-  // Calculate current scale percentage
   const getCurrentScale = () => {
     if (!mediaDimensions || !displaySize) return 100;
     const scaleX = displaySize.width / mediaDimensions.width;
@@ -78,7 +92,6 @@ export const DrawTool: React.FC<DrawToolProps> = ({
     return Math.round(scale * 100);
   };
 
-  // Calculate drawing scale factor
   const getDrawingScaleFactor = (drawing: DrawingAnnotation) => {
     const currentScale = getCurrentScale();
     if (currentScale < drawing.createdAtScale) {
@@ -87,7 +100,6 @@ export const DrawTool: React.FC<DrawToolProps> = ({
     return 1;
   };
 
-  // Convert screen coordinates to percentage coordinates
   const screenToPercentage = (screenX: number, screenY: number) => {
     return {
       x: (screenX / displaySize!.width) * 100,
@@ -95,7 +107,6 @@ export const DrawTool: React.FC<DrawToolProps> = ({
     };
   };
 
-  // Convert percentage coordinates to screen coordinates
   const percentageToScreen = (percentX: number, percentY: number) => {
     return {
       x: (percentX / 100) * displaySize!.width,
@@ -103,7 +114,67 @@ export const DrawTool: React.FC<DrawToolProps> = ({
     };
   };
 
-  // Handle mouse down - start drawing
+  const createShape = (
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+    shape: string
+  ) => {
+    const startScreen = percentageToScreen(start.x, start.y);
+    const endScreen = percentageToScreen(end.x, end.y);
+
+    switch (shape) {
+      case "line":
+        return `M ${startScreen.x} ${startScreen.y} L ${endScreen.x} ${endScreen.y}`;
+
+      case "circle":
+        // Calculate width and height like the square (can be different dimensions)
+        const width = endScreen.x - startScreen.x;
+        const height = endScreen.y - startScreen.y;
+
+        // Center point of the ellipse
+        const centerX = startScreen.x + width / 2;
+        const centerY = startScreen.y + height / 2;
+
+        // Radius for width and height (creates ellipse when different)
+        const radiusX = Math.abs(width) / 2;
+        const radiusY = Math.abs(height) / 2;
+
+        // Draw ellipse using the bounding box dimensions
+        return `M ${centerX - radiusX} ${centerY} A ${radiusX} ${radiusY} 0 1 1 ${centerX + radiusX} ${centerY} A ${radiusX} ${radiusY} 0 1 1 ${centerX - radiusX} ${centerY}`;
+
+      case "square":
+        const squareWidth = endScreen.x - startScreen.x;
+        const squareHeight = endScreen.y - startScreen.y;
+        return `M ${startScreen.x} ${startScreen.y} L ${startScreen.x + squareWidth} ${startScreen.y} L ${startScreen.x + squareWidth} ${startScreen.y + squareHeight} L ${startScreen.x} ${startScreen.y + squareHeight} Z`;
+
+      case "arrow":
+        const arrowLength = Math.sqrt(
+          Math.pow(endScreen.x - startScreen.x, 2) +
+            Math.pow(endScreen.y - startScreen.y, 2)
+        );
+        const angle = Math.atan2(
+          endScreen.y - startScreen.y,
+          endScreen.x - startScreen.x
+        );
+        const arrowHeadLength = Math.min(arrowLength * 0.3, 20);
+        const arrowHeadAngle = Math.PI / 6;
+
+        const arrowHead1X =
+          endScreen.x - arrowHeadLength * Math.cos(angle - arrowHeadAngle);
+        const arrowHead1Y =
+          endScreen.y - arrowHeadLength * Math.sin(angle - arrowHeadAngle);
+        const arrowHead2X =
+          endScreen.x - arrowHeadLength * Math.cos(angle + arrowHeadAngle);
+        const arrowHead2Y =
+          endScreen.y - arrowHeadLength * Math.sin(angle + arrowHeadAngle);
+
+        return `M ${startScreen.x} ${startScreen.y} L ${endScreen.x} ${endScreen.y} M ${endScreen.x} ${endScreen.y} L ${arrowHead1X} ${arrowHead1Y} M ${endScreen.x} ${endScreen.y} L ${arrowHead2X} ${arrowHead2Y}`;
+
+      default:
+        return `M ${startScreen.x} ${startScreen.y} L ${endScreen.x} ${endScreen.y}`;
+    }
+  };
+
   const handleMouseDown = (event: React.MouseEvent) => {
     if (!isActive || !mediaDimensions || !displaySize) return;
 
@@ -113,10 +184,8 @@ export const DrawTool: React.FC<DrawToolProps> = ({
     const rect = (event.target as HTMLElement).getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-
     const percentagePoint = screenToPercentage(x, y);
 
-    // Start new drawing if none exists
     if (!currentDrawing) {
       const newDrawing: DrawingAnnotation = {
         id: `drawing_${Date.now()}`,
@@ -129,44 +198,50 @@ export const DrawTool: React.FC<DrawToolProps> = ({
       setCurrentDrawing(newDrawing);
     }
 
-    // Start new stroke
     const newStroke: DrawingStroke = {
       id: `stroke_${Date.now()}`,
       points: [percentagePoint],
       color: selectedColor,
       thickness: selectedThickness,
+      shape: selectedShape,
       timestamp: currentTime,
       mediaWidth: mediaDimensions.width,
       mediaHeight: mediaDimensions.height,
       createdAtScale: getCurrentScale(),
     };
 
+    if (selectedShape !== "freehand") {
+      setStartPoint(percentagePoint);
+    }
+
     setCurrentStroke(newStroke);
   };
 
-  // Handle mouse move - continue drawing
   const handleMouseMove = (event: React.MouseEvent) => {
     if (!isDrawing || !currentStroke || !displaySize) return;
 
     const rect = (event.target as HTMLElement).getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-
     const percentagePoint = screenToPercentage(x, y);
 
-    setCurrentStroke({
-      ...currentStroke,
-      points: [...currentStroke.points, percentagePoint],
-    });
+    if (selectedShape === "freehand") {
+      setCurrentStroke({
+        ...currentStroke,
+        points: [...currentStroke.points, percentagePoint],
+      });
+    } else if (startPoint) {
+      setCurrentStroke({
+        ...currentStroke,
+        points: [startPoint, percentagePoint],
+      });
+    }
   };
 
-  // Handle mouse up - finish stroke
   const handleMouseUp = () => {
     if (!isDrawing || !currentStroke || !currentDrawing) return;
 
     setIsDrawing(false);
-
-    // Add completed stroke to current drawing
     const updatedDrawing = {
       ...currentDrawing,
       strokes: [...currentDrawing.strokes, currentStroke],
@@ -174,9 +249,9 @@ export const DrawTool: React.FC<DrawToolProps> = ({
 
     setCurrentDrawing(updatedDrawing);
     setCurrentStroke(null);
+    setStartPoint(null);
   };
 
-  // Save current drawing
   const handleSaveDrawing = () => {
     if (currentDrawing && onDrawingComplete) {
       onDrawingComplete(currentDrawing);
@@ -185,22 +260,6 @@ export const DrawTool: React.FC<DrawToolProps> = ({
     }
   };
 
-  // Clear current drawing
-  const handleClearCurrent = () => {
-    setCurrentDrawing(null);
-    setCurrentStroke(null);
-    setIsDrawing(false);
-  };
-
-  // Clear all drawings
-  const handleClearAll = () => {
-    setDrawings([]);
-    setCurrentDrawing(null);
-    setCurrentStroke(null);
-    setIsDrawing(false);
-  };
-
-  // Undo last stroke
   const handleUndo = () => {
     if (currentDrawing && currentDrawing.strokes.length > 0) {
       const updatedDrawing = {
@@ -211,68 +270,67 @@ export const DrawTool: React.FC<DrawToolProps> = ({
     }
   };
 
-  // Create SVG path from points
-  const createPath = (points: { x: number; y: number }[]) => {
-    if (points.length < 2) return "";
+  const createPath = (stroke: DrawingStroke) => {
+    if (stroke.points.length < 1) return "";
 
-    const screenPoints = points.map((p) => percentageToScreen(p.x, p.y));
-
-    let path = `M ${screenPoints[0].x} ${screenPoints[0].y}`;
-    for (let i = 1; i < screenPoints.length; i++) {
-      path += ` L ${screenPoints[i].x} ${screenPoints[i].y}`;
+    if (stroke.shape === "freehand") {
+      if (stroke.points.length < 2) return "";
+      const screenPoints = stroke.points.map((p) =>
+        percentageToScreen(p.x, p.y)
+      );
+      let path = `M ${screenPoints[0].x} ${screenPoints[0].y}`;
+      for (let i = 1; i < screenPoints.length; i++) {
+        path += ` L ${screenPoints[i].x} ${screenPoints[i].y}`;
+      }
+      return path;
+    } else if (stroke.points.length === 2) {
+      return createShape(stroke.points[0], stroke.points[1], stroke.shape);
     }
-    return path;
+    return "";
   };
 
-  const colors = [
-    "#ff0000",
-    "#00ff00",
-    "#0000ff",
-    "#ffff00",
-    "#ff00ff",
-    "#00ffff",
-    "#000000",
-    "#ffffff",
-  ];
+  const colors = ["#ff0000", "#00ff00", "#0000ff"];
+  const thicknesses = [2, 4, 6];
+  const shapes = [
+    { value: "freehand", icon: Pencil, label: "Draw" },
+    { value: "line", icon: Minus, label: "Line" },
+    { value: "circle", icon: Circle, label: "Circle" },
+    { value: "square", icon: Square, label: "Square" },
+    { value: "arrow", icon: ArrowRight, label: "Arrow" },
+  ] as const;
 
   return (
     <>
-      {/* Draw Controls */}
       {isActive && (
         <div className="absolute top-4 right-4 z-20 pointer-events-auto">
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg p-3 space-y-3 min-w-48">
+          <div className="bg-black/80 backdrop-blur-sm rounded-lg p-3 space-y-2 min-w-48">
             <Badge
               variant="secondary"
               className="w-full text-center bg-green-600/70"
             >
               <Pencil className="w-3 h-3 mr-1" />
-              Draw Mode Active
+              Draw Mode
             </Badge>
 
-            {/* Color Palette */}
-            <div>
-              <div className="text-xs text-gray-300 mb-2">Color:</div>
-              <div className="flex flex-wrap gap-1">
+            {/* First Line: Colors and Thickness */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1">
                 {colors.map((color) => (
                   <button
                     key={color}
                     onClick={() => setSelectedColor(color)}
-                    className={`w-6 h-6 rounded border-2 ${
+                    className={`w-5 h-5 rounded border ${
                       selectedColor === color
-                        ? "border-white"
+                        ? "border-white border-2"
                         : "border-gray-600"
                     }`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
               </div>
-            </div>
 
-            {/* Thickness */}
-            <div>
-              <div className="text-xs text-gray-300 mb-2">Thickness:</div>
               <div className="flex gap-1">
-                {[1, 3, 5, 8].map((thickness) => (
+                {thicknesses.map((thickness) => (
                   <button
                     key={thickness}
                     onClick={() => setSelectedThickness(thickness)}
@@ -282,75 +340,69 @@ export const DrawTool: React.FC<DrawToolProps> = ({
                         : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                     }`}
                   >
-                    {thickness}px
+                    {thickness}
                   </button>
                 ))}
               </div>
+
+              <button
+                onClick={handleUndo}
+                disabled={
+                  !currentDrawing || currentDrawing.strokes.length === 0
+                }
+                className="p-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+              >
+                <Undo className="w-3 h-3" />
+              </button>
             </div>
 
-            {/* Drawing Info */}
+            {/* Second Line: Shapes */}
+            <div className="flex gap-1">
+              {shapes.map(({ value, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setSelectedShape(value)}
+                  className={`p-2 rounded text-xs flex items-center justify-center ${
+                    selectedShape === value
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                  title={value}
+                >
+                  <Icon className="w-3 h-3" />
+                </button>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-1 pt-1">
+              {currentDrawing && currentDrawing.strokes.length > 0 && (
+                <button
+                  onClick={handleSaveDrawing}
+                  className="flex-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                >
+                  Save
+                </button>
+              )}
+              <button
+                onClick={onCancel}
+                className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs flex items-center justify-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Cancel
+              </button>
+            </div>
+
             {currentDrawing && (
               <div className="text-xs text-gray-300 text-center">
                 {currentDrawing.strokes.length} stroke
                 {currentDrawing.strokes.length !== 1 ? "s" : ""}
               </div>
             )}
-
-            {/* Actions */}
-            <div className="space-y-1">
-              {currentDrawing && (
-                <div className="flex gap-1">
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer hover:bg-gray-700 flex-1 text-center"
-                    onClick={handleUndo}
-                  >
-                    <Undo className="w-3 h-3 mr-1" />
-                    Undo
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer hover:bg-gray-700 flex-1 text-center"
-                    onClick={handleClearCurrent}
-                  >
-                    Clear
-                  </Badge>
-                </div>
-              )}
-
-              <div className="flex gap-1">
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer hover:bg-gray-700 flex-1 text-center"
-                  onClick={handleClearAll}
-                >
-                  Clear All
-                </Badge>
-                {currentDrawing && currentDrawing.strokes.length > 0 && (
-                  <Badge
-                    variant="default"
-                    className="cursor-pointer hover:bg-green-700 flex-1 bg-green-600 text-center"
-                    onClick={handleSaveDrawing}
-                  >
-                    Save
-                  </Badge>
-                )}
-              </div>
-
-              <Badge
-                variant="outline"
-                className="cursor-pointer hover:bg-red-700 w-full text-red-400 text-center"
-                onClick={onCancel}
-              >
-                <X className="w-3 h-3 mr-1" />
-                Cancel
-              </Badge>
-            </div>
           </div>
         </div>
       )}
 
-      {/* Drawing Canvas Overlay */}
       {mediaElementRef.current && (
         <div
           className="absolute z-10"
@@ -366,7 +418,6 @@ export const DrawTool: React.FC<DrawToolProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         >
-          {/* SVG Canvas for drawings */}
           <svg
             ref={svgRef}
             className="absolute inset-0 w-full h-full pointer-events-none"
@@ -380,7 +431,7 @@ export const DrawTool: React.FC<DrawToolProps> = ({
                   {drawing.strokes.map((stroke) => (
                     <path
                       key={stroke.id}
-                      d={createPath(stroke.points)}
+                      d={createPath(stroke)}
                       stroke={stroke.color}
                       strokeWidth={
                         stroke.thickness * Math.max(scaleFactor, 0.3)
@@ -400,7 +451,7 @@ export const DrawTool: React.FC<DrawToolProps> = ({
                 {currentDrawing.strokes.map((stroke) => (
                   <path
                     key={stroke.id}
-                    d={createPath(stroke.points)}
+                    d={createPath(stroke)}
                     stroke={stroke.color}
                     strokeWidth={stroke.thickness}
                     fill="none"
@@ -414,7 +465,7 @@ export const DrawTool: React.FC<DrawToolProps> = ({
             {/* Current stroke being drawn */}
             {currentStroke && (
               <path
-                d={createPath(currentStroke.points)}
+                d={createPath(currentStroke)}
                 stroke={currentStroke.color}
                 strokeWidth={currentStroke.thickness}
                 fill="none"
@@ -423,18 +474,6 @@ export const DrawTool: React.FC<DrawToolProps> = ({
               />
             )}
           </svg>
-        </div>
-      )}
-
-      {/* Instructions */}
-      {isActive && (
-        <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
-          <Badge
-            variant="outline"
-            className="bg-black/70 text-white text-xs border border-gray-600"
-          >
-            Click and drag to draw on media
-          </Badge>
         </div>
       )}
     </>

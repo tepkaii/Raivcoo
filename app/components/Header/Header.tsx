@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { RevButtons } from "@/components/ui/RevButtons";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,7 @@ import React from "react";
 import Image from "next/image";
 import { NavLinks, NavDropdownItems } from "./NavComponents";
 import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 export default async function Header() {
   const supabase = createClient();
@@ -71,7 +72,7 @@ backdrop-blur-sm"
                 {account?.display_name ? (
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
-                      <RevButtons
+                      <Button
                         variant="ghost"
                         className="flex items-center space-x-2 hover:bg-accent/50 transition-colors"
                       >
@@ -95,7 +96,7 @@ backdrop-blur-sm"
                         </div>
 
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      </RevButtons>
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       className="w-56"
@@ -139,35 +140,35 @@ backdrop-blur-sm"
                 ) : (
                   // This is a fallback but shouldn't appear due to the redirect
                   <Link href="/complete-profile">
-                    <RevButtons
+                    <Button
                       variant="ghost"
                       className="text-amber-500 flex items-center gap-2"
                     >
                       <AlertCircle className="h-4 w-4" />
                       Complete Profile
-                    </RevButtons>
+                    </Button>
                   </Link>
                 )}
               </>
             ) : (
               <div className="hidden md:flex space-x-2">
                 <Link href="/signup">
-                  <RevButtons variant="outline" className="border">
+                  <Button variant="outline" className="border">
                     Sign up
-                  </RevButtons>
+                  </Button>
                 </Link>
                 <Link href="/login">
-                  <RevButtons variant="default">Log in</RevButtons>
+                  <Button variant="default">Log in</Button>
                 </Link>
               </div>
             )}
 
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <RevButtons variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="md:hidden">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Open menu</span>
-                </RevButtons>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 {user ? (

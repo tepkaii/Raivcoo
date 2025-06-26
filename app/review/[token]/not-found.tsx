@@ -1,7 +1,8 @@
 // app/review/[token]/not-found.tsx
 import Link from "next/link";
-import { RevButtons } from "@/components/ui/RevButtons";
+
 import { AlertCircle, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function ReviewNotFound() {
   return (
@@ -28,10 +29,10 @@ export default function ReviewNotFound() {
           </p>
 
           <Link href="/">
-            <RevButtons className="gap-2">
+            <Button className="gap-2">
               <Home className="h-4 w-4" />
               Go Home
-            </RevButtons>
+            </Button>
           </Link>
         </div>
       </div>

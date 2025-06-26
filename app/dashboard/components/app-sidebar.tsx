@@ -1,11 +1,10 @@
-// components/app-sidebar.tsx
+// app/dashboard/components/app-sidebar.tsx
 
 "use client";
 
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -14,29 +13,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-import {
-  LogOut,
-  FolderOpenDot,
-  SquareUser,
-  LayoutDashboard,
-  Home,
-  ChevronDown,
-  Puzzle,
-} from "lucide-react";
+import { LogOut, SquareUser, LayoutDashboard, FolderOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { RevButtons } from "@/components/ui/RevButtons";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useLinkStatus } from "next/link";
 import { useState } from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -46,13 +30,10 @@ import {
 import AccountForm, { AccountData } from "../../account/AccountForm";
 import { updateAccount } from "../../account/actions";
 import PasswordSection from "../../account/PasswordSection";
-import Image from "next/image";
 
 interface ProfileShowProps {
   portfolio: AccountData;
   hasPasswordAuth: boolean;
-  webVersion: string;
-  extensionVersion: string;
 }
 
 function LinkStatus({ href }: { href: string }) {
@@ -90,12 +71,7 @@ function LinkStatus({ href }: { href: string }) {
   ) : null;
 }
 
-export function AppSidebar({
-  portfolio,
-  hasPasswordAuth,
-  webVersion,
-  extensionVersion,
-}: ProfileShowProps) {
+export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
   const pathname = usePathname();
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
 
@@ -172,7 +148,7 @@ export function AppSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <div className="text-xs mb-2 mt-1 font-medium text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
-              Dashboard
+              Projects
             </div>
 
             <SidebarMenu>
@@ -185,7 +161,7 @@ export function AppSidebar({
                     )}
                   >
                     <div>
-                      <LayoutDashboard
+                      <FolderOpen
                         strokeWidth={1.5}
                         className={`size-5 ${isActiveSection("/dashboard") ? "text-[#0070F3]" : ""}`}
                       />
@@ -304,21 +280,6 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup> */}
       </SidebarContent>
-
-      <SidebarFooter className="border-t mt-auto px-4 py-3 group-data-[collapsible=icon]:hidden">
-        {/* Versions */}
-        <div className="text-xs text-muted-foreground font-medium space-y-1">
-          <div className="flex justify-between">
-            <span>
-              Web App: <span className="text-foreground">v{webVersion}</span>
-            </span>
-            <span>
-              Extension:{" "}
-              <span className="text-foreground">v{extensionVersion}</span>
-            </span>
-          </div>
-        </div>
-      </SidebarFooter>
 
       {/* Account Dialog */}
       <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>

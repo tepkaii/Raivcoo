@@ -1,11 +1,11 @@
 // app/dashboard/projects/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { ProjectsList } from "./projects/ProjectsList";
 import { Metadata } from "next";
-import Link from "next/link";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MainProjectsList } from "./components/MainProjectsList";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { CreateProjectDialog } from "./components/CreateProjectDialog";
+import { createProject } from "./projects/actions";
 
 export const metadata: Metadata = {
   title: "Projects | Dashboard",
@@ -26,7 +26,7 @@ export default async function ProjectsPage() {
   // Get editor profile
   const { data: editorProfile, error: profileError } = await supabase
     .from("editor_profiles")
-    .select("id , full_name")
+    .select("id, full_name")
     .eq("user_id", user.id)
     .single();
 
@@ -114,22 +114,23 @@ export default async function ProjectsPage() {
   });
 
   return (
-    <header className="min-h-screen  space-y-6">
+    <div className="min-h-screen space-y-6">
       {/* Header */}
       <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
-        <div className="border-r flex items-center h-full">
-          <h1 className="text-xl mr-4">{editorProfile.full_name}'s Projects</h1>
+        <div className="flex items-center h-full">
+          <SidebarTrigger />
+          <div className="border-r ml-2 border-l flex items-center h-full gap-3">
+            <h1 className="text-xl ml-4 mr-4">
+              {editorProfile.full_name}'s Projects
+            </h1>
+          </div>
         </div>
-        <Link href="/dashboard/projects/new">
-          <Button className="gap-2" size={"sm"}>
-            <Plus className="h-4 w-4" />
-            New Project
-          </Button>
-        </Link>
+        {/* Pass the server action directly */}
+        <CreateProjectDialog createProjectAction={createProject} />
       </header>
 
-      {/* Projects List */}
-      <ProjectsList projects={processedProjects} />
-    </header>
+      {/* MainProjectsList */}
+      <MainProjectsList projects={processedProjects} />
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { RevButtons } from "@/components/ui/RevButtons";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function NotFound() {
@@ -22,10 +22,10 @@ export default function NotFound() {
         The page you are looking for does not exist
       </p>
       <Link href="/">
-        <RevButtons variant={"outline"} size={"lg"}>
+        <Button variant={"outline"} size={"lg"}>
           {" "}
           Return to Home{" "}
-        </RevButtons>
+        </Button>
       </Link>
     </div>
   );

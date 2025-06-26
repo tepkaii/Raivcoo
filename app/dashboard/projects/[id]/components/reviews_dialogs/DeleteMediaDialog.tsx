@@ -1,4 +1,5 @@
-// @ts-nocheck
+
+// app/dashboard/projects/[id]/components/reviews_Dialogs/DeleteMediaDialog.tsx
 "use client";
 
 import React from "react";
@@ -13,21 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-}
+import { MediaFile } from "@/app/dashboard/lib/types";
 
 interface DeleteDialogState {
   open: boolean;

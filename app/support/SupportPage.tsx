@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import img4 from "../../public/icons/4.png";
-import { RevButtons } from "@/components/ui/RevButtons";
+import { Button } from "@/components/ui/button";
 interface FadeInSectionProps {
   children: React.ReactNode;
   delay?: number;
@@ -132,13 +132,13 @@ const SupportOptionsSection = () => {
               </li>
             </ul>
             <div className="pt-4 flex justify-center md:justify-start">
-              <RevButtons
+              <Button
                 onClick={() => handleOptionClick("Support Request")}
                 variant="default"
               >
                 Get Support
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </RevButtons>
+              </Button>
             </div>
           </div>
           <motion.div
@@ -170,7 +170,7 @@ const SupportOptionsSection = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-3">
-              <RevButtons
+              <Button
                 variant="outline"
                 className="w-full"
                 onClick={handleEmailContact}
@@ -178,28 +178,28 @@ const SupportOptionsSection = () => {
                 <Mail className="w-4 h-4 mr-2" />
                 Via Email
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </RevButtons>
+              </Button>
               <Link
                 href="https://twitter.com/raivcoo"
                 target="_blank"
                 className="w-full"
               >
-                <RevButtons variant="info" className="w-full">
+                <Button variant="cyan" className="w-full">
                   <Twitter className="w-4 h-4 mr-2" />
                   Via Twitter
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </RevButtons>
+                </Button>
               </Link>
               <Link
                 href="https://discord.gg/G5AZBEP5"
                 target="_blank"
                 className="w-full"
               >
-                <RevButtons variant="default" className="w-full">
+                <Button variant="purple" className="w-full">
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Join Discord Server
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </RevButtons>
+                </Button>
               </Link>
             </div>
           </DialogContent>

@@ -1,4 +1,5 @@
-// @ts-nocheck
+
+// app/dashboard/projects/[id]/components/reviews_Dialogs/CreateReviewLinkDialog.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -42,21 +43,8 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { MediaFile } from "@/app/dashboard/lib/types";
 
-interface MediaFile {
-  id: string;
-  filename: string;
-  original_filename: string;
-  file_type: "video" | "image";
-  mime_type: string;
-  file_size: number;
-  r2_url: string;
-  uploaded_at: string;
-  parent_media_id?: string;
-  version_number: number;
-  is_current_version: boolean;
-  version_name?: string;
-}
 
 interface CreateLinkDialogState {
   open: boolean;
@@ -80,7 +68,6 @@ interface CreateReviewLinkDialogProps {
   ) => void;
 }
 
-// Custom Calendar Component using date-fns
 interface CustomCalendarProps {
   selected?: Date;
   onSelect: (date?: Date) => void;

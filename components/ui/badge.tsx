@@ -17,6 +17,7 @@ const badgeVariants = cva(
           "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
         ghost:
           "hover:bg-accent border-transparent hover:text-accent-foreground dark:hover:bg-accent/50",
+        cyan: "bg-[#00B8D4] text-white shadow-xs hover:bg-[#00B8D4]/80",
         link: "text-primary underline-offset-4 hover:underline border-transparent",
         warning: "bg-[#FFB224] text-white shadow-xs hover:bg-[#FFB224]/80",
         teal: "bg-[#12A594] text-white shadow-xs hover:bg-[#12A594]/80",

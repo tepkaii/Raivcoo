@@ -1,3 +1,4 @@
+// app/review/[token]/review_components/MediaDisplay.tsx
 // @ts-nocheck
 
 "use client";
@@ -209,7 +210,10 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     if (onAddAnnotation) {
       onAddAnnotation({
         type: "pin",
-        data: pin,
+        data: {
+          ...pin,
+          color: pin.color || "#ff0000",
+        },
         timestamp: videoRef?.current?.currentTime || 0,
       });
     }
@@ -248,6 +252,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       {
         ...comment.annotation_data,
         id: comment.id,
+        color: comment.annotation_data.color || "#ff0000", // Add default color if missing
       },
     ];
   };
