@@ -1,9 +1,7 @@
-// app/review/[token]/review_components/PinTool.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, X } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 interface AnnotationPin {
   id: string;
@@ -28,6 +26,7 @@ interface PinToolProps {
   onCancel?: () => void;
   existingPins?: AnnotationPin[];
   mediaElementRef: React.RefObject<HTMLVideoElement | HTMLImageElement>;
+  color?: string;
 }
 
 export const PinTool: React.FC<PinToolProps> = ({
@@ -41,16 +40,47 @@ export const PinTool: React.FC<PinToolProps> = ({
   onCancel,
   existingPins = [],
   mediaElementRef,
+  color = "#ff0000",
 }) => {
   const [currentPin, setCurrentPin] = useState<AnnotationPin | null>(null);
-  const [selectedColor, setSelectedColor] = useState("#ff0000");
 
   useEffect(() => {
     if (existingPins.length > 0) {
       setCurrentPin(existingPins[0]);
+    } else {
+      setCurrentPin(null);
     }
   }, [existingPins]);
 
+  useEffect(() => {
+    const clearCurrentPin = () => {
+      setCurrentPin(null);
+    };
+
+    if (typeof window !== "undefined") {
+      (window as any).clearCurrentPin = clearCurrentPin;
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).clearCurrentPin;
+      }
+    };
+  }, []);
+
+  // Also clear when isActive becomes false
+  useEffect(() => {
+    console.log("PinTool isActive changed:", isActive); // Debug log
+
+    if (!isActive) {
+      console.log("PinTool becoming inactive, clearing current pin"); // Debug log
+      setCurrentPin(null);
+    }
+  }, [isActive]);
+
+  // Also add this useEffect to clear when existingPins change
+
+  // NOW you can have conditional returns AFTER all hooks
   if (!displaySize || !displayPosition || !mediaDimensions) return null;
 
   const getCurrentScale = () => {
@@ -95,79 +125,25 @@ export const PinTool: React.FC<PinToolProps> = ({
       mediaHeight: mediaDimensions.height,
       createdAtScale: getCurrentScale(),
       timestamp: currentTime,
-      color: selectedColor,
+      color: color,
     };
 
     setCurrentPin(newPin);
-  };
 
-  const handleSavePin = () => {
-    if (currentPin && onPinComplete) {
-      onPinComplete(currentPin);
-      setCurrentPin(null);
+    // Notify the comments component that a pin is placed
+    if (
+      typeof window !== "undefined" &&
+      (window as any).handleAnnotationComplete
+    ) {
+      (window as any).handleAnnotationComplete({
+        type: "pin",
+        data: newPin,
+      });
     }
   };
 
-  const handleCancel = () => {
-    setCurrentPin(null);
-    if (onCancel) onCancel();
-  };
-
-  // 5 colors as requested
-  const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff"];
-
   return (
     <>
-      {/* Compact Pin Controls */}
-      {isActive && (
-        <div className="absolute top-4 right-4 z-20 pointer-events-auto">
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg p-2 space-y-2 w-40">
-            <Badge
-              variant="secondary"
-              className="w-full text-center bg-purple-600/70 text-xs"
-            >
-              <MapPin className="w-3 h-3 mr-1" />
-              Pin Mode
-            </Badge>
-
-            {/* Color selection - 5 colors */}
-            <div className="flex justify-center gap-1">
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setSelectedColor(color)}
-                  className={`w-4 h-4 rounded border ${
-                    selectedColor === color
-                      ? "border-white border-2"
-                      : "border-gray-600"
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-1">
-              {currentPin && (
-                <button
-                  onClick={handleSavePin}
-                  className="flex-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs"
-                >
-                  Save
-                </button>
-              )}
-              <button
-                onClick={handleCancel}
-                className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs flex items-center justify-center gap-1"
-              >
-                <X className="w-3 h-3" />
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Pin overlay */}
       {mediaElementRef.current && (
         <div
@@ -204,18 +180,6 @@ export const PinTool: React.FC<PinToolProps> = ({
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Instructions */}
-      {isActive && (
-        <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
-          <Badge
-            variant="outline"
-            className="bg-black/70 text-white text-xs border border-gray-600"
-          >
-            Click to place pin
-          </Badge>
         </div>
       )}
     </>

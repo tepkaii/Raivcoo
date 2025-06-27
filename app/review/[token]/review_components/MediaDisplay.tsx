@@ -1,38 +1,35 @@
-// app/review/[token]/review_components/MediaDisplay.tsx
-// @ts-nocheck
-
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { PinTool } from "./PinTool";
 import { DrawTool } from "./DrawingTool";
-import { Brush, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { getDetailedQuality, getQualityLabel } from "../lib/mediaQuality";
 
 interface MediaDisplayProps {
   media: any;
   videoRef?: React.RefObject<HTMLVideoElement>;
   className?: string;
-  onAddAnnotation?: (annotationData: any) => void;
+  onAnnotationComplete?: (annotationData: any) => void;
   activeCommentPin?: string | null;
   activeCommentDrawing?: string | null;
   comments?: any[];
   currentTime?: number;
+  annotationMode?: "none" | "pin" | "drawing";
+  annotationConfig?: any;
 }
 
 export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   media,
   videoRef,
   className = "",
-  onAddAnnotation,
+  onAnnotationComplete,
   activeCommentPin,
   activeCommentDrawing,
   comments = [],
   currentTime = 0,
+  annotationMode = "none",
+  annotationConfig = {},
 }) => {
-  const [isPinToolActive, setIsPinToolActive] = useState(false);
-  const [isDrawToolActive, setIsDrawToolActive] = useState(false);
   const [displaySize, setDisplaySize] = useState<{
     width: number;
     height: number;
@@ -54,16 +51,14 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   // Calculate current scale percentage
   const getCurrentScale = () => {
     if (!mediaDimensions || !displaySize) return 100;
-
     const scaleX = displaySize.width / mediaDimensions.width;
     const scaleY = displaySize.height / mediaDimensions.height;
     const scale = Math.min(scaleX, scaleY);
-
     return Math.round(scale * 100);
   };
+
   const getQualityInfo = () => {
     if (!mediaDimensions) return null;
-
     const { width, height } = mediaDimensions;
     return {
       label: getQualityLabel(width, height),
@@ -72,6 +67,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       aspectRatio: (width / height).toFixed(2),
     };
   };
+
   // Track display size and position changes
   const updateDisplayMetrics = () => {
     const element = mediaElementRef.current;
@@ -207,44 +203,42 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
   // Handle pin completion
   const handlePinComplete = (pin: any) => {
-    if (onAddAnnotation) {
-      onAddAnnotation({
+    if (onAnnotationComplete) {
+      onAnnotationComplete({
         type: "pin",
         data: {
           ...pin,
-          color: pin.color || "#ff0000",
+          color: annotationConfig.color || "#ff0000",
         },
         timestamp: videoRef?.current?.currentTime || 0,
       });
     }
-    setIsPinToolActive(false);
   };
 
   // Handle drawing completion
   const handleDrawComplete = (drawing: any) => {
-    if (onAddAnnotation) {
-      onAddAnnotation({
+    if (onAnnotationComplete) {
+      onAnnotationComplete({
         type: "drawing",
         data: drawing,
         timestamp: videoRef?.current?.currentTime || 0,
       });
     }
-    setIsDrawToolActive(false);
   };
 
-  // Get active comment pin data
-  const getActiveCommentPinData = () => {
-    if (!activeCommentPin || !comments.length) return null;
+  // FIXED: Memoize the active comment pin data
+  const activeCommentPins = useMemo(() => {
+    if (!activeCommentPin || !comments.length) return [];
 
     const comment = comments.find((c) => c.id === activeCommentPin);
-    if (!comment || !comment.annotation_data) return null;
+    if (!comment || !comment.annotation_data) return [];
 
     // Check if we should show this pin based on current time
     if (comment.timestamp_seconds !== undefined && videoRef?.current) {
       const timeDiff = Math.abs(currentTime - comment.timestamp_seconds);
       // Only show if within 0.5 seconds and video is paused
       if (timeDiff > 0.5 || !videoRef.current.paused) {
-        return null;
+        return [];
       }
     }
 
@@ -252,48 +246,48 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       {
         ...comment.annotation_data,
         id: comment.id,
-        color: comment.annotation_data.color || "#ff0000", // Add default color if missing
+        color: comment.annotation_data.color || "#ff0000",
       },
     ];
-  };
+  }, [activeCommentPin, comments, currentTime, videoRef?.current?.paused]);
 
-  // Get active comment drawing data
-  const getActiveCommentDrawingData = () => {
-    if (!activeCommentDrawing || !comments.length) return null;
+  // FIXED: Memoize the active comment drawing data
+  const activeCommentDrawings = useMemo(() => {
+    if (!activeCommentDrawing || !comments.length) return [];
 
     const comment = comments.find((c) => c.id === activeCommentDrawing);
-    if (!comment || !comment.drawing_data) return null;
+    if (!comment || !comment.drawing_data) return [];
 
     // Check if we should show this drawing based on current time
     if (comment.timestamp_seconds !== undefined && videoRef?.current) {
       const timeDiff = Math.abs(currentTime - comment.timestamp_seconds);
       // Only show if within 0.5 seconds and video is paused
       if (timeDiff > 0.5 || !videoRef.current.paused) {
-        return null;
+        return [];
       }
     }
 
     return [comment.drawing_data];
-  };
+  }, [activeCommentDrawing, comments, currentTime, videoRef?.current?.paused]);
 
-  const activeCommentPins = getActiveCommentPinData();
-  const activeCommentDrawings = getActiveCommentDrawingData();
   const currentScale = getCurrentScale();
 
-  // Disable one tool when the other is active
-  const handlePinToolToggle = () => {
-    if (isDrawToolActive) {
-      setIsDrawToolActive(false);
-    }
-    setIsPinToolActive(!isPinToolActive);
-  };
+  useEffect(() => {
+    console.log("MediaDisplay annotation mode changed:", annotationMode);
 
-  const handleDrawToolToggle = () => {
-    if (isPinToolActive) {
-      setIsPinToolActive(false);
+    // When annotation mode changes to "none", ensure tools are properly disabled
+    if (annotationMode === "none") {
+      // Clear any pending annotations in the tools
+      if (typeof window !== "undefined") {
+        if ((window as any).clearCurrentDrawing) {
+          (window as any).clearCurrentDrawing();
+        }
+        if ((window as any).clearCurrentPin) {
+          (window as any).clearCurrentPin();
+        }
+      }
     }
-    setIsDrawToolActive(!isDrawToolActive);
-  };
+  }, [annotationMode]);
 
   if (media.file_type === "video") {
     return (
@@ -329,7 +323,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
         {/* Pin Tool Overlay */}
         <PinTool
-          isActive={isPinToolActive}
+          isActive={annotationMode === "pin"}
           displaySize={displaySize}
           displayPosition={displayPosition}
           mediaDimensions={
@@ -342,15 +336,15 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           }
           currentTime={videoRef?.current?.currentTime || 0}
           currentScale={currentScale}
-          onPinComplete={handlePinComplete}
-          onCancel={() => setIsPinToolActive(false)}
-          existingPins={activeCommentPins || []}
+          onCancel={() => {}}
+          existingPins={activeCommentPins}
           mediaElementRef={mediaElementRef}
+          color={annotationConfig.color}
         />
 
         {/* Draw Tool Overlay */}
         <DrawTool
-          isActive={isDrawToolActive}
+          isActive={annotationMode === "drawing"}
           displaySize={displaySize}
           displayPosition={displayPosition}
           mediaDimensions={
@@ -364,31 +358,13 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           currentTime={videoRef?.current?.currentTime || 0}
           currentScale={currentScale}
           onDrawingComplete={handleDrawComplete}
-          onCancel={() => setIsDrawToolActive(false)}
-          existingDrawings={activeCommentDrawings || []}
+          onCancel={() => {}}
+          existingDrawings={activeCommentDrawings}
           mediaElementRef={mediaElementRef}
+          color={annotationConfig.color}
+          thickness={annotationConfig.thickness}
+          shape={annotationConfig.shape}
         />
-
-        {/* Tool Buttons */}
-        <Button
-          onClick={handlePinToolToggle}
-          disabled={isDrawToolActive}
-          size={"icon"}
-          className={`absolute top-4 left-4 z-30`}
-          variant={isPinToolActive ? "default" : "outline"}
-        >
-          <MapPin className="w-4 h-4" />
-        </Button>
-
-        <Button
-          onClick={handleDrawToolToggle}
-          disabled={isPinToolActive}
-          size={"icon"}
-          className={`absolute top-4 left-[68px] z-30  `}
-          variant={isDrawToolActive ? "default" : "outline"}
-        >
-          <Brush className="w-4 h-4" />
-        </Button>
 
         {/* Loading state */}
         {!mediaDimensions && (
@@ -422,7 +398,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
       {/* Pin Tool Overlay */}
       <PinTool
-        isActive={isPinToolActive}
+        isActive={annotationMode === "pin"}
         displaySize={displaySize}
         displayPosition={displayPosition}
         mediaDimensions={
@@ -434,15 +410,15 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
             : null
         }
         currentScale={currentScale}
-        onPinComplete={handlePinComplete}
-        onCancel={() => setIsPinToolActive(false)}
-        existingPins={activeCommentPins || []}
+        onCancel={() => {}}
+        existingPins={activeCommentPins}
         mediaElementRef={mediaElementRef}
+        color={annotationConfig.color}
       />
 
       {/* Draw Tool Overlay */}
       <DrawTool
-        isActive={isDrawToolActive}
+        isActive={annotationMode === "drawing"}
         displaySize={displaySize}
         displayPosition={displayPosition}
         mediaDimensions={
@@ -455,31 +431,13 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         }
         currentScale={currentScale}
         onDrawingComplete={handleDrawComplete}
-        onCancel={() => setIsDrawToolActive(false)}
-        existingDrawings={activeCommentDrawings || []}
+        onCancel={() => {}}
+        existingDrawings={activeCommentDrawings}
         mediaElementRef={mediaElementRef}
+        color={annotationConfig.color}
+        thickness={annotationConfig.thickness}
+        shape={annotationConfig.shape}
       />
-
-      {/* Tool Buttons */}
-      <Button
-        onClick={handlePinToolToggle}
-        disabled={isDrawToolActive}
-        size={"icon"}
-        className={`absolute top-4 left-4 z-30`}
-        variant={isPinToolActive ? "default" : "outline"}
-      >
-        <MapPin className="w-4 h-4" />
-      </Button>
-
-      <Button
-        onClick={handleDrawToolToggle}
-        disabled={isPinToolActive}
-        size={"icon"}
-        className={`absolute top-4 left-[68px] z-30  `}
-        variant={isDrawToolActive ? "default" : "outline"}
-      >
-        <Brush className="w-4 h-4" />
-      </Button>
 
       {/* Loading state */}
       {!mediaDimensions && (

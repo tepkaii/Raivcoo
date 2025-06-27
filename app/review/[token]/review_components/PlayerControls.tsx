@@ -11,8 +11,17 @@ import {
   SkipForward,
   Maximize,
   Minimize,
+  SkipForwardIcon,
 } from "lucide-react";
-
+import {
+  BackwardIcon,
+  BeakerIcon,
+  ForwardIcon,
+  PlayIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+} from "@heroicons/react/24/solid";
+import { PauseIcon } from "@radix-ui/react-icons";
 interface MediaComment {
   id: string;
   media_id: string;
@@ -481,7 +490,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               <SkipBack className="h-5 w-5" />
             </RevButtons>
             <RevButtons variant="ghost" disabled className="text-gray-500 p-4">
-              <Play className="h-6 w-6" />
+              <PlayIcon className="h-6 w-6" />
             </RevButtons>
             <RevButtons variant="ghost" disabled className="text-gray-500 p-3">
               <SkipForward className="h-5 w-5" />
@@ -512,7 +521,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     <div
       className={`bg-gradient-to-t from-black via-black/90 to-transparent px-6 py-4 video-controls ${className}`}
     >
-      <div className="space-y-4">
+      <div className="space-y-1">
         {/* Progress Bar with Playhead */}
         <div className="flex items-center gap-4">
           <span className="text-white font-mono text-sm min-w-12">
@@ -544,7 +553,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                 style={{
                   left: `${progressPercentage}%`,
                   transform: "translateX(-50%) translateY(-50%)",
-                  zIndex: 20,
+                  zIndex: 10,
                 }}
               />
             </div>
@@ -552,7 +561,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             {/* Time tooltip */}
             {hoverTime !== null && hoverPosition !== null && !isMobile && (
               <div
-                className="absolute -top-8 bg-black/80 text-white text-xs px-2 py-1 rounded pointer-events-none z-30"
+                className="absolute -top-8 bg-black/80 text-white text-xs px-2 py-1 rounded pointer-events-none z-50"
                 style={{
                   left: `${hoverPosition}px`,
                   transform: "translateX(-50%)",
@@ -603,12 +612,12 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                           handleTimelineCommentClick(comment.timestamp_seconds!)
                         }
                       >
-                        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-xs text-white font-medium border-2 border-white shadow-lg">
+                        <div className="size-6 bg-gradient-to-br rounded-[5px] from-blue-600 to-cyan-400  flex items-center justify-center text-xs text-white font-medium border border-white shadow-lg">
                           {getInitials(comment.user_name)}
                         </div>
 
                         {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                           <div className="font-medium">{comment.user_name}</div>
                           <div className="text-gray-300">
                             {formatTime(comment.timestamp_seconds!)}
@@ -634,20 +643,16 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             onClick={() => skipTime(-10)}
             className="text-white hover:bg-white/20 p-3"
           >
-            <SkipBack className="h-5 w-5" />
+            <BackwardIcon className="h-5 w-5" />
           </RevButtons>
 
           {/* Play/Pause */}
           <RevButtons
             variant="ghost"
             onClick={handlePlayClick}
-            className="text-white hover:bg-white/20 p-4"
+            className="text-white hover:bg-white/20 p-2"
           >
-            {isPlaying ? (
-              <Pause className="h-6 w-6" />
-            ) : (
-              <Play className="h-6 w-6" />
-            )}
+            {isPlaying ? <PauseIcon /> : <PlayIcon className="h-5 w-5" />}
           </RevButtons>
 
           {/* Skip Forward */}
@@ -656,7 +661,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             onClick={() => skipTime(10)}
             className="text-white hover:bg-white/20 p-3"
           >
-            <SkipForward className="h-5 w-5" />
+            <ForwardIcon className="h-5 w-5" />
           </RevButtons>
 
           {/* Volume Controls */}
@@ -668,9 +673,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               className="text-white hover:bg-white/20 p-3"
             >
               {isMuted ? (
-                <VolumeX className="h-5 w-5" />
+                <SpeakerXMarkIcon className="h-5 w-5" />
               ) : (
-                <Volume2 className="h-5 w-5" />
+                <SpeakerWaveIcon className="h-5 w-5" />
               )}
             </RevButtons>
 

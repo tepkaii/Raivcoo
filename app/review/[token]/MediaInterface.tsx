@@ -71,7 +71,6 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   );
   const [currentTime, setCurrentTime] = useState(0);
   const [comments, setComments] = useState<MediaComment[]>([]);
-  const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [activeCommentPin, setActiveCommentPin] = useState<string | null>(null);
   const [activeCommentDrawing, setActiveCommentDrawing] = useState<
     string | null
@@ -79,6 +78,12 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   const [commentsVisible, setCommentsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Annotation states
+  const [annotationMode, setAnnotationMode] = useState<
+    "none" | "pin" | "drawing"
+  >("none");
+  const [annotationConfig, setAnnotationConfig] = useState<any>({});
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
@@ -121,13 +126,54 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     }
   };
 
+  const handleAnnotationRequest = (
+    type: "pin" | "drawing" | "none",
+    config: any
+  ) => {
+    console.log("MediaInterface annotation request:", type, config); // Debug log
+
+    // Clear any active comment pins/drawings when starting new annotation OR canceling
+    if (type !== "none") {
+      console.log("Clearing active comments for new annotation"); // Debug log
+      setActiveCommentPin(null);
+      setActiveCommentDrawing(null);
+    }
+
+    if (type === "none") {
+      console.log("Canceling annotation mode"); // Debug log
+      // Cancel annotation mode
+      setAnnotationMode("none");
+      setAnnotationConfig({});
+      // Also clear active comments when canceling
+      setActiveCommentPin(null);
+      setActiveCommentDrawing(null);
+    } else {
+      console.log("Setting annotation mode:", type); // Debug log
+      // Set annotation mode and config
+      setAnnotationMode(type);
+      setAnnotationConfig(config);
+    }
+  };
+
+  const handleAnnotationComplete = (annotationData: any) => {
+    // Reset annotation mode
+    setAnnotationMode("none");
+    setAnnotationConfig({});
+
+    // The annotation will be saved automatically by the ReviewComments component
+  };
+
   const handleCommentDrawingClick = (comment: MediaComment) => {
     if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
       handleSeekToTimestamp(comment.timestamp_seconds);
       setActiveCommentDrawing(comment.id);
     }
   };
-
+  const clearActiveComments = () => {
+    console.log("MediaInterface clearing active comments"); // Debug log
+    setActiveCommentPin(null);
+    setActiveCommentDrawing(null);
+  };
   useEffect(() => {
     if (activeCommentDrawing && videoRef.current) {
       const activeComment = comments.find((c) => c.id === activeCommentDrawing);
@@ -142,16 +188,8 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     }
   }, [currentTime, activeCommentDrawing, comments]);
 
-  const handleAddAnnotation = (annotationData: any) => {
-    setPendingAnnotation(annotationData);
-  };
-
   const handleCommentAdded = (newComment: MediaComment) => {
     setComments([...comments, newComment]);
-  };
-
-  const handleAnnotationSaved = () => {
-    setPendingAnnotation(null);
   };
 
   const handleCommentPinClick = (comment: MediaComment) => {
@@ -224,11 +262,13 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           media={currentMedia}
           videoRef={videoRef}
           className="h-full"
-          onAddAnnotation={handleAddAnnotation}
+          onAnnotationComplete={handleAnnotationComplete}
           activeCommentPin={activeCommentPin}
           activeCommentDrawing={activeCommentDrawing}
           comments={comments}
           currentTime={currentTime}
+          annotationMode={annotationMode}
+          annotationConfig={annotationConfig}
         />
       </div>
 
@@ -252,12 +292,12 @@ export const MediaInterface: React.FC<MediaInterface> = ({
         currentTime={currentTime}
         onSeekToTimestamp={handleSeekToTimestamp}
         className="h-full"
-        pendingAnnotation={pendingAnnotation}
-        onAnnotationSaved={handleAnnotationSaved}
         onCommentPinClick={handleCommentPinClick}
         onCommentDrawingClick={handleCommentDrawingClick}
         onCommentDeleted={handleCommentDeleted}
         onCommentAdded={handleCommentAdded}
+        onAnnotationRequest={handleAnnotationRequest}
+        onClearActiveComments={clearActiveComments} // Add this line
         authenticatedUser={authenticatedUser}
       />
     ) : (
@@ -307,14 +347,12 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           <h1 className="text-base md:text-lg font-medium text-white truncate">
             {currentMedia.original_filename}
           </h1>
-          {/* Version selector - show inline on desktop, separate row on mobile */}
-          {allVersions.length > 0 && !isMobile && (
-            <VersionSelector
-              currentMedia={currentMedia}
-              allVersions={allVersions}
-              onVersionChange={handleVersionChange}
-            />
-          )}
+
+          <VersionSelector
+            currentMedia={currentMedia}
+            allVersions={allVersions}
+            onVersionChange={handleVersionChange}
+          />
         </div>
 
         {/* Desktop header info */}
@@ -327,53 +365,22 @@ export const MediaInterface: React.FC<MediaInterface> = ({
         )}
       </header>
 
-      {/* Mobile Version Selector Row */}
-      {isMobile && allVersions.length > 0 && (
-        <div className="bg-background border-b px-4 py-2 flex-shrink-0">
-          <VersionSelector
-            currentMedia={currentMedia}
-            allVersions={allVersions}
-            onVersionChange={handleVersionChange}
-          />
-        </div>
-      )}
-
       {/* Main Content Area */}
       <div className="flex-1 min-h-0">
         {isMobile ? (
           // MOBILE LAYOUT
           <div className="flex flex-col h-full">
             {/* Mobile Media Area */}
-            <div className="h-[45vh] flex-shrink-0">{mediaContent}</div>
+            <div className="h-[40vh] flex-shrink-0">{mediaContent}</div>
 
             {/* Mobile Comments Area */}
             <div className="flex-1 min-h-0 flex flex-col border-t border-border">
-              {/* Mobile Tab Navigation */}
-              <div className="border-b border-border px-4 py-2 flex-shrink-0">
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setSelectedTab("comments")}
-                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                      selectedTab === "comments"
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-400 hover:text-gray-300"
-                    }`}
-                  >
-                    <MessageSquare className="h-4 w-4 inline mr-1" />
-                    Comments
-                  </button>
-                  <button
-                    onClick={() => setSelectedTab("details")}
-                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                      selectedTab === "details"
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-400 hover:text-gray-300"
-                    }`}
-                  >
-                    <Eye className="h-4 w-4 inline mr-1" />
-                    Details
-                  </button>
-                </div>
+              {/* Mobile Comments Header */}
+              <div className="border-b px-4 py-3 flex-shrink-0">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Comments
+                </h3>
               </div>
 
               {/* Mobile Comments Content */}
@@ -385,46 +392,12 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           <SplitPanel
             mode="review"
             leftPanel={mediaContent}
-            rightPanel={
-              <div className="flex flex-col h-full">
-                {/* Desktop Tab Navigation */}
-                <div className="border-b border px-4 py-3 flex-shrink-0">
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setSelectedTab("comments")}
-                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                        selectedTab === "comments"
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-400 hover:text-gray-300"
-                      }`}
-                    >
-                      <MessageSquare className="h-4 w-4 inline mr-1" />
-                      Comments
-                    </button>
-                    <button
-                      onClick={() => setSelectedTab("details")}
-                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                        selectedTab === "details"
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-400 hover:text-gray-300"
-                      }`}
-                    >
-                      <Eye className="h-4 w-4 inline mr-1" />
-                      Details
-                    </button>
-                  </div>
-                </div>
-                {/* Desktop Comments Content */}
-                <div className="flex-1 min-h-0">{commentsContent}</div>
-              </div>
-            }
+            rightPanel={commentsContent}
             showRightPanel={commentsVisible}
             onRightPanelToggle={setCommentsVisible}
             allowCloseRight={true}
             allowCloseLeft={false}
-            rightPanelTitle={
-              selectedTab === "comments" ? "Comments" : "Details"
-            }
+            rightPanelTitle="Comments"
             leftPanelTitle="Media"
             defaultRightPanelWidth={400}
             minRightPanelWidth={300}

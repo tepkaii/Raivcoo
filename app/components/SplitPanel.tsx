@@ -2,14 +2,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { X, MessageSquare, Play } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
-  ChevronLeft,
-  ChevronRight,
-  X,
-  MessageSquare,
-  Play,
-} from "lucide-react";
-import { RevButtons } from "@/components/ui/RevButtons";
+  ChatBubbleBottomCenterTextIcon,
+  PlayCircleIcon,
+} from "@heroicons/react/24/solid";
 
 interface SplitPanelProps {
   leftPanel: React.ReactNode;
@@ -161,14 +159,14 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
       {/* Left Panel Toggle Button (when panel is closed) */}
       {!isLeftPanelOpen && allowCloseLeft && (
         <div className="absolute left-4 top-4 z-50">
-          <RevButtons
+          <Button
             onClick={handleLeftPanelToggle}
             size="sm"
             className="bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
           >
-            <Play className="h-4 w-4 mr-1" />
+            <PlayCircleIcon className="h-4 w-4 mr-1" />
             {leftPanelTitle}
-          </RevButtons>
+          </Button>
         </div>
       )}
 
@@ -193,18 +191,18 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
         {/* Right Panel Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <h3 className="text-sm font-medium text-white flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
+            <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
             {rightPanelTitle}
           </h3>
           {allowCloseRight && (
-            <RevButtons
+            <Button
               onClick={handleRightPanelToggle}
               variant="ghost"
               size="sm"
               className="text-gray-400 hover:text-white"
             >
               <X className="h-4 w-4" />
-            </RevButtons>
+            </Button>
           )}
         </div>
 
@@ -215,14 +213,9 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
       {/* Right Panel Toggle Button (when panel is closed) */}
       {!isRightPanelOpen && allowCloseRight && (
         <div className="absolute right-4 top-4 z-50">
-          <RevButtons
-            onClick={handleRightPanelToggle}
-            size="sm"
-            className="bg-gray-900 hover:bg-gray-800 text-white border border-gray-700"
-          >
-            <MessageSquare className="h-4 w-4 mr-1" />
-            {rightPanelTitle}
-          </RevButtons>
+          <Button onClick={handleRightPanelToggle} size="sm">
+            <ChatBubbleBottomCenterTextIcon className="h-4 w-4 " />
+          </Button>
         </div>
       )}
     </div>
