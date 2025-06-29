@@ -177,8 +177,10 @@ export default async function Page({
     );
   }
 
-  // Get all versions if this media has versions
+  // Get all versions if this media has versions and determine current media to show
   let allVersions: any[] = [];
+  let currentMediaToShow = reviewLink.media;
+
   if (reviewLink.media) {
     const mediaId = reviewLink.media.parent_media_id || reviewLink.media.id;
 
@@ -203,11 +205,20 @@ export default async function Page({
       .order("version_number", { ascending: false });
 
     allVersions = versions || [];
+
+    // Find the current version to show by default
+    const currentVersion = allVersions.find((v) => v.is_current_version);
+    if (currentVersion) {
+      currentMediaToShow = currentVersion;
+    } else {
+      // Fallback to the highest version number if no current version is marked
+      currentMediaToShow = allVersions[0] || reviewLink.media;
+    }
   }
 
   return (
     <MediaInterface
-      media={reviewLink.media}
+      media={currentMediaToShow}
       allVersions={allVersions}
       reviewTitle={reviewLink.title}
       projectName={reviewLink.project?.name}

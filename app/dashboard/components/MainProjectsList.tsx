@@ -43,6 +43,11 @@ import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { deleteProject, renameProject } from "../projects/actions";
 import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 import { RenameProjectDialog } from "./RenameProjectDialog";
+import {
+  FolderIcon,
+  PencilSquareIcon,
+  TrashIcon,
+} from "@heroicons/react/24/solid";
 
 interface ProjectStats {
   totalFiles: number;
@@ -131,7 +136,7 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
       <div className=" px-4">
         <Card>
           <CardContent className="py-16 text-center ">
-            <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <FolderIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h3 className="text-lg font-medium mb-2">No projects yet</h3>
             <p className="text-muted-foreground mb-6">
               Create your first project workspace to get started.
@@ -299,7 +304,7 @@ function EmptyGallery() {
   return (
     <div className="aspect-video bg-black  flex items-center justify-center">
       <div className="text-center">
-        <FolderOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <FolderIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
         <p className="text-xs ">No media</p>
       </div>
     </div>
@@ -408,7 +413,7 @@ function ProjectCard({ project }: { project: Project }) {
             </div>
 
             {/* Dates */}
-            <div className="flex items-center justify-between text-xs text-gray-400">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 <span>{formatDate(project.created_at)}</span>
@@ -439,7 +444,7 @@ function ProjectCard({ project }: { project: Project }) {
                 setRenameDialogOpen(true);
               }}
             >
-              <Edit2 className="h-4 w-4 mr-2" />
+              <PencilSquareIcon className="h-4 w-4 mr-2" />
               Rename Project
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -450,7 +455,7 @@ function ProjectCard({ project }: { project: Project }) {
               }}
               className="text-red-500 focus:text-red-500"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <TrashIcon className="h-4 w-4 mr-2" />
               Delete Project
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -475,11 +480,14 @@ function ProjectCard({ project }: { project: Project }) {
 }
 
 // List Item Component
+
 function ProjectListItem({ project }: { project: Project }) {
   const stats = getProjectStats(project);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
 
   return (
-    <Card className="hover:shadow-sm transition-all duration-200 cursor-pointer group">
+    <Card className="hover:shadow-sm bg-primary-foreground transition-all duration-200 cursor-pointer group">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <Link
@@ -529,13 +537,61 @@ function ProjectListItem({ project }: { project: Project }) {
           </Link>
 
           <div className="flex items-center gap-2 ml-4">
-            <DeleteProjectDialog
-              project={project}
-              onDeleteProject={deleteProject}
-            />
+            {/* Project Actions Dropdown */}
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setRenameDialogOpen(true);
+                  }}
+                >
+                  <PencilSquareIcon className="h-4 w-4 mr-2" />
+                  Rename Project
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDeleteDialogOpen(true);
+                  }}
+                  className="text-red-500 focus:text-red-500"
+                >
+                  <TrashIcon className="h-4 w-4 mr-2" />
+                  Delete Project
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
           </div>
         </div>
+
+        {/* Rename Dialog */}
+        <RenameProjectDialog
+          project={project}
+          onRenameProject={renameProject}
+          open={renameDialogOpen}
+          onOpenChange={setRenameDialogOpen}
+        />
+
+        {/* Delete Dialog */}
+        <DeleteProjectDialog
+          project={project}
+          onDeleteProject={deleteProject}
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+        />
       </CardContent>
     </Card>
   );

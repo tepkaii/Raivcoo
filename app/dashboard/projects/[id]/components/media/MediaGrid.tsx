@@ -26,6 +26,7 @@ import {
   OrganizedMedia,
   ReviewLink,
 } from "@/app/dashboard/lib/types";
+import { DocumentDuplicateIcon } from "@heroicons/react/24/solid";
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];
@@ -735,7 +736,7 @@ export function MediaGrid({
                   ? "border-red-500/50 bg-red-500/10"
                   : "hover:border-white/30"
             }
-            ${isUploading || projectSize.percentage >= 100 ? "pointer-events-none opacity-50" : ""}
+            ${isUploading || projectSize.percentage >= 100 ? "pointer-events-none " : ""}
           `}
         >
           <input {...getInputProps()} />
@@ -753,12 +754,12 @@ export function MediaGrid({
             <div className="space-y-2">
               <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" />
               <div className="space-y-1">
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   Uploading... {uploadProgress}%
                 </p>
                 <Progress
                   value={uploadProgress}
-                  className="w-full max-w-md mx-auto h-1"
+                  className="w-full max-w-md mx-auto h-3"
                 />
               </div>
             </div>
@@ -776,9 +777,6 @@ export function MediaGrid({
                   <p>Supports: MP4, MOV, AVI, MKV, WebM videos</p>
                   <p>JPG, PNG, GIF, WebP images</p>
                   <p className="font-medium">Maximum: 1GB per file</p>
-                  <p className="font-medium text-green-400">
-                    Available: {projectSize.remainingFormatted}
-                  </p>
                 </div>
               </div>
             </div>
@@ -790,7 +788,7 @@ export function MediaGrid({
       <div className="flex-1 overflow-y-auto p-4">
         {organizedMedia.length === 0 ? (
           <div className="text-center py-12">
-            <FileVideo className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
+            <DocumentDuplicateIcon className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
             <p className="text-lg">No media files</p>
             <p className="text-sm text-muted-foreground">
               Upload videos or images to get started

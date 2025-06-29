@@ -43,17 +43,17 @@ export function DeleteMediaDialog({
         })
       }
     >
-      <AlertDialogContent className="bg-gray-800 border-gray-700 text-white">
+      <AlertDialogContent >
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Media File</AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-400">
+          <AlertDialogDescription className="text-muted-foreground">
             Are you sure you want to delete "
             {deleteDialog.mediaFile?.original_filename}"? This action cannot be
             undone and will also disable all review links for this media.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white">
+          <AlertDialogCancel className=" border-2 border-[#262626] shadow-xs hover:bg-[#121212]/80 hover:text-accent-foreground  bg-[#121212] ">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
@@ -61,7 +61,7 @@ export function DeleteMediaDialog({
               deleteDialog.mediaFile && onDeleteMedia(deleteDialog.mediaFile)
             }
             disabled={deleteDialog.isDeleting}
-            className="bg-red-600 text-white hover:bg-red-700"
+            className="bg-[#E5484D] text-white shadow-xs hover:bg-[#E5484D]/80 border-2 border-black/20"
           >
             {deleteDialog.isDeleting ? (
               <>

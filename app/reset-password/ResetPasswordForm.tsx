@@ -104,7 +104,7 @@ export default function ResetPasswordForm({
   return (
     <div className="flex flex-col min-h-screen items-center justify-center p-4">
       <Image
-        src="/raivcoo-logo.png"
+        src="/MainLogo.png"
         alt="Logo"
         width={70}
         height={70}
@@ -210,7 +210,7 @@ export default function ResetPasswordForm({
           <CardFooter>
             <Button
               type="submit"
-              variant={token_hash ? "default" : "secondary"}
+              variant={token_hash ? "default" : "outline"}
               className={"w-full "}
               disabled={isLoading}
             >

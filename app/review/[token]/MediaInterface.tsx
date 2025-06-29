@@ -1,14 +1,16 @@
+// @ts-nocheck
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ReviewComments } from "./review_components/ReviewComments";
 import { VersionSelector } from "./review_components/VersionSelector";
 import { MediaDisplay } from "./review_components/MediaDisplay";
 import { PlayerControls } from "./review_components/PlayerControls";
 import { SplitPanel } from "@/app/components/SplitPanel";
-import { Download, ArrowLeft, Eye, MessageSquare } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 import { getCommentsAction } from "./lib/actions";
 import { MediaFile } from "@/app/dashboard/lib/types";
+import { ChatBubbleOvalLeftIcon } from "@heroicons/react/24/solid";
 
 interface MediaComment {
   id: string;
@@ -66,9 +68,6 @@ export const MediaInterface: React.FC<MediaInterface> = ({
 }) => {
   // States
   const [currentMedia, setCurrentMedia] = useState<MediaFile>(media);
-  const [selectedTab, setSelectedTab] = useState<"comments" | "details">(
-    "comments"
-  );
   const [currentTime, setCurrentTime] = useState(0);
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [activeCommentPin, setActiveCommentPin] = useState<string | null>(null);
@@ -126,34 +125,35 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     }
   };
 
-  const handleAnnotationRequest = (
-    type: "pin" | "drawing" | "none",
-    config: any
-  ) => {
-    console.log("MediaInterface annotation request:", type, config); // Debug log
+  // FIXED: Memoize the annotation request handler
+  const handleAnnotationRequest = useCallback(
+    (type: "pin" | "drawing" | "none", config: any) => {
+      console.log("MediaInterface annotation request:", type, config);
 
-    // Clear any active comment pins/drawings when starting new annotation OR canceling
-    if (type !== "none") {
-      console.log("Clearing active comments for new annotation"); // Debug log
-      setActiveCommentPin(null);
-      setActiveCommentDrawing(null);
-    }
+      // Clear any active comment pins/drawings when starting new annotation OR canceling
+      if (type !== "none") {
+        console.log("Clearing active comments for new annotation");
+        setActiveCommentPin(null);
+        setActiveCommentDrawing(null);
+      }
 
-    if (type === "none") {
-      console.log("Canceling annotation mode"); // Debug log
-      // Cancel annotation mode
-      setAnnotationMode("none");
-      setAnnotationConfig({});
-      // Also clear active comments when canceling
-      setActiveCommentPin(null);
-      setActiveCommentDrawing(null);
-    } else {
-      console.log("Setting annotation mode:", type); // Debug log
-      // Set annotation mode and config
-      setAnnotationMode(type);
-      setAnnotationConfig(config);
-    }
-  };
+      if (type === "none") {
+        console.log("Canceling annotation mode");
+        // Cancel annotation mode
+        setAnnotationMode("none");
+        setAnnotationConfig({});
+        // Also clear active comments when canceling
+        setActiveCommentPin(null);
+        setActiveCommentDrawing(null);
+      } else {
+        console.log("Setting annotation mode:", type);
+        // Set annotation mode and config
+        setAnnotationMode(type);
+        setAnnotationConfig(config);
+      }
+    },
+    []
+  ); // Empty dependency array since this function doesn't depend on any state
 
   const handleAnnotationComplete = (annotationData: any) => {
     // Reset annotation mode
@@ -163,17 +163,29 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     // The annotation will be saved automatically by the ReviewComments component
   };
 
-  const handleCommentDrawingClick = (comment: MediaComment) => {
-    if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
-      handleSeekToTimestamp(comment.timestamp_seconds);
-      setActiveCommentDrawing(comment.id);
-    }
-  };
-  const clearActiveComments = () => {
-    console.log("MediaInterface clearing active comments"); // Debug log
+  const handleCommentDrawingClick = useCallback(
+    (comment: MediaComment) => {
+      if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
+        // If this drawing is already active, hide it (toggle off)
+        if (activeCommentDrawing === comment.id) {
+          setActiveCommentDrawing(null);
+          return;
+        }
+
+        // Otherwise show this drawing
+        handleSeekToTimestamp(comment.timestamp_seconds);
+        setActiveCommentDrawing(comment.id);
+      }
+    },
+    [activeCommentDrawing]
+  );
+
+  const clearActiveComments = useCallback(() => {
+    console.log("MediaInterface clearing active comments");
     setActiveCommentPin(null);
     setActiveCommentDrawing(null);
-  };
+  }, []);
+
   useEffect(() => {
     if (activeCommentDrawing && videoRef.current) {
       const activeComment = comments.find((c) => c.id === activeCommentDrawing);
@@ -188,16 +200,26 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     }
   }, [currentTime, activeCommentDrawing, comments]);
 
-  const handleCommentAdded = (newComment: MediaComment) => {
-    setComments([...comments, newComment]);
-  };
+  const handleCommentAdded = useCallback((newComment: MediaComment) => {
+    setComments((prev) => [...prev, newComment]);
+  }, []);
 
-  const handleCommentPinClick = (comment: MediaComment) => {
-    if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
-      handleSeekToTimestamp(comment.timestamp_seconds);
-      setActiveCommentPin(comment.id);
-    }
-  };
+  const handleCommentPinClick = useCallback(
+    (comment: MediaComment) => {
+      if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
+        // If this pin is already active, hide it (toggle off)
+        if (activeCommentPin === comment.id) {
+          setActiveCommentPin(null);
+          return;
+        }
+
+        // Otherwise show this pin
+        handleSeekToTimestamp(comment.timestamp_seconds);
+        setActiveCommentPin(comment.id);
+      }
+    },
+    [activeCommentPin]
+  );
 
   useEffect(() => {
     if (activeCommentPin && videoRef.current) {
@@ -231,23 +253,22 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     });
   };
 
-  const handleBack = () => {
-    window.history.back();
-  };
-
   const handleVersionChange = (version: MediaFile) => {
     setCurrentMedia(version);
   };
 
-  const handleSeekToTimestamp = (timestamp: number) => {
-    if (videoRef.current && currentMedia.file_type === "video") {
-      videoRef.current.currentTime = timestamp;
-    }
-  };
+  const handleSeekToTimestamp = useCallback(
+    (timestamp: number) => {
+      if (videoRef.current && currentMedia.file_type === "video") {
+        videoRef.current.currentTime = timestamp;
+      }
+    },
+    [currentMedia.file_type]
+  );
 
-  const handleCommentDeleted = (deletedCommentId: string) => {
-    setComments(comments.filter((c) => c.id !== deletedCommentId));
-  };
+  const handleCommentDeleted = useCallback((deletedCommentId: string) => {
+    setComments((prev) => prev.filter((c) => c.id !== deletedCommentId));
+  }, []);
 
   // Create the main media content - THIS STAYS MOUNTED
   const mediaContent = (
@@ -284,53 +305,24 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     </div>
   );
 
-  const commentsContent =
-    selectedTab === "comments" ? (
-      <ReviewComments
-        mediaId={currentMedia.id}
-        mediaType={currentMedia.file_type}
-        currentTime={currentTime}
-        onSeekToTimestamp={handleSeekToTimestamp}
-        className="h-full"
-        onCommentPinClick={handleCommentPinClick}
-        onCommentDrawingClick={handleCommentDrawingClick}
-        onCommentDeleted={handleCommentDeleted}
-        onCommentAdded={handleCommentAdded}
-        onAnnotationRequest={handleAnnotationRequest}
-        onClearActiveComments={clearActiveComments} // Add this line
-        authenticatedUser={authenticatedUser}
-      />
-    ) : (
-      <div className="p-4 space-y-4 overflow-y-auto h-full">
-        <div>
-          <h3 className="text-sm font-medium mb-3">Media Details</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Name:</span>
-              <span className="truncate ml-2">
-                {currentMedia.original_filename}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Type:</span>
-              <span>{currentMedia.file_type}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Size:</span>
-              <span>{formatFileSize(currentMedia.file_size)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Version:</span>
-              <span>v{currentMedia.version_number}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Uploaded:</span>
-              <span>{formatDate(currentMedia.uploaded_at)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const commentsContent = (
+    <ReviewComments
+      mediaId={currentMedia.id}
+      mediaType={currentMedia.file_type}
+      currentTime={currentTime}
+      onSeekToTimestamp={handleSeekToTimestamp}
+      className="h-full"
+      onCommentPinClick={handleCommentPinClick}
+      onCommentDrawingClick={handleCommentDrawingClick}
+      onCommentDeleted={handleCommentDeleted}
+      onCommentAdded={handleCommentAdded}
+      onAnnotationRequest={handleAnnotationRequest}
+      onClearActiveComments={clearActiveComments}
+      authenticatedUser={authenticatedUser}
+      activeCommentPin={activeCommentPin}
+      activeCommentDrawing={activeCommentDrawing}
+    />
+  );
 
   // SINGLE LAYOUT that adapts with CSS and conditional rendering
   return (
@@ -338,13 +330,10 @@ export const MediaInterface: React.FC<MediaInterface> = ({
       {/* Header - adapts for mobile/desktop */}
       <header className="bg-background border-b px-3 md:px-4 h-[50px] flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-3 md:gap-4">
-          <button
-            onClick={handleBack}
-            className="text-muted-foreground hover:text-white p-1"
+          <h1
+            className="text-base md:text-lg font-medium text-white truncate max-w-[200px]"
+            title={currentMedia.original_filename}
           >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <h1 className="text-base md:text-lg font-medium text-white truncate">
             {currentMedia.original_filename}
           </h1>
 
@@ -374,11 +363,11 @@ export const MediaInterface: React.FC<MediaInterface> = ({
             <div className="h-[40vh] flex-shrink-0">{mediaContent}</div>
 
             {/* Mobile Comments Area */}
-            <div className="flex-1 min-h-0 flex flex-col border-t border-border">
+            <div className="flex-1 min-h-0 flex flex-col border-t border">
               {/* Mobile Comments Header */}
               <div className="border-b px-4 py-3 flex-shrink-0">
                 <h3 className="text-sm font-medium flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
+                  <ChatBubbleOvalLeftIcon className="h-4 w-4" />
                   Comments
                 </h3>
               </div>

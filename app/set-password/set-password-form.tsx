@@ -7,12 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { setPassword, sendPasswordEmail } from "./actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RevButtons } from "@/components/ui/RevButtons";
+
 import { Loader2, HelpCircle, Home, ArrowRight, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { AuroraText } from "@/components/ui/aurora-text";
+import { Button } from "@/components/ui/button";
 
 interface SetPasswordFormProps {
   initialHasPassword: boolean;
@@ -110,19 +111,19 @@ export default function SetPasswordForm({
             </p>
 
             <div className="space-y-4">
-              <RevButtons asChild className="w-full">
+              <Button asChild className="w-full">
                 <Link href="/dashboard">
                   <ArrowRight className="mr-2 h-4 w-4" />
                   Go to Dashboard
                 </Link>
-              </RevButtons>
+              </Button>
 
-              <RevButtons asChild variant="outline" className="w-full">
+              <Button asChild variant="outline" className="w-full">
                 <Link href="/">
                   <Home className="mr-2 h-4 w-4" />
                   Return to Home
                 </Link>
-              </RevButtons>
+              </Button>
             </div>
           </div>
         </div>
@@ -220,7 +221,7 @@ export default function SetPasswordForm({
                 />
               </div>
 
-              <RevButtons className="w-full" type="submit" disabled={isLoading}>
+              <Button className="w-full" type="submit" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -233,14 +234,14 @@ export default function SetPasswordForm({
                 ) : (
                   "Set Password"
                 )}
-              </RevButtons>
+              </Button>
             </form>
             {hasExistingPassword && (
               <p className="text-center text-sm text-muted-foreground mt-4">
                 Forget your password?{" "}
                 <Link
                   href="/reset-password"
-                  className="font-medium text-purple-600 hover:underline dark:text-purple-500"
+                  className="font-medium text-blue-600 hover:underline dark:text-blue-500"
                 >
                   Reset Password
                 </Link>

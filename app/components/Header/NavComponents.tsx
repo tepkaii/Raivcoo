@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, ScanBarcode } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/dashboard", label: "Dashboard" },
+  // { href: "/dashboard", label: "Dashboard" },
   // { href: "/pricing", label: "Pricing", icon: FlaskConical },
-  // { href: "/board", label: "board", icon: FlaskConical },
+  // { href: "/subscription", label: "subscription", icon: ScanBarcode },
   { href: "/tools", label: "Tools" },
 ];
 

@@ -27,12 +27,9 @@ function LoadingFallback() {
 export default function ResetPassword() {
   return (
     <>
-      <DotPatternBg>
-        <Suspense fallback={<LoadingFallback />}>
-          <ResetPasswordContent />
-        </Suspense>
-      </DotPatternBg>
-      {/* <h1>{token_hash ? "Set New Password" : "Reset Password"}</h1> */}
+      <Suspense fallback={<LoadingFallback />}>
+        <ResetPasswordContent />
+      </Suspense>
     </>
   );
 }

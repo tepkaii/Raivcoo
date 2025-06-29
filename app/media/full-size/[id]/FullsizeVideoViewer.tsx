@@ -3,9 +3,6 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PlayerControls } from "@/app/review/[token]/review_components/PlayerControls";
 
 interface MediaFile {
@@ -29,7 +26,6 @@ interface FullsizeVideoViewerProps {
 }
 
 export function FullsizeVideoViewer({ mediaFile }: FullsizeVideoViewerProps) {
-  const router = useRouter();
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
 
@@ -65,10 +61,6 @@ export function FullsizeVideoViewer({ mediaFile }: FullsizeVideoViewerProps) {
       }
     }
     resetControlsTimeout();
-  };
-
-  const handleGoBack = () => {
-    router.back();
   };
 
   // Handle time updates from PlayerControls
@@ -157,14 +149,6 @@ export function FullsizeVideoViewer({ mediaFile }: FullsizeVideoViewerProps) {
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleGoBack}
-              className="text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
             <div className="text-white text-lg">
               {mediaFile.original_filename}
             </div>

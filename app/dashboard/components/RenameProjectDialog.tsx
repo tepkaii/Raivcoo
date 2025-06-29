@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { PencilSquareIcon } from "@heroicons/react/24/solid";
 
 interface Project {
   id: string;
@@ -91,7 +92,7 @@ export function RenameProjectDialog({
       <DialogContent className="bg-primary-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Edit2 className="h-5 w-5" />
+            <PencilSquareIcon className="h-5 w-5" />
             Rename Project
           </DialogTitle>
         </DialogHeader>

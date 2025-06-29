@@ -21,13 +21,15 @@ import {
   Image as ImageIcon,
   FileText,
 } from "lucide-react";
-import { RevButtons } from "@/components/ui/RevButtons";
+
 import { BorderTrail } from "@/components/ui/border-trail";
 import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
-import { BentoDemo } from "../bentos";
+
 import { Badge } from "@/components/ui/badge";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { PlayIcon } from "@heroicons/react/24/solid";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -49,11 +51,11 @@ function AnimatedSection({ children, className }: any) {
 function PricingCard({ plan, price, storage, features, popular = false }: any) {
   return (
     <div
-      className={`relative rounded-xl p-8 ${popular ? "border-2 border-purple-500 bg-gradient-to-b from-purple-500/10 to-transparent" : "border border-[#3F3F3F] bg-card"}`}
+      className={`relative rounded-xl p-8 ${popular ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent" : "border border-[#3F3F3F] bg-card"}`}
     >
       {popular && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-          <Badge className="bg-purple-500 text-white">Most Popular</Badge>
+          <Badge className="bg-[#0070F3] text-white">Most Popular</Badge>
         </div>
       )}
       <div className="text-center">
@@ -66,18 +68,18 @@ function PricingCard({ plan, price, storage, features, popular = false }: any) {
         <ul className="space-y-3 mb-8 text-left">
           {features.map((feature: string, index: number) => (
             <li key={index} className="flex items-start">
-              <Check className="h-5 w-5 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
+              <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
               <span className="text-sm">{feature}</span>
             </li>
           ))}
         </ul>
-        <RevButtons
+        <Button
           variant={popular ? "default" : "outline"}
           className="w-full"
           size="lg"
         >
           Get Started
-        </RevButtons>
+        </Button>
       </div>
     </div>
   );
@@ -119,30 +121,30 @@ function CustomPricingCard() {
 
         <ul className="space-y-3 mb-8 text-left">
           <li className="flex items-start">
-            <Check className="h-5 w-5 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
+            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
             <span className="text-sm">All Standard features included</span>
           </li>
           <li className="flex items-start">
-            <Check className="h-5 w-5 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
+            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
             <span className="text-sm">Custom storage: {storageGB}GB</span>
           </li>
           <li className="flex items-start">
-            <Check className="h-5 w-5 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
+            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
             <span className="text-sm">Unlimited file uploads</span>
           </li>
           <li className="flex items-start">
-            <Check className="h-5 w-5 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
+            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
             <span className="text-sm">Priority support</span>
           </li>
           <li className="flex items-start">
-            <Check className="h-5 w-5 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
+            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
             <span className="text-sm">Advanced analytics</span>
           </li>
         </ul>
 
-        <RevButtons variant="outline" className="w-full" size="lg">
+        <Button variant="outline" className="w-full" size="lg">
           Get Started
-        </RevButtons>
+        </Button>
       </div>
     </div>
   );
@@ -193,10 +195,10 @@ export default function HomePage() {
             className="flex flex-row gap-4 justify-center mt-8"
           >
             <Link href="/signup">
-              <RevButtons size="lg" variant="default" className="px-4">
+              <Button size="lg" variant="default" className="px-4">
                 Start Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
-              </RevButtons>
+              </Button>
             </Link>
             <button
               onClick={() => {
@@ -206,10 +208,10 @@ export default function HomePage() {
                 });
               }}
             >
-              <RevButtons size="lg" variant="outline" className="px-4">
-                <Play className="mr-2 h-5 w-5" />
+              <Button size="lg" variant="outline" className="px-4">
+                <PlayIcon className="mr-2 h-5 w-5" />
                 See Demo
-              </RevButtons>
+              </Button>
             </button>
           </motion.div>
         </section>
@@ -249,8 +251,8 @@ export default function HomePage() {
         <AnimatedSection className="container mx-auto px-4 pb-16">
           <div className="grid md:grid-cols-4 gap-6 max-w-7xl mx-auto">
             <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-                <Upload className="h-6 w-6 text-purple-500" />
+              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
+                <Upload className="h-6 w-6 text-[#0070F3]" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Direct Upload</h3>
               <p className="text-muted-foreground">
@@ -259,8 +261,8 @@ export default function HomePage() {
               </p>
             </div>
             <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-                <MessageCircle className="h-6 w-6 text-purple-500" />
+              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
+                <MessageCircle className="h-6 w-6 text-[#0070F3]" />
               </div>
               <h3 className="text-xl font-semibold mb-2">
                 Timestamped Comments
@@ -271,8 +273,8 @@ export default function HomePage() {
               </p>
             </div>
             <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-purple-500" />
+              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-[#0070F3]" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Secure Hosting</h3>
               <p className="text-muted-foreground">
@@ -281,8 +283,8 @@ export default function HomePage() {
               </p>
             </div>
             <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-purple-500" />
+              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
+                <Users className="h-6 w-6 text-[#0070F3]" />
               </div>
               <h3 className="text-xl font-semibold mb-2">No Login Required</h3>
               <p className="text-muted-foreground">
@@ -308,8 +310,8 @@ export default function HomePage() {
 
             <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <div className="text-center p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="w-16 h-16 bg-purple-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <FileVideo className="h-8 w-8 text-purple-500" />
+                <div className="w-16 h-16 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <FileVideo className="h-8 w-8 text-[#0070F3]" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">Videos</h3>
                 <p className="text-muted-foreground text-sm mb-4">
@@ -324,8 +326,8 @@ export default function HomePage() {
               </div>
 
               <div className="text-center p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="w-16 h-16 bg-purple-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <ImageIcon className="h-8 w-8 text-purple-500" />
+                <div className="w-16 h-16 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <ImageIcon className="h-8 w-8 text-[#0070F3]" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">Images</h3>
                 <p className="text-muted-foreground text-sm mb-4">
@@ -340,8 +342,8 @@ export default function HomePage() {
               </div>
 
               <div className="text-center p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="w-16 h-16 bg-purple-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-purple-500" />
+                <div className="w-16 h-16 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-[#0070F3]" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">Reference Files</h3>
                 <p className="text-muted-foreground text-sm mb-4">
@@ -382,19 +384,19 @@ export default function HomePage() {
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>Secure cloud storage with automatic backups</span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>Fast global CDN delivery for instant loading</span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>Automatic format optimization for web viewing</span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>
                       Real-time notifications when clients view your content
                     </span>
@@ -419,29 +421,29 @@ export default function HomePage() {
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>
                       256-bit SSL encryption for all uploads and streams
                     </span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>
                       Password-protected review links with custom expiration
                     </span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>
                       Detailed analytics on who viewed your content and when
                     </span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>Watermarking options for sensitive content</span>
                   </li>
                   <li className="flex items-start">
-                    <Check className="h-5 w-5 text-purple-500 mr-2 mt-1" />
+                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
                     <span>Automatic GDPR compliance and data deletion</span>
                   </li>
                 </ul>
@@ -474,38 +476,53 @@ export default function HomePage() {
 
             <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               <PricingCard
-                plan="Free"
-                price="0"
-                storage="1GB storage included"
+                plan="Professional"
+                price="3.99"
+                storage="100GB storage included"
                 features={[
                   "Upload videos, images & files",
-                  "3 active review projects",
+                  "5 active review projects",
                   "Basic timestamped comments",
                   "Secure file hosting",
                   "Email notifications",
-                  "7-day link expiration",
+                  "30-day link expiration",
                 ]}
               />
 
               <PricingCard
-                plan="Standard"
-                price="5"
-                storage="50GB storage included"
+                plan="Studio"
+                price="5.99"
+                storage="250GB storage included"
                 popular={true}
                 features={[
-                  "Everything in Free plan",
+                  "Everything in Professional plan",
                   "Unlimited review projects",
                   "Advanced timestamped comments",
                   "Password protection for links",
                   "Custom expiration dates",
                   "Real-time notifications",
                   "File download controls",
-                  "Basic analytics & insights",
+                  "Advanced analytics & insights",
                   "Priority support",
                 ]}
               />
 
-              <CustomPricingCard />
+              <PricingCard
+                plan="Studio Pro"
+                price="9.99"
+                storage="500GB storage included"
+                features={[
+                  "Everything in Studio plan",
+                  "Advanced client management",
+                  "Custom branding options",
+                  "Advanced security features",
+                  "API access",
+                  "Dedicated support",
+                  "Custom integrations",
+                  "Advanced reporting",
+                  "White-label options",
+                ]}
+              />
             </div>
 
             <div className="text-center mt-12">
@@ -553,7 +570,7 @@ export default function HomePage() {
                   share everywhere."
                 </p>
                 <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mr-3"></div>
+                  <div className="w-10 h-10 bg-gradient-to-r from-[#0070F3] to-[#0052CC] rounded-full mr-3"></div>
                   <div>
                     <p className="font-semibold">Sarah Chen</p>
                     <p className="text-sm text-muted-foreground">
@@ -577,7 +594,7 @@ export default function HomePage() {
                   and my clients love how easy it is to access the content."
                 </p>
                 <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full mr-3"></div>
+                  <div className="w-10 h-10 bg-gradient-to-r from-[#0070F3] to-[#003D82] rounded-full mr-3"></div>
                   <div>
                     <p className="font-semibold">Marcus Rodriguez</p>
                     <p className="text-sm text-muted-foreground">
@@ -602,7 +619,7 @@ export default function HomePage() {
                   when."
                 </p>
                 <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full mr-3"></div>
+                  <div className="w-10 h-10 bg-gradient-to-r from-[#0070F3] to-[#0085FF] rounded-full mr-3"></div>
                   <div>
                     <p className="font-semibold">Emma Thompson</p>
                     <p className="text-sm text-muted-foreground">
@@ -630,10 +647,10 @@ export default function HomePage() {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/signup">
-                  <RevButtons size="lg" variant="default">
+                  <Button size="lg" variant="default">
                     Start Free Trial
                     <ArrowRight className="ml-2 h-5 w-5" />
-                  </RevButtons>
+                  </Button>
                 </Link>
                 <button
                   onClick={() => {
@@ -643,9 +660,9 @@ export default function HomePage() {
                     });
                   }}
                 >
-                  <RevButtons size="lg" variant="outline">
+                  <Button size="lg" variant="outline">
                     View Pricing
-                  </RevButtons>
+                  </Button>
                 </button>
               </div>
 

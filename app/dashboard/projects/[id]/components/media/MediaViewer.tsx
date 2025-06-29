@@ -1,4 +1,3 @@
-// app/dashboard/projects/[id]/components/MediaViewer.tsx
 // @ts-nocheck
 "use client";
 
@@ -8,13 +7,13 @@ import React, {
   useEffect,
   forwardRef,
   useImperativeHandle,
+  useCallback,
 } from "react";
 import { MediaDisplay } from "@/app/review/[token]/review_components/MediaDisplay";
 import { PlayerControls } from "@/app/review/[token]/review_components/PlayerControls";
 import { VersionSelector } from "@/app/review/[token]/review_components/VersionSelector";
 import { getCommentsAction } from "@/app/review/[token]/lib/actions";
 import { MediaFile } from "@/app/dashboard/lib/types";
-
 
 interface MediaComment {
   id: string;
@@ -38,6 +37,7 @@ interface MediaComment {
     mediaHeight: number;
     createdAtScale: number;
     timestamp?: number;
+    color?: string;
   };
   drawing_data?: {
     id: string;
@@ -70,6 +70,9 @@ interface MediaViewerProps {
   onAnnotationCreate?: (annotation: any) => void;
   onCommentPinClick?: (comment: MediaComment) => void;
   onCommentDrawingClick?: (comment: MediaComment) => void;
+  // ❌ REMOVE THESE - they create circular dependencies
+  // onAnnotationRequest?: (type: "pin" | "drawing" | "none", config: any) => void;
+  // onClearActiveComments?: () => void;
 }
 
 export interface MediaViewerRef {
@@ -78,6 +81,12 @@ export interface MediaViewerRef {
   handleSeekToTimestamp: (timestamp: number) => void;
   comments: MediaComment[];
   loadComments: () => void;
+  // ✅ THESE ARE FOR EXTERNAL CALLS FROM PARENT
+  handleAnnotationRequest: (
+    type: "pin" | "drawing" | "none",
+    config: any
+  ) => void;
+  clearActiveComments: () => void;
 }
 
 export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
@@ -94,6 +103,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       onAnnotationCreate,
       onCommentPinClick,
       onCommentDrawingClick,
+      // ❌ REMOVE THESE PROPS TO PREVENT CIRCULAR CALLS
     },
     ref
   ) => {
@@ -107,6 +117,12 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     >(null);
     const [internalCurrentTime, setInternalCurrentTime] = useState(0);
     const [isFullscreen, setIsFullscreen] = useState(false);
+
+    // ✅ ANNOTATION STATES
+    const [annotationMode, setAnnotationMode] = useState<
+      "none" | "pin" | "drawing"
+    >("none");
+    const [annotationConfig, setAnnotationConfig] = useState<any>({});
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const fullscreenContainerRef = useRef<HTMLDivElement>(null);
@@ -149,15 +165,62 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       }
     };
 
-    // Handle annotation from MediaDisplay
-    const handleAddAnnotation = (annotationData: any) => {
-      console.log("MediaViewer: Annotation created", annotationData);
+    // ✅ FIXED: Annotation request handler - NO circular calls
+    const handleAnnotationRequest = useCallback(
+      (type: "pin" | "drawing" | "none", config: any) => {
+        console.log("MediaViewer annotation request:", type, config);
+
+        // Clear any active comment pins/drawings when starting new annotation OR canceling
+        if (type !== "none") {
+          console.log("Clearing active comments for new annotation");
+          setActiveCommentPin(null);
+          setActiveCommentDrawing(null);
+        }
+
+        if (type === "none") {
+          console.log("Canceling annotation mode");
+          setAnnotationMode("none");
+          setAnnotationConfig({});
+          setActiveCommentPin(null);
+          setActiveCommentDrawing(null);
+        } else {
+          console.log("Setting annotation mode:", type);
+          setAnnotationMode(type);
+          setAnnotationConfig(config);
+        }
+
+        // ❌ DON'T call any parent functions here - this IS the handler
+      },
+      []
+    );
+
+    // ✅ FIXED: Clear active comments - NO circular calls
+    const clearActiveComments = useCallback(() => {
+      console.log("MediaViewer clearing active comments");
+      setActiveCommentPin(null);
+      setActiveCommentDrawing(null);
+      // ❌ DON'T call onClearActiveComments - this IS the clear function
+    }, []);
+
+    // ✅ Handle annotation completion
+    const handleAnnotationComplete = (annotationData: any) => {
+      console.log("MediaViewer: Annotation completed", annotationData);
+      // Reset annotation mode
+      setAnnotationMode("none");
+      setAnnotationConfig({});
+      // Pass to parent
       onAnnotationCreate?.(annotationData);
     };
 
     // Handle comment pin click
     const handleCommentPinClick = (comment: MediaComment) => {
       if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
+        // If this pin is already active, hide it (toggle off)
+        if (activeCommentPin === comment.id) {
+          setActiveCommentPin(null);
+          return;
+        }
+
         handleSeekToTimestamp(comment.timestamp_seconds);
         setActiveCommentPin(comment.id);
       }
@@ -167,6 +230,12 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     // Handle comment drawing click
     const handleCommentDrawingClick = (comment: MediaComment) => {
       if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
+        // If this drawing is already active, hide it (toggle off)
+        if (activeCommentDrawing === comment.id) {
+          setActiveCommentDrawing(null);
+          return;
+        }
+
         handleSeekToTimestamp(comment.timestamp_seconds);
         setActiveCommentDrawing(comment.id);
       }
@@ -222,16 +291,18 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       }
     };
 
-    // Expose methods to parent via ref
+    // ✅ EXPOSE METHODS TO PARENT VIA REF
     useImperativeHandle(ref, () => ({
       handleCommentPinClick,
       handleCommentDrawingClick,
       handleSeekToTimestamp,
       comments,
       loadComments,
+      handleAnnotationRequest, // ✅ For external calls FROM parent
+      clearActiveComments, // ✅ For external calls FROM parent
     }));
 
-    // Create the media content - EXACTLY like FrameIOInterface
+    // Create the media content
     const mediaContent = (
       <div
         ref={fullscreenContainerRef}
@@ -244,11 +315,13 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
             media={currentMedia}
             videoRef={videoRef}
             className="h-full"
-            onAddAnnotation={handleAddAnnotation}
+            onAnnotationComplete={handleAnnotationComplete}
             activeCommentPin={activeCommentPin}
             activeCommentDrawing={activeCommentDrawing}
             comments={comments}
             currentTime={currentTime || internalCurrentTime}
+            annotationMode={annotationMode}
+            annotationConfig={annotationConfig}
           />
         </div>
 
@@ -280,7 +353,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
           </div>
         )}
 
-        {/* Media Content - Use the same structure as FrameIOInterface */}
+        {/* Media Content */}
         <div className="flex-1 min-h-0">{mediaContent}</div>
       </div>
     );

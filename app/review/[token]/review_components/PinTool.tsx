@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { MapPin } from "lucide-react";
+import { MapPinIcon } from "@heroicons/react/24/solid";
 
 interface AnnotationPin {
   id: string;
@@ -44,13 +45,14 @@ export const PinTool: React.FC<PinToolProps> = ({
 }) => {
   const [currentPin, setCurrentPin] = useState<AnnotationPin | null>(null);
 
+  // REPLACE WITH THIS:
   useEffect(() => {
     if (existingPins.length > 0) {
       setCurrentPin(existingPins[0]);
     } else {
       setCurrentPin(null);
     }
-  }, [existingPins]);
+  }, [existingPins.length, existingPins[0]?.id]);
 
   useEffect(() => {
     const clearCurrentPin = () => {
@@ -170,14 +172,15 @@ export const PinTool: React.FC<PinToolProps> = ({
                 pointerEvents: "none",
               }}
             >
-              <MapPin
-                className="w-6 h-6 drop-shadow-lg"
-                style={{ color: currentPin.color }}
-                fill="currentColor"
+              <MapPinIcon
+                className="w-6 h-6 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                style={{
+                  color: currentPin.color,
+                  fill: "currentColor",
+                  stroke: "white",
+                  strokeWidth: 2,
+                }}
               />
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1 bg-white text-black text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold text-[10px]">
-                1
-              </div>
             </div>
           )}
         </div>

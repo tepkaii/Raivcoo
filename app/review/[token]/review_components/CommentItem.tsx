@@ -59,6 +59,8 @@ interface CommentItemProps {
   formatTime: (time: number) => string;
   formatDate: (date: string) => string;
   canDelete: boolean;
+  isActivePinComment?: boolean;
+  isActiveDrawingComment?: boolean;
 }
 
 export const CommentItem: React.FC<CommentItemProps> = ({
@@ -71,6 +73,8 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   formatTime,
   formatDate,
   canDelete,
+  isActivePinComment,
+  isActiveDrawingComment,
 }) => {
   const [showActions, setShowActions] = useState(false);
 
@@ -153,8 +157,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({
           {hasPin && (
             <button
               onClick={handlePinClick}
-              className="text-xs text-purple-400 hover:text-purple-300 font-mono flex items-center gap-1 hover:bg-purple-400/10 px-2 py-1 rounded"
-              title="View pin on media"
+              className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded ${
+                isActivePinComment
+                  ? "bg-purple-600 text-white" // Active state
+                  : "text-purple-400 hover:text-purple-300 hover:bg-purple-400/10"
+              }`}
+              title={
+                isActivePinComment ? "Hide pin on media" : "View pin on media"
+              }
             >
               <MapPin className="h-3 w-3" />
               Pin
@@ -165,8 +175,16 @@ export const CommentItem: React.FC<CommentItemProps> = ({
           {hasDrawing && (
             <button
               onClick={handleDrawingClick}
-              className="text-xs text-green-400 hover:text-green-300 font-mono flex items-center gap-1 hover:bg-green-400/10 px-2 py-1 rounded"
-              title="View drawing on media"
+              className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded ${
+                isActiveDrawingComment
+                  ? "bg-green-600 text-white" // Active state
+                  : "text-green-400 hover:text-green-300 hover:bg-green-400/10"
+              }`}
+              title={
+                isActiveDrawingComment
+                  ? "Hide drawing on media"
+                  : "View drawing on media"
+              }
             >
               <Pencil className="h-3 w-3" />
               Draw

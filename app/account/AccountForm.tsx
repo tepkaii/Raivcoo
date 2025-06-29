@@ -3,7 +3,7 @@
 "use client";
 import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { RevButtons } from "@/components/ui/RevButtons";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import { validateDisplayName } from "./displayNameValidation";
 import Image from "next/image";
 
 import { timeZones } from "@/utils/timezones";
+import { Button } from "@/components/ui/button";
 
 export interface AccountData {
   email: string;
@@ -379,7 +380,7 @@ export default function AccountForm({
 
           {/* Submit Button */}
           <div className="">
-            <RevButtons
+            <Button
               type="submit"
               disabled={isLoading || !isFormValid || isPending}
               className="w-full"
@@ -392,7 +393,7 @@ export default function AccountForm({
               ) : (
                 "Save Changes"
               )}
-            </RevButtons>
+            </Button>
           </div>
           {/* Support info */}
           <p className="text-xs text-center text-muted-foreground">

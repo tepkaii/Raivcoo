@@ -1,8 +1,8 @@
 // app/profile/PasswordSection.tsx
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RevButtons } from "@/components/ui/RevButtons";
 import { ShieldCheck, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
@@ -35,12 +35,12 @@ export default function PasswordSection({
                 You can sign in with your email and password
               </p>
             </div>
-            <RevButtons asChild variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
               <Link href="/set-password">
                 Change Password
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </RevButtons>
+            </Button>
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -52,12 +52,12 @@ export default function PasswordSection({
                 You're using social login ({email})
               </p>
             </div>
-            <RevButtons asChild size="sm">
+            <Button asChild size="sm">
               <Link href="/set-password">
                 Set Password
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </RevButtons>
+            </Button>
           </div>
         )}
       </CardContent>

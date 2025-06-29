@@ -30,6 +30,13 @@ import {
 import AccountForm, { AccountData } from "../../account/AccountForm";
 import { updateAccount } from "../../account/actions";
 import PasswordSection from "../../account/PasswordSection";
+import Image from "next/image";
+import {
+  ArrowLeftStartOnRectangleIcon,
+  FolderArrowDownIcon,
+  FolderIcon,
+  UserIcon,
+} from "@heroicons/react/24/solid";
 
 interface ProfileShowProps {
   portfolio: AccountData;
@@ -92,54 +99,14 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
       <SidebarHeader className="border-b p-0 m-0 bg-background">
         <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
           <Link href="/" className="flex items-center gap-2">
-            <Avatar className="h-8 w-8 rounded-lg border-2">
-              <AvatarImage src={"MainLogo.png"} alt={"Raivcoo Logo"} />
-            </Avatar>
+            <Image
+              width={30}
+              height={30}
+              src={"/MainLogo.png"}
+              alt={"Raivcoo Logo"}
+            />
           </Link>
-
-          {/* User dropdown menu */}
-          {/* <div className="absolute group-data-[collapsible=icon]:hidden right-3 top-1/2 -translate-y-1/2">
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <RevButtons size={"icon"} variant={"ghost"} title="User Menu">
-                  <div className="flex items-center">
-                    <ChevronDown className="h-3 w-3 transition-transform duration-200 data-[state=open]:rotate-180" />
-                  </div>
-                </RevButtons>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href="/" className="flex items-center gap-2">
-                    <Home className="h-4 w-4" />
-                    <span>Home</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setAccountDialogOpen(true)}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <SquareUser className="h-4 w-4" />
-                  <span>Account</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <form
-                    action="/auth/signout"
-                    method="post"
-                    className="flex items-center gap-2 w-full cursor-pointer"
-                  >
-                    <button
-                      type="submit"
-                      className="flex items-center gap-2 w-full"
-                    >
-                      <LogOut className="h-4 w-4 text-red-600" />
-                      <span className="text-red-600">Sign out</span>
-                    </button>
-                  </form>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div> */}
+          <h1 className="  group-data-[collapsible=icon]:hidden">Raivcoo</h1>
         </div>
       </SidebarHeader>
 
@@ -161,7 +128,7 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
                     )}
                   >
                     <div>
-                      <FolderOpen
+                      <FolderIcon
                         strokeWidth={1.5}
                         className={`size-5 ${isActiveSection("/dashboard") ? "text-[#0070F3]" : ""}`}
                       />
@@ -192,7 +159,7 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
                   className="flex items-center w-full group-data-[collapsible=icon]:justify-center cursor-pointer"
                 >
                   <div>
-                    <SquareUser strokeWidth={1.5} className="size-5" />
+                    <UserIcon strokeWidth={1.5} className="size-5" />
                   </div>
                   <span className="group-data-[collapsible=icon]:hidden">
                     Account
@@ -207,7 +174,10 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
                     className="flex items-center w-full group-data-[collapsible=icon]:justify-center cursor-pointer text-red-500 hover:text-red-600"
                   >
                     <div>
-                      <LogOut strokeWidth={1.5} className="size-5" />
+                      <ArrowLeftStartOnRectangleIcon
+                        strokeWidth={1.5}
+                        className="size-5"
+                      />
                     </div>
                     <span className="group-data-[collapsible=icon]:hidden">
                       Sign out

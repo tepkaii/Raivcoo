@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { TrashIcon } from "@heroicons/react/24/solid";
 
 interface Project {
   id: string;
@@ -153,7 +154,7 @@ export function DeleteProjectDialog({
                 </>
               ) : (
                 <>
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <TrashIcon className="h-4 w-4 mr-2" />
                   Delete Project
                 </>
               )}

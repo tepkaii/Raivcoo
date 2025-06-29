@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { X, MessageSquare, Play } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  ChatBubbleBottomCenterTextIcon,
+  ChatBubbleOvalLeftIcon,
   PlayCircleIcon,
 } from "@heroicons/react/24/solid";
 
@@ -49,7 +49,6 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
   const [rightPanelWidth, setRightPanelWidth] = useState(
     defaultRightPanelWidth
   );
-  const [leftPanelWidth, setLeftPanelWidth] = useState(defaultLeftPanelWidth);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(showRightPanel);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(showLeftPanel);
   const [isResizing, setIsResizing] = useState(false);
@@ -149,12 +148,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
       className={`flex h-full min-h-0 relative ${className}`}
     >
       {/* Left Panel */}
-      <div
-        className={`${isLeftPanelOpen ? "flex-shrink-0" : "hidden"} min-w-0 transition-all duration-200`}
-        style={{ width: getLeftPanelWidth() }}
-      >
-        {leftPanel}
-      </div>
+      <div style={{ width: getLeftPanelWidth() }}>{leftPanel}</div>
 
       {/* Left Panel Toggle Button (when panel is closed) */}
       {!isLeftPanelOpen && allowCloseLeft && (
@@ -183,15 +177,15 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
 
       {/* Right Panel */}
       <div
-        className={` flex flex-col border-l border-gray-800 transition-all duration-200 ${
+        className={` flex flex-col  transition-all duration-200 ${
           isRightPanelOpen ? "flex-shrink-0" : "hidden"
         }`}
         style={{ width: getRightPanelWidth() }}
       >
         {/* Right Panel Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#262626]">
           <h3 className="text-sm font-medium text-white flex items-center gap-2">
-            <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
+            <ChatBubbleOvalLeftIcon className="h-4 w-4" />
             {rightPanelTitle}
           </h3>
           {allowCloseRight && (
@@ -214,7 +208,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
       {!isRightPanelOpen && allowCloseRight && (
         <div className="absolute right-4 top-4 z-50">
           <Button onClick={handleRightPanelToggle} size="sm">
-            <ChatBubbleBottomCenterTextIcon className="h-4 w-4 " />
+            <ChatBubbleOvalLeftIcon className="h-4 w-4 " />
           </Button>
         </div>
       )}

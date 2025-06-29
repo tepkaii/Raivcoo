@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, Loader2, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,9 +77,18 @@ export function CreateProjectDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="gap-2" size="sm">
-          <Plus className="h-4 w-4" />
-          New Project
+        <Button className="gap-2" size="sm" disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" />
+              New Project
+            </>
+          )}
         </Button>
       </DialogTrigger>
 

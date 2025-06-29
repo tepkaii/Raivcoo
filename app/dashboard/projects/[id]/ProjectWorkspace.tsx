@@ -6,15 +6,8 @@ import { MediaGrid } from "./components/media/MediaGrid";
 import { MediaViewer } from "./components/media/MediaViewer";
 import { ReviewComments } from "@/app/review/[token]/review_components/ReviewComments";
 
-import {
-  MessageSquare,
-  Eye,
-  Grid3x3,
-  SquarePlay,
-  ArrowLeft,
-} from "lucide-react";
+import { MessageSquare, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import {
   CommentsPanel,
   MediaCardsPanel,
@@ -22,6 +15,10 @@ import {
 } from "@/app/components/icons";
 import { MediaFile, ReviewLink } from "../../lib/types";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  ChatBubbleBottomCenterTextIcon,
+  EyeIcon,
+} from "@heroicons/react/24/solid";
 
 interface Project {
   id: string;
@@ -53,7 +50,6 @@ export function ProjectWorkspace({
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [comments, setComments] = useState<any[]>([]);
-  const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
 
   // Track screen size
   const [isMobile, setIsMobile] = useState(false);
@@ -132,7 +128,6 @@ export function ProjectWorkspace({
 
   // Handle annotation creation from MediaViewer
   const handleAnnotationCreate = (annotation: any) => {
-    setPendingAnnotation(annotation);
     if (!showCommentsPanel && !isMobile) {
       setShowCommentsPanel(true);
     }
@@ -310,13 +305,6 @@ export function ProjectWorkspace({
       {/* Header */}
       <header className="bg-background border-b h-[50px] flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center  h-full">
-          <div className="flex gap-1 h-full items-center  text-white">
-            <div className="flex items-center mr-1 ml-1 h-full">
-              <Link href="/dashboard" className="p-2">
-                <ArrowLeft className="size-4" />
-              </Link>{" "}
-            </div>
-          </div>
           <div className="flex items-center justify-center  border-l border-r h-full mr-3">
             <div className="flex items-center mr-2 ml-2 h-full">
               <SidebarTrigger />
@@ -506,9 +494,9 @@ export function ProjectWorkspace({
                 }}
               />
             ) : (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                  <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <EyeIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">Select Media</h3>
                   <p className="text-sm">Choose a video or image to view</p>
                 </div>
@@ -544,8 +532,6 @@ export function ProjectWorkspace({
                     mediaViewerRef.current?.handleSeekToTimestamp?.(timestamp);
                   }}
                   className="h-full"
-                  pendingAnnotation={pendingAnnotation}
-                  onAnnotationSaved={() => setPendingAnnotation(null)}
                   onCommentPinClick={(comment) => {
                     mediaViewerRef.current?.handleCommentPinClick?.(comment);
                   }}
@@ -568,12 +554,26 @@ export function ProjectWorkspace({
                       mediaViewerRef.current.loadComments();
                     }
                   }}
-                  authenticatedUser={authenticatedUser} // Add this line
+                  // ✅ DIRECT REF CALLS - no props to prevent circular loops
+                  onAnnotationRequest={(type, config) => {
+                    if (mediaViewerRef.current) {
+                      mediaViewerRef.current.handleAnnotationRequest(
+                        type,
+                        config
+                      );
+                    }
+                  }}
+                  onClearActiveComments={() => {
+                    if (mediaViewerRef.current) {
+                      mediaViewerRef.current.clearActiveComments();
+                    }
+                  }}
+                  authenticatedUser={authenticatedUser}
                 />
               ) : (
-                <div className="flex-1 flex items-center justify-center p-8">
+                <div className="flex-1 min-h-screen flex items-center justify-center p-8">
                   <div className="text-center">
-                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <ChatBubbleBottomCenterTextIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <h3 className="text-lg font-medium mb-2">Select Media</h3>
                     <p className="text-sm">Choose media to view comments</p>
                   </div>

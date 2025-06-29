@@ -71,6 +71,9 @@ export default function RootLayout({
                 "/account/",
                 "/account",
                 "/media",
+                "/pricing",
+                "/success",
+                "/subscription",
               ]}
               // excludePaths={["/links/edit"]}
             >
