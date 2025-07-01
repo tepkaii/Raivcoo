@@ -68,14 +68,14 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({
             <Badge variant="default">Latest</Badge>
           )}
           <ChevronDown
-            className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`h-4 w-4  text-blue-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
           />
         </Button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 mt-1 w-80 bg-background border  rounded-lg shadow-xl z-50">
+          <div className="absolute top-full left-0 mt-1 w-80 bg-background border rounded-lg shadow-xl z-50">
             <div className="p-3 border-b border">
-              <h3 className="text-sm font-medium text-white">All Versions</h3>
+              <h3 className="text-sm font-medium ">All Versions</h3>
             </div>
             <div className="max-h-64 overflow-y-auto">
               {sortedVersions.map((version) => (
@@ -98,14 +98,14 @@ export const VersionSelector: React.FC<VersionSelectorProps> = ({
                         <Check className="h-4 w-4 text-green-400" />
                       )}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {formatFileSize(version.file_size)}
                     </div>
                   </div>
-                  <div className="mt-2 text-sm text-gray-300">
+                  <div className="mt-2 text-sm ">
                     {version.original_filename}
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3" />
                     {formatDate(version.uploaded_at)}
                   </div>

@@ -9,6 +9,7 @@ import { Star, Eye, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "@/app/dashboard/lib/types";
+import { EyeIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 interface VersionDragListProps {
   versions: MediaFile[];
@@ -194,12 +195,12 @@ export function VersionDragList({
         const canMoveDown = index < uniqueVersions.length - 1;
 
         return (
-          <Card key={version.id} className="p-4 bg-secondary ">
+          <Card key={version.id} className="p-4 ">
             <div className="flex items-center gap-4">
               {/* Arrow controls */}
               <div className="flex flex-col gap-1">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => handleMoveUp(version.id, index)}
                   disabled={!canMoveUp}
@@ -208,7 +209,7 @@ export function VersionDragList({
                   <ChevronUp className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => handleMoveDown(version.id, index)}
                   disabled={!canMoveDown}
@@ -249,7 +250,7 @@ export function VersionDragList({
                     </Badge>
                   )}
                 </div>
-                <div className="text-xs text-gray-400 space-y-0.5">
+                <div className="text-xs text-muted-foreground space-y-0.5">
                   <p>Version {displayVersionNumber}</p>
                   <p>{formatDate(version.uploaded_at)}</p>
                   <p>{formatFileSize(version.file_size)}</p>
@@ -266,7 +267,7 @@ export function VersionDragList({
                     window.open(`/media/full-size/${version.id}`, "_blank");
                   }}
                 >
-                  <Eye className="h-4 w-4" />
+                  <EyeIcon className="h-4 w-4" />
                 </Button>
                 {!version.is_current_version && (
                   <Button
@@ -274,7 +275,7 @@ export function VersionDragList({
                     size="sm"
                     onClick={() => handleDeleteVersion(version.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <TrashIcon className="h-4 w-4" />
                   </Button>
                 )}
               </div>

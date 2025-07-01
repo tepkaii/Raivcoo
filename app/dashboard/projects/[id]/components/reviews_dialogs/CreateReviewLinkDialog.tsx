@@ -1,20 +1,7 @@
-
 // app/dashboard/projects/[id]/components/reviews_Dialogs/CreateReviewLinkDialog.tsx
 "use client";
 
 import React, { useState } from "react";
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  addDays,
-  isSameMonth,
-  isSameDay,
-  addMonths,
-  subMonths,
-} from "date-fns";
 import {
   Calendar as CalendarIcon,
   Copy,
@@ -22,14 +9,14 @@ import {
   Link,
   Check,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
+  Download,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { MediaFile } from "@/app/dashboard/lib/types";
-
+import { LockClosedIcon } from "@heroicons/react/24/solid";
 
 interface CreateLinkDialogState {
   open: boolean;
@@ -64,104 +51,9 @@ interface CreateReviewLinkDialogProps {
       expiresAt?: string;
       requiresPassword: boolean;
       password?: string;
+      allowDownload: boolean; // ✅ NEW OPTION
     }
   ) => void;
-}
-
-interface CustomCalendarProps {
-  selected?: Date;
-  onSelect: (date?: Date) => void;
-  disabled?: (date: Date) => boolean;
-}
-
-function CustomCalendar({ selected, onSelect, disabled }: CustomCalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(selected || new Date());
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const startDate = startOfWeek(monthStart);
-  const endDate = endOfWeek(monthEnd);
-
-  const dateFormat = "d";
-  const rows = [];
-  let days = [];
-  let day = startDate;
-  let formattedDate = "";
-
-  while (day <= endDate) {
-    for (let i = 0; i < 7; i++) {
-      formattedDate = format(day, dateFormat);
-      const cloneDay = new Date(day);
-      const isDisabled = disabled ? disabled(cloneDay) : false;
-      const isSelected = selected ? isSameDay(day, selected) : false;
-      const isCurrentMonth = isSameMonth(day, monthStart);
-
-      days.push(
-        <button
-          type="button"
-          className={cn(
-            "h-9 w-9 flex bg-background items-center justify-center text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
-            isCurrentMonth ? "text-foreground" : "text-muted-foreground",
-            isSelected && "bg-primary text-primary-foreground",
-            !isSelected &&
-              isCurrentMonth &&
-              !isDisabled &&
-              "hover:bg-accent hover:text-accent-foreground",
-            isDisabled && "text-muted-foreground cursor-not-allowed opacity-50"
-          )}
-          key={day.toString()}
-          onClick={() => !isDisabled && onSelect(cloneDay)}
-          disabled={isDisabled}
-        >
-          <span>{formattedDate}</span>
-        </button>
-      );
-      day = addDays(day, 1);
-    }
-    rows.push(
-      <div className="grid grid-cols-7 gap-1" key={day.toString()}>
-        {days}
-      </div>
-    );
-    days = [];
-  }
-
-  const nextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  };
-
-  const prevMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  };
-
-  return (
-    <div className="p-3">
-      <div className="flex items-center justify-between mb-4">
-        <Button variant="outline" size="icon" onClick={prevMonth} type="button">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h2 className="text-sm font-medium">
-          {format(currentMonth, "MMMM yyyy")}
-        </h2>
-        <Button variant="outline" size="icon" onClick={nextMonth} type="button">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1 mb-2">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-          <div
-            key={day}
-            className="h-9 w-9 flex items-center justify-center text-xs font-medium text-muted-foreground"
-          >
-            {day}
-          </div>
-        ))}
-      </div>
-
-      <div className="space-y-1">{rows}</div>
-    </div>
-  );
 }
 
 export function CreateReviewLinkDialog({
@@ -174,52 +66,73 @@ export function CreateReviewLinkDialog({
     expiresAt: "",
     requiresPassword: false,
     password: "",
+    allowDownload: true, // ✅ NEW FIELD - Default to true
   });
 
   const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedTime, setSelectedTime] = useState({ hours: "23", minutes: "59" });
 
   const handleDateChange = (date?: Date) => {
     setSelectedDate(date);
-    if (date) {
-      // Set time to end of day (23:59:59) for the selected date
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-      const isoString = endOfDay.toISOString();
-      setLinkFormData((prev) => ({ ...prev, expiresAt: isoString }));
+    updateExpirationTime(date, selectedTime);
+  };
+
+  const handleTimeChange = (field: "hours" | "minutes", value: string) => {
+    const newTime = { ...selectedTime, [field]: value };
+    setSelectedTime(newTime);
+    updateExpirationTime(selectedDate, newTime);
+  };
+
+  const updateExpirationTime = (date?: Date, time?: { hours: string; minutes: string }) => {
+    if (date && time) {
+      const expirationDate = new Date(date);
+      expirationDate.setHours(parseInt(time.hours), parseInt(time.minutes), 59, 999);
+      setLinkFormData((prev) => ({ ...prev, expiresAt: expirationDate.toISOString() }));
     } else {
       setLinkFormData((prev) => ({ ...prev, expiresAt: "" }));
     }
   };
 
-const handleCopyReviewLink = async (linkToken: string) => {
-  const reviewUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/review/${linkToken}`;
-  try {
-    await navigator.clipboard.writeText(reviewUrl);
-    toast({
-      title: "Link Copied",
-      description: "Review link copied to clipboard",
-      variant: "success",
+  const handleCopyReviewLink = async (linkToken: string) => {
+    const reviewUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/review/${linkToken}`;
+    try {
+      await navigator.clipboard.writeText(reviewUrl);
+      toast({
+        title: "Link Copied",
+        description: "Review link copied to clipboard",
+        variant: "green",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to Copy",
+        description: "Could not copy link to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // ✅ Reset form when dialog closes
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setLinkFormData({
+        title: "",
+        expiresAt: "",
+        requiresPassword: false,
+        password: "",
+        allowDownload: true,
+      });
+      setSelectedDate(undefined);
+      setSelectedTime({ hours: "23", minutes: "59" });
+    }
+    onCreateLinkDialogChange({
+      open,
+      isCreating: false,
+      showSuccess: false,
     });
-  } catch (error) {
-    toast({
-      title: "Failed to Copy",
-      description: "Could not copy link to clipboard",
-      variant: "destructive",
-    });
-  }
-};
+  };
 
   return (
-    <Dialog
-      open={createLinkDialog.open}
-      onOpenChange={(open) =>
-        onCreateLinkDialogChange({
-          open,
-          isCreating: false,
-          showSuccess: false,
-        })
-      }
-    >
+    <Dialog open={createLinkDialog.open} onOpenChange={handleDialogClose}>
       <DialogContent className="bg-primary-foreground max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -229,72 +142,70 @@ const handleCopyReviewLink = async (linkToken: string) => {
           </DialogTitle>
         </DialogHeader>
 
-       {createLinkDialog.showSuccess ? (
-  <div className="space-y-4">
-    <div className="flex items-center justify-center py-6">
-      <div className="flex items-center gap-3">
-        <div className="bg-green-700 p-2 rounded-[10px] border-2 border-black/20">
-          <Check className="h-5 w-5 text-green-200" />
-        </div>
-        <div>
-          <p className="font-medium">Link created successfully!</p>
-          <p className="text-sm text-muted-foreground">
-            The link has been copied to your clipboard
-          </p>
-        </div>
-      </div>
-    </div>
+        {createLinkDialog.showSuccess ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-center py-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-700 p-2 rounded-[10px] border-2 border-black/20">
+                  <Check className="h-5 w-5 text-green-200" />
+                </div>
+                <div>
+                  <p className="font-medium">Link created successfully!</p>
+                  <p className="text-sm text-muted-foreground">
+                    The link has been copied to your clipboard
+                  </p>
+                </div>
+              </div>
+            </div>
 
-    <div className="space-y-2">
-      <Label className="text-gray-300">Review Link</Label>
-      <div className="flex items-center gap-2">
-        <Input
-          value={createLinkDialog.createdUrl ? 
-            `${process.env.NEXT_PUBLIC_BASE_URL}/review/${createLinkDialog.createdUrl.split("/").pop()}` : 
-            ""
-          }
-          readOnly
-          className="font-mono text-sm "
-        />
-        <Button
-          variant="outline"
-          onClick={() =>
-            handleCopyReviewLink(
-              createLinkDialog.createdUrl?.split("/").pop() || ""
-            )
-          }
-        >
-          <Copy className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => {
-            const linkToken = createLinkDialog.createdUrl?.split("/").pop();
-            if (linkToken) {
-              window.open(`${process.env.NEXT_PUBLIC_BASE_URL}/review/${linkToken}`, "_blank");
-            }
-          }}
-        >
-          <ExternalLink className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+            <div className="space-y-2">
+              <Label className="text-gray-300">Review Link</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={
+                    createLinkDialog.createdUrl
+                      ? `${process.env.NEXT_PUBLIC_BASE_URL}/review/${createLinkDialog.createdUrl
+                          .split("/")
+                          .pop()}`
+                      : ""
+                  }
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    handleCopyReviewLink(
+                      createLinkDialog.createdUrl?.split("/").pop() || ""
+                    )
+                  }
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const linkToken = createLinkDialog.createdUrl?.split("/").pop();
+                    if (linkToken) {
+                      window.open(
+                        `${process.env.NEXT_PUBLIC_BASE_URL}/review/${linkToken}`,
+                        "_blank"
+                      );
+                    }
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
-    <div className="flex justify-end">
-      <Button
-        onClick={() =>
-          onCreateLinkDialogChange({
-            open: false,
-            isCreating: false,
-            showSuccess: false,
-          })
-        }
-      >
-        Done
-      </Button>
-    </div>
-  </div>
-) : (
+            <div className="flex justify-end">
+              <Button onClick={() => handleDialogClose(false)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -304,6 +215,7 @@ const handleCopyReviewLink = async (linkToken: string) => {
                   expiresAt: linkFormData.expiresAt || undefined,
                   requiresPassword: linkFormData.requiresPassword,
                   password: linkFormData.password || undefined,
+                  allowDownload: linkFormData.allowDownload, // ✅ PASS NEW OPTION
                 });
               }
             }}
@@ -311,7 +223,8 @@ const handleCopyReviewLink = async (linkToken: string) => {
           >
             <div>
               <Label htmlFor="title">Review Title (Optional)</Label>
-              <Input className="mt-1"
+              <Input
+                className="mt-1"
                 id="title"
                 value={linkFormData.title}
                 onChange={(e) =>
@@ -321,14 +234,12 @@ const handleCopyReviewLink = async (linkToken: string) => {
                   }))
                 }
                 placeholder="Enter a title for this review"
-              
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Expiration Date (Optional)</Label>
-
-              <div>
+              <Label>Expiration Date & Time (Optional)</Label>
+              <div className="space-y-3">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -341,17 +252,24 @@ const handleCopyReviewLink = async (linkToken: string) => {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {selectedDate ? (
-                        format(selectedDate, "PPP")
+                        selectedDate.toLocaleDateString("en-US", {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })
                       ) : (
                         <span>Pick a date</span>
                       )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <CustomCalendar 
+                    <Calendar
+                      mode="single"
                       selected={selectedDate}
                       onSelect={handleDateChange}
                       disabled={(date) => date < new Date()}
+                      initialFocus
                     />
                     {selectedDate && (
                       <div className="p-3 border-t">
@@ -368,34 +286,99 @@ const handleCopyReviewLink = async (linkToken: string) => {
                     )}
                   </PopoverContent>
                 </Popover>
-              </div>
 
+                {selectedDate && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Time:</Label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="23"
+                        value={selectedTime.hours}
+                        onChange={(e) => handleTimeChange("hours", e.target.value)}
+                        className="w-16 text-center"
+                        placeholder="00"
+                      />
+                      <span>:</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="59"
+                        value={selectedTime.minutes}
+                        onChange={(e) => handleTimeChange("minutes", e.target.value)}
+                        className="w-16 text-center"
+                        placeholder="00"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Leave blank for permanent link. Selected date will expire at end
-                of day.
+                Leave blank for permanent link. Link will expire at the specified date and time.
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="requiresPassword"
-                checked={linkFormData.requiresPassword}
-                onCheckedChange={(checked) =>
-                  setLinkFormData((prev) => ({
-                    ...prev,
-                    requiresPassword: checked,
-                  }))
-                }
-              />
-              <Label htmlFor="requiresPassword">
-                Require password to access
-              </Label>
+            {/* ✅ NEW DOWNLOAD PERMISSION SECTION */}
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-sm font-medium">Download Settings</Label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Download className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="allowDownload" className="text-sm">
+                      Allow file downloads
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Reviewers can download the original media file
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="allowDownload"
+                  checked={linkFormData.allowDownload}
+                  onCheckedChange={(checked) =>
+                    setLinkFormData((prev) => ({
+                      ...prev,
+                      allowDownload: checked,
+                    }))
+                  }
+                />
+              </div>
             </div>
 
+           {/* Updated Password Section - Same format as Download Settings */}
+<div className="space-y-3 border-t pt-4">
+  <Label className="text-sm font-medium">Access Settings</Label>
+  <div className="flex items-center justify-between">
+    <div className="flex items-center space-x-2">
+      <LockClosedIcon className="h-4 w-4 text-muted-foreground" />
+      <div>
+        <Label htmlFor="requiresPassword" className="text-sm">
+          Require password to access
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Protect this review link with a password
+        </p>
+      </div>
+    </div>
+    <Switch
+      id="requiresPassword"
+      checked={linkFormData.requiresPassword}
+      onCheckedChange={(checked) =>
+        setLinkFormData((prev) => ({
+          ...prev,
+          requiresPassword: checked,
+        }))
+      }
+    />
+  </div>
+</div>
             {linkFormData.requiresPassword && (
               <div>
-                <Label htmlFor="password" >Password</Label>
-                <Input className="mt-2"
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  className="mt-2"
                   id="password"
                   type="password"
                   value={linkFormData.password}
@@ -406,24 +389,13 @@ const handleCopyReviewLink = async (linkToken: string) => {
                     }))
                   }
                   placeholder="Enter password"
-                 
                   required={linkFormData.requiresPassword}
                 />
               </div>
             )}
 
             <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  onCreateLinkDialogChange({
-                    open: false,
-                    isCreating: false,
-                    showSuccess: false,
-                  })
-                }
-              >
+              <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={createLinkDialog.isCreating}>

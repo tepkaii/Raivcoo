@@ -20,6 +20,7 @@ import {
   updateVersionNameAction,
   deleteVersionAction,
   addVersionToMediaAction,
+  updateMediaStatusAction,
 } from "../../lib/actions";
 import {
   MediaFile,
@@ -27,12 +28,13 @@ import {
   ReviewLink,
 } from "@/app/dashboard/lib/types";
 import { DocumentDuplicateIcon } from "@heroicons/react/24/solid";
+import { createClient } from "@/utils/supabase/client";
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];
   reviewLinks: ReviewLink[];
   selectedMedia: MediaFile | null;
-  onMediaSelect: (media: MediaFile) => void;
+  onMediaSelect: (media: MediaFile | null) => void; // ✅ Allow null
   onMediaUpdated: (newFiles: MediaFile[]) => void;
   onReviewLinksUpdated: (newLinks: ReviewLink[]) => void;
   projectId: string;
@@ -255,7 +257,7 @@ export function MediaGrid({
         description: targetMediaId
           ? `Added ${result.files.length} new version(s)`
           : result.message,
-        variant: "success",
+        variant: "green",
       });
     } catch (error) {
       console.error("Upload error:", error);
@@ -347,7 +349,7 @@ export function MediaGrid({
       toast({
         title: "Versions Reordered",
         description: "Version order has been updated",
-        variant: "success",
+        variant: "cyan",
       });
     } else {
       toast({
@@ -358,71 +360,220 @@ export function MediaGrid({
     }
   };
 
-  const handleCreateVersion = async (
-    targetMediaId: string,
-    sourceMediaId: string
-  ) => {
-    try {
-      const result = await addVersionToMediaAction(
-        targetMediaId,
-        sourceMediaId
-      );
+  const handleCreateVersion = React.useCallback(
+    async (targetMediaId: string, sourceMediaId: string) => {
+      // ✅ Store original state for rollback
+      const originalMediaFiles = [...mediaFiles];
 
-      if (result.success) {
-        const newFiles = mediaFiles.map((file) => {
-          if (file.id === sourceMediaId) {
+      try {
+        // ✅ 1. IMMEDIATE OPTIMISTIC UPDATE (0ms delay)
+        const draggedMedia = mediaFiles.find((m) => m.id === sourceMediaId);
+        if (!draggedMedia) {
+          throw new Error("Source media not found");
+        }
+
+        const sourceParentId = draggedMedia.parent_media_id || draggedMedia.id;
+        const sourceGroup = mediaFiles.filter(
+          (m) => m.id === sourceParentId || m.parent_media_id === sourceParentId
+        );
+
+        const currentVersion = sourceGroup.find((m) => m.is_current_version);
+        const mediaToMoveId = currentVersion?.id || sourceMediaId;
+        const mediaToMove = mediaFiles.find((m) => m.id === mediaToMoveId);
+
+        if (!mediaToMove) {
+          throw new Error("Media to move not found");
+        }
+
+        // Get target group info
+        const targetGroup = mediaFiles.filter(
+          (m) => m.id === targetMediaId || m.parent_media_id === targetMediaId
+        );
+        const nextVersionNumber =
+          Math.max(...targetGroup.map((m) => m.version_number)) + 1;
+
+        // ✅ Calculate optimistic state (same as before)
+        const optimisticFiles = mediaFiles.map((file) => {
+          if (file.id === mediaToMoveId) {
             return {
               ...file,
               parent_media_id: targetMediaId,
-              version_number: result.versionNumber,
+              version_number: nextVersionNumber,
               is_current_version: true,
             };
           }
-          if (file.id === targetMediaId) {
+
+          if (targetGroup.some((m) => m.id === file.id)) {
             return {
               ...file,
               is_current_version: false,
             };
           }
-          if (file.parent_media_id === targetMediaId) {
-            return {
-              ...file,
-              is_current_version: false,
-            };
+
+          // Reorganize source group logic...
+          if (
+            mediaToMoveId !== sourceParentId &&
+            sourceGroup.some((m) => m.id === file.id)
+          ) {
+            const remainingInSource = sourceGroup.filter(
+              (m) => m.id !== mediaToMoveId
+            );
+
+            if (remainingInSource.length > 0) {
+              const newParent = remainingInSource.reduce((lowest, current) =>
+                current.version_number < lowest.version_number
+                  ? current
+                  : lowest
+              );
+
+              if (file.id === newParent.id) {
+                return {
+                  ...file,
+                  parent_media_id: null,
+                  version_number: 1,
+                  is_current_version: true,
+                };
+              } else {
+                const otherVersions = remainingInSource.filter(
+                  (m) => m.id !== newParent.id
+                );
+                const newVersionNumber =
+                  otherVersions.findIndex((m) => m.id === file.id) + 2;
+
+                if (newVersionNumber > 1) {
+                  return {
+                    ...file,
+                    parent_media_id: newParent.id,
+                    version_number: newVersionNumber,
+                    is_current_version: false,
+                  };
+                }
+              }
+            }
           }
+
           return file;
         });
 
-        onMediaUpdated(newFiles);
+        // ✅ Apply optimistic update immediately
+        onMediaUpdated(optimisticFiles);
         setExpandedMedia((prev) => new Set(prev).add(targetMediaId));
 
+        // ✅ 2. DIRECT SUPABASE CALLS (much faster than server actions)
+        const supabase = createClient();
+
+        // Build all updates as a batch
+        const updates = [];
+
+        // Update the media being moved
+        updates.push(
+          supabase
+            .from("project_media")
+            .update({
+              parent_media_id: targetMediaId,
+              version_number: nextVersionNumber,
+              is_current_version: true,
+            })
+            .eq("id", mediaToMoveId)
+        );
+
+        // Set target group to not current
+        updates.push(
+          supabase
+            .from("project_media")
+            .update({ is_current_version: false })
+            .in(
+              "id",
+              targetGroup.map((m) => m.id)
+            )
+        );
+
+        // Handle source group reorganization if needed
+        if (mediaToMoveId !== sourceParentId) {
+          const remainingInSource = sourceGroup.filter(
+            (m) => m.id !== mediaToMoveId
+          );
+
+          if (remainingInSource.length > 0) {
+            const newParent = remainingInSource.reduce((lowest, current) =>
+              current.version_number < lowest.version_number ? current : lowest
+            );
+
+            // Make new parent
+            updates.push(
+              supabase
+                .from("project_media")
+                .update({
+                  parent_media_id: null,
+                  version_number: 1,
+                  is_current_version: true,
+                })
+                .eq("id", newParent.id)
+            );
+
+            // Update other versions
+            const otherVersions = remainingInSource.filter(
+              (m) => m.id !== newParent.id
+            );
+            otherVersions.forEach((version, index) => {
+              updates.push(
+                supabase
+                  .from("project_media")
+                  .update({
+                    parent_media_id: newParent.id,
+                    version_number: index + 2,
+                    is_current_version: false,
+                  })
+                  .eq("id", version.id)
+              );
+            });
+          }
+        }
+
+        // ✅ Execute all updates in parallel (fastest approach)
+        const results = await Promise.allSettled(updates);
+
+        // Check for any failures
+        const failures = results.filter(
+          (result) => result.status === "rejected"
+        );
+        if (failures.length > 0) {
+          console.error("Some updates failed:", failures);
+          throw new Error(`${failures.length} database updates failed`);
+        }
+
+        // ✅ Success - keep optimistic update
+        const movedMediaName = mediaToMove.original_filename;
         const targetName = mediaFiles.find(
           (m) => m.id === targetMediaId
-        )?.original_filename;
-        const sourceName = mediaFiles.find(
-          (m) => m.id === sourceMediaId
         )?.original_filename;
 
         toast({
           title: "Version Created",
-          description: `"${sourceName}" is now version ${result.versionNumber} of "${targetName}"`,
-          variant: "success",
+          description: `"${movedMediaName}" is now a version of "${targetName}"`,
+          variant: "green",
         });
-      } else {
+      } catch (error) {
+        console.error("Error in handleCreateVersion:", error);
+
+        // ✅ ROLLBACK ON ANY ERROR
+        onMediaUpdated(originalMediaFiles);
+        setExpandedMedia((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(targetMediaId);
+          return newSet;
+        });
+
         toast({
           title: "Failed to Create Version",
-          description: result.error,
+          description:
+            error instanceof Error ? error.message : "Database error occurred",
           variant: "destructive",
         });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create version relationship",
-        variant: "destructive",
-      });
-    }
-  };
+    },
+    [mediaFiles, onMediaUpdated]
+  );
 
   const handleDeleteMedia = async (mediaFile: MediaFile) => {
     setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
@@ -442,7 +593,7 @@ export function MediaGrid({
       toast({
         title: "Media Deleted",
         description: "Media file has been permanently deleted",
-        variant: "success",
+        variant: "destructive",
       });
 
       setDeleteDialog({ open: false, isDeleting: false });
@@ -494,7 +645,7 @@ export function MediaGrid({
       toast({
         title: "Review Link Created",
         description: "Review link has been copied to your clipboard!",
-        variant: "success",
+        variant: "green",
       });
     } else {
       setCreateLinkDialog((prev) => ({ ...prev, isCreating: false }));
@@ -576,7 +727,7 @@ export function MediaGrid({
       toast({
         title: "Link Updated",
         description: `Review link ${!currentStatus ? "activated" : "deactivated"}`,
-        variant: "success",
+        variant: "green",
       });
     } else {
       toast({
@@ -633,7 +784,7 @@ export function MediaGrid({
       toast({
         title: "Link Deleted",
         description: "Review link has been deleted",
-        variant: "success",
+        variant: "destructive",
       });
     } else {
       toast({
@@ -671,7 +822,7 @@ export function MediaGrid({
       toast({
         title: "Version Deleted",
         description: "Version has been deleted",
-        variant: "success",
+        variant: "destructive",
       });
     } else {
       toast({
@@ -688,6 +839,32 @@ export function MediaGrid({
       media,
       isUpdating: false,
     });
+  };
+  const handleStatusChange = async (
+    mediaFile: MediaFile,
+    newStatus: string
+  ) => {
+    const result = await updateMediaStatusAction(mediaFile.id, newStatus);
+
+    if (result.success) {
+      // Update the local state
+      const updatedFiles = mediaFiles.map((file) =>
+        file.id === mediaFile.id ? { ...file, status: newStatus } : file
+      );
+      onMediaUpdated(updatedFiles);
+
+      toast({
+        title: "Status Updated",
+        description: `Media status changed to ${newStatus.replace("_", " ")}`,
+        variant: "teal",
+      });
+    } else {
+      toast({
+        title: "Failed to Update Status",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -799,7 +976,9 @@ export function MediaGrid({
             className="grid gap-4"
             style={{
               gridTemplateColumns:
-                "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
+                organizedMedia.length === 1
+                  ? "repeat(auto-fit, minmax(330px, 450px))"
+                  : "repeat(auto-fit, minmax(330px, 1fr))",
               width: "100%",
             }}
           >
@@ -877,6 +1056,7 @@ export function MediaGrid({
                   })
                 }
                 onOpenVersionManager={handleOpenVersionManager}
+                onStatusChange={handleStatusChange} // Add this
               />
             ))}
           </div>

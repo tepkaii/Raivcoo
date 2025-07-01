@@ -1,5 +1,5 @@
 // app/review/[token]/page.tsx
-// @ts-nocheck
+
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
@@ -97,44 +97,47 @@ export default async function Page({
   if (user) {
     const { data: profile } = await supabase
       .from("editor_profiles")
-      .select("full_name, display_name, email")
+      .select("full_name, display_name, email, avatar_url")
       .eq("user_id", user.id)
       .single();
 
     userProfile = profile;
   }
 
-  // Get review link with associated media and all its versions
+  // ✅ UPDATED: Get review link with download permission included
   const { data: reviewLink, error: linkError } = await supabase
     .from("review_links")
     .select(
       `
-      id,
-      title,
-      is_active,
-      created_at,
-      expires_at,
-      media_id,
-      requires_password,
-      project:projects (
         id,
-        name,
-        description
-      ),
-      media:project_media (
-        id,
-        filename,
-        original_filename,
-        file_type,
-        mime_type,
-        file_size,
-        r2_url,
-        uploaded_at,
-        parent_media_id,
-        version_number,
-        is_current_version
-      )
-    `
+        title,
+        is_active,
+        created_at,
+        expires_at,
+        media_id,
+        requires_password,
+        allow_download,
+        project:projects (
+          id,
+          name,
+          description
+        ),
+        media:project_media (
+          id,
+          filename,
+          original_filename,
+          file_type,
+          mime_type,
+          file_size,
+          r2_url,
+          uploaded_at,
+          parent_media_id,
+          version_number,
+          is_current_version,
+          version_name,
+          status
+        )
+      `
     )
     .eq("link_token", token)
     .eq("is_active", true)
@@ -188,18 +191,20 @@ export default async function Page({
       .from("project_media")
       .select(
         `
-        id,
-        filename,
-        original_filename,
-        file_type,
-        mime_type,
-        file_size,
-        r2_url,
-        uploaded_at,
-        parent_media_id,
-        version_number,
-        is_current_version
-      `
+          id,
+          filename,
+          original_filename,
+          file_type,
+          mime_type,
+          file_size,
+          r2_url,
+          uploaded_at,
+          parent_media_id,
+          version_number,
+          is_current_version,
+          version_name,
+          status
+        `
       )
       .or(`id.eq.${mediaId},parent_media_id.eq.${mediaId}`)
       .order("version_number", { ascending: false });
@@ -222,6 +227,7 @@ export default async function Page({
       allVersions={allVersions}
       reviewTitle={reviewLink.title}
       projectName={reviewLink.project?.name}
+      allowDownload={reviewLink.allow_download ?? false} // ✅ PASS DOWNLOAD PERMISSION - Default to false for security
       authenticatedUser={
         user && userProfile
           ? {
@@ -232,6 +238,7 @@ export default async function Page({
                 userProfile.full_name ||
                 user.email ||
                 "",
+              avatar_url: userProfile.avatar_url || null,
             }
           : null
       }

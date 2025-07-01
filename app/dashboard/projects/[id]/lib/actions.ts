@@ -1,5 +1,5 @@
 // app/dashboard/projects/[id]/lib/actions.ts
-// @ts-nocheck
+
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -144,98 +144,6 @@ export async function deleteMediaAction(projectId: string, mediaId: string) {
   }
 }
 
-export async function createReviewLinkAction(
-  projectId: string,
-  mediaId: string,
-  options: {
-    title: string;
-    expiresAt?: string;
-    requiresPassword: boolean;
-    password?: string;
-  }
-) {
-  try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("id, editor_id")
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !project || project.editor_id !== editorProfile.id) {
-      throw new Error("Project not found or unauthorized");
-    }
-
-    // Verify media belongs to project and is a parent (not a version)
-    const { data: media, error: mediaError } = await supabase
-      .from("project_media")
-      .select("id, parent_media_id")
-      .eq("id", mediaId)
-      .eq("project_id", projectId)
-      .single();
-
-    if (mediaError || !media) {
-      throw new Error("Media not found");
-    }
-
-    if (media.parent_media_id) {
-      throw new Error(
-        "Review links can only be created for parent media, not versions"
-      );
-    }
-
-    // Generate unique token
-    const linkToken = nanoid(12);
-
-    // Hash password if provided
-    let passwordHash = null;
-    if (options.requiresPassword && options.password) {
-      passwordHash = await bcrypt.hash(options.password, 12);
-    }
-
-    const insertData: any = {
-      project_id: projectId,
-      media_id: mediaId,
-      link_token: linkToken,
-      title: options.title?.trim() || null,
-      requires_password: options.requiresPassword,
-    };
-
-    if (options.expiresAt) {
-      insertData.expires_at = options.expiresAt;
-    }
-
-    if (passwordHash) {
-      insertData.password_hash = passwordHash;
-    }
-
-    const { data: reviewLink, error: linkError } = await supabase
-      .from("review_links")
-      .insert(insertData)
-      .select()
-      .single();
-
-    if (linkError) throw linkError;
-
-    const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/review/${linkToken}`;
-
-    return {
-      success: true,
-      reviewLink,
-      reviewUrl,
-    };
-  } catch (error) {
-    console.error("Create review link error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to create review link",
-    };
-  }
-}
-
 export async function getReviewLinksAction(projectId: string, mediaId: string) {
   try {
     const { supabase, editorProfile } = await getAuthenticatedEditor();
@@ -324,78 +232,6 @@ export async function toggleReviewLinkAction(
     return { success: true };
   } catch (error) {
     console.error("Toggle review link error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to update review link",
-    };
-  }
-}
-
-export async function updateReviewLinkAction(
-  linkId: string,
-  updates: {
-    title?: string;
-    expires_at?: string;
-    requires_password?: boolean;
-    password?: string;
-  }
-) {
-  try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify review link ownership through project
-    const { data: reviewLink, error: linkError } = await supabase
-      .from("review_links")
-      .select(
-        `
-        id,
-        project:projects!inner(id, editor_id)
-      `
-      )
-      .eq("id", linkId)
-      .single();
-
-    if (
-      linkError ||
-      !reviewLink ||
-      reviewLink.project.editor_id !== editorProfile.id
-    ) {
-      throw new Error("Review link not found or unauthorized");
-    }
-
-    const updateData: any = {};
-
-    if (updates.title !== undefined) {
-      updateData.title = updates.title?.trim() || null;
-    }
-
-    if (updates.expires_at !== undefined) {
-      updateData.expires_at = updates.expires_at || null;
-    }
-
-    if (updates.requires_password !== undefined) {
-      updateData.requires_password = updates.requires_password;
-
-      if (!updates.requires_password) {
-        updateData.password_hash = null;
-      }
-    }
-
-    if (updates.password && updates.requires_password) {
-      updateData.password_hash = await bcrypt.hash(updates.password, 12);
-    }
-
-    const { error: updateError } = await supabase
-      .from("review_links")
-      .update(updateData)
-      .eq("id", linkId);
-
-    if (updateError) throw updateError;
-
-    return { success: true };
-  } catch (error) {
-    console.error("Update review link error:", error);
     return {
       success: false,
       error:
@@ -665,7 +501,40 @@ export async function addVersionToMediaAction(
       throw new Error("Parent media not found or unauthorized");
     }
 
-    // Get the next version number
+    // ✅ FIND THE CURRENT VERSION OF THE SOURCE GROUP
+    let mediaToMove = newMediaId;
+
+    // Get all media in the source group
+    const sourceParentId = await supabase
+      .from("project_media")
+      .select("parent_media_id")
+      .eq("id", newMediaId)
+      .single();
+
+    const actualSourceParentId =
+      sourceParentId.data?.parent_media_id || newMediaId;
+
+    // Find the current version in the source group
+    const { data: currentVersionMedia } = await supabase
+      .from("project_media")
+      .select("id")
+      .or(
+        `id.eq.${actualSourceParentId},parent_media_id.eq.${actualSourceParentId}`
+      )
+      .eq("is_current_version", true)
+      .single();
+
+    if (currentVersionMedia) {
+      mediaToMove = currentVersionMedia.id;
+      console.log(
+        "Moving current version:",
+        mediaToMove,
+        "instead of:",
+        newMediaId
+      );
+    }
+
+    // Get the next version number for target
     const { data: existingVersions } = await supabase
       .from("project_media")
       .select("version_number")
@@ -678,23 +547,63 @@ export async function addVersionToMediaAction(
         ? existingVersions[0].version_number + 1
         : 2; // Parent is version 1
 
-    // Set all other versions (including parent) to not current
+    // Set all other versions in target group to not current
     await supabase
       .from("project_media")
       .update({ is_current_version: false })
       .or(`id.eq.${parentMediaId},parent_media_id.eq.${parentMediaId}`);
 
-    // Update the new media to be a version of the parent
+    // ✅ MOVE THE CURRENT VERSION (not the parent)
     const { error: updateError } = await supabase
       .from("project_media")
       .update({
         parent_media_id: parentMediaId,
         version_number: nextVersionNumber,
-        is_current_version: true, // New version becomes current
+        is_current_version: true,
       })
-      .eq("id", newMediaId);
+      .eq("id", mediaToMove); // ← Move the current version!
 
     if (updateError) throw updateError;
+
+    // ✅ REORGANIZE THE SOURCE GROUP
+    if (mediaToMove !== newMediaId) {
+      // The current version was moved, so we need to reorganize the source group
+      const { data: remainingMedia } = await supabase
+        .from("project_media")
+        .select("id, version_number")
+        .or(
+          `id.eq.${actualSourceParentId},parent_media_id.eq.${actualSourceParentId}`
+        )
+        .neq("id", mediaToMove)
+        .order("version_number", { ascending: true });
+
+      if (remainingMedia && remainingMedia.length > 0) {
+        // Make the lowest version the new parent
+        const newParent = remainingMedia[0];
+
+        // Update the new parent
+        await supabase
+          .from("project_media")
+          .update({
+            parent_media_id: null,
+            version_number: 1,
+            is_current_version: true,
+          })
+          .eq("id", newParent.id);
+
+        // Update other versions to be children of the new parent
+        for (let i = 1; i < remainingMedia.length; i++) {
+          await supabase
+            .from("project_media")
+            .update({
+              parent_media_id: newParent.id,
+              version_number: i + 1,
+              is_current_version: false,
+            })
+            .eq("id", remainingMedia[i].id);
+        }
+      }
+    }
 
     revalidatePath(`/dashboard/projects/${parentMedia.project_id}`);
 
@@ -713,7 +622,6 @@ export async function addVersionToMediaAction(
     };
   }
 }
-
 export async function renumberVersionsAction(parentMediaId: string) {
   try {
     const { supabase, editorProfile } = await getAuthenticatedEditor();
@@ -934,6 +842,225 @@ export async function getMediaDataAction(projectId: string, mediaId: string) {
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to fetch media data",
+    };
+  }
+}
+export async function updateMediaStatusAction(
+  mediaId: string,
+  newStatus: string
+) {
+  try {
+    const { supabase, editorProfile } = await getAuthenticatedEditor();
+
+    // Verify media ownership through project
+    const { data: media, error: mediaError } = await supabase
+      .from("project_media")
+      .select(
+        `
+        id,
+        project_id,
+        project:projects!inner(id, editor_id)
+      `
+      )
+      .eq("id", mediaId)
+      .single();
+
+    if (mediaError || !media || media.project.editor_id !== editorProfile.id) {
+      throw new Error("Media not found or unauthorized");
+    }
+
+    // Update the status
+    const { error: updateError } = await supabase
+      .from("project_media")
+      .update({ status: newStatus })
+      .eq("id", mediaId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/projects/${media.project_id}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update media status error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update media status",
+    };
+  }
+}
+
+export async function createReviewLinkAction(
+  projectId: string,
+  mediaId: string,
+  options: {
+    title: string;
+    expiresAt?: string;
+    requiresPassword: boolean;
+    password?: string;
+    allowDownload: boolean; // ✅ NEW PARAMETER
+  }
+) {
+  try {
+    const { supabase, editorProfile } = await getAuthenticatedEditor();
+
+    // Verify project ownership
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id, editor_id")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project || project.editor_id !== editorProfile.id) {
+      throw new Error("Project not found or unauthorized");
+    }
+
+    // Verify media belongs to project and is a parent (not a version)
+    const { data: media, error: mediaError } = await supabase
+      .from("project_media")
+      .select("id, parent_media_id")
+      .eq("id", mediaId)
+      .eq("project_id", projectId)
+      .single();
+
+    if (mediaError || !media) {
+      throw new Error("Media not found");
+    }
+
+    if (media.parent_media_id) {
+      throw new Error(
+        "Review links can only be created for parent media, not versions"
+      );
+    }
+
+    // Generate unique token
+    const linkToken = nanoid(12);
+
+    // Hash password if provided
+    let passwordHash = null;
+    if (options.requiresPassword && options.password) {
+      passwordHash = await bcrypt.hash(options.password, 12);
+    }
+
+    const insertData: any = {
+      project_id: projectId,
+      media_id: mediaId,
+      link_token: linkToken,
+      title: options.title?.trim() || null,
+      requires_password: options.requiresPassword,
+      allow_download: options.allowDownload, // ✅ NEW FIELD
+    };
+
+    if (options.expiresAt) {
+      insertData.expires_at = options.expiresAt;
+    }
+
+    if (passwordHash) {
+      insertData.password_hash = passwordHash;
+    }
+
+    const { data: reviewLink, error: linkError } = await supabase
+      .from("review_links")
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (linkError) throw linkError;
+
+    const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/review/${linkToken}`;
+
+    return {
+      success: true,
+      reviewLink,
+      reviewUrl,
+    };
+  } catch (error) {
+    console.error("Create review link error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to create review link",
+    };
+  }
+}
+
+// ✅ ALSO UPDATE THE updateReviewLinkAction function to handle the new field:
+export async function updateReviewLinkAction(
+  linkId: string,
+  updates: {
+    title?: string;
+    expires_at?: string;
+    requires_password?: boolean;
+    password?: string;
+    allow_download?: boolean; // ✅ NEW PARAMETER
+  }
+) {
+  try {
+    const { supabase, editorProfile } = await getAuthenticatedEditor();
+
+    // Verify review link ownership through project
+    const { data: reviewLink, error: linkError } = await supabase
+      .from("review_links")
+      .select(
+        `
+        id,
+        project:projects!inner(id, editor_id)
+      `
+      )
+      .eq("id", linkId)
+      .single();
+
+    if (
+      linkError ||
+      !reviewLink ||
+      reviewLink.project.editor_id !== editorProfile.id
+    ) {
+      throw new Error("Review link not found or unauthorized");
+    }
+
+    const updateData: any = {};
+
+    if (updates.title !== undefined) {
+      updateData.title = updates.title?.trim() || null;
+    }
+
+    if (updates.expires_at !== undefined) {
+      updateData.expires_at = updates.expires_at || null;
+    }
+
+    if (updates.requires_password !== undefined) {
+      updateData.requires_password = updates.requires_password;
+
+      if (!updates.requires_password) {
+        updateData.password_hash = null;
+      }
+    }
+
+    if (updates.password && updates.requires_password) {
+      updateData.password_hash = await bcrypt.hash(updates.password, 12);
+    }
+
+    // ✅ NEW FIELD HANDLING
+    if (updates.allow_download !== undefined) {
+      updateData.allow_download = updates.allow_download;
+    }
+
+    const { error: updateError } = await supabase
+      .from("review_links")
+      .update(updateData)
+      .eq("id", linkId);
+
+    if (updateError) throw updateError;
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update review link error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to update review link",
     };
   }
 }

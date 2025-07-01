@@ -44,7 +44,10 @@ import { deleteProject, renameProject } from "../projects/actions";
 import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 import { RenameProjectDialog } from "./RenameProjectDialog";
 import {
+  ClockIcon,
   FolderIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
   PencilSquareIcon,
   TrashIcon,
 } from "@heroicons/react/24/solid";
@@ -150,17 +153,17 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
   return (
     <div className="space-y-6 px-4">
       {/* Filters and Controls */}
-      <Card>
+      <Card className="bg-primary-foreground">
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search projects..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-2 bg-[#121212] border-[#262626]"
+                className="pl-10"
               />
             </div>
 
@@ -170,8 +173,8 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
                 value={filterBy}
                 onValueChange={(value: typeof filterBy) => setFilterBy(value)}
               >
-                <SelectTrigger className="w-[140px]">
-                  <Filter className="h-4 w-4 mr-2" />
+                <SelectTrigger>
+                  <FunnelIcon className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -185,7 +188,8 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
                 value={sortBy}
                 onValueChange={(value: typeof sortBy) => setSortBy(value)}
               >
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger>
+                  <ClockIcon className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

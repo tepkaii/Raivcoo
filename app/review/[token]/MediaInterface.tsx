@@ -1,4 +1,5 @@
-// @ts-nocheck
+// app/review/[token]/MediaInterface.tsx
+
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -7,10 +8,38 @@ import { VersionSelector } from "./review_components/VersionSelector";
 import { MediaDisplay } from "./review_components/MediaDisplay";
 import { PlayerControls } from "./review_components/PlayerControls";
 import { SplitPanel } from "@/app/components/SplitPanel";
-import { ArrowLeft, MessageSquare } from "lucide-react";
-import { getCommentsAction } from "./lib/actions";
+import { getCommentsAction, updateMediaStatusAction } from "./lib/actions";
 import { MediaFile } from "@/app/dashboard/lib/types";
 import { ChatBubbleOvalLeftIcon } from "@heroicons/react/24/solid";
+import { Download } from "lucide-react"; // ✅ ADD DOWNLOAD ICON
+import { Button } from "@/components/ui/button"; // ✅ ADD BUTTON COMPONENT
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+
+// Status configuration - matches the project workspace
+export const MEDIA_STATUS_OPTIONS = [
+  { value: "on_hold", label: "On Hold", color: "bg-gray-500" },
+  { value: "in_progress", label: "In Progress", color: "bg-blue-500" },
+  { value: "needs_review", label: "Needs Review", color: "bg-yellow-500" },
+  { value: "rejected", label: "Rejected", color: "bg-red-500" },
+  { value: "approved", label: "Approved", color: "bg-green-500" },
+] as const;
+
+export const getStatusConfig = (status: string) => {
+  return (
+    MEDIA_STATUS_OPTIONS.find((option) => option.value === status) || {
+      value: status,
+      label: status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      color: "bg-gray-500",
+    }
+  );
+};
 
 interface MediaComment {
   id: string;
@@ -58,13 +87,24 @@ interface MediaComment {
 interface MediaInterface {
   media: MediaFile;
   allVersions?: MediaFile[];
-  authenticatedUser?: { id: string; email: string; name: string } | null;
+  authenticatedUser?: {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url?: string;
+  } | null;
+  reviewTitle?: string;
+  projectName?: string;
+  allowDownload?: boolean; // ✅ ADD DOWNLOAD PERMISSION PROP
 }
 
 export const MediaInterface: React.FC<MediaInterface> = ({
   media,
   allVersions = [],
   authenticatedUser,
+  reviewTitle,
+  projectName,
+  allowDownload = false, // ✅ DEFAULT TO FALSE FOR SECURITY
 }) => {
   // States
   const [currentMedia, setCurrentMedia] = useState<MediaFile>(media);
@@ -77,6 +117,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   const [commentsVisible, setCommentsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Annotation states
   const [annotationMode, setAnnotationMode] = useState<
@@ -86,6 +127,65 @@ export const MediaInterface: React.FC<MediaInterface> = ({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+  // ✅ DOWNLOAD HANDLER
+  const handleDownload = useCallback(
+    async (mediaFile: MediaFile) => {
+      if (!allowDownload) {
+        toast({
+          title: "Download Disabled",
+          description: "Downloads are not allowed for this review link",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      try {
+        toast({
+          title: "Starting Download",
+          description: `Downloading ${mediaFile.original_filename}...`,
+          variant: "default",
+        });
+
+        // Fetch the file as blob
+        const response = await fetch(mediaFile.r2_url);
+
+        if (!response.ok) {
+          throw new Error("Download failed");
+        }
+
+        const blob = await response.blob();
+
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = mediaFile.original_filename;
+
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast({
+          title: "Download Complete",
+          description: `${mediaFile.original_filename} has been downloaded`,
+          variant: "green",
+        });
+      } catch (error) {
+        console.error("Download failed:", error);
+        toast({
+          title: "Download Failed",
+          description: "Could not download the file. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [allowDownload]
+  );
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -125,6 +225,40 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     }
   };
 
+  // Handle status change
+  const handleStatusChange = async (newStatus: string) => {
+    setIsUpdatingStatus(true);
+
+    try {
+      const result = await updateMediaStatusAction(currentMedia.id, newStatus);
+
+      if (result.success) {
+        // Update local state
+        setCurrentMedia((prev) => ({ ...prev, status: newStatus }));
+
+        toast({
+          title: "Status Updated",
+          description: `Media status changed to ${getStatusConfig(newStatus).label}`,
+          variant: "teal",
+        });
+      } else {
+        toast({
+          title: "Failed to Update Status",
+          description: result.error || "An error occurred",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update media status",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   // FIXED: Memoize the annotation request handler
   const handleAnnotationRequest = useCallback(
     (type: "pin" | "drawing" | "none", config: any) => {
@@ -153,14 +287,12 @@ export const MediaInterface: React.FC<MediaInterface> = ({
       }
     },
     []
-  ); // Empty dependency array since this function doesn't depend on any state
+  );
 
   const handleAnnotationComplete = (annotationData: any) => {
     // Reset annotation mode
     setAnnotationMode("none");
     setAnnotationConfig({});
-
-    // The annotation will be saved automatically by the ReviewComments component
   };
 
   const handleCommentDrawingClick = useCallback(
@@ -181,7 +313,6 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   );
 
   const clearActiveComments = useCallback(() => {
-    console.log("MediaInterface clearing active comments");
     setActiveCommentPin(null);
     setActiveCommentDrawing(null);
   }, []);
@@ -235,24 +366,6 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     }
   }, [currentTime, activeCommentPin, comments]);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   const handleVersionChange = (version: MediaFile) => {
     setCurrentMedia(version);
   };
@@ -290,6 +403,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           currentTime={currentTime}
           annotationMode={annotationMode}
           annotationConfig={annotationConfig}
+          allowDownload={allowDownload} // ✅ PASS DOWNLOAD PERMISSION
         />
       </div>
 
@@ -329,7 +443,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     <div className="h-screen flex flex-col bg-background">
       {/* Header - adapts for mobile/desktop */}
       <header className="bg-background border-b px-3 md:px-4 h-[50px] flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
           <h1
             className="text-base md:text-lg font-medium text-white truncate max-w-[200px]"
             title={currentMedia.original_filename}
@@ -337,21 +451,61 @@ export const MediaInterface: React.FC<MediaInterface> = ({
             {currentMedia.original_filename}
           </h1>
 
-          <VersionSelector
-            currentMedia={currentMedia}
-            allVersions={allVersions}
-            onVersionChange={handleVersionChange}
-          />
+          {/* Version Selector */}
+          <div className="flex items-center mr-2">
+            <VersionSelector
+              currentMedia={currentMedia}
+              allVersions={allVersions}
+              onVersionChange={handleVersionChange}
+            />
+
+            {/* ✅ DOWNLOAD BUTTON - Desktop */}
+            {!isMobile && (
+              <div className="border-l mr-l flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDownload(currentMedia)}
+                  disabled={!allowDownload}
+                  className="ml-2"
+                  title={
+                    allowDownload
+                      ? "Download this file"
+                      : "Downloads are disabled for this review"
+                  }
+                >
+                  <Download className="h-4 w-4 " />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Desktop header info */}
-        {!isMobile && (
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>{formatFileSize(currentMedia.file_size)}</span>
-            <span>•</span>
-            <span>{formatDate(currentMedia.uploaded_at)}</span>
+        {/* Status Selector - Desktop Only */}
+        <div className="hidden md:block">
+          <div className="flex justify-end items-center gap-2">
+            <p className="text-xs text-muted-foreground">Status:</p>
+            <Select
+              value={currentMedia.status || "in_progress"}
+              onValueChange={handleStatusChange}
+              disabled={isUpdatingStatus}
+            >
+              <SelectTrigger className="text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MEDIA_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${option.color}`} />
+                      {option.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -361,6 +515,53 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           <div className="flex flex-col h-full">
             {/* Mobile Media Area */}
             <div className="h-[40vh] flex-shrink-0">{mediaContent}</div>
+
+            {/* Mobile Controls Row */}
+            <div className="border-t border-b px-4 py-2 gap-2 flex-shrink-0 flex items-center justify-between">
+              {/* Status Selector */}
+              <div className="flex items-center gap-2 flex-1">
+                <h3 className="text-xs text-muted-foreground">Status:</h3>
+                <Select
+                  value={currentMedia.status || "in_progress"}
+                  onValueChange={handleStatusChange}
+                  disabled={isUpdatingStatus}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEDIA_STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${option.color}`}
+                          />
+                          {option.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* ✅ DOWNLOAD BUTTON - Mobile */}
+              <div className="border-l mr-l flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDownload(currentMedia)}
+                  disabled={!allowDownload}
+                  className="ml-2"
+                  title={
+                    allowDownload
+                      ? "Download this file"
+                      : "Downloads are disabled for this review"
+                  }
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
             {/* Mobile Comments Area */}
             <div className="flex-1 min-h-0 flex flex-col border-t border">

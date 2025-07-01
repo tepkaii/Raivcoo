@@ -11,6 +11,7 @@ export interface MediaFile {
   version_number: number;
   is_current_version: boolean;
   version_name?: string;
+  status?: string;
 }
 
 export interface OrganizedMedia {
@@ -42,3 +43,20 @@ export interface ReviewLink {
   password_hash?: string;
   requires_password: boolean;
 }
+export const MEDIA_STATUS_OPTIONS = [
+  { value: "on_hold", label: "On Hold", color: "bg-gray-500" },
+  { value: "in_progress", label: "In Progress", color: "bg-blue-500" },
+  { value: "needs_review", label: "Needs Review", color: "bg-yellow-500" },
+  { value: "rejected", label: "Rejected", color: "bg-red-500" },
+  { value: "approved", label: "Approved", color: "bg-green-500" },
+] as const;
+
+export const getStatusConfig = (status: string) => {
+  return (
+    MEDIA_STATUS_OPTIONS.find((option) => option.value === status) || {
+      value: status,
+      label: status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      color: "bg-gray-500",
+    }
+  );
+};

@@ -101,7 +101,7 @@ export function VersionManagerDialog({
         })
       }
     >
-      <DialogContent className="max-w-2xl bg-primary-foreground">
+      <DialogContent className="max-w-2xl ">
         <DialogHeader>
           <DialogTitle>Manage Versions</DialogTitle>
         </DialogHeader>

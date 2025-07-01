@@ -10,6 +10,7 @@ import {
   Lock,
   Calendar,
   Trash2,
+  Download,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -26,8 +27,14 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { MediaFile, ReviewLink } from "@/app/dashboard/lib/types";
-
-
+import { 
+  ArrowTopRightOnSquareIcon, 
+  CalendarIcon, 
+  ClipboardDocumentIcon, 
+  LockClosedIcon, 
+  TrashIcon,
+  ArrowDownTrayIcon // ✅ ADD DOWNLOAD ICON
+} from "@heroicons/react/24/solid";
 
 interface ManageLinksDialogState {
   open: boolean;
@@ -76,7 +83,7 @@ export function ManageReviewLinksDialog({
       toast({
         title: "Link Copied",
         description: "Review link copied to clipboard",
-        variant: "success",
+        variant: "green",
       });
     } catch (error) {
       toast({
@@ -85,6 +92,19 @@ export function ManageReviewLinksDialog({
         variant: "destructive",
       });
     }
+  };
+
+  // ✅ HANDLE DOWNLOAD PERMISSION TOGGLE
+  const handleDownloadToggle = (linkId: string, currentAllowDownload: boolean) => {
+    onUpdateReviewLink(linkId, { 
+      allow_download: !currentAllowDownload 
+    });
+    
+    toast({
+      title: "Download Permission Updated",
+      description: `Downloads ${!currentAllowDownload ? 'enabled' : 'disabled'} for this review link`,
+      variant: "default",
+    });
   };
 
   return (
@@ -98,7 +118,7 @@ export function ManageReviewLinksDialog({
         })
       }
     >
-      <DialogContent className="max-w-3xl bg-primary-foreground">
+      <DialogContent className="max-w-4xl"> {/* ✅ WIDER DIALOG FOR MORE CONTENT */}
         <DialogHeader>
           <DialogTitle>Manage Review Links</DialogTitle>
           {manageLinksDialog.mediaFile && (
@@ -143,8 +163,9 @@ export function ManageReviewLinksDialog({
                 };
 
                 return (
-                  <Card key={link.id} className="p-4 bg-secondary">
+                  <Card key={link.id} className="p-4">
                     <div className="space-y-4">
+                      {/* Title and Delete Button Row */}
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -173,65 +194,104 @@ export function ManageReviewLinksDialog({
                                 }
                               }}
                               placeholder="Link title"
-                            
+                              className="flex-1"
                             />
                             <Button 
                               variant="destructive"
+                              size="sm"
                               onClick={() => onDeleteReviewLink(link.id)}
+                              title="Delete this review link"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <TrashIcon className="h-4 w-4" />
                             </Button>
-                          </div>
-                          <div className="flex items-center mt-3 gap-4">
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                checked={link.is_active}
-                                onCheckedChange={(checked) =>
-                                  onToggleReviewLink(link.id, !checked)
-                                }
-                              />
-                              <Label className="text-sm">Active</Label>
-                            </div>
-                            {link.requires_password && (
-                              <Badge variant="green">
-                                <Lock className="h-3 w-3 mr-1" />
-                                Protected
-                              </Badge>
-                            )}
-                            {link.expires_at && (
-                              <Badge variant="outline">
-                                <Calendar className="h-3 w-3 mr-1" />
-                                Expires {formatDate(link.expires_at)}
-                              </Badge>
-                            )}
                           </div>
                         </div>
                       </div>
 
+                      {/* Settings and Badges Row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        {/* ✅ SETTINGS TOGGLES */}
+                        <div className="flex flex-wrap items-center gap-4">
+                          {/* Active Toggle */}
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={link.is_active}
+                              onCheckedChange={(checked) =>
+                                onToggleReviewLink(link.id, !checked)
+                              }
+                            />
+                            <Label className="text-sm">Active</Label>
+                          </div>
+
+                          {/* ✅ DOWNLOAD PERMISSION TOGGLE */}
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={link.allow_download ?? false}
+                              onCheckedChange={() =>
+                                handleDownloadToggle(link.id, link.allow_download ?? false)
+                              }
+                            />
+                            <Label className="text-sm flex items-center gap-1">
+                             
+                              Allow Downloads
+                            </Label>
+                          </div>
+                        </div>
+
+                        {/* ✅ BADGES */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {link.requires_password && (
+                            <Badge variant="green">
+                              <LockClosedIcon className="h-3 w-3 mr-1" />
+                              Protected
+                            </Badge>
+                          )}
+                          
+                          {/* ✅ DOWNLOAD STATUS BADGE */}
+                        
+
+                          {link.expires_at && (
+                            <Badge variant="outline">
+                              <CalendarIcon className="h-3 w-3 mr-1" />
+                              Expires {formatDate(link.expires_at)}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Creation Date */}
                       <div className="text-xs text-muted-foreground">
                         Created {formatDate(link.created_at)}
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs border-2 bg-[#121212] border-[#262626] px-2 py-1 rounded flex-1 truncate text-gray-300">
-                          {getReviewUrl(link.link_token)}
-                        </code>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCopyReviewLink(link.link_token)}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            window.open(getReviewUrl(link.link_token), "_blank")
-                          }
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
+                      {/* URL and Action Buttons */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-primary-foreground border px-2 py-1 rounded flex-1 truncate text-gray-300">
+                            {getReviewUrl(link.link_token)}
+                          </code>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCopyReviewLink(link.link_token)}
+                            title="Copy link to clipboard"
+                          >
+                            <ClipboardDocumentIcon className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(getReviewUrl(link.link_token), "_blank")
+                            }
+                            title="Open link in new tab"
+                          >
+                            <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                      
+                     
                       </div>
                     </div>
                   </Card>

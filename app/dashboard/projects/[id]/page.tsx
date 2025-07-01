@@ -134,7 +134,8 @@ export default async function ProjectWorkspacePage({
         parent_media_id,
         version_number,
         is_current_version,
-        version_name
+        version_name,
+        status
       ),
       review_links (
         id,

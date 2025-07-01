@@ -7,9 +7,9 @@ import { FlaskConical, ScanBarcode } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home" },
-  // { href: "/dashboard", label: "Dashboard" },
-  // { href: "/pricing", label: "Pricing", icon: FlaskConical },
-  // { href: "/subscription", label: "subscription", icon: ScanBarcode },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/pricing", label: "Pricing", icon: FlaskConical },
+  { href: "/subscription", label: "subscription", icon: ScanBarcode },
   { href: "/tools", label: "Tools" },
 ];
 

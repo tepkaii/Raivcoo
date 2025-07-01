@@ -18,6 +18,7 @@ interface MediaDisplayProps {
   currentTime?: number;
   annotationMode?: "none" | "pin" | "drawing";
   annotationConfig?: any;
+  allowDownload?: boolean; // ✅ ADD DOWNLOAD PERMISSION PROP
 }
 
 export const MediaDisplay: React.FC<MediaDisplayProps> = ({
@@ -31,6 +32,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   currentTime = 0,
   annotationMode = "none",
   annotationConfig = {},
+  allowDownload = false, // ✅ DEFAULT TO FALSE
 }) => {
   const [displaySize, setDisplaySize] = useState<{
     width: number;
@@ -49,6 +51,22 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mediaElementRef = useRef<HTMLVideoElement | HTMLImageElement>(null);
+
+  // ✅ PREVENT RIGHT-CLICK CONTEXT MENU IF DOWNLOADS DISABLED
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!allowDownload) {
+      e.preventDefault();
+      return false;
+    }
+  };
+
+  // ✅ PREVENT DRAG IF DOWNLOADS DISABLED
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!allowDownload) {
+      e.preventDefault();
+      return false;
+    }
+  };
 
   // Calculate current scale percentage
   const getCurrentScale = () => {
@@ -159,6 +177,37 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     };
   }, [mediaDimensions]);
 
+  // ✅ DISABLE BROWSER SHORTCUTS THAT ALLOW SAVING IF DOWNLOADS DISABLED
+  useEffect(() => {
+    if (!allowDownload) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Disable Ctrl+S (Save as)
+        if (e.ctrlKey && e.key === "s") {
+          e.preventDefault();
+          return false;
+        }
+        // Disable F12 (DevTools) - though this can be bypassed
+        if (e.key === "F12") {
+          e.preventDefault();
+          return false;
+        }
+        // Disable Ctrl+Shift+I (DevTools)
+        if (e.ctrlKey && e.shiftKey && e.key === "I") {
+          e.preventDefault();
+          return false;
+        }
+        // Disable Ctrl+U (View Source)
+        if (e.ctrlKey && e.key === "u") {
+          e.preventDefault();
+          return false;
+        }
+      };
+
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [allowDownload]);
+
   // Memoized active comment pins - FIX for infinite loop
   const activeCommentPins = useMemo(() => {
     if (!activeCommentPin || !comments.length) return [];
@@ -210,6 +259,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         maxWidth: "100%",
         maxHeight: "100%",
         objectFit: "contain" as const,
+        userSelect: allowDownload ? ("auto" as const) : ("none" as const), // ✅ DISABLE TEXT SELECTION
+        pointerEvents: "auto" as const,
       };
     }
 
@@ -221,6 +272,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         height: "100%",
         maxHeight: "100%",
         objectFit: "contain" as const,
+        userSelect: allowDownload ? ("auto" as const) : ("none" as const), // ✅ DISABLE TEXT SELECTION
+        pointerEvents: "auto" as const,
       };
     } else {
       return {
@@ -228,6 +281,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         height: "auto",
         maxWidth: "100%",
         objectFit: "contain" as const,
+        userSelect: allowDownload ? ("auto" as const) : ("none" as const), // ✅ DISABLE TEXT SELECTION
+        pointerEvents: "auto" as const,
       };
     }
   };
@@ -294,11 +349,23 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   if (media.file_type === "video") {
     return (
       <div ref={containerRef} className={`relative bg-black ${className}`}>
+        {/* ✅ DOWNLOAD RESTRICTION OVERLAY */}
+        {!allowDownload && (
+          <div
+            className="absolute inset-0 z-40 pointer-events-none"
+            style={{
+              background: "transparent",
+              userSelect: "none",
+            }}
+          />
+        )}
+
         {/* Media Container */}
         <div className="relative w-full h-full flex items-center justify-center">
           {mediaDimensions && (
             <div className="absolute top-4 right-4 z-30 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-mono">
               {getQualityInfo()?.label}
+              {!allowDownload && <span className="ml-2 text-red-400">🔒</span>}
             </div>
           )}
           <div
@@ -319,6 +386,13 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
               playsInline
               preload="metadata"
               controls={false}
+              onContextMenu={handleContextMenu} // ✅ DISABLE RIGHT-CLICK
+              onDragStart={handleDragStart} // ✅ DISABLE DRAG
+              controlsList={
+                !allowDownload
+                  ? "nodownload nofullscreen noremoteplayback"
+                  : undefined
+              } // ✅ DISABLE DOWNLOAD CONTROLS
             />
           </div>
         </div>
@@ -339,7 +413,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           currentTime={videoRef?.current?.currentTime || 0}
           currentScale={currentScale}
           onCancel={() => {}}
-          existingPins={activeCommentPins} // Now using memoized value
+          existingPins={activeCommentPins}
           mediaElementRef={mediaElementRef}
           color={annotationConfig.color}
         />
@@ -361,7 +435,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           currentScale={currentScale}
           onDrawingComplete={handleDrawComplete}
           onCancel={() => {}}
-          existingDrawings={activeCommentDrawings} // Now using memoized value
+          existingDrawings={activeCommentDrawings}
           mediaElementRef={mediaElementRef}
           color={annotationConfig.color}
           thickness={annotationConfig.thickness}
@@ -381,8 +455,25 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   // Image display
   return (
     <div ref={containerRef} className={`relative bg-black ${className}`}>
+      {/* ✅ DOWNLOAD RESTRICTION OVERLAY */}
+      {!allowDownload && (
+        <div
+          className="absolute inset-0 z-40 pointer-events-none select-none"
+          style={{
+            background: "transparent",
+            userSelect: "none",
+          }}
+        />
+      )}
+
       {/* Media Container */}
       <div className="relative w-full h-full flex items-center justify-center">
+        {mediaDimensions && (
+          <div className="absolute top-4 right-4 z-30 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-mono">
+            {getQualityInfo()?.label}
+            {!allowDownload && <span className="ml-2 text-red-400">🔒</span>}
+          </div>
+        )}
         <div
           className={`relative border-2 border-blue-600 rounded-none overflow-hidden shadow-2xl ${getContainerStyles()}`}
         >
@@ -394,6 +485,9 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
             alt={media.original_filename}
             style={getMediaStyles()}
             className="block"
+            onContextMenu={handleContextMenu} // ✅ DISABLE RIGHT-CLICK
+            onDragStart={handleDragStart} // ✅ DISABLE DRAG
+            draggable={allowDownload} // ✅ DISABLE DRAG ATTRIBUTE
           />
         </div>
       </div>
@@ -413,7 +507,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         }
         currentScale={currentScale}
         onCancel={() => {}}
-        existingPins={activeCommentPins} // Now using memoized value
+        existingPins={activeCommentPins}
         mediaElementRef={mediaElementRef}
         color={annotationConfig.color}
       />
@@ -434,7 +528,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         currentScale={currentScale}
         onDrawingComplete={handleDrawComplete}
         onCancel={() => {}}
-        existingDrawings={activeCommentDrawings} // Now using memoized value
+        existingDrawings={activeCommentDrawings}
         mediaElementRef={mediaElementRef}
         color={annotationConfig.color}
         thickness={annotationConfig.thickness}

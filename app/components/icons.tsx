@@ -181,3 +181,5 @@ export const SidebarToggle: React.FC<IconProps> = ({
     </svg>
   );
 };
+
+
