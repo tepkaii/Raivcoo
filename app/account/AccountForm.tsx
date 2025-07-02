@@ -127,7 +127,7 @@ export default function AccountForm({
       toast({
         title: "Success",
         description: result.message,
-        variant: "success",
+        variant: "green",
       });
 
       // Clean up preview URL

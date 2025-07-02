@@ -61,7 +61,7 @@ export function DeleteProjectDialog({
       toast({
         title: "Project Deleted",
         description: result.message,
-        variant: "success",
+        variant: "green",
       });
 
       setOpen(false);

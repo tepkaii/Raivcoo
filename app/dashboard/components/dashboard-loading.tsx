@@ -15,17 +15,13 @@ import {
   BarChart,
   Search,
   Filter,
-  Grid3X3,
-  List,
-  SortAsc,
   Calendar,
   HardDrive,
   ChevronRight,
   FolderOpen,
   Plus,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 
 export function DashboardSkeleton() {
   return (

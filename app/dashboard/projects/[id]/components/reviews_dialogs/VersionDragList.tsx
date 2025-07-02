@@ -5,7 +5,7 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 
 import { Badge } from "@/components/ui/badge";
-import { Star, Eye, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Star, ChevronUp, ChevronDown } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "@/app/dashboard/lib/types";

@@ -42,7 +42,7 @@ export function CreateProjectDialog({
       toast({
         title: "Success",
         description: result.message,
-        variant: "success",
+        variant: "green",
       });
 
       // Auto-close dialog after 1.5 seconds

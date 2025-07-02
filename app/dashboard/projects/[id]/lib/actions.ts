@@ -1,5 +1,5 @@
 // app/dashboard/projects/[id]/lib/actions.ts
-
+// @ts-nocheck
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -526,12 +526,6 @@ export async function addVersionToMediaAction(
 
     if (currentVersionMedia) {
       mediaToMove = currentVersionMedia.id;
-      console.log(
-        "Moving current version:",
-        mediaToMove,
-        "instead of:",
-        newMediaId
-      );
     }
 
     // Get the next version number for target

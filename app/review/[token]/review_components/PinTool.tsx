@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { MapPin } from "lucide-react";
 import { MapPinIcon } from "@heroicons/react/24/solid";
 
 interface AnnotationPin {
@@ -28,6 +27,12 @@ interface PinToolProps {
   existingPins?: AnnotationPin[];
   mediaElementRef: React.RefObject<HTMLVideoElement | HTMLImageElement>;
   color?: string;
+  actualVideoSize?: {
+    width: number;
+    height: number;
+    offsetX: number;
+    offsetY: number;
+  } | null;
 }
 
 export const PinTool: React.FC<PinToolProps> = ({
@@ -42,6 +47,7 @@ export const PinTool: React.FC<PinToolProps> = ({
   existingPins = [],
   mediaElementRef,
   color = "#ff0000",
+  actualVideoSize,
 }) => {
   const [currentPin, setCurrentPin] = useState<AnnotationPin | null>(null);
 
@@ -72,15 +78,10 @@ export const PinTool: React.FC<PinToolProps> = ({
 
   // Also clear when isActive becomes false
   useEffect(() => {
-    console.log("PinTool isActive changed:", isActive); // Debug log
-
     if (!isActive) {
-      console.log("PinTool becoming inactive, clearing current pin"); // Debug log
       setCurrentPin(null);
     }
   }, [isActive]);
-
-  // Also add this useEffect to clear when existingPins change
 
   // NOW you can have conditional returns AFTER all hooks
   if (!displaySize || !displayPosition || !mediaDimensions) return null;
@@ -98,6 +99,41 @@ export const PinTool: React.FC<PinToolProps> = ({
     return Math.max(currentScale / pin.createdAtScale, 0.3);
   };
 
+  // ✅ USE ACTUAL VIDEO SIZE FOR COORDINATE CONVERSION
+  const screenToPercentage = (screenX: number, screenY: number) => {
+    if (!actualVideoSize) {
+      // Fallback to old method if actualVideoSize not available
+      return {
+        x: (screenX / displaySize!.width) * 100,
+        y: (screenY / displaySize!.height) * 100,
+      };
+    }
+
+    // Adjust for video offset within container
+    const adjustedX = screenX - actualVideoSize.offsetX;
+    const adjustedY = screenY - actualVideoSize.offsetY;
+
+    return {
+      x: Math.max(0, Math.min(100, (adjustedX / actualVideoSize.width) * 100)),
+      y: Math.max(0, Math.min(100, (adjustedY / actualVideoSize.height) * 100)),
+    };
+  };
+
+  const percentageToScreen = (percentX: number, percentY: number) => {
+    if (!actualVideoSize) {
+      // Fallback to old method if actualVideoSize not available
+      return {
+        x: (percentX / 100) * displaySize!.width,
+        y: (percentY / 100) * displaySize!.height,
+      };
+    }
+
+    return {
+      x: actualVideoSize.offsetX + (percentX / 100) * actualVideoSize.width,
+      y: actualVideoSize.offsetY + (percentY / 100) * actualVideoSize.height,
+    };
+  };
+
   const handleClick = (event: React.MouseEvent) => {
     if (!isActive || !mediaDimensions || !displaySize || !displayPosition)
       return;
@@ -106,23 +142,25 @@ export const PinTool: React.FC<PinToolProps> = ({
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
-    const percentageX = (clickX / displaySize.width) * 100;
-    const percentageY = (clickY / displaySize.height) * 100;
-
-    if (
-      percentageX < 0 ||
-      percentageX > 100 ||
-      percentageY < 0 ||
-      percentageY > 100
-    ) {
-      return;
+    // ✅ CHECK IF CLICK IS WITHIN ACTUAL VIDEO BOUNDS
+    if (actualVideoSize) {
+      if (
+        clickX < actualVideoSize.offsetX ||
+        clickX > actualVideoSize.offsetX + actualVideoSize.width ||
+        clickY < actualVideoSize.offsetY ||
+        clickY > actualVideoSize.offsetY + actualVideoSize.height
+      ) {
+        return; // Click outside video area
+      }
     }
+
+    const percentageCoords = screenToPercentage(clickX, clickY);
 
     const newPin: AnnotationPin = {
       id: `pin_${Date.now()}`,
-      x: percentageX,
-      y: percentageY,
-      content: `Pin at ${Math.round(percentageX)}%, ${Math.round(percentageY)}%`,
+      x: percentageCoords.x,
+      y: percentageCoords.y,
+      content: `Pin at ${Math.round(percentageCoords.x)}%, ${Math.round(percentageCoords.y)}%`,
       mediaWidth: mediaDimensions.width,
       mediaHeight: mediaDimensions.height,
       createdAtScale: getCurrentScale(),
@@ -165,8 +203,8 @@ export const PinTool: React.FC<PinToolProps> = ({
             <div
               className="absolute"
               style={{
-                left: `${currentPin.x}%`,
-                top: `${currentPin.y}%`,
+                left: `${percentageToScreen(currentPin.x, currentPin.y).x}px`,
+                top: `${percentageToScreen(currentPin.x, currentPin.y).y}px`,
                 transform: `translate(-50%, -50%) scale(${getPinScaleFactor(currentPin)})`,
                 transformOrigin: "center",
                 pointerEvents: "none",

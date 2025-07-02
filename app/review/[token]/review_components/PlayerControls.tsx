@@ -3,26 +3,23 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { RevButtons } from "@/components/ui/RevButtons";
 import {
-  Play,
-  Pause,
   Volume2,
-  VolumeX,
   SkipBack,
   SkipForward,
   Maximize,
   Minimize,
-  SkipForwardIcon,
 } from "lucide-react";
 import {
   BackwardIcon,
-  BeakerIcon,
   ForwardIcon,
   PlayIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
 } from "@heroicons/react/24/solid";
 import { PauseIcon } from "@radix-ui/react-icons";
+
 interface MediaComment {
+  user_id?: string;
   id: string;
   media_id: string;
   parent_comment_id?: string;
@@ -46,6 +43,13 @@ interface PlayerControlsProps {
   className?: string;
   onTimeUpdate?: (time: number) => void;
   fullscreenContainerRef?: React.RefObject<HTMLDivElement>;
+  authenticatedUser?: {
+    // ✅ ADD THIS
+    id: string;
+    email: string;
+    name?: string;
+    avatar_url?: string;
+  } | null;
 }
 
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -56,6 +60,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   className = "",
   onTimeUpdate,
   fullscreenContainerRef,
+  authenticatedUser, // ✅ ADD THIS
 }) => {
   // All hooks must be declared first, regardless of mediaType
   const [isPlaying, setIsPlaying] = useState(false);
@@ -68,7 +73,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-
+  const [avatarError, setAvatarError] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -578,7 +583,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
         </div>
 
         {/* Comment Avatars Below Timeline */}
-        {duration > 0 &&
+        {!isMobile && // ✅ Only show on desktop
+          duration > 0 &&
           comments.some(
             (comment) =>
               comment.timestamp_seconds !== undefined &&
@@ -599,6 +605,14 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     const position =
                       (comment.timestamp_seconds! / duration) * 100;
 
+                    // Check if user is authenticated and has avatar
+                    const isCurrentUser =
+                      authenticatedUser?.id === comment.user_id;
+                    const hasValidAvatar =
+                      isCurrentUser &&
+                      authenticatedUser?.avatar_url &&
+                      !avatarError;
+
                     return (
                       <div
                         key={comment.id}
@@ -612,8 +626,24 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                           handleTimelineCommentClick(comment.timestamp_seconds!)
                         }
                       >
-                        <div className="size-6 bg-gradient-to-br rounded-[5px] from-blue-600 to-cyan-400  flex items-center justify-center text-xs text-white font-medium border border-white shadow-lg">
-                          {getInitials(comment.user_name)}
+                        {/* Avatar container */}
+                        <div
+                          className={`size-6 rounded-[5px] flex items-center justify-center text-xs text-white font-medium border border-white shadow-lg overflow-hidden ${
+                            hasValidAvatar
+                              ? "p-0"
+                              : "bg-gradient-to-br from-blue-600 to-cyan-400"
+                          }`}
+                        >
+                          {hasValidAvatar ? (
+                            <img
+                              src={authenticatedUser.avatar_url}
+                              alt={`${comment.user_name}'s avatar`}
+                              className="w-full h-full object-cover"
+                              onError={() => setAvatarError(true)}
+                            />
+                          ) : (
+                            getInitials(comment.user_name)
+                          )}
                         </div>
 
                         {/* Tooltip */}

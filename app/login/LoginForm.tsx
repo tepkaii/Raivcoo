@@ -34,7 +34,7 @@ export default function LoginForm() {
         toast({
           title: "Welcome back!",
           description: "You've successfully signed in to your account.",
-          variant: "success",
+          variant: "green",
         });
       }
     });

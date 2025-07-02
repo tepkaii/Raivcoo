@@ -2,10 +2,15 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import { PinTool } from "./PinTool";
 import { DrawTool } from "./DrawingTool";
-import { getDetailedQuality, getQualityLabel } from "../lib/mediaQuality";
 
 interface MediaDisplayProps {
   media: any;
@@ -18,7 +23,7 @@ interface MediaDisplayProps {
   currentTime?: number;
   annotationMode?: "none" | "pin" | "drawing";
   annotationConfig?: any;
-  allowDownload?: boolean; // ✅ ADD DOWNLOAD PERMISSION PROP
+  allowDownload?: boolean;
 }
 
 export const MediaDisplay: React.FC<MediaDisplayProps> = ({
@@ -32,7 +37,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   currentTime = 0,
   annotationMode = "none",
   annotationConfig = {},
-  allowDownload = false, // ✅ DEFAULT TO FALSE
+  allowDownload = false,
 }) => {
   const [displaySize, setDisplaySize] = useState<{
     width: number;
@@ -68,6 +73,32 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
   };
 
+  // ✅ CALCULATE ACTUAL VIDEO SIZE - NOW AS USEMEMO FOR INSTANT UPDATES
+  const actualVideoSize = useMemo(() => {
+    if (!mediaDimensions || !displaySize) return null;
+
+    const containerAspect = displaySize.width / displaySize.height;
+    const videoAspect = mediaDimensions.width / mediaDimensions.height;
+
+    let actualWidth, actualHeight, offsetX, offsetY;
+
+    if (videoAspect > containerAspect) {
+      // Video is wider relative to container - fit by width
+      actualWidth = displaySize.width;
+      actualHeight = displaySize.width / videoAspect;
+      offsetX = 0;
+      offsetY = (displaySize.height - actualHeight) / 2;
+    } else {
+      // Video is taller relative to container - fit by height
+      actualHeight = displaySize.height;
+      actualWidth = displaySize.height * videoAspect;
+      offsetX = (displaySize.width - actualWidth) / 2;
+      offsetY = 0;
+    }
+
+    return { width: actualWidth, height: actualHeight, offsetX, offsetY };
+  }, [mediaDimensions, displaySize]);
+
   // Calculate current scale percentage
   const getCurrentScale = () => {
     if (!mediaDimensions || !displaySize) return 100;
@@ -77,37 +108,29 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     return Math.round(scale * 100);
   };
 
-  const getQualityInfo = () => {
-    if (!mediaDimensions) return null;
-    const { width, height } = mediaDimensions;
-    return {
-      label: getQualityLabel(width, height),
-      detailed: getDetailedQuality(width, height),
-      dimensions: `${width}×${height}`,
-      aspectRatio: (width / height).toFixed(2),
-    };
-  };
-
-  // Track display size and position changes
-  const updateDisplayMetrics = () => {
+  // ✅ IMMEDIATE DISPLAY METRICS UPDATE - NO DELAYS
+  const updateDisplayMetrics = useCallback(() => {
     const element = mediaElementRef.current;
     const container = containerRef.current;
     if (element && container) {
       const elementRect = element.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
 
-      setDisplaySize({
+      // ✅ UPDATE BOTH AT SAME TIME - NO SEPARATE STATE UPDATES
+      const newDisplaySize = {
         width: elementRect.width,
         height: elementRect.height,
-      });
+      };
 
-      // Position relative to container
-      setDisplayPosition({
+      const newDisplayPosition = {
         left: elementRect.left - containerRect.left,
         top: elementRect.top - containerRect.top,
-      });
+      };
+
+      setDisplaySize(newDisplaySize);
+      setDisplayPosition(newDisplayPosition);
     }
-  };
+  }, []);
 
   // Load media dimensions
   useEffect(() => {
@@ -127,7 +150,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
             isVertical,
           });
 
-          setTimeout(updateDisplayMetrics, 100);
+          // ✅ IMMEDIATE UPDATE - NO TIMEOUT
+          updateDisplayMetrics();
         };
 
         if (video.readyState >= 1) {
@@ -153,30 +177,47 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           isVertical,
         });
 
-        setTimeout(updateDisplayMetrics, 100);
+        // ✅ IMMEDIATE UPDATE - NO TIMEOUT
+        updateDisplayMetrics();
       };
       img.src = media.r2_url;
     }
-  }, [media.r2_url, media.file_type, videoRef]);
+  }, [media.r2_url, media.file_type, videoRef, updateDisplayMetrics]);
 
-  // Set up resize observer
+  // ✅ SIMPLIFIED RESIZE OBSERVER - NO DELAYS
   useEffect(() => {
     const element = mediaElementRef.current;
-    if (!element) return;
+    const container = containerRef.current;
+    if (!element || !container) return;
 
-    const resizeObserver = new ResizeObserver(() => {
-      updateDisplayMetrics();
+    const resizeObserver = new ResizeObserver((entries) => {
+      // ✅ Use double requestAnimationFrame to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          updateDisplayMetrics();
+        });
+      });
     });
 
+    // ✅ Observe BOTH the media element AND the container
     resizeObserver.observe(element);
-    window.addEventListener("resize", updateDisplayMetrics);
+    resizeObserver.observe(container); // This was missing!
+
+    const handleResize = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          updateDisplayMetrics();
+        });
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateDisplayMetrics);
+      window.removeEventListener("resize", handleResize);
     };
-  }, [mediaDimensions]);
-
+  }, [updateDisplayMetrics]);
   // ✅ DISABLE BROWSER SHORTCUTS THAT ALLOW SAVING IF DOWNLOADS DISABLED
   useEffect(() => {
     if (!allowDownload) {
@@ -252,70 +293,6 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     return [comment.drawing_data];
   }, [activeCommentDrawing, comments, currentTime, videoRef?.current?.paused]);
 
-  // Get media styling based on orientation
-  const getMediaStyles = () => {
-    if (!mediaDimensions) {
-      return {
-        maxWidth: "100%",
-        maxHeight: "100%",
-        objectFit: "contain" as const,
-        userSelect: allowDownload ? ("auto" as const) : ("none" as const), // ✅ DISABLE TEXT SELECTION
-        pointerEvents: "auto" as const,
-      };
-    }
-
-    const { isVertical } = mediaDimensions;
-
-    if (isVertical) {
-      return {
-        width: "auto",
-        height: "100%",
-        maxHeight: "100%",
-        objectFit: "contain" as const,
-        userSelect: allowDownload ? ("auto" as const) : ("none" as const), // ✅ DISABLE TEXT SELECTION
-        pointerEvents: "auto" as const,
-      };
-    } else {
-      return {
-        width: "100%",
-        height: "auto",
-        maxWidth: "100%",
-        objectFit: "contain" as const,
-        userSelect: allowDownload ? ("auto" as const) : ("none" as const), // ✅ DISABLE TEXT SELECTION
-        pointerEvents: "auto" as const,
-      };
-    }
-  };
-
-  // Get container styling based on orientation
-  const getContainerStyles = () => {
-    if (!mediaDimensions) {
-      return "max-w-full max-h-full";
-    }
-
-    const { isVertical } = mediaDimensions;
-
-    if (isVertical) {
-      return "h-full flex items-center justify-center";
-    } else {
-      return "w-full flex items-center justify-center";
-    }
-  };
-
-  // Handle pin completion
-  const handlePinComplete = (pin: any) => {
-    if (onAnnotationComplete) {
-      onAnnotationComplete({
-        type: "pin",
-        data: {
-          ...pin,
-          color: annotationConfig.color || "#ff0000",
-        },
-        timestamp: videoRef?.current?.currentTime || 0,
-      });
-    }
-  };
-
   // Handle drawing completion
   const handleDrawComplete = (drawing: any) => {
     if (onAnnotationComplete) {
@@ -330,8 +307,6 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   const currentScale = getCurrentScale();
 
   useEffect(() => {
-    console.log("MediaDisplay annotation mode changed:", annotationMode); // Debug log
-
     // When annotation mode changes to "none", ensure tools are properly disabled
     if (annotationMode === "none") {
       // Clear any pending annotations in the tools
@@ -360,87 +335,101 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           />
         )}
 
-        {/* Media Container */}
+        {/* Media Container - FULL SIZE */}
         <div className="relative w-full h-full flex items-center justify-center">
-          {mediaDimensions && (
-            <div className="absolute top-4 right-4 z-30 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-mono">
-              {getQualityInfo()?.label}
-              {!allowDownload && <span className="ml-2 text-red-400">🔒</span>}
-            </div>
-          )}
-          <div
-            className={`relative border-2 border-blue-600 rounded-none overflow-hidden shadow-2xl ${getContainerStyles()}`}
-          >
-            <video
-              ref={(el) => {
-                if (videoRef) {
-                  (
-                    videoRef as React.MutableRefObject<HTMLVideoElement | null>
-                  ).current = el;
-                }
-                mediaElementRef.current = el;
+          {/* ✅ DYNAMIC BORDER WRAPPER - ONLY RENDER WHEN READY */}
+          {actualVideoSize && displaySize && displayPosition && (
+            <div
+              className="absolute border-2 border-blue-600 rounded-none shadow-2xl pointer-events-none z-20"
+              style={{
+                left: `${actualVideoSize.offsetX}px`,
+                top: `${actualVideoSize.offsetY}px`,
+                width: `${actualVideoSize.width}px`,
+                height: `${actualVideoSize.height}px`,
               }}
-              src={media.r2_url}
-              style={getMediaStyles()}
-              className="block"
-              playsInline
-              preload="metadata"
-              controls={false}
-              onContextMenu={handleContextMenu} // ✅ DISABLE RIGHT-CLICK
-              onDragStart={handleDragStart} // ✅ DISABLE DRAG
-              controlsList={
-                !allowDownload
-                  ? "nodownload nofullscreen noremoteplayback"
-                  : undefined
-              } // ✅ DISABLE DOWNLOAD CONTROLS
             />
-          </div>
+          )}
+
+          {/* Video Element - NO BORDER, FULL SIZE */}
+          <video
+            ref={(el) => {
+              if (videoRef) {
+                (
+                  videoRef as React.MutableRefObject<HTMLVideoElement | null>
+                ).current = el;
+              }
+              mediaElementRef.current = el;
+            }}
+            src={media.r2_url}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain" as const,
+              objectPosition: "center center",
+              userSelect: allowDownload ? ("auto" as const) : ("none" as const),
+              pointerEvents: "auto" as const,
+              display: "block",
+            }}
+            className="block"
+            playsInline
+            preload="metadata"
+            controls={false}
+            onContextMenu={handleContextMenu}
+            onDragStart={handleDragStart}
+            controlsList={
+              !allowDownload
+                ? "nodownload nofullscreen noremoteplayback"
+                : undefined
+            }
+          />
         </div>
 
-        {/* Pin Tool Overlay */}
-        <PinTool
-          isActive={annotationMode === "pin"}
-          displaySize={displaySize}
-          displayPosition={displayPosition}
-          mediaDimensions={
-            mediaDimensions
-              ? {
+        {/* ✅ ONLY RENDER TOOLS WHEN ALL DATA IS READY */}
+        {displaySize &&
+          displayPosition &&
+          mediaDimensions &&
+          actualVideoSize && (
+            <>
+              {/* Pin Tool Overlay */}
+              <PinTool
+                isActive={annotationMode === "pin"}
+                displaySize={displaySize}
+                displayPosition={displayPosition}
+                mediaDimensions={{
                   width: mediaDimensions.width,
                   height: mediaDimensions.height,
-                }
-              : null
-          }
-          currentTime={videoRef?.current?.currentTime || 0}
-          currentScale={currentScale}
-          onCancel={() => {}}
-          existingPins={activeCommentPins}
-          mediaElementRef={mediaElementRef}
-          color={annotationConfig.color}
-        />
+                }}
+                currentTime={videoRef?.current?.currentTime || 0}
+                currentScale={currentScale}
+                onCancel={() => {}}
+                existingPins={activeCommentPins}
+                mediaElementRef={mediaElementRef}
+                color={annotationConfig.color}
+                actualVideoSize={actualVideoSize}
+              />
 
-        {/* Draw Tool Overlay */}
-        <DrawTool
-          isActive={annotationMode === "drawing"}
-          displaySize={displaySize}
-          displayPosition={displayPosition}
-          mediaDimensions={
-            mediaDimensions
-              ? {
+              {/* Draw Tool Overlay */}
+              <DrawTool
+                isActive={annotationMode === "drawing"}
+                displaySize={displaySize}
+                displayPosition={displayPosition}
+                mediaDimensions={{
                   width: mediaDimensions.width,
                   height: mediaDimensions.height,
-                }
-              : null
-          }
-          currentTime={videoRef?.current?.currentTime || 0}
-          currentScale={currentScale}
-          onDrawingComplete={handleDrawComplete}
-          onCancel={() => {}}
-          existingDrawings={activeCommentDrawings}
-          mediaElementRef={mediaElementRef}
-          color={annotationConfig.color}
-          thickness={annotationConfig.thickness}
-          shape={annotationConfig.shape}
-        />
+                }}
+                currentTime={videoRef?.current?.currentTime || 0}
+                currentScale={currentScale}
+                onDrawingComplete={handleDrawComplete}
+                onCancel={() => {}}
+                existingDrawings={activeCommentDrawings}
+                mediaElementRef={mediaElementRef}
+                color={annotationConfig.color}
+                thickness={annotationConfig.thickness}
+                shape={annotationConfig.shape}
+                actualVideoSize={actualVideoSize}
+              />
+            </>
+          )}
 
         {/* Loading state */}
         {!mediaDimensions && (
@@ -468,72 +457,82 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
       {/* Media Container */}
       <div className="relative w-full h-full flex items-center justify-center">
-        {mediaDimensions && (
-          <div className="absolute top-4 right-4 z-30 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-mono">
-            {getQualityInfo()?.label}
-            {!allowDownload && <span className="ml-2 text-red-400">🔒</span>}
-          </div>
-        )}
-        <div
-          className={`relative border-2 border-blue-600 rounded-none overflow-hidden shadow-2xl ${getContainerStyles()}`}
-        >
-          <img
-            ref={(el) => {
-              mediaElementRef.current = el;
+        {/* ✅ DYNAMIC BORDER WRAPPER - ONLY RENDER WHEN READY */}
+        {actualVideoSize && displaySize && displayPosition && (
+          <div
+            className="absolute border-2 border-blue-600 rounded-none shadow-2xl pointer-events-none z-20"
+            style={{
+              left: `${actualVideoSize.offsetX}px`,
+              top: `${actualVideoSize.offsetY}px`,
+              width: `${actualVideoSize.width}px`,
+              height: `${actualVideoSize.height}px`,
             }}
-            src={media.r2_url}
-            alt={media.original_filename}
-            style={getMediaStyles()}
-            className="block"
-            onContextMenu={handleContextMenu} // ✅ DISABLE RIGHT-CLICK
-            onDragStart={handleDragStart} // ✅ DISABLE DRAG
-            draggable={allowDownload} // ✅ DISABLE DRAG ATTRIBUTE
           />
-        </div>
+        )}
+
+        <img
+          ref={(el) => {
+            mediaElementRef.current = el;
+          }}
+          src={media.r2_url}
+          alt={media.original_filename}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain" as const,
+            objectPosition: "center center",
+            userSelect: allowDownload ? ("auto" as const) : ("none" as const),
+            pointerEvents: "auto" as const,
+            display: "block",
+          }}
+          className="block"
+          onContextMenu={handleContextMenu}
+          onDragStart={handleDragStart}
+          draggable={allowDownload}
+        />
       </div>
 
-      {/* Pin Tool Overlay */}
-      <PinTool
-        isActive={annotationMode === "pin"}
-        displaySize={displaySize}
-        displayPosition={displayPosition}
-        mediaDimensions={
-          mediaDimensions
-            ? {
-                width: mediaDimensions.width,
-                height: mediaDimensions.height,
-              }
-            : null
-        }
-        currentScale={currentScale}
-        onCancel={() => {}}
-        existingPins={activeCommentPins}
-        mediaElementRef={mediaElementRef}
-        color={annotationConfig.color}
-      />
+      {/* ✅ ONLY RENDER TOOLS WHEN ALL DATA IS READY */}
+      {displaySize && displayPosition && mediaDimensions && actualVideoSize && (
+        <>
+          {/* Pin Tool Overlay */}
+          <PinTool
+            isActive={annotationMode === "pin"}
+            displaySize={displaySize}
+            displayPosition={displayPosition}
+            mediaDimensions={{
+              width: mediaDimensions.width,
+              height: mediaDimensions.height,
+            }}
+            currentScale={currentScale}
+            onCancel={() => {}}
+            existingPins={activeCommentPins}
+            mediaElementRef={mediaElementRef}
+            color={annotationConfig.color}
+            actualVideoSize={actualVideoSize}
+          />
 
-      {/* Draw Tool Overlay */}
-      <DrawTool
-        isActive={annotationMode === "drawing"}
-        displaySize={displaySize}
-        displayPosition={displayPosition}
-        mediaDimensions={
-          mediaDimensions
-            ? {
-                width: mediaDimensions.width,
-                height: mediaDimensions.height,
-              }
-            : null
-        }
-        currentScale={currentScale}
-        onDrawingComplete={handleDrawComplete}
-        onCancel={() => {}}
-        existingDrawings={activeCommentDrawings}
-        mediaElementRef={mediaElementRef}
-        color={annotationConfig.color}
-        thickness={annotationConfig.thickness}
-        shape={annotationConfig.shape}
-      />
+          {/* Draw Tool Overlay */}
+          <DrawTool
+            isActive={annotationMode === "drawing"}
+            displaySize={displaySize}
+            displayPosition={displayPosition}
+            mediaDimensions={{
+              width: mediaDimensions.width,
+              height: mediaDimensions.height,
+            }}
+            currentScale={currentScale}
+            onDrawingComplete={handleDrawComplete}
+            onCancel={() => {}}
+            existingDrawings={activeCommentDrawings}
+            mediaElementRef={mediaElementRef}
+            color={annotationConfig.color}
+            thickness={annotationConfig.thickness}
+            shape={annotationConfig.shape}
+            actualVideoSize={actualVideoSize}
+          />
+        </>
+      )}
 
       {/* Loading state */}
       {!mediaDimensions && (

@@ -82,9 +82,7 @@ export async function completeInitialProfile(formData: FormData) {
         // If insert fails due to unique constraint, try upsert
         if (insertError.code === "23505") {
           // PostgreSQL unique violation
-          console.log(
-            "Trying upsert instead due to unique constraint violation"
-          );
+          console.log("");
         } else {
           throw new Error(`Failed to create profile: ${insertError.message}`);
         }

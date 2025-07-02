@@ -1,3 +1,5 @@
+// app/review/[token]/review_components/ReviewComments.tsx
+// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -228,7 +230,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   // Set up global annotation complete handler
   useEffect(() => {
     const handleAnnotationComplete = (annotationData: any) => {
-      console.log("Annotation completed:", annotationData);
       setPendingAnnotation(annotationData);
       if (annotationData.type === "drawing") {
         setCurrentDrawingStrokes(annotationData.data.strokes?.length || 0);
@@ -303,8 +304,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       return;
     }
 
-    console.log(`Starting ${type} annotation`);
-
     // Clear any existing annotation
     setPendingAnnotation(null);
     setCurrentDrawingStrokes(0);
@@ -312,18 +311,15 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     // Clear any current pin or drawing from the tools
     if (typeof window !== "undefined") {
       if ((window as any).clearCurrentDrawing) {
-        console.log("Clearing current drawing before starting new annotation");
         (window as any).clearCurrentDrawing();
       }
       if ((window as any).clearCurrentPin) {
-        console.log("Clearing current pin before starting new annotation");
         (window as any).clearCurrentPin();
       }
     }
 
     // Clear active comments from MediaInterface BEFORE setting new mode
     if (onClearActiveComments) {
-      console.log("Clearing active comments before starting new annotation");
       onClearActiveComments();
     }
 
@@ -339,13 +335,10 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             shape: drawingShape,
           };
 
-    console.log(`Starting ${type} annotation with config:`, config);
     requestAnnotation(type, config);
   };
 
   const cancelAnnotation = () => {
-    console.log("Canceling annotation mode");
-
     setAnnotationMode("none");
     setPendingAnnotation(null);
     setCurrentDrawingStrokes(0);

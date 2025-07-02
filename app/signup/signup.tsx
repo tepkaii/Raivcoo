@@ -48,7 +48,7 @@ export default function SignUpForm() {
           title: "Welcome aboard!",
           description:
             "You've successfully signed up! Please check your email to confirm your sign-up",
-          variant: "success",
+          variant: "green",
         });
         router.push("/login");
       }

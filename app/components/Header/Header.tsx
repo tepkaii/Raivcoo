@@ -22,7 +22,6 @@ import {
 import React from "react";
 import Image from "next/image";
 import { NavLinks, NavDropdownItems } from "./NavComponents";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export default async function Header() {

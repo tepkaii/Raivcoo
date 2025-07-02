@@ -4,13 +4,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { validateDisplayName } from "../account/displayNameValidation";
@@ -21,7 +14,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RevButtons } from "@/components/ui/RevButtons";
 
 interface ProfileData {
   email: string | number | readonly string[] | undefined;
@@ -97,7 +89,7 @@ export default function StepByStepProfileForm({
       toast({
         title: "Profile Updated",
         description: result.message,
-        variant: "success",
+        variant: "green",
       });
       router.push("/dashboard"); // Redirect after successful completion
     } catch (error) {
@@ -199,9 +191,8 @@ export default function StepByStepProfileForm({
           </div>
         </div>
 
-
         {/* Submit Button */}
-        <RevButtons
+        <Button
           variant={"default"}
           type="submit"
           className="w-full"
@@ -209,7 +200,7 @@ export default function StepByStepProfileForm({
           size="lg"
         >
           {isLoading ? "Saving..." : "Complete Account"}
-        </RevButtons>
+        </Button>
       </div>
     </form>
   );

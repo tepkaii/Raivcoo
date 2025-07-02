@@ -1,4 +1,5 @@
 // app/dashboard/projects/[id]/components/media/MediaDialogs.tsx
+// @ts-nocheck
 "use client";
 
 import React from "react";

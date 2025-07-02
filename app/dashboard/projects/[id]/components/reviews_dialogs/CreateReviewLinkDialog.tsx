@@ -159,7 +159,7 @@ export function CreateReviewLinkDialog({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Review Link</Label>
+              <Label className="text-muted-foreground">Review Link</Label>
               <div className="flex items-center gap-2">
                 <Input
                   value={
@@ -170,7 +170,7 @@ export function CreateReviewLinkDialog({
                       : ""
                   }
                   readOnly
-                  className="font-mono text-sm"
+                
                 />
                 <Button
                   variant="outline"

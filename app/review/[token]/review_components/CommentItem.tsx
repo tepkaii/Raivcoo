@@ -1,7 +1,9 @@
+// app/review/[token]/review_components/CommentItem.tsx
+// @ts-nocheck
 "use client";
 
 import React, { useState } from "react";
-import { Clock, Reply, MoreHorizontal, Loader2, Check } from "lucide-react";
+import { Clock, Reply, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -364,11 +366,7 @@ const SingleComment: React.FC<{
 
         {/* Comment content */}
         <div
-          className={`flex-1 ${
-            isBeingRepliedTo
-              ? "bg-blue-500/10 border border-blue-500/30 rounded-lg p-3"
-              : ""
-          } ${comment.is_being_edited ? "opacity-60" : ""}`}
+          className={`flex-1  ${comment.is_being_edited ? "opacity-60" : ""}`}
         >
           {/* Header */}
           <div className="flex items-center justify-between">

@@ -1,3 +1,4 @@
+// app/dashboard/projects/[id]/components/media/MediaViewer.tsx
 // @ts-nocheck
 "use client";
 
@@ -70,9 +71,14 @@ interface MediaViewerProps {
   onAnnotationCreate?: (annotation: any) => void;
   onCommentPinClick?: (comment: MediaComment) => void;
   onCommentDrawingClick?: (comment: MediaComment) => void;
-  // ❌ REMOVE THESE - they create circular dependencies
-  // onAnnotationRequest?: (type: "pin" | "drawing" | "none", config: any) => void;
-  // onClearActiveComments?: () => void;
+  allowDownload?: boolean; // ✅ Add this
+  authenticatedUser?: {
+    // ✅ ADD THIS
+    id: string;
+    email: string;
+    name?: string;
+    avatar_url?: string;
+  } | null;
 }
 
 export interface MediaViewerRef {
@@ -103,7 +109,8 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       onAnnotationCreate,
       onCommentPinClick,
       onCommentDrawingClick,
-      // ❌ REMOVE THESE PROPS TO PREVENT CIRCULAR CALLS
+      allowDownload = true, // ✅ Add this with default true
+      authenticatedUser, // ✅ ADD THIS
     },
     ref
   ) => {
@@ -168,23 +175,23 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     // ✅ FIXED: Annotation request handler - NO circular calls
     const handleAnnotationRequest = useCallback(
       (type: "pin" | "drawing" | "none", config: any) => {
-        console.log("MediaViewer annotation request:", type, config);
+        
 
         // Clear any active comment pins/drawings when starting new annotation OR canceling
         if (type !== "none") {
-          console.log("Clearing active comments for new annotation");
+         
           setActiveCommentPin(null);
           setActiveCommentDrawing(null);
         }
 
         if (type === "none") {
-          console.log("Canceling annotation mode");
+         
           setAnnotationMode("none");
           setAnnotationConfig({});
           setActiveCommentPin(null);
           setActiveCommentDrawing(null);
         } else {
-          console.log("Setting annotation mode:", type);
+         
           setAnnotationMode(type);
           setAnnotationConfig(config);
         }
@@ -196,7 +203,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
 
     // ✅ FIXED: Clear active comments - NO circular calls
     const clearActiveComments = useCallback(() => {
-      console.log("MediaViewer clearing active comments");
+     
       setActiveCommentPin(null);
       setActiveCommentDrawing(null);
       // ❌ DON'T call onClearActiveComments - this IS the clear function
@@ -204,7 +211,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
 
     // ✅ Handle annotation completion
     const handleAnnotationComplete = (annotationData: any) => {
-      console.log("MediaViewer: Annotation completed", annotationData);
+    
       // Reset annotation mode
       setAnnotationMode("none");
       setAnnotationConfig({});
@@ -215,7 +222,6 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     // Handle comment pin click
     const handleCommentPinClick = (comment: MediaComment) => {
       if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
-        // If this pin is already active, hide it (toggle off)
         if (activeCommentPin === comment.id) {
           setActiveCommentPin(null);
           return;
@@ -224,13 +230,13 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
         handleSeekToTimestamp(comment.timestamp_seconds);
         setActiveCommentPin(comment.id);
       }
-      onCommentPinClick?.(comment);
+      // ❌ REMOVE THIS LINE:
+      // onCommentPinClick?.(comment);
     };
 
     // Handle comment drawing click
     const handleCommentDrawingClick = (comment: MediaComment) => {
       if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
-        // If this drawing is already active, hide it (toggle off)
         if (activeCommentDrawing === comment.id) {
           setActiveCommentDrawing(null);
           return;
@@ -239,7 +245,8 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
         handleSeekToTimestamp(comment.timestamp_seconds);
         setActiveCommentDrawing(comment.id);
       }
-      onCommentDrawingClick?.(comment);
+      // ❌ REMOVE THIS LINE:
+      // onCommentDrawingClick?.(comment);
     };
 
     // Clear active pin/drawing when time changes
@@ -322,6 +329,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
             currentTime={currentTime || internalCurrentTime}
             annotationMode={annotationMode}
             annotationConfig={annotationConfig}
+            allowDownload={allowDownload} // ✅ Pass it through
           />
         </div>
 
@@ -332,6 +340,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
           comments={comments}
           onSeekToTimestamp={handleSeekToTimestamp}
           onTimeUpdate={handleTimeUpdate}
+          authenticatedUser={authenticatedUser}
           fullscreenContainerRef={fullscreenContainerRef}
           className={
             isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""

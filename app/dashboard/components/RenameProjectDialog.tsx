@@ -62,7 +62,7 @@ export function RenameProjectDialog({
       toast({
         title: "Project Renamed",
         description: result.message,
-        variant: "success",
+        variant: "green",
       });
 
       setOpen(false);

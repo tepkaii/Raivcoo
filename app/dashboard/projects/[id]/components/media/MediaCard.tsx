@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
+  ArrowUpOnSquareStackIcon,
   Cog6ToothIcon,
   EyeIcon,
   LinkIcon,
@@ -471,7 +472,7 @@ export const MediaCard = React.memo(
                   {/* Version Management */}
                   {hasVersions && (
                     <DropdownMenuItem onClick={handleOpenVersionManager}>
-                      <Settings className="h-4 w-4 mr-2" />
+                      <ArrowUpOnSquareStackIcon className="h-4 w-4 mr-2" />
                       Manage Versions
                     </DropdownMenuItem>
                   )}
