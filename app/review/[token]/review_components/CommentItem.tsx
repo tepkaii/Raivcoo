@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { linkifyToReact } from "../lib/linkify-utils";
+import { linkifyToReact } from "../lib/links";
 import {
   ClipboardDocumentIcon,
   MapPinIcon,

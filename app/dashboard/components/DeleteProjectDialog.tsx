@@ -89,7 +89,7 @@ export function DeleteProjectDialog({
 
   const DialogComponent = (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="bg-primary-foreground max-w-lg">
+      <DialogContent className=" max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -120,7 +120,7 @@ export function DeleteProjectDialog({
             <Label htmlFor="confirmation">
               Type the project name to confirm deletion:
             </Label>
-            <p className="text-sm text-muted-foreground font-mono">
+            <p className="text-xl text-center text-muted-foreground font-mono bg-card border p-1 rounded-md">
               {project.name}
             </p>
             <Input

@@ -1,5 +1,4 @@
 // app/dashboard/projects/[id]/ProjectWorkspace.tsx
-// @ts-nocheck
 "use client";
 
 import React, {
@@ -12,7 +11,15 @@ import React, {
 import { MediaGrid } from "./components/media/MediaGrid";
 import { MediaViewer } from "./components/media/MediaViewer";
 import { ReviewComments } from "@/app/review/[token]/review_components/ReviewComments";
+import { TeamManagement } from "./components/TeamManagement";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   CommentsPanel,
   MediaCardsPanel,
@@ -23,14 +30,35 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   ChatBubbleBottomCenterTextIcon,
   EyeIcon,
+  UsersIcon,
 } from "@heroicons/react/24/solid";
+
+// Define types
+type ProjectRole = "viewer" | "reviewer" | "collaborator";
+
+interface ProjectMember {
+  id: string;
+  user_id: string;
+  role: ProjectRole;
+  status: "pending" | "accepted" | "declined";
+  invited_at: string;
+  joined_at?: string;
+  user_profile?: {
+    email: string;
+    name: string;
+    avatar_url?: string;
+  };
+}
 
 interface Project {
   id: string;
   name: string;
   description?: string;
+  project_references?: any[];
   project_media: MediaFile[];
   review_links: ReviewLink[];
+  project_members?: ProjectMember[];
+  user_role?: ProjectRole | null;
 }
 
 interface ProjectWorkspaceProps {
@@ -39,13 +67,54 @@ interface ProjectWorkspaceProps {
     id: string;
     email: string;
     name: string;
-    avatar_url?: string; // ✅ ADD THIS
+    avatar_url?: string;
   } | null;
+  isOwner: boolean;
+}
+
+// Permission system
+const ROLE_PERMISSIONS = {
+  viewer: {
+    canView: true,
+    canComment: false,
+    canUpload: false,
+    canDelete: false,
+    canEditStatus: false,
+    canCreateReviewLinks: false,
+    canManageMembers: false,
+  },
+  reviewer: {
+    canView: true,
+    canComment: true,
+    canUpload: false,
+    canDelete: false,
+    canEditStatus: true,
+    canCreateReviewLinks: false,
+    canManageMembers: false,
+  },
+  collaborator: {
+    canView: true,
+    canComment: true,
+    canUpload: true,
+    canDelete: true,
+    canEditStatus: true,
+    canCreateReviewLinks: true,
+    canManageMembers: false,
+  },
+} as const;
+
+function hasPermission(
+  role: ProjectRole | null,
+  permission: keyof typeof ROLE_PERMISSIONS.viewer
+): boolean {
+  if (!role) return false;
+  return ROLE_PERMISSIONS[role][permission];
 }
 
 export function ProjectWorkspace({
   project,
   authenticatedUser,
+  isOwner,
 }: ProjectWorkspaceProps) {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>(
     project.project_media || []
@@ -53,19 +122,23 @@ export function ProjectWorkspace({
   const [reviewLinks, setReviewLinks] = useState<ReviewLink[]>(
     project.review_links || []
   );
+  const [members, setMembers] = useState<ProjectMember[]>(
+    project.project_members || []
+  );
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [comments, setComments] = useState<any[]>([]);
+  const [showTeamDialog, setShowTeamDialog] = useState(false);
 
   // Track screen size
   const [isMobile, setIsMobile] = useState(false);
 
-  // Panel visibility states - force mobile layout on small screens
+  // Panel visibility states - BACK TO ORIGINAL 3-PANEL SYSTEM
   const [showMediaLibrary, setShowMediaLibrary] = useState(true);
   const [showMediaPlayer, setShowMediaPlayer] = useState(false);
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
 
-  // Panel widths as percentages
+  // Panel widths as percentages - BACK TO ORIGINAL
   const [libraryWidth, setLibraryWidth] = useState(30);
   const [playerWidth, setPlayerWidth] = useState(45);
   const [commentsWidth, setCommentsWidth] = useState(25);
@@ -76,6 +149,16 @@ export function ProjectWorkspace({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mediaViewerRef = useRef<any>(null);
+
+  // Get user's permissions
+  const userRole = project.user_role;
+  const canUpload = isOwner || hasPermission(userRole, "canUpload");
+  const canDelete = isOwner || hasPermission(userRole, "canDelete");
+  const canComment = isOwner || hasPermission(userRole, "canComment");
+  const canEditStatus = isOwner || hasPermission(userRole, "canEditStatus");
+  const canCreateReviewLinks =
+    isOwner || hasPermission(userRole, "canCreateReviewLinks");
+  const canManageMembers = isOwner;
 
   // Check screen size on mount and resize
   useEffect(() => {
@@ -127,6 +210,11 @@ export function ProjectWorkspace({
     setReviewLinks(newLinks);
   };
 
+  const handleMembersUpdate = () => {
+    // Trigger a refresh of the page to get updated member data
+    window.location.reload();
+  };
+
   // Handle comments update from MediaViewer
   const handleCommentsUpdate = (newComments: any[]) => {
     setComments(newComments);
@@ -134,18 +222,18 @@ export function ProjectWorkspace({
 
   // Handle annotation creation from MediaViewer
   const handleAnnotationCreate = (annotation: any) => {
-    if (!showCommentsPanel && !isMobile) {
+    if (!showCommentsPanel && !isMobile && canComment) {
       setShowCommentsPanel(true);
     }
   };
 
-  // Count open panels (only for desktop)
+  // BACK TO ORIGINAL PANEL LOGIC - Count open panels (only for desktop)
   const openPanelsCount = !isMobile
     ? [showMediaLibrary, showMediaPlayer, showCommentsPanel].filter(Boolean)
         .length
     : 1;
 
-  // Panel toggle logic (disabled on mobile)
+  // BACK TO ORIGINAL PANEL TOGGLE LOGIC
   const canToggleMediaLibrary = (() => {
     if (isMobile) return false; // Disable on mobile
     if (!showMediaLibrary) return true;
@@ -183,7 +271,7 @@ export function ProjectWorkspace({
   };
 
   const handleCommentsToggle = () => {
-    if (isMobile || commentsLocked) return; // Disable on mobile
+    if (isMobile || commentsLocked || !canComment) return; // Disable on mobile and for users without comment permission
 
     if (!showCommentsPanel) {
       if (showMediaLibrary) {
@@ -196,6 +284,7 @@ export function ProjectWorkspace({
     }
   };
 
+  // BACK TO ORIGINAL WIDTH CALCULATION
   const widths = useMemo(() => {
     // On mobile, always full width for media library
     if (isMobile) {
@@ -242,7 +331,7 @@ export function ProjectWorkspace({
     commentsWidth,
   ]);
 
-  // Resizing handlers (disabled on mobile)
+  // BACK TO ORIGINAL RESIZING HANDLERS
   const handleResizeStart = useCallback(
     (
       type: "library-player" | "player-comments" | "library-comments",
@@ -316,20 +405,25 @@ export function ProjectWorkspace({
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-background border-b h-[50px] flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center  h-full">
-          <div className="flex items-center justify-center  border-l border-r h-full mr-3">
+        <div className="flex items-center h-full">
+          <div className="flex items-center justify-center border-l border-r h-full mr-3">
             <div className="flex items-center mr-2 ml-2 h-full">
               <SidebarTrigger />
             </div>
           </div>
-          <div className="border-r  flex items-center h-full">
-            <div className=" mr-3">
-              <span>{project.name}-Project</span>
+          <div className="border-r flex items-center h-full">
+            <div className="mr-3">
+              <span>{project.name} - Project</span>
+              {!isOwner && userRole && (
+                <span className="ml-2 text-xs bg-muted px-2 py-1 rounded capitalize">
+                  {userRole}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Panel Toggle Buttons - Only show on desktop (md and up) */}
+        {/* Panel Toggle Buttons + Team Dialog Button - Only show on desktop (md and up) */}
         {!isMobile && (
           <div className="flex items-center gap-1">
             <Button
@@ -398,22 +492,26 @@ export function ProjectWorkspace({
               className="border-none bg-none"
               size="sm"
               disabled={
+                !canComment ||
                 commentsLocked ||
                 (!showCommentsPanel && !showMediaLibrary) ||
                 (showCommentsPanel && openPanelsCount === 1)
               }
               title={
-                commentsLocked
-                  ? "Enable Media Library to toggle Comments"
-                  : !showCommentsPanel && !showMediaLibrary
-                    ? "Enable Media Library first to use Comments"
-                    : showCommentsPanel && openPanelsCount === 1
-                      ? "Cannot hide the only remaining panel"
-                      : undefined
+                !canComment
+                  ? "You don't have permission to view comments"
+                  : commentsLocked
+                    ? "Enable Media Library to toggle Comments"
+                    : !showCommentsPanel && !showMediaLibrary
+                      ? "Enable Media Library first to use Comments"
+                      : showCommentsPanel && openPanelsCount === 1
+                        ? "Cannot hide the only remaining panel"
+                        : undefined
               }
             >
               <CommentsPanel
                 className={`size-5 ${
+                  !canComment ||
                   commentsLocked ||
                   (!showCommentsPanel && !showMediaLibrary) ||
                   (showCommentsPanel && openPanelsCount === 1)
@@ -424,11 +522,41 @@ export function ProjectWorkspace({
                 }`}
               />
             </Button>
+
+            {/* Team Management Dialog Button - Only for owners */}
+            {canManageMembers && (
+              <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="border-none bg-none"
+                    size="sm"
+                    title="Manage Team Members"
+                  >
+                    <UsersIcon className="size-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Team Management</DialogTitle>
+                  </DialogHeader>
+                  <TeamManagement
+                    projectId={project.id}
+                    members={members}
+                    isOwner={isOwner}
+                    onMembersUpdate={() => {
+                      handleMembersUpdate();
+                      setShowTeamDialog(false);
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         )}
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Content Area - BACK TO ORIGINAL 3-PANEL SYSTEM */}
       <div ref={containerRef} className="flex-1 flex overflow-hidden min-h-0">
         {/* Media Library Panel */}
         {(showMediaLibrary || isMobile) && (
@@ -446,6 +574,13 @@ export function ProjectWorkspace({
                   onMediaUpdated={handleMediaUpdated}
                   onReviewLinksUpdated={handleReviewLinksUpdated}
                   projectId={project.id}
+                  project={project}
+                  userPermissions={{
+                    canUpload,
+                    canDelete,
+                    canEditStatus,
+                    canCreateReviewLinks,
+                  }}
                 />
               </div>
             </div>
@@ -495,7 +630,11 @@ export function ProjectWorkspace({
                 onCommentsUpdate={handleCommentsUpdate}
                 onAnnotationCreate={handleAnnotationCreate}
                 authenticatedUser={authenticatedUser}
-                allowDownload={true} // ✅ Add this line
+                allowDownload={true}
+                userPermissions={{
+                  canComment,
+                  canEditStatus,
+                }}
                 onCommentPinClick={(comment) => {
                   if (mediaViewerRef.current) {
                     mediaViewerRef.current.handleCommentPinClick(comment);
@@ -531,7 +670,7 @@ export function ProjectWorkspace({
         )}
 
         {/* Comments Panel - Desktop only */}
-        {!isMobile && showCommentsPanel && (
+        {!isMobile && showCommentsPanel && canComment && (
           <div
             className="border-l flex flex-col flex-shrink-0 min-w-0"
             style={{ width: `${widths.comments}%` }}
@@ -568,7 +707,6 @@ export function ProjectWorkspace({
                       mediaViewerRef.current.loadComments();
                     }
                   }}
-                  // ✅ DIRECT REF CALLS - no props to prevent circular loops
                   onAnnotationRequest={(type, config) => {
                     if (mediaViewerRef.current) {
                       mediaViewerRef.current.handleAnnotationRequest(
@@ -583,6 +721,10 @@ export function ProjectWorkspace({
                     }
                   }}
                   authenticatedUser={authenticatedUser}
+                  userPermissions={{
+                    canComment,
+                    canEditStatus,
+                  }}
                 />
               ) : (
                 <div className="flex-1 min-h-screen flex items-center justify-center p-8">

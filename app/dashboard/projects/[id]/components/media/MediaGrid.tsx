@@ -1,10 +1,10 @@
 // app/dashboard/projects/[id]/components/media/MediaGrid.tsx
-// @ts-nocheck
+
 "use client";
 
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, Loader2, FileVideo } from "lucide-react";
+import { Upload, Loader2, FolderOpen, Link2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { MediaCard } from "./MediaCard";
@@ -19,7 +19,6 @@ import {
   reorderVersionsAction,
   updateVersionNameAction,
   deleteVersionAction,
-  addVersionToMediaAction,
   updateMediaStatusAction,
 } from "../../lib/actions";
 import {
@@ -29,15 +28,24 @@ import {
 } from "@/app/dashboard/lib/types";
 import { DocumentDuplicateIcon } from "@heroicons/react/24/solid";
 import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import { ProjectReferencesDialog } from "./ProjectReferencesDialog";
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];
   reviewLinks: ReviewLink[];
   selectedMedia: MediaFile | null;
-  onMediaSelect: (media: MediaFile | null) => void; // ✅ Allow null
+  onMediaSelect: (media: MediaFile | null) => void;
   onMediaUpdated: (newFiles: MediaFile[]) => void;
   onReviewLinksUpdated: (newLinks: ReviewLink[]) => void;
   projectId: string;
+  project: any; // Add this line
+  userPermissions: {
+    canUpload: boolean;
+    canDelete: boolean;
+    canEditStatus: boolean;
+    canCreateReviewLinks: boolean;
+  };
 }
 
 export function MediaGrid({
@@ -48,6 +56,8 @@ export function MediaGrid({
   onMediaUpdated,
   onReviewLinksUpdated,
   projectId,
+  project,
+  userPermissions,
 }: MediaGridProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -89,7 +99,20 @@ export function MediaGrid({
     mediaFile?: MediaFile;
     isDeleting: boolean;
   }>({ open: false, isDeleting: false });
+  const [referencesDialog, setReferencesDialog] = useState<{
+    open: boolean;
+  }>({ open: false });
 
+  // Add this handler with your other handlers
+  const handleFileInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      onDrop(files, []);
+    }
+    event.target.value = "";
+  };
   // Calculate project size
   const projectSize = React.useMemo(() => {
     const totalBytes = mediaFiles.reduce(
@@ -869,96 +892,68 @@ export function MediaGrid({
 
   return (
     <div className="h-full flex flex-col text-white">
-      {/* Project Size Indicator & Upload Area */}
+      {/* Project Header & Actions */}
       <div className="p-4 border-b flex-shrink-0">
-        {/* Project Size Indicator */}
-        <div className="mb-3">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-xs text-muted-foreground">
-              Project Storage
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {projectSize.currentFormatted} / {projectSize.maxFormatted}
-            </span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-1.5">
-            <div
-              className={`h-1.5 rounded-full transition-all ${
-                projectSize.percentage > 90
-                  ? "bg-red-500"
-                  : projectSize.percentage > 75
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
-              }`}
-              style={{ width: `${Math.min(projectSize.percentage, 100)}%` }}
-            />
-          </div>
-          {projectSize.percentage > 90 && (
-            <p className="text-xs text-red-400 mt-1">
-              Warning: Project is almost full ({projectSize.remainingFormatted}{" "}
-              remaining)
-            </p>
-          )}
-        </div>
+        <div className="flex justify-end items-center gap-3">
+          {/* Upload Button */}
+          <Button
+            onClick={() => document.getElementById("file-input")?.click()}
+            disabled={isUploading || projectSize.percentage >= 100}
+            className="flex-1 sm:flex-none flex items-center gap-2"
+            size="sm"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading...
+              </>
+            ) : projectSize.percentage >= 100 ? (
+              <>
+                <FolderOpen className="h-4 w-4" />
+                Project Full
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                Upload Media
+              </>
+            )}
+          </Button>
 
-        {/* Upload Area */}
-        <div
-          {...getRootProps()}
-          className={`
-            border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-            ${
-              isDragActive
-                ? "border-primary bg-primary/10"
-                : projectSize.percentage >= 100
-                  ? "border-red-500/50 bg-red-500/10"
-                  : "hover:border-white/30"
-            }
-            ${isUploading || projectSize.percentage >= 100 ? "pointer-events-none " : ""}
-          `}
-        >
-          <input {...getInputProps()} />
-          {projectSize.percentage >= 100 ? (
-            <div className="space-y-2">
-              <Upload className="h-5 w-5 mx-auto text-red-500" />
-              <div>
-                <p className="text-xs font-medium text-red-400">Project Full</p>
-                <p className="text-xs text-muted-foreground">
-                  Delete some files to upload more
-                </p>
-              </div>
-            </div>
-          ) : isUploading ? (
-            <div className="space-y-2">
-              <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" />
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">
-                  Uploading... {uploadProgress}%
-                </p>
-                <Progress
-                  value={uploadProgress}
-                  className="w-full max-w-md mx-auto h-3"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
-              <div>
-                <p className="text-xs font-medium">
-                  {isDragActive ? "Drop files here" : "Drag & drop or click"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  💡 Drag onto media to create versions
-                </p>
-                <div className="text-xs text-muted-foreground">
-                  <p>Supports: MP4, MOV, AVI, MKV, WebM videos</p>
-                  <p>JPG, PNG, GIF, WebP images</p>
-                  <p className="font-medium">Maximum: 1GB per file</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* References Button */}
+          <Button
+            onClick={() => setReferencesDialog({ open: true })}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 flex-shrink-0"
+          >
+            <Link2 className="h-4 w-4" />
+            References
+          </Button>
+
+          {/* Hidden file input */}
+          <input
+            id="file-input"
+            type="file"
+            multiple
+            accept="video/mp4,video/mov,video/avi,video/mkv,video/webm,image/jpg,image/jpeg,image/png,image/gif,image/webp"
+            className="hidden"
+            onChange={handleFileInputChange}
+            disabled={isUploading || projectSize.percentage >= 100}
+          />
         </div>
+        {/* Upload Progress (only show when uploading) */}
+        {isUploading && (
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Uploading files...</span>
+              <span className="text-muted-foreground">{uploadProgress}%</span>
+            </div>
+            <Progress value={uploadProgress} className="w-full h-2" />
+          </div>
+        )}
+
+        {/* Project Size Indicator */}
       </div>
 
       {/* Media Grid */}
@@ -1057,12 +1052,18 @@ export function MediaGrid({
                 }
                 onOpenVersionManager={handleOpenVersionManager}
                 onStatusChange={handleStatusChange} // Add this
+                userPermissions={userPermissions} // Pass this down
               />
             ))}
           </div>
         )}
       </div>
-
+      <ProjectReferencesDialog
+        open={referencesDialog.open}
+        onOpenChange={(open) => setReferencesDialog({ open })}
+        projectReferences={project.project_references || []}
+        projectName={project.name}
+      />
       {/* Dialogs */}
       <MediaDialogs
         createLinkDialog={createLinkDialog}

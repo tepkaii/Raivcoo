@@ -133,7 +133,7 @@ export function CreateReviewLinkDialog({
 
   return (
     <Dialog open={createLinkDialog.open} onOpenChange={handleDialogClose}>
-      <DialogContent className="bg-primary-foreground max-w-lg">
+      <DialogContent className=" max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {createLinkDialog.showSuccess

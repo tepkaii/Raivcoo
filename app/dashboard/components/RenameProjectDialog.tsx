@@ -89,7 +89,7 @@ export function RenameProjectDialog({
 
   const DialogComponent = (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="bg-primary-foreground max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PencilSquareIcon className="h-5 w-5" />

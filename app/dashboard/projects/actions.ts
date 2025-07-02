@@ -23,9 +23,21 @@ export async function createProject(formData: FormData) {
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
+  const referencesJson = formData.get("references") as string;
 
   if (!name?.trim()) {
     throw new Error("Project name is required");
+  }
+
+  // Parse references
+  let references = [];
+  if (referencesJson) {
+    try {
+      references = JSON.parse(referencesJson);
+    } catch (error) {
+      console.error("Error parsing references:", error);
+      // Continue without references if parsing fails
+    }
   }
 
   try {
@@ -35,6 +47,7 @@ export async function createProject(formData: FormData) {
         editor_id: editorProfile.id,
         name: name.trim(),
         description: description?.trim() || null,
+        project_references: references, // Add references to insert
       })
       .select("id, name")
       .single();

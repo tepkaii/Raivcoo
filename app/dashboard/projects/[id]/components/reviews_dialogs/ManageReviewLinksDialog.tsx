@@ -115,7 +115,7 @@ export function ManageReviewLinksDialog({
     >
       <DialogContent className="max-w-4xl"> {/* ✅ WIDER DIALOG FOR MORE CONTENT */}
         <DialogHeader>
-          <DialogTitle>Manage Review Links</DialogTitle>
+          <DialogTitle>View Review Links</DialogTitle>
           {manageLinksDialog.mediaFile && (
             <p className="text-sm text-muted-foreground">
               Managing links for:{" "}

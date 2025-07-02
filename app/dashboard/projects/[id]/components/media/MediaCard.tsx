@@ -11,17 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  FileVideo,
-  Image as ImageIcon,
-  MoreVertical,
-  Link,
-  Eye,
-  Trash2,
-  Download,
-  Share,
-  Settings,
-} from "lucide-react";
+import { MoreVertical, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +26,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   ArrowUpOnSquareStackIcon,
   Cog6ToothIcon,
+  DocumentDuplicateIcon,
   EyeIcon,
   LinkIcon,
   PhotoIcon,
@@ -82,6 +73,12 @@ interface MediaCardProps {
   onDeleteMedia: (mediaFile: MediaFile) => void;
   onOpenVersionManager: (media: OrganizedMedia) => void;
   onStatusChange: (mediaFile: MediaFile, newStatus: string) => void;
+  userPermissions: {
+    canUpload: boolean;
+    canDelete: boolean;
+    canEditStatus: boolean;
+    canCreateReviewLinks: boolean;
+  };
 }
 
 export const formatFileSize = (bytes: number) => {
@@ -114,6 +111,7 @@ export const MediaCard = React.memo(
     onDeleteMedia,
     onOpenVersionManager,
     onStatusChange,
+    userPermissions,
   }: MediaCardProps) {
     // ✅ Stable media object creation (performance optimization)
     const stableMediaObject = React.useMemo(
@@ -330,14 +328,6 @@ export const MediaCard = React.memo(
     const handleViewReviewLinks = React.useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        onViewReviewLinks(stableMediaObject);
-      },
-      [onViewReviewLinks, stableMediaObject]
-    );
-
-    const handleManageReviewLinks = React.useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
         onManageReviewLinks(stableMediaObject);
       },
       [onManageReviewLinks, stableMediaObject]
@@ -364,10 +354,10 @@ export const MediaCard = React.memo(
         {/* Main Media Card */}
         <Card
           className={`
-    bg-primary-foreground overflow-hidden transition-all cursor-pointer group
-    ${isDropTarget ? "ring-2 ring-primary bg-primary/10 scale-105" : ""}
-    ${isSelected ? "ring-ring/50 border-ring ring-[3px] border" : "hover:bg-muted/50"}
-  `}
+            bg-primary-foreground overflow-hidden transition-all cursor-pointer group
+            ${isDropTarget ? "ring-2 ring-primary bg-primary/10 scale-105" : ""}
+            ${isSelected ? "ring-ring/50 border-ring ring-[3px] border" : "hover:bg-muted/50"}
+          `}
           onClick={handleClick}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
@@ -438,6 +428,7 @@ export const MediaCard = React.memo(
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {/* View Media - Everyone can view */}
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
@@ -447,50 +438,58 @@ export const MediaCard = React.memo(
                       );
                     }}
                   >
-                    <EyeIcon className="h-4 w-4 mr-2" />
+                    <VideoCameraIcon className="h-4 w-4 mr-2" />
                     View Media
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
 
-                  {/* Review Link Actions - Only for parent media */}
-                  <DropdownMenuItem onClick={handleCreateReviewLink}>
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    Create Review Link
-                  </DropdownMenuItem>
-
-                  {media.hasReviewLinks && (
-                    <>
-                      <DropdownMenuItem onClick={handleManageReviewLinks}>
-                        <Cog6ToothIcon className="h-4 w-4 mr-2" />
-                        Manage Links
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  <DropdownMenuSeparator />
-
-                  {/* Version Management */}
-                  {hasVersions && (
-                    <DropdownMenuItem onClick={handleOpenVersionManager}>
-                      <ArrowUpOnSquareStackIcon className="h-4 w-4 mr-2" />
-                      Manage Versions
-                    </DropdownMenuItem>
-                  )}
-
-                  {/* ✅ UPDATED: Direct download handler */}
+                  {/* Download - Everyone can download */}
                   <DropdownMenuItem onClick={handleDownload}>
                     <Download className="h-4 w-4 mr-2" />
                     Download
                   </DropdownMenuItem>
 
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-red-400 focus:bg-red-600 focus:text-white"
-                    onClick={handleDeleteMedia}
-                  >
-                    <TrashIcon className="h-4 w-4 mr-2" />
-                    Delete Entire Media
-                  </DropdownMenuItem>
+                  {/* Review Link Actions - Only collaborators */}
+                  {userPermissions.canCreateReviewLinks && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleCreateReviewLink}>
+                        <LinkIcon className="h-4 w-4 mr-2" />
+                        Create Review Link
+                      </DropdownMenuItem>
+
+                      {media.hasReviewLinks && (
+                        <DropdownMenuItem onClick={handleViewReviewLinks}>
+                          <EyeIcon className="h-4 w-4 mr-2" />
+                          Manage Review Links
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+
+                  {/* Version Management - Only collaborators */}
+                  {hasVersions && userPermissions.canUpload && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleOpenVersionManager}>
+                        <ArrowUpOnSquareStackIcon className="h-4 w-4 mr-2" />
+                        Manage Versions
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {/* Delete - Only collaborators */}
+                  {userPermissions.canDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-400 focus:bg-red-600 focus:text-white"
+                        onClick={handleDeleteMedia}
+                      >
+                        <TrashIcon className="h-4 w-4 mr-2" />
+                        Delete Media
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -512,29 +511,48 @@ export const MediaCard = React.memo(
                 </div>
               </div>
 
-              {/* Status Selector */}
-              <div className="mt-2">
-                <Select value={localStatus} onValueChange={handleStatusChange}>
-                  <SelectTrigger
-                    className="w-full text-xs bg-transparent"
-                    onClick={(e) => e.stopPropagation()}
+              {/* Status Selector - Only show for reviewers and collaborators */}
+              {userPermissions.canEditStatus && (
+                <div className="mt-2">
+                  <Select
+                    value={localStatus}
+                    onValueChange={handleStatusChange}
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MEDIA_STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${option.color}`}
-                          />
-                          {option.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    <SelectTrigger
+                      className="w-full text-xs bg-transparent"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MEDIA_STATUS_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-2 h-2 rounded-full ${option.color}`}
+                            />
+                            {option.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Status Display - For viewers (read-only) */}
+              {!userPermissions.canEditStatus && (
+                <div className="mt-2">
+                  <div className="w-full text-xs bg-muted rounded px-2 py-1.5 flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        getStatusConfig(localStatus).color
+                      }`}
+                    />
+                    {getStatusConfig(localStatus).label}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Card>
@@ -553,7 +571,16 @@ export const MediaCard = React.memo(
       prevProps.draggedMedia?.id === nextProps.draggedMedia?.id &&
       prevProps.expandedMedia.has(prevProps.media.id) ===
         nextProps.expandedMedia.has(nextProps.media.id) &&
-      prevProps.media.hasReviewLinks === nextProps.media.hasReviewLinks
+      prevProps.media.hasReviewLinks === nextProps.media.hasReviewLinks &&
+      // Add userPermissions to comparison
+      prevProps.userPermissions.canUpload ===
+        nextProps.userPermissions.canUpload &&
+      prevProps.userPermissions.canDelete ===
+        nextProps.userPermissions.canDelete &&
+      prevProps.userPermissions.canEditStatus ===
+        nextProps.userPermissions.canEditStatus &&
+      prevProps.userPermissions.canCreateReviewLinks ===
+        nextProps.userPermissions.canCreateReviewLinks
     );
   }
 );

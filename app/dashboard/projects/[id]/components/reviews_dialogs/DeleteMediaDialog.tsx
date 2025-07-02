@@ -53,7 +53,7 @@ export function DeleteMediaDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className=" border-2 border-[#262626] shadow-xs hover:bg-[#121212]/80 hover:text-accent-foreground  bg-[#121212] ">
+          <AlertDialogCancel >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction

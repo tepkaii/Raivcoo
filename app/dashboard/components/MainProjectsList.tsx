@@ -433,9 +433,8 @@ function ProjectCard({ project }: { project: Project }) {
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="secondary"
+              variant="outline"
               size="icon"
-              className="h-8 w-8 bg-black"
               onClick={(e) => e.preventDefault()}
             >
               <MoreVertical className="h-4 w-4" />

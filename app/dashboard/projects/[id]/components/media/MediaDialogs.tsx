@@ -1,10 +1,9 @@
 // app/dashboard/projects/[id]/components/media/MediaDialogs.tsx
-// @ts-nocheck
+
 "use client";
 
 import React from "react";
 import { CreateReviewLinkDialog } from "../reviews_dialogs/CreateReviewLinkDialog";
-import { ViewReviewLinksDialog } from "../reviews_dialogs/ViewReviewLinksDialog";
 import { ManageReviewLinksDialog } from "../reviews_dialogs/ManageReviewLinksDialog";
 import { VersionManagerDialog } from "../reviews_dialogs/VersionManagerDialog";
 import { DeleteMediaDialog } from "../reviews_dialogs/DeleteMediaDialog";
@@ -79,12 +78,10 @@ interface MediaDialogsProps {
 
 export function MediaDialogs({
   createLinkDialog,
-  viewLinksDialog,
   manageLinksDialog,
   versionManagerDialog,
   deleteDialog,
   onCreateLinkDialogChange,
-  onViewLinksDialogChange,
   onManageLinksDialogChange,
   onVersionManagerDialogChange,
   onDeleteDialogChange,
@@ -92,9 +89,6 @@ export function MediaDialogs({
   onToggleReviewLink,
   onUpdateReviewLink,
   onDeleteReviewLink,
-  onVersionReorder,
-  onUpdateVersionName,
-  onDeleteVersion,
   onDeleteMedia,
   projectId,
   onMediaUpdated,
@@ -105,12 +99,6 @@ export function MediaDialogs({
         createLinkDialog={createLinkDialog}
         onCreateLinkDialogChange={onCreateLinkDialogChange}
         onCreateReviewLink={onCreateReviewLink}
-      />
-
-      <ViewReviewLinksDialog
-        viewLinksDialog={viewLinksDialog}
-        onViewLinksDialogChange={onViewLinksDialogChange}
-        onToggleReviewLink={onToggleReviewLink}
       />
 
       <ManageReviewLinksDialog

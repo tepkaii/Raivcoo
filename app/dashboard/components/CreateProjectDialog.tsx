@@ -1,4 +1,4 @@
-// app/dashboard/projects/components/CreateProjectDialog.tsx
+// app/dashboard/projects/components/CreateProjectDialog.tsx (UPDATED)
 "use client";
 
 import React, { useState } from "react";
@@ -14,6 +14,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { ReferenceInput } from "./ReferenceInput";
+import { type ProjectReference } from "@/app/review/[token]/lib/reference-links";
 
 interface CreateProjectDialogProps {
   createProjectAction: (formData: FormData) => Promise<{
@@ -29,11 +31,15 @@ export function CreateProjectDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [createdProject, setCreatedProject] = useState<any>(null);
+  const [references, setReferences] = useState<ProjectReference[]>([]);
 
   const handleSubmit = async (formData: FormData) => {
     setIsLoading(true);
 
     try {
+      // Add references to form data
+      formData.append("references", JSON.stringify(references));
+
       const result = await createProjectAction(formData);
 
       setIsSuccess(true);
@@ -45,7 +51,6 @@ export function CreateProjectDialog({
         variant: "green",
       });
 
-      // Auto-close dialog after 1.5 seconds
       setTimeout(() => {
         setOpen(false);
       }, 1500);
@@ -65,11 +70,11 @@ export function CreateProjectDialog({
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
-      // Reset state when dialog closes
       setTimeout(() => {
         setIsSuccess(false);
         setCreatedProject(null);
         setIsLoading(false);
+        setReferences([]);
       }, 150);
     }
   };
@@ -92,7 +97,7 @@ export function CreateProjectDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="bg-primary-foreground max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isSuccess ? "Project Created Successfully!" : "Create New Project"}
@@ -114,7 +119,7 @@ export function CreateProjectDialog({
             </div>
           </div>
         ) : (
-          <form action={handleSubmit} className="space-y-4">
+          <form action={handleSubmit} className="space-y-6">
             <div>
               <Label htmlFor="name">Project Name</Label>
               <Input
@@ -126,6 +131,12 @@ export function CreateProjectDialog({
                 disabled={isLoading}
               />
             </div>
+
+            <ReferenceInput
+              references={references}
+              onChange={setReferences}
+              disabled={isLoading}
+            />
 
             <div className="flex justify-end gap-2">
               <Button
