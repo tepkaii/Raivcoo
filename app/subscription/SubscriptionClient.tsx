@@ -1,4 +1,3 @@
-// app/subscription/SubscriptionClient.tsx
 "use client";
 
 import { useState } from "react";
@@ -17,10 +16,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  cancelSubscription,
-  createCustomerPortalSession,
-} from "@/lib/polar-actions";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
 
@@ -29,10 +24,11 @@ interface Subscription {
   plan_name: string;
   status: string;
   current_period_end: string;
-  product_id: string;
-  polar_subscription_id: string;
-  polar_customer_id: string;
+  current_period_start: string;
+  plan_id: string;
+  paypal_subscription_id?: string;
   created_at: string;
+  updated_at: string;
 }
 
 interface Order {
@@ -43,6 +39,8 @@ interface Order {
   status: string;
   created_at: string;
   completed_at: string | null;
+  paypal_order_id?: string;
+  transaction_id?: string;
 }
 
 interface SubscriptionClientProps {
@@ -121,21 +119,33 @@ export default function SubscriptionClient({
 
     setIsLoading(true);
     try {
-      const { portalUrl } = await cancelSubscription(
-        subscription.polar_subscription_id
-      );
-      window.open(portalUrl, "_blank");
+      const response = await fetch("/api/subscriptions/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subscriptionId: subscription.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to cancel subscription");
+      }
 
       toast({
-        title: "Redirected to Customer Portal",
+        title: "Subscription Cancelled",
         description:
-          "Complete the cancellation process in the Polar customer portal.",
+          "Your subscription will remain active until the end of your current billing period.",
       });
+
+      // Refresh the page to show updated status
+      window.location.reload();
     } catch (error) {
       console.error("Error:", error);
       toast({
         title: "Error",
-        description: "Failed to open cancellation portal.",
+        description: "Failed to cancel subscription. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -143,30 +153,28 @@ export default function SubscriptionClient({
     }
   };
 
-  const handleManageSubscription = async () => {
-    if (!subscription) return;
-
-    setIsLoading(true);
+  const downloadReceipt = async (orderId: string) => {
     try {
-      const { portalUrl } = await createCustomerPortalSession(
-        subscription.polar_customer_id
-      );
-      window.open(portalUrl, "_blank");
-
-      toast({
-        title: "Opening Customer Portal",
-        description:
-          "Manage your subscription details in the Polar customer portal.",
-      });
+      const response = await fetch(`/api/orders/${orderId}/receipt`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = `receipt-${orderId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        throw new Error("Failed to download receipt");
+      }
     } catch (error) {
-      console.error("Error:", error);
       toast({
         title: "Error",
-        description: "Failed to open customer portal.",
+        description: "Failed to download receipt.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -199,7 +207,10 @@ export default function SubscriptionClient({
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       Started{" "}
-                      {new Date(subscription.created_at).toLocaleDateString()}
+                      {new Date(
+                        subscription.current_period_start ||
+                          subscription.created_at
+                      ).toLocaleDateString()}
                     </p>
                   </div>
                   <StatusBadge status={subscription.status} />
@@ -210,14 +221,14 @@ export default function SubscriptionClient({
                     <span className="text-sm text-muted-foreground">
                       Status
                     </span>
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium capitalize">
                       {subscription.status}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Next billing
+                      {subscription.status === "active" ? "Expires" : "Expired"}
                     </span>
                     <span className="text-sm font-medium">
                       {new Date(
@@ -226,55 +237,66 @@ export default function SubscriptionClient({
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Days remaining
-                    </span>
-                    <span className="text-sm font-medium">
-                      {daysUntilExpiry > 0
-                        ? `${daysUntilExpiry} days`
-                        : "Expired"}
-                    </span>
-                  </div>
+                  {subscription.status === "active" && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Days remaining
+                      </span>
+                      <span className="text-sm font-medium">
+                        {daysUntilExpiry > 0
+                          ? `${daysUntilExpiry} days`
+                          : "Expired"}
+                      </span>
+                    </div>
+                  )}
+
+                  {subscription.paypal_subscription_id && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        PayPal ID
+                      </span>
+                      <span className="text-sm font-mono text-xs">
+                        {subscription.paypal_subscription_id}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {daysUntilExpiry <= 7 && daysUntilExpiry > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-yellow-800">
-                        Subscription expiring soon
-                      </p>
-                      <p className="text-yellow-600">
-                        Your subscription expires in {daysUntilExpiry} days.
-                      </p>
+                {daysUntilExpiry <= 7 &&
+                  daysUntilExpiry > 0 &&
+                  subscription.status === "active" && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-yellow-800">
+                          Subscription expiring soon
+                        </p>
+                        <p className="text-yellow-600">
+                          Your subscription expires in {daysUntilExpiry} days.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 <div className="flex gap-2 pt-4">
                   <Link href="/pricing" className="flex-1">
                     <Button variant="outline" className="w-full">
                       <Settings className="mr-2 h-4 w-4" />
-                      Change Plan
+                      {subscription.status === "active"
+                        ? "Change Plan"
+                        : "Renew Plan"}
                     </Button>
                   </Link>
-                  <Button
-                    variant="outline"
-                    onClick={handleManageSubscription}
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Manage
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleCancelSubscription}
-                    disabled={isLoading}
-                  >
-                    Cancel
-                  </Button>
+
+                  {subscription.status === "active" && (
+                    <Button
+                      variant="destructive"
+                      onClick={handleCancelSubscription}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Cancelling..." : "Cancel"}
+                    </Button>
+                  )}
                 </div>
               </>
             ) : (
@@ -327,15 +349,19 @@ export default function SubscriptionClient({
                 </span>
                 <span className="text-sm font-medium">{orders.length}</span>
               </div>
-            </div>
 
-            <div className="pt-4">
-              <Link href="/account">
-                <Button variant="outline" className="w-full">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Account Settings
-                </Button>
-              </Link>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Total spent
+                </span>
+                <span className="text-sm font-medium">
+                  $
+                  {orders
+                    .filter((order) => order.status === "completed")
+                    .reduce((sum, order) => sum + order.amount, 0)
+                    .toFixed(2)}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -366,6 +392,11 @@ export default function SubscriptionClient({
                       {new Date(order.created_at).toLocaleDateString()} at{" "}
                       {new Date(order.created_at).toLocaleTimeString()}
                     </p>
+                    {order.transaction_id && (
+                      <p className="text-xs text-muted-foreground font-mono">
+                        Transaction: {order.transaction_id}
+                      </p>
+                    )}
                   </div>
 
                   <div className="text-right">
@@ -373,7 +404,12 @@ export default function SubscriptionClient({
                       ${order.amount.toFixed(2)} {order.currency.toUpperCase()}
                     </p>
                     {order.status === "completed" && (
-                      <Button variant="ghost" size="sm" className="mt-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1"
+                        onClick={() => downloadReceipt(order.id)}
+                      >
                         <Download className="mr-1 h-3 w-3" />
                         Receipt
                       </Button>

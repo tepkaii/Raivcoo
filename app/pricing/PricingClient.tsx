@@ -1,22 +1,20 @@
-// app/pricing/PricingClient.tsx
-// @ts-nocheck
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowRight, Loader2 } from "lucide-react";
+import { Check, ArrowRight, X, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createCheckoutSession } from "@/lib/polar-actions";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 
 interface Subscription {
   id: string;
   plan_name: string;
   status: string;
   current_period_end: string;
-  polar_subscription_id: string;
+  paypal_subscription_id?: string;
 }
 
 interface PricingClientProps {
@@ -24,15 +22,13 @@ interface PricingClientProps {
   currentSubscription: Subscription | null;
 }
 
-// Replace these with your actual Polar product IDs
 const pricingTiers = [
   {
-    id: "basic",
+    id: "basic" as const,
     name: "Basic",
     price: "3.99",
     storage: "100GB storage included",
     level: 1,
-    polarProductId: "f0feee30-939c-40b2-9993-b448bac6cda7", // Replace with real Polar product ID
     features: [
       "Upload videos, images & files",
       "5 active review projects",
@@ -43,13 +39,12 @@ const pricingTiers = [
     ],
   },
   {
-    id: "pro",
+    id: "pro" as const,
     name: "Pro",
     price: "5.99",
     storage: "250GB storage included",
     level: 2,
     popular: true,
-    polarProductId: "f0b901f4-f671-4491-9a45-c346d65922d4", // Replace with real Polar product ID
     features: [
       "Everything in Basic plan",
       "Unlimited review projects",
@@ -63,12 +58,11 @@ const pricingTiers = [
     ],
   },
   {
-    id: "premium",
+    id: "premium" as const,
     name: "Premium",
     price: "9.99",
     storage: "500GB storage included",
     level: 3,
-    polarProductId: "83245746-418b-4cd9-9b66-d639c253056f", // Replace with real Polar product ID
     features: [
       "Everything in Pro plan",
       "Advanced client management",
@@ -83,19 +77,182 @@ const pricingTiers = [
   },
 ];
 
+function PayPalCheckout({
+  planId,
+  planName,
+  amount,
+  onCancel,
+  onSuccess,
+}: {
+  planId: string;
+  planName: string;
+  amount: number;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+
+  const initialOptions = {
+    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
+    currency: "USD",
+    intent: "capture",
+    environment: "sandbox" as const,
+  };
+
+  return (
+    <PayPalScriptProvider options={initialOptions}>
+      <div className="space-y-4">
+        {error && (
+          <div className="p-4 bg-red-50 text-red-700 rounded-md text-sm">
+            {error}
+          </div>
+        )}
+
+        {isProcessing && (
+          <div className="flex justify-center items-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+            <span>Processing payment...</span>
+          </div>
+        )}
+
+        <PayPalButtons
+          style={{
+            layout: "vertical",
+            color: "blue",
+            shape: "rect",
+            label: "paypal",
+            height: 40,
+          }}
+          createOrder={async (data, actions) => {
+            try {
+              // First create a pending order in our database
+              const response = await fetch("/api/orders/create", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  planId,
+                  planName,
+                  amount,
+                }),
+              });
+
+              if (!response.ok) {
+                throw new Error("Failed to create order");
+              }
+
+              const { orderId } = await response.json();
+              setPendingOrderId(orderId);
+
+              // Then create the PayPal order
+              return actions.order.create({
+                purchase_units: [
+                  {
+                    description: `${planName} Plan Subscription`,
+                    amount: {
+                      currency_code: "USD",
+                      value: amount.toString(),
+                    },
+                    custom_id: orderId, // Use our database order ID
+                  },
+                ],
+              });
+            } catch (error) {
+              console.error("Error creating order:", error);
+              setError("Failed to create order");
+              throw error;
+            }
+          }}
+          onApprove={async (data, actions) => {
+            setIsProcessing(true);
+            setError("");
+
+            try {
+              const order = await actions.order?.capture();
+              console.log("PayPal Order captured:", order);
+
+              if (!pendingOrderId) {
+                throw new Error("No pending order found");
+              }
+
+              // Create subscription in your database
+              const res = await fetch("/api/subscriptions/create", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  order,
+                  planId,
+                  planName,
+                  amount,
+                  pendingOrderId,
+                }),
+              });
+
+              if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                  errorData.error || "Failed to create subscription"
+                );
+              }
+
+              toast({
+                title: "Success!",
+                description: `Payment completed for ${planName} plan`,
+              });
+
+              onSuccess();
+            } catch (err) {
+              console.error("Payment error:", err);
+              setError(
+                err.message ||
+                  "Payment verification failed. Please contact support."
+              );
+            } finally {
+              setIsProcessing(false);
+            }
+          }}
+          onError={(err) => {
+            console.error("PayPal Error", err);
+            setError(
+              "Payment processing failed. Please try again or use a different payment method."
+            );
+          }}
+          onCancel={() => {
+            // Clean up pending order if user cancels
+            if (pendingOrderId) {
+              fetch("/api/orders/cancel", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ orderId: pendingOrderId }),
+              });
+            }
+            onCancel();
+          }}
+        />
+      </div>
+    </PayPalScriptProvider>
+  );
+}
+
 function PricingCard({
   tier,
   user,
   currentSubscription,
 }: {
-  tier: any;
+  tier: (typeof pricingTiers)[0];
   user: User | null;
   currentSubscription: Subscription | null;
 }) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPayPal, setShowPayPal] = useState(false);
 
-  // Get the tier level for comparison
   const getCurrentTierLevel = (planName: string) => {
     const foundTier = pricingTiers.find((t) => t.name === planName);
     return foundTier?.level || 0;
@@ -111,34 +268,19 @@ function PricingCard({
   const isDowngrade = currentSubscription && thisTierLevel < currentTierLevel;
   const isDisabled = isCurrentPlan || isDowngrade;
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = () => {
     if (!user) {
       router.push(`/login?redirect=/pricing&plan=${tier.id}`);
       return;
     }
 
     if (isDisabled) return;
+    setShowPayPal(true);
+  };
 
-    setIsLoading(true);
-    try {
-      const { url } = await createCheckoutSession({
-        productId: tier.polarProductId,
-        planName: tier.name,
-        isUpgrade: isUpgrade,
-        currentSubscriptionId: currentSubscription?.polar_subscription_id,
-      });
-
-      window.location.href = url;
-    } catch (error) {
-      console.error("Error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create checkout session.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handlePaymentSuccess = () => {
+    setShowPayPal(false);
+    router.push("/dashboard?success=true&plan=" + tier.name);
   };
 
   const getButtonText = () => {
@@ -203,25 +345,40 @@ function PricingCard({
             </li>
           ))}
         </ul>
-        <Button
-          onClick={handleSubscribe}
-          disabled={isLoading || isDisabled}
-          variant={getButtonVariant()}
-          className="w-full"
-          size="lg"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              {getButtonText()}
-              {isUpgrade && <ArrowRight className="ml-2 h-4 w-4" />}
-            </>
-          )}
-        </Button>
+
+        {!showPayPal ? (
+          <Button
+            onClick={handleSubscribe}
+            disabled={isDisabled}
+            variant={getButtonVariant()}
+            className="w-full"
+            size="lg"
+          >
+            {getButtonText()}
+            {isUpgrade && <ArrowRight className="ml-2 h-4 w-4" />}
+          </Button>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">Complete Payment</h4>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPayPal(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <PayPalCheckout
+              planId={tier.id}
+              planName={tier.name}
+              amount={parseFloat(tier.price)}
+              onCancel={() => setShowPayPal(false)}
+              onSuccess={handlePaymentSuccess}
+            />
+          </div>
+        )}
 
         {isDowngrade && (
           <p className="text-xs text-muted-foreground mt-2">
