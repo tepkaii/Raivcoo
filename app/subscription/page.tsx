@@ -16,9 +16,10 @@ export default async function SubscriptionPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+ if (!user) {
+   const returnUrl = encodeURIComponent(`/subscription`);
+   redirect(`/login?returnTo=${returnUrl}`);
+ }
 
   // Get current subscription
   const { data: subscription } = await supabase

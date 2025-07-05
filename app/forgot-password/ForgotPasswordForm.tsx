@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { TextureButton } from "@/components/ui/texture-button";
 
 const RESET_DELAY = 60000; // 60 seconds
 
@@ -134,7 +132,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email address"
                 required
-                className="w-full rounded-full"
+                className="w-full"
               />
               {countdown > 0 && (
                 <p className="text-sm text-muted-foreground">
@@ -142,17 +140,17 @@ export default function ForgotPasswordPage() {
                 </p>
               )}
             </div>
-            <TextureButton
+            <Button
               type="submit"
-              className="w-full rounded-full"
-              variant={isLoading ? "blue" : "primary"}
+              className="w-full "
+              variant={isLoading ? "outline" : "default"}
               disabled={isLoading || countdown > 0}
             >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               {isLoading ? "Sending Reset Link..." : "Send Password Reset Link"}
-            </TextureButton>
+            </Button>
           </form>
           {message && (
             <Alert
@@ -164,7 +162,7 @@ export default function ForgotPasswordPage() {
           )}
         </CardContent>
         <CardFooter>
-          <Button variant="link" asChild className="mx-auto">
+          <Button variant="secondary" asChild className="mx-auto">
             <Link href="/login">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Return to Login

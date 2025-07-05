@@ -32,6 +32,7 @@ import {
   EyeIcon,
   UsersIcon,
 } from "@heroicons/react/24/solid";
+import { createCommentAction } from "./lib/commentActions";
 
 // Define types
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
@@ -179,6 +180,25 @@ export function ProjectWorkspace({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  const handleCreateComment = async (data: any) => {
+    const result = await createCommentAction({
+      projectId: project.id,
+      mediaId: data.mediaId,
+      content: data.content,
+      timestampSeconds: data.timestampSeconds,
+      parentCommentId: data.parentCommentId,
+      annotationData: data.annotationData,
+      drawingData: data.drawingData,
+      // ✅ DO NOT PASS reviewToken for project path
+      // reviewToken: undefined, // Remove this line entirely
+    });
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    return result;
+  };
   // Get all versions for selected media
   const getAllVersionsForMedia = (mediaFile: MediaFile | null) => {
     if (!mediaFile) return [];
@@ -210,11 +230,10 @@ export function ProjectWorkspace({
     setReviewLinks(newLinks);
   };
 
-  const handleMembersUpdate = () => {
-    // Trigger a refresh of the page to get updated member data
-    window.location.reload();
+  const handleMembersUpdate = (newMembers: ProjectMember[]) => {
+    setMembers(newMembers);
+    // No more window.location.reload()!
   };
-
   // Handle comments update from MediaViewer
   const handleCommentsUpdate = (newComments: any[]) => {
     setComments(newComments);
@@ -544,10 +563,7 @@ export function ProjectWorkspace({
                     projectId={project.id}
                     members={members}
                     isOwner={isOwner}
-                    onMembersUpdate={() => {
-                      handleMembersUpdate();
-                      setShowTeamDialog(false);
-                    }}
+                    onMembersUpdate={handleMembersUpdate} // Pass the smooth update function
                   />
                 </DialogContent>
               </Dialog>
@@ -725,6 +741,11 @@ export function ProjectWorkspace({
                     canComment,
                     canEditStatus,
                   }}
+                  projectMode={true}
+                  projectId={project.id}
+                  createCommentOverride={handleCreateComment}
+                  // deleteCommentOverride={handleDeleteComment}
+                  // updateCommentOverride={handleUpdateComment}
                 />
               ) : (
                 <div className="flex-1 min-h-screen flex items-center justify-center p-8">

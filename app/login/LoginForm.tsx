@@ -10,18 +10,55 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import React, { useState } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 
 import BG from "../../public/BackgroundImage.png";
 import { Button } from "@/components/ui/button";
+
 export default function LoginForm() {
   // Separate loading states for each method
   const [isEmailLoading, startEmailTransition] = useTransition();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+
+  // Get URL parameters
+  const returnTo = searchParams.get("returnTo");
+  const suggestedEmail = searchParams.get("email");
+  const message = searchParams.get("message");
+  const urlError = searchParams.get("error");
+
+  // Show message if provided (like "Please sign in with the email address that received this invitation")
+  React.useEffect(() => {
+    if (message) {
+      toast({
+        title: "Authentication Required",
+        description: decodeURIComponent(message),
+        variant: "default",
+      });
+    }
+  }, [message, toast]);
+
+  // Show error message if provided via URL
+  React.useEffect(() => {
+    if (urlError) {
+      toast({
+        title: "Authentication Error",
+        description: getErrorMessage(urlError),
+        variant: "destructive",
+      });
+    }
+  }, [urlError, toast]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+
+    // Add returnTo to form data
+    if (returnTo) {
+      formData.append("returnTo", returnTo);
+    }
+
     startEmailTransition(async () => {
       const result = await login(formData);
       if (result?.error) {
@@ -45,6 +82,12 @@ export default function LoginForm() {
     try {
       const formData = new FormData();
       formData.append("provider", provider);
+
+      // Add returnTo to form data for social auth
+      if (returnTo) {
+        formData.append("returnTo", returnTo);
+      }
+
       const result = await login(formData);
 
       if (result?.error) {
@@ -79,6 +122,8 @@ export default function LoginForm() {
         return "There was a problem signing in with your email. Please check your email and password and try again.";
       case "SessionRequired":
         return "Please sign in to access this page.";
+      case "exchange_failed":
+        return "Authentication failed. Please try signing in again.";
       default:
         return "An unexpected error occurred. Please try again later.";
     }
@@ -115,7 +160,7 @@ export default function LoginForm() {
         {/* Left Column - Login Form */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
-            <div className="mb-8  text-left">
+            <div className="mb-8 text-left">
               <h1 className="flex items-center space-x-2">
                 <span
                   className="text-3xl font-bold gap-2 truncate tracking-tight text-transparent bg-clip-text 
@@ -131,7 +176,7 @@ export default function LoginForm() {
                   height={36}
                   priority
                   quality={100}
-                ></Image>
+                />
               </h1>
 
               <p className="text-muted-foreground mt-2">
@@ -149,6 +194,7 @@ export default function LoginForm() {
                   required
                   placeholder="you@example.com"
                   className="w-full"
+                  defaultValue={suggestedEmail || ""} // Pre-fill email if provided
                 />
               </div>
               <div className="space-y-2">

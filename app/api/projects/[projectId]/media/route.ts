@@ -3,6 +3,17 @@ import { createClient } from "@/utils/supabase/server";
 import { uploadFileToR2, getPublicUrl } from "@/lib/r2";
 import { nanoid } from "nanoid";
 import { NextRequest, NextResponse } from "next/server";
+import { checkProjectAccess } from "@/app/dashboard/projects/[id]/lib/actions";
+import { Resend } from "resend";
+import { MediaActivityEmail } from "@/app/components/emails/mediaActivityEmail";
+import {
+  getNotificationSettings,
+  getActivityTitle,
+  getActivityDescription,
+  getDefaultPreferences,
+} from "../../../../dashboard/lib/MediaNotificationService";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(
   request: NextRequest,
@@ -20,10 +31,10 @@ export async function POST(
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Get editor profile
+    // Get editor profile with full info for notifications
     const { data: editorProfile } = await supabase
       .from("editor_profiles")
-      .select("id")
+      .select("id, full_name, email")
       .eq("user_id", user.id)
       .single();
 
@@ -34,19 +45,33 @@ export async function POST(
       );
     }
 
-    // Verify project ownership
+    // Check project access and permissions
+    const accessCheck = await checkProjectAccess(supabase, projectId);
+
+    if (!accessCheck.has_access) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Check if user has upload permission
+    const canUpload =
+      accessCheck.is_owner || accessCheck.role === "collaborator";
+
+    if (!canUpload) {
+      return NextResponse.json(
+        { error: "You don't have permission to upload media" },
+        { status: 403 }
+      );
+    }
+
+    // Get project data for notifications
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, editor_id")
+      .select("id, name, notifications_enabled")
       .eq("id", projectId)
       .single();
 
     if (projectError || !project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
-
-    if (project.editor_id !== editorProfile.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Parse form data
@@ -96,7 +121,7 @@ export async function POST(
           error: `Upload would exceed 2GB project limit. Current size: ${formatBytes(currentTotalSize)}, Upload size: ${formatBytes(totalUploadSize)}, Available space: ${formatBytes(remainingSpace)}`,
         },
         { status: 413 }
-      ); // 413 Payload Too Large
+      );
     }
 
     const uploadedFiles = [];
@@ -202,7 +227,14 @@ export async function POST(
 
         if (mediaError) throw mediaError;
 
-        uploadedFiles.push(mediaFile);
+        uploadedFiles.push({
+          id: mediaFile.id,
+          name: file.name,
+          type: file.type,
+          size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+          url: publicUrl,
+          user_id: user.id,
+        });
       } catch (error) {
         console.error(`Error uploading ${file.name}:`, error);
         return NextResponse.json(
@@ -212,6 +244,236 @@ export async function POST(
           { status: 500 }
         );
       }
+    }
+
+    // 🔥 Send Upload Notifications
+    if (uploadedFiles.length > 0) {
+      try {
+        console.log(
+          `🔔 Starting upload notifications for project ${project.name}`
+        );
+
+        // Get recipients using RPC
+        const { data: recipients, error: recipientsError } = await supabase.rpc(
+          "get_project_notification_recipients",
+          {
+            project_uuid: projectId,
+          }
+        );
+
+        if (recipientsError) {
+          console.error("Error getting recipients:", recipientsError);
+        } else if (recipients && recipients.length > 0) {
+          console.log(`🔔 Found ${recipients.length} potential recipients`);
+
+          // Process each recipient
+          for (const recipient of recipients) {
+            const isMyMedia = uploadedFiles.some(
+              (file) => file.user_id === recipient.user_id
+            );
+
+            console.log(
+              `🔔 Processing recipient: ${recipient.full_name} (${recipient.role})`
+            );
+
+            // 🔥 CHECK PROJECT-LEVEL NOTIFICATIONS FOR THIS SPECIFIC USER
+            const {
+              data: projectNotificationsEnabled,
+              error: notificationCheckError,
+            } = await supabase
+              .rpc("get_user_project_notification_setting", {
+                project_uuid: projectId,
+                target_user_id: recipient.user_id,
+              })
+              .single();
+
+            if (notificationCheckError) {
+              console.error(
+                "Error checking project notifications:",
+                notificationCheckError
+              );
+              continue; // Skip this user if we can't check their settings
+            }
+
+            console.log(
+              `🔔 Project notifications enabled for ${recipient.full_name}: ${projectNotificationsEnabled}`
+            );
+
+            // Skip if project notifications are disabled for this user
+            if (!projectNotificationsEnabled) {
+              console.log(
+                `🔔 Skipping ${recipient.full_name} - project notifications disabled for this user`
+              );
+              continue;
+            }
+
+            // Get user preferences
+            const { data: userPrefs, error: prefsError } = await supabase
+              .rpc("get_user_notification_prefs", {
+                target_user_id: recipient.user_id,
+              })
+              .single();
+
+            if (prefsError) {
+              console.error("Error getting user preferences:", prefsError);
+            }
+
+            const preferences = userPrefs || (await getDefaultPreferences());
+
+            // Check if notifications are enabled for this user
+            const notificationSettings = await getNotificationSettings(
+              preferences,
+              "upload",
+              isMyMedia
+            );
+
+            console.log(
+              `🔔 Notification settings for ${recipient.full_name}:`,
+              {
+                projectNotificationsEnabled,
+                userPreferenceEnabled: notificationSettings.enabled,
+                delivery: notificationSettings.delivery,
+                isMyMedia,
+              }
+            );
+
+            if (!notificationSettings.enabled) {
+              console.log(
+                `🔔 Skipping ${recipient.full_name} - user preferences disabled`
+              );
+              continue; // Skip this user
+            }
+
+            // Create activity notification if needed
+            if (
+              notificationSettings.delivery === "activity" ||
+              notificationSettings.delivery === "both"
+            ) {
+              const title = await getActivityTitle({
+                activityType: "upload",
+                isOwner: recipient.is_owner,
+                isMyMedia,
+                actorName:
+                  editorProfile.full_name ||
+                  editorProfile.email ||
+                  "Unknown User",
+                mediaItems: uploadedFiles,
+              });
+
+              const description = await getActivityDescription({
+                activityType: "upload",
+                isOwner: recipient.is_owner,
+                isMyMedia,
+                actorName:
+                  editorProfile.full_name ||
+                  editorProfile.email ||
+                  "Unknown User",
+                projectName: project.name,
+                mediaItems: uploadedFiles,
+              });
+
+              // Create activity notification
+              const { error: notificationError } = await supabase
+                .from("activity_notifications")
+                .insert({
+                  user_id: recipient.user_id,
+                  project_id: projectId,
+                  title,
+                  description,
+                  activity_data: {
+                    type: "media_upload",
+                    media_count: uploadedFiles.length,
+                    media_details: uploadedFiles.map((item) => ({
+                      name: item.name,
+                      type: item.type,
+                      size: item.size,
+                    })),
+                    is_owner: recipient.is_owner,
+                    is_my_media: isMyMedia,
+                  },
+                  actor_id: user.id,
+                  actor_name:
+                    editorProfile.full_name ||
+                    editorProfile.email ||
+                    "Unknown User",
+                  is_read: false,
+                });
+
+              if (notificationError) {
+                console.error(
+                  "Error creating activity notification:",
+                  notificationError
+                );
+              } else {
+                console.log(
+                  `✅ Upload activity notification created for ${recipient.full_name}`
+                );
+              }
+            }
+
+            // Send email notification if needed
+            if (
+              notificationSettings.delivery === "email" ||
+              notificationSettings.delivery === "both"
+            ) {
+              try {
+                console.log(
+                  `📧 Sending email notification to ${recipient.email}`
+                );
+
+                const projectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/projects/${projectId}`;
+
+                const { data: emailData, error: emailError } =
+                  await resend.emails.send({
+                    from: process.env.RESEND_FROM_EMAIL!,
+                    to: [recipient.email],
+                    subject: `New Upload - ${uploadedFiles.length} ${uploadedFiles.length === 1 ? "file" : "files"} added to ${project.name}`,
+                    react: MediaActivityEmail({
+                      recipientName: recipient.full_name || recipient.email,
+                      actorName:
+                        editorProfile.full_name ||
+                        editorProfile.email ||
+                        "Unknown User",
+                      actorEmail: editorProfile.email,
+                      projectName: project.name,
+                      projectUrl,
+                      activityType: "upload",
+                      mediaCount: uploadedFiles.length,
+                      mediaDetails: uploadedFiles.map((item) => ({
+                        name: item.name,
+                        type: item.type,
+                        size: item.size,
+                      })),
+                      isOwner: recipient.is_owner,
+                      isMyMedia,
+                      actedAt: new Date().toISOString(),
+                    }),
+                  });
+
+                if (emailError) {
+                  console.error("❌ Error sending email:", emailError);
+                } else {
+                  console.log(
+                    `✅ Upload email notification sent to ${recipient.email}`
+                  );
+                }
+              } catch (emailError) {
+                console.error("❌ Failed to send email:", emailError);
+              }
+            }
+          }
+        } else {
+          console.log("🔔 No recipients found for notifications");
+        }
+      } catch (notificationError) {
+        console.error(
+          "Failed to send upload notifications:",
+          notificationError
+        );
+        // Don't fail the upload if notifications fail
+      }
+    } else {
+      console.log("🔔 No files uploaded");
     }
 
     return NextResponse.json({

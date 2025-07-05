@@ -10,6 +10,8 @@ const navItems = [
   { href: "/pricing", label: "Pricing" },
   { href: "/subscription", label: "subscription" },
   { href: "/tools", label: "Tools" },
+  { href: "/settings/notifications", label: "Settings" },
+  { href: "/activity", label: "activity" },
 ];
 
 export function NavLinks() {

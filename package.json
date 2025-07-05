@@ -72,6 +72,7 @@
     "html2canvas": "^1.4.1",
     "input-otp": "^1.2.4",
     "lodash.debounce": "^4.0.8",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.446.0",
     "motion": "^11.18.2",
     "next": "15.3.0",

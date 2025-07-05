@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import { nanoid } from "nanoid";
 import { redirect } from "next/navigation";
 import { ProjectRole } from "./permissions";
+import { Resend } from "resend";
 
 async function getAuthenticatedEditor() {
   const supabase = await createClient();
@@ -140,37 +141,3 @@ export async function updateMemberRole(
   }
 }
 
-export async function removeMemberFromProject(
-  projectId: string,
-  memberId: string
-) {
-  try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select("id, editor_id")
-      .eq("id", projectId)
-      .single();
-
-    if (!project || project.editor_id !== editorProfile.id) {
-      throw new Error("Unauthorized");
-    }
-
-    const { error } = await supabase
-      .from("project_members")
-      .delete()
-      .eq("id", memberId)
-      .eq("project_id", projectId);
-
-    if (error) throw error;
-
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to remove member",
-    };
-  }
-}

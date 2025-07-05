@@ -6,50 +6,48 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+ Select,
+ SelectContent,
+ SelectItem,
+ SelectTrigger,
+ SelectValue,
 } from "@/components/ui/select";
 import {
-  FolderOpen,
-  Search,
-  Calendar,
-  FileVideo,
-  Image as ImageIcon,
-  HardDrive,
-  ChevronRight,
-  Grid3X3,
-  List,
-  SortAsc,
-  SortDesc,
-  Filter,
-  MoreVertical,
-  Trash2,
-  Edit2,
+ Search,
+ Calendar,
+ FileVideo,
+ Image as ImageIcon,
+ HardDrive,
+ ChevronRight,
+ Grid3X3,
+ List,
+ SortAsc,
+ SortDesc,
+ MoreVertical,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate, formatFullDate } from "../lib/formats";
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "../lib/types";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+ DropdownMenu,
+ DropdownMenuContent,
+ DropdownMenuItem,
+ DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
-import { deleteProject, renameProject } from "../projects/actions";
+import { deleteProject, updateProject } from "../projects/actions";
 import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
-import { RenameProjectDialog } from "./RenameProjectDialog";
+import { EditProjectDialog } from "./EditProjectDialog.";
 import {
   ClockIcon,
   FolderIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
-  PencilSquareIcon,
+  Cog6ToothIcon,
   TrashIcon,
+  UserGroupIcon,
+  BellIcon,
 } from "@heroicons/react/24/solid";
 
 interface ProjectStats {
@@ -66,24 +64,34 @@ interface Project {
   description?: string;
   created_at: string;
   updated_at: string;
+  editor_id: string;
+  notifications_enabled: boolean;
+  memberNotificationsEnabled?: boolean;
   stats: ProjectStats;
   project_media: MediaFile[];
+  isOwner: boolean;
+  userRole: "owner" | "viewer" | "reviewer" | "collaborator";
 }
 
 interface MainProjectsListProps {
   projects: Project[];
+  currentUserId: string;
 }
 
 type ViewMode = "grid" | "list";
 type SortBy = "updated" | "created" | "name" | "files";
 type SortOrder = "asc" | "desc";
+type FilterBy = "all" | "hasMedia" | "empty" | "owned" | "member";
 
-export function MainProjectsList({ projects }: MainProjectsListProps) {
+export function MainProjectsList({
+  projects,
+  currentUserId,
+}: MainProjectsListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortBy>("updated");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [filterBy, setFilterBy] = useState<"all" | "hasMedia" | "empty">("all");
+  const [filterBy, setFilterBy] = useState<FilterBy>("all");
 
   // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
@@ -96,6 +104,13 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
           project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           project.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
+    }
+
+    // Apply ownership/membership filter
+    if (filterBy === "owned") {
+      filtered = filtered.filter((project) => project.isOwner);
+    } else if (filterBy === "member") {
+      filtered = filtered.filter((project) => !project.isOwner);
     }
 
     // Apply media filter
@@ -136,16 +151,16 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
 
   if (projects.length === 0) {
     return (
-      <div className=" px-4">
+      <div className="px-4">
         <Card>
-          <CardContent className="py-16 text-center ">
+          <CardContent className="py-16 text-center">
             <FolderIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h3 className="text-lg font-medium mb-2">No projects yet</h3>
             <p className="text-muted-foreground mb-6">
               Create your first project workspace to get started.
             </p>
           </CardContent>
-        </Card>{" "}
+        </Card>
       </div>
     );
   }
@@ -179,6 +194,8 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="owned">My Projects</SelectItem>
+                  <SelectItem value="member">Team Projects</SelectItem>
                   <SelectItem value="hasMedia">With Media</SelectItem>
                   <SelectItem value="empty">Empty</SelectItem>
                 </SelectContent>
@@ -215,7 +232,7 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
                 )}
               </Button>
 
-              <div className="flex ">
+              <div className="flex">
                 <Button
                   variant={viewMode === "grid" ? "default" : "outline"}
                   size="icon"
@@ -241,6 +258,8 @@ export function MainProjectsList({ projects }: MainProjectsListProps) {
             <p className="text-sm text-muted-foreground">
               Showing {filteredAndSortedProjects.length} of {projects.length}{" "}
               projects
+              {filterBy === "owned" && " (owned by you)"}
+              {filterBy === "member" && " (you're a member)"}
             </p>
           </div>
         </CardContent>
@@ -306,10 +325,10 @@ function MediaThumbnail({ media }: { media: MediaFile }) {
 // Empty Gallery Placeholder
 function EmptyGallery() {
   return (
-    <div className="aspect-video bg-black  flex items-center justify-center">
+    <div className="aspect-video bg-black flex items-center justify-center">
       <div className="text-center">
         <FolderIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-xs ">No media</p>
+        <p className="text-xs">No media</p>
       </div>
     </div>
   );
@@ -366,18 +385,51 @@ function MediaGallery({ project }: { project: Project }) {
   );
 }
 
+// Role Badge Component
+function RoleBadge({ role, isOwner }: { role: string; isOwner: boolean }) {
+  if (isOwner) return null;
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case "viewer":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "reviewer":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "collaborator":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <UserGroupIcon className="h-3 w-3" />
+      <Badge variant="secondary" className={`text-xs ${getRoleColor(role)}`}>
+        {role}
+      </Badge>
+    </div>
+  );
+}
+
 // Grid Card Component
 function ProjectCard({ project }: { project: Project }) {
   const stats = getProjectStats(project);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   return (
     <Card className="hover:shadow-md transition-all duration-200 cursor-pointer group overflow-hidden relative">
       <Link href={`/dashboard/projects/${project.id}`}>
         {/* Media Thumbnail Gallery */}
         <div className="relative bg-gradient-to-br from-blue-300 to-blue-800">
           <MediaGallery project={project} />
+          {/* Role indicator for team projects */}
+          {!project.isOwner && (
+            <div className="absolute top-2 left-2">
+              <RoleBadge role={project.userRole} isOwner={project.isOwner} />
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -389,6 +441,11 @@ function ProjectCard({ project }: { project: Project }) {
                 <h3 className="font-medium text-white text-sm truncate group-hover:text-primary transition-colors">
                   {project.name}
                 </h3>
+                {!project.isOwner && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Team project
+                  </p>
+                )}
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 ml-2" />
             </div>
@@ -428,7 +485,7 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
       </Link>
 
-      {/* Project Actions */}
+      {/* Project Actions - Show for both owners and members */}
       <div className="absolute top-2 right-2">
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
@@ -441,53 +498,72 @@ function ProjectCard({ project }: { project: Project }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.preventDefault();
-                setRenameDialogOpen(true);
-              }}
-            >
-              <PencilSquareIcon className="h-4 w-4 mr-2" />
-              Rename Project
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.preventDefault();
-                setDeleteDialogOpen(true);
-              }}
-              className="text-red-500 focus:text-red-500"
-            >
-              <TrashIcon className="h-4 w-4 mr-2" />
-              Delete Project
-            </DropdownMenuItem>
+            {project.isOwner ? (
+              // Owner menu
+              <>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setEditDialogOpen(true);
+                  }}
+                >
+                  <Cog6ToothIcon className="h-4 w-4 mr-2" />
+                  Edit Project
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDeleteDialogOpen(true);
+                  }}
+                  className="text-red-500 focus:text-red-500"
+                >
+                  <TrashIcon className="h-4 w-4 mr-2" />
+                  Delete Project
+                </DropdownMenuItem>
+              </>
+            ) : (
+              // Member menu
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault();
+                  setEditDialogOpen(true);
+                }}
+              >
+                <BellIcon className="h-4 w-4 mr-2" />
+                Notification Settings
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {/* Rename Dialog */}
-      <RenameProjectDialog
+
+      {/* Edit Dialog - Show for both owners and members */}
+      <EditProjectDialog
         project={project}
-        onRenameProject={renameProject}
-        open={renameDialogOpen}
-        onOpenChange={setRenameDialogOpen}
+        onUpdateProject={updateProject}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
       />
-      {/* Delete Dialog */}
-      <DeleteProjectDialog
-        project={project}
-        onDeleteProject={deleteProject}
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-      />
+
+      {/* Delete Dialog - Only for owners */}
+      {project.isOwner && (
+        <DeleteProjectDialog
+          project={project}
+          onDeleteProject={deleteProject}
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+        />
+      )}
     </Card>
   );
 }
 
 // List Item Component
-
 function ProjectListItem({ project }: { project: Project }) {
   const stats = getProjectStats(project);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   return (
     <Card className="hover:shadow-sm bg-primary-foreground transition-all duration-200 cursor-pointer group">
@@ -499,9 +575,15 @@ function ProjectListItem({ project }: { project: Project }) {
           >
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <h3 className="font-medium group-hover:text-primary transition-colors truncate">
-                  {project.name}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium group-hover:text-primary transition-colors truncate">
+                    {project.name}
+                  </h3>
+                  <RoleBadge
+                    role={project.userRole}
+                    isOwner={project.isOwner}
+                  />
+                </div>
                 {project.description && (
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
                     {project.description}
@@ -540,7 +622,7 @@ function ProjectListItem({ project }: { project: Project }) {
           </Link>
 
           <div className="flex items-center gap-2 ml-4">
-            {/* Project Actions Dropdown */}
+            {/* Project Actions Dropdown - Show for both owners and members */}
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -553,26 +635,42 @@ function ProjectListItem({ project }: { project: Project }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setRenameDialogOpen(true);
-                  }}
-                >
-                  <PencilSquareIcon className="h-4 w-4 mr-2" />
-                  Rename Project
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setDeleteDialogOpen(true);
-                  }}
-                  className="text-red-500 focus:text-red-500"
-                >
-                  <TrashIcon className="h-4 w-4 mr-2" />
-                  Delete Project
-                </DropdownMenuItem>
+                {project.isOwner ? (
+                  // Owner menu
+                  <>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setEditDialogOpen(true);
+                      }}
+                    >
+                      <Cog6ToothIcon className="h-4 w-4 mr-2" />
+                      Edit Project
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setDeleteDialogOpen(true);
+                      }}
+                      className="text-red-500 focus:text-red-500"
+                    >
+                      <TrashIcon className="h-4 w-4 mr-2" />
+                      Delete Project
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  // Member menu
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setEditDialogOpen(true);
+                    }}
+                  >
+                    <BellIcon className="h-4 w-4 mr-2" />
+                    Notification Settings
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -580,21 +678,23 @@ function ProjectListItem({ project }: { project: Project }) {
           </div>
         </div>
 
-        {/* Rename Dialog */}
-        <RenameProjectDialog
+        {/* Edit Dialog - Show for both owners and members */}
+        <EditProjectDialog
           project={project}
-          onRenameProject={renameProject}
-          open={renameDialogOpen}
-          onOpenChange={setRenameDialogOpen}
+          onUpdateProject={updateProject}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
         />
 
-        {/* Delete Dialog */}
-        <DeleteProjectDialog
-          project={project}
-          onDeleteProject={deleteProject}
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-        />
+        {/* Delete Dialog - Only for owners */}
+        {project.isOwner && (
+          <DeleteProjectDialog
+            project={project}
+            onDeleteProject={deleteProject}
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+          />
+        )}
       </CardContent>
     </Card>
   );

@@ -1,4 +1,4 @@
-// app/review/[token]/page.tsx
+// app/review/[token]/page.tsx - USING RPC FUNCTION
 // @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
@@ -97,14 +97,14 @@ export default async function Page({
   if (user) {
     const { data: profile } = await supabase
       .from("editor_profiles")
-      .select("full_name, display_name, email, avatar_url")
+      .select("id, full_name, display_name, email, avatar_url")
       .eq("user_id", user.id)
       .single();
 
     userProfile = profile;
   }
 
-  // ✅ UPDATED: Get review link with download permission included
+  // ✅ Get review link with project info
   const { data: reviewLink, error: linkError } = await supabase
     .from("review_links")
     .select(
@@ -117,10 +117,12 @@ export default async function Page({
         media_id,
         requires_password,
         allow_download,
+        project_id,
         project:projects (
           id,
           name,
-          description
+          description,
+          editor_id
         ),
         media:project_media (
           id,
@@ -180,6 +182,75 @@ export default async function Page({
     );
   }
 
+  // ✅ USE RPC FUNCTION TO CHECK PROJECT ACCESS
+  let userProjectRelationship = null;
+  if (user && reviewLink.project_id) {
+    console.log("🔥 CHECKING PROJECT ACCESS WITH RPC:", {
+      userId: user.id,
+      projectId: reviewLink.project_id,
+    });
+
+    const { data: accessData, error: accessError } = await supabase
+      .rpc("check_project_access", {
+        project_uuid: reviewLink.project_id,
+        user_uuid: user.id,
+      })
+      .single();
+
+    console.log("🔥 RPC ACCESS CHECK RESULT:", { accessData, accessError });
+
+    if (accessData && !accessError) {
+      const { has_access, role, is_owner, project_exists } = accessData;
+
+      if (has_access && role === "owner") {
+        userProjectRelationship = {
+          role: "owner",
+          isOwner: true,
+          isMember: false,
+          isOutsider: false,
+        };
+        console.log("🔥 USER IS PROJECT OWNER (RPC)");
+      } else if (has_access && role && role !== "owner") {
+        userProjectRelationship = {
+          role: role,
+          isOwner: false,
+          isMember: true,
+          isOutsider: false,
+        };
+        console.log("🔥 USER IS PROJECT MEMBER (RPC):", role);
+      } else if (project_exists && !has_access) {
+        userProjectRelationship = {
+          role: "outsider",
+          isOwner: false,
+          isMember: false,
+          isOutsider: true,
+        };
+        console.log("🔥 USER IS OUTSIDER (RPC)");
+      }
+    }
+  }
+
+  // If no relationship determined yet, set defaults
+  if (!userProjectRelationship) {
+    if (user) {
+      userProjectRelationship = {
+        role: "outsider",
+        isOwner: false,
+        isMember: false,
+        isOutsider: true,
+      };
+      console.log("🔥 USER IS AUTHENTICATED OUTSIDER (DEFAULT)");
+    } else {
+      userProjectRelationship = {
+        role: "guest",
+        isOwner: false,
+        isMember: false,
+        isOutsider: false,
+      };
+      console.log("🔥 USER IS GUEST (DEFAULT)");
+    }
+  }
+
   // Get all versions if this media has versions and determine current media to show
   let allVersions: any[] = [];
   let currentMediaToShow = reviewLink.media;
@@ -221,13 +292,23 @@ export default async function Page({
     }
   }
 
+  console.log("🔥 FINAL CONTEXT BEING PASSED:", {
+    projectId: reviewLink.project_id,
+    userProjectRelationship,
+    reviewToken: token,
+  });
+
   return (
     <MediaInterface
       media={currentMediaToShow}
       allVersions={allVersions}
       reviewTitle={reviewLink.title}
       projectName={reviewLink.project?.name}
-      allowDownload={reviewLink.allow_download ?? false} // ✅ PASS DOWNLOAD PERMISSION - Default to false for security
+      projectId={reviewLink.project_id} // ✅ THIS IS ALREADY CORRECT
+      reviewToken={token}
+      reviewLinkData={reviewLink} // ✅ PASS THE ENTIRE REVIEW LINK DATA
+      allowDownload={reviewLink.allow_download ?? false}
+      userProjectRelationship={userProjectRelationship}
       authenticatedUser={
         user && userProfile
           ? {

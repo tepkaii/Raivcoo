@@ -2,7 +2,12 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ProjectWorkspace } from "./ProjectWorkspace";
+import { AccessDeniedUI } from "./AccessDeniedUI";
+import { checkProjectAccess } from "./lib/actions";
 import { Metadata } from "next";
+import { Card, CardContent } from "@/components/ui/card";
+import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Define types
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
@@ -21,7 +26,7 @@ interface ProjectMember {
   };
 }
 
-// Dynamic metadata - simplified for debug
+// Dynamic metadata
 export async function generateMetadata({
   params,
 }: {
@@ -33,7 +38,7 @@ export async function generateMetadata({
   };
 }
 
-// Dynamic page
+// Main page component
 export default async function ProjectWorkspacePage({
   params,
 }: {
@@ -42,16 +47,15 @@ export default async function ProjectWorkspacePage({
   const supabase = await createClient();
   const { id } = await params;
 
-  console.log("🔍 DEBUG: Project ID:", id);
-
+  // Check if user is authenticated
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
 
-  console.log("🔍 DEBUG: Current user ID:", user.id);
+  if (!user) {
+    const returnUrl = encodeURIComponent(`/dashboard/projects/${id}`);
+    redirect(`/login?returnTo=${returnUrl}`);
+  }
 
   // Get editor profile
   const { data: editorProfile, error: profileError } = await supabase
@@ -61,13 +65,23 @@ export default async function ProjectWorkspacePage({
     .single();
 
   if (profileError || !editorProfile) {
-    console.log("🔍 DEBUG: Editor profile error:", profileError);
     redirect("/account");
   }
 
-  console.log("🔍 DEBUG: Editor profile:", editorProfile);
+  // Check project access using our RPC function
+  const accessCheck = await checkProjectAccess(supabase, id);
 
-  // Get project with all data
+  // If project doesn't exist, return 404
+  if (!accessCheck.project_exists) {
+    return notFound();
+  }
+
+  // If no access, show appropriate access denied UI
+  if (!accessCheck.has_access) {
+    return <AccessDeniedUI accessCheck={accessCheck} />;
+  }
+
+  // User has access - now get full project data
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select(
@@ -118,52 +132,46 @@ export default async function ProjectWorkspacePage({
     .single();
 
   if (projectError || !project) {
-    console.log("🔍 DEBUG: Project error:", projectError);
-    return notFound();
-  }
-
-  console.log("🔍 DEBUG: Project found:", {
-    id: project.id,
-    name: project.name,
-    editor_id: project.editor_id,
-    members_count: project.project_members?.length || 0,
-  });
-
-  // Check access
-  const isOwner = project.editor_id === editorProfile.id;
-  console.log("🔍 DEBUG: Is owner?", isOwner);
-
-  const userMembership = project.project_members?.find(
-    (m) => m.user_id === user.id
-  );
-  console.log("🔍 DEBUG: User membership:", userMembership);
-
-  console.log("🔍 DEBUG: All project members:", project.project_members);
-
-  // ✅ RELAXED ACCESS CHECK FOR DEBUG
-  const hasAccess =
-    isOwner || (userMembership && userMembership.status === "accepted");
-  console.log("🔍 DEBUG: Has access?", hasAccess);
-
-  if (!hasAccess) {
-    console.log("🔍 DEBUG: ACCESS DENIED - redirecting to notFound");
     return (
-      <div className="p-8">
-        <h1>Debug Info</h1>
-        <pre>
-          {JSON.stringify(
-            {
-              userId: user.id,
-              editorId: editorProfile.id,
-              projectOwnerId: project.editor_id,
-              isOwner,
-              userMembership,
-              allMembers: project.project_members,
-            },
-            null,
-            2
-          )}
-        </pre>
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-8 pb-8 px-8 text-center">
+            {/* Icon */}
+            <div className="mb-6">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-destructive/5 border-2 border-destructive/20">
+                <AlertTriangle className="h-8 w-8 text-destructive" />
+              </div>
+            </div>
+
+            {/* Title and Message */}
+            <div className="space-y-4 mb-8">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Error Loading Project
+              </h1>
+              <p className="text-muted-foreground leading-relaxed">
+                There was an error loading the project data. Please try again.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="flex-1"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Try Again
+              </Button>
+              <Button asChild className="flex-1">
+                <a href="/dashboard">
+                  <Home className="mr-2 h-4 w-4" />
+                  Dashboard
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -204,18 +212,11 @@ export default async function ProjectWorkspacePage({
       };
     }) || [];
 
-  // Determine user's role
-  const userRole: ProjectRole | null = isOwner
-    ? "collaborator"
-    : userMembership?.role || null;
-
-  console.log("🔍 DEBUG: User role:", userRole);
-
   // Add members and user role to project
   const projectWithMembers = {
     ...project,
     project_members: membersWithProfiles,
-    user_role: userRole,
+    user_role: accessCheck.role,
   };
 
   return (
@@ -223,7 +224,7 @@ export default async function ProjectWorkspacePage({
       <ProjectWorkspace
         project={projectWithMembers}
         authenticatedUser={authenticatedUser}
-        isOwner={isOwner}
+        isOwner={accessCheck.is_owner}
       />
     </div>
   );

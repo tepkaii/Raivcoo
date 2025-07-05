@@ -1,5 +1,5 @@
 // app/review/[token]/review_components/ReviewComments.tsx
-// @ts-nocheck
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -104,6 +104,22 @@ interface ReviewCommentsProps {
   onClearActiveComments?: () => void;
   activeCommentPin?: string | null;
   activeCommentDrawing?: string | null;
+  projectMode?: boolean;
+  projectId?: string;
+  createCommentOverride?: (data: any) => Promise<any>; // For project workspace to override the action
+  userPermissions?: {
+    canComment?: boolean;
+    canEditStatus?: boolean;
+  };
+  userProjectRelationship?: {
+    // ✅ ADD USER RELATIONSHIP
+    role: string;
+    isOwner: boolean;
+    isMember?: boolean;
+    isOutsider?: boolean;
+  } | null;
+  reviewToken?: string; // ✅ ADD REVIEW TOKEN
+  reviewLinkData?: any;
 }
 
 // Utility function to nest comments
@@ -170,6 +186,13 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   onClearActiveComments,
   activeCommentPin,
   activeCommentDrawing,
+  projectMode = false,
+  projectId,
+  createCommentOverride,
+  userPermissions,
+  userProjectRelationship,
+  reviewToken,
+  reviewLinkData,
 }) => {
   const [comments, setComments] = useState<MediaComment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -390,6 +413,11 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     }
   };
 
+  // app/review/[token]/review_components/ReviewComments.tsx - UPDATE THE addComment FUNCTION
+
+  // app/review/[token]/review_components/ReviewComments.tsx - UPDATE addComment function
+
+  // UPDATE THE addComment FUNCTION
   const addComment = async () => {
     if (!newComment.trim() || isSubmitting) return;
 
@@ -437,24 +465,54 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         }
       }
 
-      const result = await createCommentAction({
-        mediaId,
-        userName: authenticatedUser
-          ? authenticatedUser.name || authenticatedUser.email
-          : userName.trim(),
-        userEmail: authenticatedUser
-          ? authenticatedUser.email
-          : userEmail.trim() || undefined,
-        userId: authenticatedUser?.id,
-        content: newComment.trim(),
-        timestampSeconds: mediaType === "video" ? currentTime : undefined,
-        parentCommentId: replyingTo?.id, // Use replyingTo for replies
-        ipAddress: undefined,
-        userAgent: navigator.userAgent,
-        annotationData,
-        drawingData,
-        sessionId,
-      });
+      let result;
+
+      if (projectMode && createCommentOverride) {
+        console.log("🔥 USING PROJECT MODE - createCommentOverride");
+        result = await createCommentOverride({
+          mediaId,
+          content: newComment.trim(),
+          timestampSeconds: mediaType === "video" ? currentTime : undefined,
+          parentCommentId: replyingTo?.id,
+          annotationData,
+          drawingData,
+        });
+      } else {
+        console.log("🔥 USING REVIEW MODE - with direct review token");
+
+        // ✅ USE REVIEW TOKEN DIRECTLY INSTEAD OF PARSING URL
+        const currentReviewToken =
+          reviewToken ||
+          (() => {
+            const pathParts = window.location.pathname.split("/");
+            return pathParts[pathParts.length - 1];
+          })();
+
+        console.log("🔥 REVIEW TOKEN:", currentReviewToken);
+
+        result = await createCommentAction({
+          mediaId,
+          userName: authenticatedUser
+            ? authenticatedUser.name || authenticatedUser.email
+            : userName.trim(),
+          userEmail: authenticatedUser
+            ? authenticatedUser.email
+            : userEmail.trim() || undefined,
+          userId: authenticatedUser?.id,
+          content: newComment.trim(),
+          timestampSeconds: mediaType === "video" ? currentTime : undefined,
+          parentCommentId: replyingTo?.id, // ✅ THIS SHOULD WORK NOW
+          ipAddress: undefined,
+          userAgent: navigator.userAgent,
+          annotationData,
+          drawingData,
+          sessionId,
+          reviewToken: currentReviewToken,
+          projectId: projectId,
+          reviewLinkData: reviewLinkData,
+          userProjectRelationship: userProjectRelationship,
+        });
+      }
 
       if (result.success && result.comment) {
         setComments([...comments, result.comment]);
@@ -464,9 +522,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         setAnnotationMode("none");
         setPendingAnnotation(null);
         setCurrentDrawingStrokes(0);
-        setReplyingTo(null); // Clear reply mode
+        setReplyingTo(null);
 
-        // Notify annotation tools to cancel
         requestAnnotation("none" as any, {});
       } else {
         console.error("Failed to add comment:", result.error);

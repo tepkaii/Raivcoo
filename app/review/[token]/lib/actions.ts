@@ -218,198 +218,7 @@ export async function getAnnotatedCommentsAction(mediaId: string) {
   }
 }
 
-export async function exportCommentsAction(
-  mediaId: string,
-  format: "csv" | "json" | "xml" = "json"
-) {
-  try {
-    const supabase = await createClient();
 
-    const { data: comments, error: commentsError } = await supabase
-      .from("media_comments")
-      .select(
-        `
-        id,
-        user_name,
-        user_email,
-        content,
-        timestamp_seconds,
-        annotation_data,
-        is_pinned,
-        is_resolved,
-        created_at,
-        updated_at
-      `
-      )
-      .eq("media_id", mediaId)
-      .eq("is_approved", true)
-      .order("created_at", { ascending: true });
-
-    if (commentsError) throw commentsError;
-
-    let exportData: string;
-
-    switch (format) {
-      case "csv":
-        const csvHeaders = [
-          "ID",
-          "User Name",
-          "User Email",
-          "Content",
-          "Timestamp",
-          "Has Annotation",
-          "Is Pinned",
-          "Is Resolved", // NEW: Added to CSV export
-          "Created At",
-        ];
-
-        const csvRows =
-          comments?.map((comment) => [
-            comment.id,
-            comment.user_name,
-            comment.user_email || "",
-            `"${comment.content.replace(/"/g, '""')}"`,
-            comment.timestamp_seconds || "",
-            comment.annotation_data ? "Yes" : "No",
-            comment.is_pinned ? "Yes" : "No",
-            comment.is_resolved ? "Yes" : "No", // NEW: Added to CSV rows
-            comment.created_at,
-          ]) || [];
-
-        exportData = [
-          csvHeaders.join(","),
-          ...csvRows.map((row) => row.join(",")),
-        ].join("\n");
-        break;
-
-      case "xml":
-        const xmlComments =
-          comments
-            ?.map(
-              (comment) => `
-    <comment>
-      <id>${comment.id}</id>
-      <user_name><![CDATA[${comment.user_name}]]></user_name>
-      <user_email><![CDATA[${comment.user_email || ""}]]></user_email>
-      <content><![CDATA[${comment.content}]]></content>
-      <timestamp_seconds>${comment.timestamp_seconds || ""}</timestamp_seconds>
-      <has_annotation>${comment.annotation_data ? "true" : "false"}</has_annotation>
-      <annotation_data><![CDATA[${comment.annotation_data || ""}]]></annotation_data>
-      <is_pinned>${comment.is_pinned}</is_pinned>
-      <is_resolved>${comment.is_resolved}</is_resolved>
-      <created_at>${comment.created_at}</created_at>
-    </comment>`
-            )
-            .join("") || "";
-
-        exportData = `<?xml version="1.0" encoding="UTF-8"?>
-<comments media_id="${mediaId}">
-  ${xmlComments}
-</comments>`;
-        break;
-
-      case "json":
-      default:
-        exportData = JSON.stringify(
-          {
-            mediaId,
-            exportedAt: new Date().toISOString(),
-            totalComments: comments?.length || 0,
-            annotatedComments:
-              comments?.filter((c) => c.annotation_data).length || 0,
-            resolvedComments:
-              comments?.filter((c) => c.is_resolved).length || 0, // NEW: Added to JSON export
-            comments: comments || [],
-          },
-          null,
-          2
-        );
-        break;
-    }
-
-    return {
-      success: true,
-      data: exportData,
-      filename: `comments_${mediaId}_${new Date().toISOString().split("T")[0]}.${format}`,
-    };
-  } catch (error) {
-    console.error("Export comments error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to export comments",
-    };
-  }
-}
-
-export async function bulkUpdateCommentsAction(
-  commentIds: string[],
-  updates: Partial<
-    Pick<MediaComment, "is_pinned" | "is_approved" | "is_resolved">
-  > // NEW: Added is_resolved to bulk updates
-) {
-  try {
-    const supabase = await createClient();
-
-    const updateData = {
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data: comments, error: updateError } = await supabase
-      .from("media_comments")
-      .update(updateData)
-      .in("id", commentIds)
-      .select();
-
-    if (updateError) throw updateError;
-
-    return {
-      success: true,
-      comments: comments || [],
-      updatedCount: comments?.length || 0,
-    };
-  } catch (error) {
-    console.error("Bulk update comments error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to bulk update comments",
-    };
-  }
-}
-
-export async function searchCommentsAction(mediaId: string, query: string) {
-  try {
-    const supabase = await createClient();
-
-    const { data: comments, error: searchError } = await supabase
-      .from("media_comments")
-      .select("*, is_resolved") // Added is_resolved to select
-      .eq("media_id", mediaId)
-      .eq("is_approved", true)
-      .or(`content.ilike.%${query}%,user_name.ilike.%${query}%`)
-      .order("created_at", { ascending: true });
-
-    if (searchError) throw searchError;
-
-    return {
-      success: true,
-      comments: comments || [],
-      query,
-      resultCount: comments?.length || 0,
-    };
-  } catch (error) {
-    console.error("Search comments error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to search comments",
-    };
-  }
-}
 
 export async function getCommentStatsAction(mediaId: string) {
   try {
@@ -635,6 +444,10 @@ export async function deleteCommentAction(
   }
 }
 
+// app/review/[token]/lib/actions.ts - UPDATE THE createCommentAction FUNCTION
+
+// app/review/[token]/lib/actions.ts - ADD LOGS TO createCommentAction
+
 export async function createCommentAction(data: {
   mediaId: string;
   userName: string;
@@ -642,20 +455,50 @@ export async function createCommentAction(data: {
   userId?: string;
   content: string;
   timestampSeconds?: number;
-  parentCommentId?: string; // Add this field
+  parentCommentId?: string;
   ipAddress?: string;
   userAgent?: string;
   annotationData?: any;
   drawingData?: any;
   sessionId?: string;
+
+  reviewToken?: string;
+  projectId?: string; // ✅ ADD PROJECT ID
+  userProjectRelationship?: {
+    // ✅ ADD USER RELATIONSHIP
+    role: string;
+    isOwner: boolean;
+    isMember?: boolean;
+    isOutsider?: boolean;
+  } | null;
 }) {
   try {
+    console.log("🔥 REVIEW COMMENT ACTION STARTED:", {
+      mediaId: data.mediaId,
+      userName: data.userName,
+      userEmail: data.userEmail,
+      userId: data.userId,
+      content: data.content?.substring(0, 50) + "...",
+      parentCommentId: data.parentCommentId,
+      reviewToken: data.reviewToken,
+      projectId: data.projectId,
+      userRole: data.userProjectRelationship?.role,
+      isOwner: data.userProjectRelationship?.isOwner,
+      isMember: data.userProjectRelationship?.isMember,
+      isOutsider: data.userProjectRelationship?.isOutsider,
+    });
+
     const supabase = await createClient();
 
     // Get current user if authenticated
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    console.log("🔥 REVIEW USER CHECK:", {
+      authenticatedUser: user?.id,
+      providedUserId: data.userId,
+    });
 
     const insertData = {
       media_id: data.mediaId,
@@ -664,7 +507,7 @@ export async function createCommentAction(data: {
       user_email: data.userEmail,
       content: data.content,
       timestamp_seconds: data.timestampSeconds,
-      parent_comment_id: data.parentCommentId || null, // Add parent comment ID
+      parent_comment_id: data.parentCommentId || null,
       ip_address: data.ipAddress,
       user_agent: data.userAgent,
       annotation_data: data.annotationData || null,
@@ -672,8 +515,10 @@ export async function createCommentAction(data: {
       session_id: data.sessionId,
       is_approved: true,
       is_pinned: false,
-      is_resolved: false, // NEW: Initialize as not resolved
+      is_resolved: false,
     };
+
+    console.log("🔥 REVIEW INSERT DATA:", insertData);
 
     const { data: comment, error } = await supabase
       .from("media_comments")
@@ -682,13 +527,57 @@ export async function createCommentAction(data: {
       .single();
 
     if (error) {
-      console.error("Database error:", error);
+      console.error("🔥 REVIEW COMMENT INSERT ERROR:", error);
       return { success: false, error: error.message };
+    }
+
+    console.log("🔥 REVIEW COMMENT CREATED:", {
+      commentId: comment.id,
+      mediaId: comment.media_id,
+      reviewToken: data.reviewToken,
+    });
+
+    // ✅ SEND NOTIFICATIONS ASYNCHRONOUSLY WITH COMPLETE CONTEXT
+    if (data.reviewToken) {
+      const isReply = !!data.parentCommentId;
+      console.log("🔥 STARTING REVIEW NOTIFICATIONS WITH FULL CONTEXT:", {
+        reviewToken: data.reviewToken,
+        commentId: comment.id,
+        isReply,
+        projectId: data.projectId,
+        userRole: data.userProjectRelationship?.role,
+        isOwner: data.userProjectRelationship?.isOwner,
+        isMember: data.userProjectRelationship?.isMember,
+        isOutsider: data.userProjectRelationship?.isOutsider,
+        commenterUserId: comment.user_id,
+        commenterUserName: comment.user_name,
+        commenterUserEmail: comment.user_email,
+        commenterSessionId: comment.session_id,
+      });
+
+      // Import the notification function
+      const { sendReviewCommentNotifications } = await import(
+        "./reviewCommentNotifications"
+      );
+
+      setImmediate(() => {
+        sendReviewCommentNotifications(
+          data.reviewToken!,
+          comment,
+          isReply,
+          data.userProjectRelationship, // ✅ PASS USER RELATIONSHIP CONTEXT
+          data.projectId // ✅ PASS PROJECT ID
+        );
+      });
+    } else {
+      console.log(
+        "🔥 NO REVIEW TOKEN PROVIDED - SKIPPING REVIEW NOTIFICATIONS"
+      );
     }
 
     return { success: true, comment };
   } catch (error) {
-    console.error("Failed to create comment:", error);
+    console.error("🔥 REVIEW COMMENT ACTION ERROR:", error);
     return { success: false, error: "Failed to create comment" };
   }
 }

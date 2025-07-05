@@ -33,6 +33,7 @@ import {
   TrashIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/solid";
+import { changeMediaStatusAction } from "../../lib/statusChangeActions";
 
 // Status configuration - can be easily modified
 export const MEDIA_STATUS_OPTIONS = [
@@ -79,6 +80,7 @@ interface MediaCardProps {
     canEditStatus: boolean;
     canCreateReviewLinks: boolean;
   };
+  projectId: string;
 }
 
 export const formatFileSize = (bytes: number) => {
@@ -112,6 +114,7 @@ export const MediaCard = React.memo(
     onOpenVersionManager,
     onStatusChange,
     userPermissions,
+    projectId,
   }: MediaCardProps) {
     // ✅ Stable media object creation (performance optimization)
     const stableMediaObject = React.useMemo(
@@ -301,19 +304,47 @@ export const MediaCard = React.memo(
       },
       [onDrop, media.id, draggedMedia]
     );
-
     const handleStatusChange = React.useCallback(
       async (newStatus: string) => {
-        // Optimistic update - update UI immediately
+        const originalStatus = localStatus;
         setLocalStatus(newStatus);
 
-        const supabase = createClient();
-        await supabase
-          .from("project_media")
-          .update({ status: newStatus })
-          .eq("id", media.currentVersion.id);
+        try {
+          const result = await changeMediaStatusAction(
+            // You'll need to pass projectId from props
+            projectId,
+            media.currentVersion.id,
+            newStatus
+          );
+
+          if (!result.success) {
+            setLocalStatus(originalStatus);
+            toast({
+              title: "Failed to Update Status",
+              description:
+                result.error ||
+                "Could not update media status. Please try again.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Status Updated",
+              description: result.message,
+              variant: "default",
+            });
+            // Call the parent's onStatusChange to update the state
+            onStatusChange(media.currentVersion, newStatus);
+          }
+        } catch (error) {
+          setLocalStatus(originalStatus);
+          toast({
+            title: "Failed to Update Status",
+            description: "Could not update media status. Please try again.",
+            variant: "destructive",
+          });
+        }
       },
-      [media.currentVersion.id]
+      [media.currentVersion.id, localStatus, projectId, onStatusChange]
     );
 
     // ✅ Stable dropdown handlers (performance optimization)

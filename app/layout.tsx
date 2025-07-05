@@ -74,6 +74,9 @@ export default function RootLayout({
                 "/pricing",
                 "/success",
                 "/subscription",
+                "/invite/",
+                "/settings/",
+                "/activity",
               ]}
               // excludePaths={["/links/edit"]}
             >
@@ -83,7 +86,9 @@ export default function RootLayout({
             <Analytics />
             <SpeedInsights />
           </main>
-          <HideOnPaths pathStarts={["/dashboard", "/review/", "/media/"]}>
+          <HideOnPaths
+            pathStarts={["/dashboard", "/review/", "/media/", "/invite/"]}
+          >
             <Footer />
           </HideOnPaths>
 

@@ -10,7 +10,6 @@ import { toast } from "@/hooks/use-toast";
 import { MediaCard } from "./MediaCard";
 import { MediaDialogs } from "./MediaDialogs";
 import {
-  deleteMediaAction,
   createReviewLinkAction,
   getReviewLinksAction,
   toggleReviewLinkAction,
@@ -18,7 +17,6 @@ import {
   deleteReviewLinkAction,
   reorderVersionsAction,
   updateVersionNameAction,
-  deleteVersionAction,
   updateMediaStatusAction,
 } from "../../lib/actions";
 import {
@@ -30,6 +28,10 @@ import { DocumentDuplicateIcon } from "@heroicons/react/24/solid";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ProjectReferencesDialog } from "./ProjectReferencesDialog";
+import {
+  deleteMediaAction,
+  deleteVersionAction,
+} from "../../lib/deleteMediaActions";
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];
@@ -897,10 +899,26 @@ export function MediaGrid({
         <div className="flex justify-end items-center gap-3">
           {/* Upload Button */}
           <Button
-            onClick={() => document.getElementById("file-input")?.click()}
-            disabled={isUploading || projectSize.percentage >= 100}
+            onClick={() =>
+              userPermissions.canUpload &&
+              document.getElementById("file-input")?.click()
+            }
+            disabled={
+              !userPermissions.canUpload ||
+              isUploading ||
+              projectSize.percentage >= 100
+            }
             className="flex-1 sm:flex-none flex items-center gap-2"
             size="sm"
+            title={
+              !userPermissions.canUpload
+                ? "You need collaborator permissions to upload media. Ask the project owner for access."
+                : projectSize.percentage >= 100
+                  ? "Project storage is full"
+                  : isUploading
+                    ? "Upload in progress..."
+                    : "Upload media files"
+            }
           >
             {isUploading ? (
               <>
@@ -932,15 +950,17 @@ export function MediaGrid({
           </Button>
 
           {/* Hidden file input */}
-          <input
-            id="file-input"
-            type="file"
-            multiple
-            accept="video/mp4,video/mov,video/avi,video/mkv,video/webm,image/jpg,image/jpeg,image/png,image/gif,image/webp"
-            className="hidden"
-            onChange={handleFileInputChange}
-            disabled={isUploading || projectSize.percentage >= 100}
-          />
+          {userPermissions.canUpload && (
+            <input
+              id="file-input"
+              type="file"
+              multiple
+              accept="video/mp4,video/mov,video/avi,video/mkv,video/webm,image/jpg,image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={handleFileInputChange}
+              disabled={isUploading || projectSize.percentage >= 100}
+            />
+          )}
         </div>
         {/* Upload Progress (only show when uploading) */}
         {isUploading && (
@@ -985,6 +1005,7 @@ export function MediaGrid({
                 expandedMedia={expandedMedia}
                 draggedOver={draggedOver}
                 draggedMedia={draggedMedia}
+                projectId={projectId}
                 onMediaSelect={onMediaSelect}
                 onExpandToggle={(mediaId) => {
                   const newExpanded = new Set(expandedMedia);

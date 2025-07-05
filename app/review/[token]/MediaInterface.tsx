@@ -1,5 +1,5 @@
 // app/review/[token]/MediaInterface.tsx
-// @ts-nocheck
+
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -96,6 +96,15 @@ interface MediaInterface {
   reviewTitle?: string;
   projectName?: string;
   allowDownload?: boolean; // ✅ ADD DOWNLOAD PERMISSION PROP
+  userProjectRelationship?: {
+    // ✅ ADD USER RELATIONSHIP
+    role: string;
+    isOwner: boolean;
+    isMember?: boolean;
+    isOutsider?: boolean;
+  } | null;
+  projectId?: string; // ADD THIS
+  reviewToken?: string;
 }
 
 export const MediaInterface: React.FC<MediaInterface> = ({
@@ -104,7 +113,10 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   authenticatedUser,
   reviewTitle,
   projectName,
-  allowDownload = false, // ✅ DEFAULT TO FALSE FOR SECURITY
+  allowDownload = false,
+  userProjectRelationship,
+  projectId,
+  reviewToken,
 }) => {
   // States
   const [currentMedia, setCurrentMedia] = useState<MediaFile>(media);
@@ -431,6 +443,15 @@ export const MediaInterface: React.FC<MediaInterface> = ({
       authenticatedUser={authenticatedUser}
       activeCommentPin={activeCommentPin}
       activeCommentDrawing={activeCommentDrawing}
+      projectMode={false}
+      projectId={projectId}
+      reviewToken={reviewToken} // ✅ PASS REVIEW TOKEN
+      userProjectRelationship={userProjectRelationship}
+      createCommentOverride={undefined}
+      userPermissions={{
+        canComment: true,
+        canEditStatus: true,
+      }}
     />
   );
 

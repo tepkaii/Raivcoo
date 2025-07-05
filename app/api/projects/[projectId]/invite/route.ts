@@ -2,6 +2,49 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
+import { Resend } from "resend";
+import { ProjectInvitationEmail } from "../../../../components/emails/ProjectInvitationEmail";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Helper function to create activity notification
+async function createActivityNotification(params: {
+  userId: string;
+  projectId: string;
+  activityType: string;
+  title: string;
+  description: string;
+  actorId: string;
+  actorName: string;
+  activityData: any;
+}) {
+  console.log("🎯 Creating activity notification:", params);
+
+  const supabase = await createClient();
+
+  try {
+    const { error } = await supabase.from("activity_notifications").insert({
+      user_id: params.userId,
+      project_id: params.projectId,
+      title: params.title,
+      description: params.description,
+      actor_id: params.actorId,
+      actor_name: params.actorName,
+      activity_data: {
+        type: params.activityType,
+        ...params.activityData,
+      },
+    });
+
+    if (error) {
+      console.error("❌ Error creating activity notification:", error);
+    } else {
+      console.log("✅ Activity notification created successfully");
+    }
+  } catch (error) {
+    console.error("❌ Failed to create activity notification:", error);
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -24,7 +67,7 @@ export async function POST(
     // Get editor profile
     const { data: editorProfile } = await supabase
       .from("editor_profiles")
-      .select("id")
+      .select("id, full_name, display_name, email")
       .eq("user_id", user.id)
       .single();
 
@@ -49,11 +92,10 @@ export async function POST(
       );
     }
 
-    // ✅ CORRECT WAY: Check if user exists by looking in editor_profiles
-    // Since all users should have an editor_profile, this is the right approach
+    // Check if user exists by looking in editor_profiles
     const { data: existingEditor } = await supabase
       .from("editor_profiles")
-      .select("user_id, email")
+      .select("user_id, email, full_name, display_name")
       .eq("email", email.toLowerCase().trim())
       .single();
 
@@ -74,6 +116,11 @@ export async function POST(
       }
     }
 
+    const inviterName =
+      editorProfile.display_name ||
+      editorProfile.full_name ||
+      editorProfile.email;
+
     if (existingEditor) {
       // User exists, add them directly to project_members
       const { data: member, error } = await supabase
@@ -90,10 +137,77 @@ export async function POST(
 
       if (error) throw error;
 
+      // Create invitation token for acceptance URL
+      const invitationToken = nanoid(32);
+
+      // Store token temporarily for the acceptance flow
+      const { error: tokenError } = await supabase
+        .from("project_invitations")
+        .insert({
+          project_id: projectId,
+          email: email.toLowerCase().trim(),
+          role,
+          invited_by: editorProfile.id,
+          invitation_token: invitationToken,
+        });
+
+      if (tokenError) {
+        console.error("Error storing invitation token:", tokenError);
+        // Continue anyway since the member was created
+      }
+
+      const inviteUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/invite/accept/${invitationToken}`;
+
+      // 🔥 CREATE ACTIVITY NOTIFICATION FOR INVITEE
+      console.log("📱 Creating activity notification for invitee...");
+      await createActivityNotification({
+        userId: existingEditor.user_id,
+        projectId: projectId,
+        activityType: "invitation_received",
+        title: `${inviterName} invited you to ${project.name} via email`,
+        description: `You've been invited to join "${project.name}" as a ${role}`,
+        actorId: user.id,
+        actorName: inviterName,
+        activityData: {
+          role,
+          project_name: project.name,
+          inviter_email: editorProfile.email,
+          invitation_token: invitationToken,
+          invite_url: inviteUrl,
+        },
+      });
+
+      // Send email to existing user
+      try {
+        const { data: emailData, error: emailError } = await resend.emails.send(
+          {
+            from: process.env.RESEND_FROM_EMAIL!,
+            to: [email],
+            subject: `You're invited to collaborate on ${project.name}`,
+            react: ProjectInvitationEmail({
+              inviterName,
+              inviterEmail: editorProfile.email,
+              projectName: project.name,
+              role,
+              inviteUrl,
+              recipientEmail: email,
+            }),
+          }
+        );
+
+        if (emailError) {
+          console.error("Error sending email:", emailError);
+          // Don't fail the request if email fails
+        }
+      } catch (emailError) {
+        console.error("Resend error:", emailError);
+        // Don't fail the request if email fails
+      }
+
       return NextResponse.json({
         success: true,
         member,
-        message: "User invited successfully",
+        message: "User invited successfully and email sent",
       });
     } else {
       // User doesn't exist, create invitation
@@ -128,7 +242,37 @@ export async function POST(
 
       if (error) throw error;
 
-      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invitationToken}`;
+      const inviteUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/invite/accept/${invitationToken}`;
+
+      // 🔥 FOR NEW USERS: Create activity notification only if they later sign up
+      // This will be handled when they accept the invitation and create their account
+
+      // Send email to new user
+      try {
+        const { data: emailData, error: emailError } = await resend.emails.send(
+          {
+            from: process.env.RESEND_FROM_EMAIL!,
+            to: [email],
+            subject: `You're invited to collaborate on ${project.name}`,
+            react: ProjectInvitationEmail({
+              inviterName,
+              inviterEmail: editorProfile.email,
+              projectName: project.name,
+              role,
+              inviteUrl,
+              recipientEmail: email,
+            }),
+          }
+        );
+
+        if (emailError) {
+          console.error("Error sending email:", emailError);
+          // Don't fail the request if email fails
+        }
+      } catch (emailError) {
+        console.error("Resend error:", emailError);
+        // Don't fail the request if email fails
+      }
 
       return NextResponse.json({
         success: true,

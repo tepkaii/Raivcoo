@@ -1,5 +1,5 @@
 // app/dashboard/projects/[id]/lib/actions.ts
-// @ts-nocheck
+
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -8,7 +8,48 @@ import { nanoid } from "nanoid";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { MemberRemovedEmail } from "@/app/components/emails/MemberRemovedEmail";
+import { Resend } from "resend";
 
+const resend = new Resend(process.env.RESEND_API_KEY);
+// Helper function to get authenticated editor with project access
+async function getAuthenticatedEditorWithProjectAccess(projectId: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: editorProfile } = await supabase
+    .from("editor_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!editorProfile) {
+    redirect("/account");
+  }
+
+  // Check project access using the RPC function
+  const accessCheck = await checkProjectAccess(supabase, projectId);
+
+  if (!accessCheck.has_access) {
+    throw new Error("Access denied");
+  }
+
+  return {
+    supabase,
+    user,
+    editorProfile,
+    accessCheck,
+  };
+}
+
+// Legacy function for backwards compatibility
 async function getAuthenticatedEditor() {
   const supabase = await createClient();
 
@@ -33,130 +74,47 @@ async function getAuthenticatedEditor() {
   return { supabase, user, editorProfile };
 }
 
-export async function deleteMediaAction(projectId: string, mediaId: string) {
-  try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
+// Helper function to check specific permissions
+function hasPermission(
+  role: string | null,
+  isOwner: boolean,
+  action: string
+): boolean {
+  if (isOwner) return true; // Owners can do everything
 
-    // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("id, editor_id")
-      .eq("id", projectId)
-      .single();
+  if (!role) return false;
 
-    if (projectError || !project || project.editor_id !== editorProfile.id) {
-      throw new Error("Project not found or unauthorized");
-    }
+  const permissions = {
+    viewer: [],
+    reviewer: ["editStatus"],
+    collaborator: [
+      "upload",
+      "delete",
+      "editStatus",
+      "createReviewLinks",
+      "manageVersions",
+    ],
+  };
 
-    // Get media file info including versions
-    const { data: media, error: mediaError } = await supabase
-      .from("project_media")
-      .select("id, r2_key, parent_media_id, is_current_version")
-      .eq("id", mediaId)
-      .eq("project_id", projectId)
-      .single();
-
-    if (mediaError || !media) {
-      throw new Error("Media not found");
-    }
-
-    // Store parent ID for potential renumbering
-    let parentIdForRenumbering = media.parent_media_id;
-
-    // If this is a parent media, we need to handle its versions
-    if (!media.parent_media_id) {
-      // Get all versions of this media
-      const { data: versions } = await supabase
-        .from("project_media")
-        .select("id, r2_key")
-        .eq("parent_media_id", mediaId);
-
-      // Delete all versions from R2 and database
-      if (versions) {
-        for (const version of versions) {
-          try {
-            await deleteFileFromR2(version.r2_key);
-          } catch (r2Error) {
-            console.error("R2 deletion error for version:", r2Error);
-          }
-
-          // Delete version from database
-          await supabase.from("project_media").delete().eq("id", version.id);
-        }
-      }
-
-      // Delete all review links for this parent media
-      await supabase.from("review_links").delete().eq("media_id", mediaId);
-    } else {
-      // This is a version, check if we need to update current version
-      if (media.is_current_version) {
-        // Find another version to set as current, prefer the highest version number
-        const { data: otherVersions } = await supabase
-          .from("project_media")
-          .select("id, version_number")
-          .or(
-            `id.eq.${media.parent_media_id},parent_media_id.eq.${media.parent_media_id}`
-          )
-          .neq("id", mediaId)
-          .order("version_number", { ascending: false })
-          .limit(1);
-
-        if (otherVersions && otherVersions.length > 0) {
-          // Set the highest version as current
-          await supabase
-            .from("project_media")
-            .update({ is_current_version: true })
-            .eq("id", otherVersions[0].id);
-        }
-      }
-    }
-
-    // Delete from R2
-    try {
-      await deleteFileFromR2(media.r2_key);
-    } catch (r2Error) {
-      console.error("R2 deletion error:", r2Error);
-    }
-
-    // Delete media from database
-    const { error: deleteError } = await supabase
-      .from("project_media")
-      .delete()
-      .eq("id", mediaId);
-
-    if (deleteError) {
-      throw deleteError;
-    }
-
-    // If we deleted a version, renumber the remaining versions
-    if (parentIdForRenumbering) {
-      await renumberVersionsAction(parentIdForRenumbering);
-    }
-
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    return { success: true };
-  } catch (error) {
-    console.error("Delete media error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to delete media",
-    };
-  }
+  return (
+    permissions[role as keyof typeof permissions]?.includes(action) || false
+  );
 }
 
 export async function getReviewLinksAction(projectId: string, mediaId: string) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
 
-    // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("id, editor_id")
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !project || project.editor_id !== editorProfile.id) {
-      throw new Error("Project not found or unauthorized");
+    // Check if user has review link access
+    if (
+      !hasPermission(
+        accessCheck.role,
+        accessCheck.is_owner,
+        "createReviewLinks"
+      )
+    ) {
+      throw new Error("You don't have permission to view review links");
     }
 
     // Verify media belongs to project
@@ -199,30 +157,37 @@ export async function toggleReviewLinkAction(
   isActive: boolean
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify review link ownership through project
-    const { data: reviewLink, error: linkError } = await supabase
+    // First get the project ID from the review link
+    const supabase = await createClient();
+    const { data: reviewLinkData } = await supabase
       .from("review_links")
-      .select(
-        `
-        id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", linkId)
       .single();
 
+    if (!reviewLinkData) throw new Error("Review link not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(
+      reviewLinkData.project_id
+    );
+
+    // Check if user has review link management permission
     if (
-      linkError ||
-      !reviewLink ||
-      reviewLink.project.editor_id !== editorProfile.id
+      !hasPermission(
+        accessCheck.role,
+        accessCheck.is_owner,
+        "createReviewLinks"
+      )
     ) {
-      throw new Error("Review link not found or unauthorized");
+      throw new Error("You don't have permission to manage review links");
     }
 
     // Update the review link status
-    const { error: updateError } = await supabase
+    const { error: updateError } = await authSupabase
       .from("review_links")
       .update({ is_active: isActive })
       .eq("id", linkId);
@@ -242,29 +207,36 @@ export async function toggleReviewLinkAction(
 
 export async function deleteReviewLinkAction(linkId: string) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify review link ownership through project
-    const { data: reviewLink, error: linkError } = await supabase
+    // First get the project ID from the review link
+    const supabase = await createClient();
+    const { data: reviewLinkData } = await supabase
       .from("review_links")
-      .select(
-        `
-        id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", linkId)
       .single();
 
+    if (!reviewLinkData) throw new Error("Review link not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(
+      reviewLinkData.project_id
+    );
+
+    // Check if user has review link management permission
     if (
-      linkError ||
-      !reviewLink ||
-      reviewLink.project.editor_id !== editorProfile.id
+      !hasPermission(
+        accessCheck.role,
+        accessCheck.is_owner,
+        "createReviewLinks"
+      )
     ) {
-      throw new Error("Review link not found or unauthorized");
+      throw new Error("You don't have permission to manage review links");
     }
 
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await authSupabase
       .from("review_links")
       .delete()
       .eq("id", linkId);
@@ -291,32 +263,32 @@ export async function reorderVersionsAction(
   }>
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify parent media ownership through project
-    const { data: parentMedia, error: parentError } = await supabase
+    // First get the project ID from the media
+    const supabase = await createClient();
+    const { data: mediaData } = await supabase
       .from("project_media")
-      .select(
-        `
-        id,
-        project_id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", parentMediaId)
       .single();
 
+    if (!mediaData) throw new Error("Media not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(mediaData.project_id);
+
+    // Check if user has version management permission
     if (
-      parentError ||
-      !parentMedia ||
-      parentMedia.project.editor_id !== editorProfile.id
+      !hasPermission(accessCheck.role, accessCheck.is_owner, "manageVersions")
     ) {
-      throw new Error("Parent media not found or unauthorized");
+      throw new Error("You don't have permission to manage versions");
     }
 
     // Update version numbers and current version for each media file
     for (const version of reorderedVersions) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await authSupabase
         .from("project_media")
         .update({
           version_number: version.version_number,
@@ -327,7 +299,7 @@ export async function reorderVersionsAction(
       if (updateError) throw updateError;
     }
 
-    revalidatePath(`/dashboard/projects/${parentMedia.project_id}`);
+    revalidatePath(`/dashboard/projects/${mediaData.project_id}`);
 
     return { success: true };
   } catch (error) {
@@ -345,37 +317,37 @@ export async function updateVersionNameAction(
   versionName: string
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify version ownership through project
-    const { data: version, error: versionError } = await supabase
+    // First get the project ID from the media
+    const supabase = await createClient();
+    const { data: mediaData } = await supabase
       .from("project_media")
-      .select(
-        `
-        id,
-        project_id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", versionId)
       .single();
 
+    if (!mediaData) throw new Error("Media not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(mediaData.project_id);
+
+    // Check if user has version management permission
     if (
-      versionError ||
-      !version ||
-      version.project.editor_id !== editorProfile.id
+      !hasPermission(accessCheck.role, accessCheck.is_owner, "manageVersions")
     ) {
-      throw new Error("Version not found or unauthorized");
+      throw new Error("You don't have permission to manage versions");
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await authSupabase
       .from("project_media")
       .update({ version_name: versionName.trim() || null })
       .eq("id", versionId);
 
     if (updateError) throw updateError;
 
-    revalidatePath(`/dashboard/projects/${version.project_id}`);
+    revalidatePath(`/dashboard/projects/${mediaData.project_id}`);
 
     return { success: true };
   } catch (error) {
@@ -390,122 +362,41 @@ export async function updateVersionNameAction(
   }
 }
 
-export async function deleteVersionAction(versionId: string) {
-  try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Get version info
-    const { data: version, error: versionError } = await supabase
-      .from("project_media")
-      .select(
-        `
-        id,
-        r2_key,
-        parent_media_id,
-        is_current_version,
-        project_id,
-        project:projects!inner(id, editor_id)
-      `
-      )
-      .eq("id", versionId)
-      .single();
-
-    if (
-      versionError ||
-      !version ||
-      version.project.editor_id !== editorProfile.id
-    ) {
-      throw new Error("Version not found or unauthorized");
-    }
-
-    if (!version.parent_media_id) {
-      throw new Error("Cannot delete parent media using this action");
-    }
-
-    // If this is the current version, set another version as current
-    if (version.is_current_version) {
-      const { data: otherVersions } = await supabase
-        .from("project_media")
-        .select("id, version_number")
-        .or(
-          `id.eq.${version.parent_media_id},parent_media_id.eq.${version.parent_media_id}`
-        )
-        .neq("id", versionId)
-        .order("version_number", { ascending: false })
-        .limit(1);
-
-      if (otherVersions && otherVersions.length > 0) {
-        await supabase
-          .from("project_media")
-          .update({ is_current_version: true })
-          .eq("id", otherVersions[0].id);
-      }
-    }
-
-    // Delete from R2
-    try {
-      await deleteFileFromR2(version.r2_key);
-    } catch (r2Error) {
-      console.error("R2 deletion error:", r2Error);
-    }
-
-    // Delete from database
-    const { error: deleteError } = await supabase
-      .from("project_media")
-      .delete()
-      .eq("id", versionId);
-
-    if (deleteError) throw deleteError;
-
-    // Renumber remaining versions
-    await renumberVersionsAction(version.parent_media_id);
-
-    revalidatePath(`/dashboard/projects/${version.project_id}`);
-
-    return { success: true };
-  } catch (error) {
-    console.error("Delete version error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to delete version",
-    };
-  }
-}
-
 export async function addVersionToMediaAction(
   parentMediaId: string,
   newMediaId: string
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify parent media ownership through project
-    const { data: parentMedia, error: parentError } = await supabase
+    // First get the project ID from the parent media
+    const supabase = await createClient();
+    const { data: parentMediaData } = await supabase
       .from("project_media")
-      .select(
-        `
-        id,
-        project_id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", parentMediaId)
       .single();
 
+    if (!parentMediaData) throw new Error("Parent media not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(
+      parentMediaData.project_id
+    );
+
+    // Check if user has version management permission
     if (
-      parentError ||
-      !parentMedia ||
-      parentMedia.project.editor_id !== editorProfile.id
+      !hasPermission(accessCheck.role, accessCheck.is_owner, "manageVersions")
     ) {
-      throw new Error("Parent media not found or unauthorized");
+      throw new Error("You don't have permission to manage versions");
     }
 
     // ✅ FIND THE CURRENT VERSION OF THE SOURCE GROUP
     let mediaToMove = newMediaId;
 
     // Get all media in the source group
-    const sourceParentId = await supabase
+    const sourceParentId = await authSupabase
       .from("project_media")
       .select("parent_media_id")
       .eq("id", newMediaId)
@@ -515,7 +406,7 @@ export async function addVersionToMediaAction(
       sourceParentId.data?.parent_media_id || newMediaId;
 
     // Find the current version in the source group
-    const { data: currentVersionMedia } = await supabase
+    const { data: currentVersionMedia } = await authSupabase
       .from("project_media")
       .select("id")
       .or(
@@ -529,7 +420,7 @@ export async function addVersionToMediaAction(
     }
 
     // Get the next version number for target
-    const { data: existingVersions } = await supabase
+    const { data: existingVersions } = await authSupabase
       .from("project_media")
       .select("version_number")
       .or(`id.eq.${parentMediaId},parent_media_id.eq.${parentMediaId}`)
@@ -542,13 +433,13 @@ export async function addVersionToMediaAction(
         : 2; // Parent is version 1
 
     // Set all other versions in target group to not current
-    await supabase
+    await authSupabase
       .from("project_media")
       .update({ is_current_version: false })
       .or(`id.eq.${parentMediaId},parent_media_id.eq.${parentMediaId}`);
 
     // ✅ MOVE THE CURRENT VERSION (not the parent)
-    const { error: updateError } = await supabase
+    const { error: updateError } = await authSupabase
       .from("project_media")
       .update({
         parent_media_id: parentMediaId,
@@ -562,7 +453,7 @@ export async function addVersionToMediaAction(
     // ✅ REORGANIZE THE SOURCE GROUP
     if (mediaToMove !== newMediaId) {
       // The current version was moved, so we need to reorganize the source group
-      const { data: remainingMedia } = await supabase
+      const { data: remainingMedia } = await authSupabase
         .from("project_media")
         .select("id, version_number")
         .or(
@@ -576,7 +467,7 @@ export async function addVersionToMediaAction(
         const newParent = remainingMedia[0];
 
         // Update the new parent
-        await supabase
+        await authSupabase
           .from("project_media")
           .update({
             parent_media_id: null,
@@ -587,7 +478,7 @@ export async function addVersionToMediaAction(
 
         // Update other versions to be children of the new parent
         for (let i = 1; i < remainingMedia.length; i++) {
-          await supabase
+          await authSupabase
             .from("project_media")
             .update({
               parent_media_id: newParent.id,
@@ -599,7 +490,7 @@ export async function addVersionToMediaAction(
       }
     }
 
-    revalidatePath(`/dashboard/projects/${parentMedia.project_id}`);
+    revalidatePath(`/dashboard/projects/${parentMediaData.project_id}`);
 
     return {
       success: true,
@@ -616,33 +507,36 @@ export async function addVersionToMediaAction(
     };
   }
 }
+
 export async function renumberVersionsAction(parentMediaId: string) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify parent media ownership through project
-    const { data: parentMedia, error: parentError } = await supabase
+    // First get the project ID from the parent media
+    const supabase = await createClient();
+    const { data: parentMediaData } = await supabase
       .from("project_media")
-      .select(
-        `
-        id,
-        project_id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", parentMediaId)
       .single();
 
+    if (!parentMediaData) throw new Error("Parent media not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(
+      parentMediaData.project_id
+    );
+
+    // Check if user has version management permission
     if (
-      parentError ||
-      !parentMedia ||
-      parentMedia.project.editor_id !== editorProfile.id
+      !hasPermission(accessCheck.role, accessCheck.is_owner, "manageVersions")
     ) {
-      throw new Error("Parent media not found or unauthorized");
+      throw new Error("You don't have permission to manage versions");
     }
 
     // Get all versions sorted by upload date
-    const { data: versions } = await supabase
+    const { data: versions } = await authSupabase
       .from("project_media")
       .select("id, uploaded_at")
       .eq("parent_media_id", parentMediaId)
@@ -652,7 +546,7 @@ export async function renumberVersionsAction(parentMediaId: string) {
 
     // Renumber versions starting from 2 (parent is always 1)
     for (let i = 0; i < versions.length; i++) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await authSupabase
         .from("project_media")
         .update({ version_number: i + 2 })
         .eq("id", versions[i].id);
@@ -660,7 +554,7 @@ export async function renumberVersionsAction(parentMediaId: string) {
       if (updateError) throw updateError;
     }
 
-    revalidatePath(`/dashboard/projects/${parentMedia.project_id}`);
+    revalidatePath(`/dashboard/projects/${parentMediaData.project_id}`);
 
     return { success: true };
   } catch (error) {
@@ -672,42 +566,39 @@ export async function renumberVersionsAction(parentMediaId: string) {
     };
   }
 }
-// Add this to your server actions file (paste-2.txt)
 
 export async function updateVersionNumberAction(
   versionId: string,
   newVersionNumber: number
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify version ownership through project
-    const { data: version, error: versionError } = await supabase
+    // First get the project ID from the media
+    const supabase = await createClient();
+    const { data: mediaData } = await supabase
       .from("project_media")
-      .select(
-        `
-        id,
-        project_id,
-        version_number,
-        parent_media_id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id, version_number, parent_media_id")
       .eq("id", versionId)
       .single();
 
+    if (!mediaData) throw new Error("Media not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(mediaData.project_id);
+
+    // Check if user has version management permission
     if (
-      versionError ||
-      !version ||
-      version.project.editor_id !== editorProfile.id
+      !hasPermission(accessCheck.role, accessCheck.is_owner, "manageVersions")
     ) {
-      throw new Error("Version not found or unauthorized");
+      throw new Error("You don't have permission to manage versions");
     }
 
     // Check if the new version number conflicts with existing versions
-    const parentId = version.parent_media_id || version.id;
+    const parentId = mediaData.parent_media_id || versionId;
 
-    const { data: conflictingVersion } = await supabase
+    const { data: conflictingVersion } = await authSupabase
       .from("project_media")
       .select("id")
       .or(`id.eq.${parentId},parent_media_id.eq.${parentId}`)
@@ -717,16 +608,16 @@ export async function updateVersionNumberAction(
 
     if (conflictingVersion) {
       // Swap version numbers if there's a conflict
-      const { error: swapError } = await supabase
+      const { error: swapError } = await authSupabase
         .from("project_media")
-        .update({ version_number: version.version_number })
+        .update({ version_number: mediaData.version_number })
         .eq("id", conflictingVersion.id);
 
       if (swapError) throw swapError;
     }
 
     // Update the version number
-    const { error: updateError } = await supabase
+    const { error: updateError } = await authSupabase
       .from("project_media")
       .update({ version_number: newVersionNumber })
       .eq("id", versionId);
@@ -735,7 +626,7 @@ export async function updateVersionNumberAction(
 
     // Update current version status based on version numbers
     // Get all versions and find the highest version number
-    const { data: allVersions } = await supabase
+    const { data: allVersions } = await authSupabase
       .from("project_media")
       .select("id, version_number")
       .or(`id.eq.${parentId},parent_media_id.eq.${parentId}`)
@@ -743,19 +634,19 @@ export async function updateVersionNumberAction(
 
     if (allVersions && allVersions.length > 0) {
       // Set all to not current first
-      await supabase
+      await authSupabase
         .from("project_media")
         .update({ is_current_version: false })
         .or(`id.eq.${parentId},parent_media_id.eq.${parentId}`);
 
       // Set the highest version as current
-      await supabase
+      await authSupabase
         .from("project_media")
         .update({ is_current_version: true })
         .eq("id", allVersions[0].id);
     }
 
-    revalidatePath(`/dashboard/projects/${version.project_id}`);
+    revalidatePath(`/dashboard/projects/${mediaData.project_id}`);
 
     return { success: true };
   } catch (error) {
@@ -772,18 +663,8 @@ export async function updateVersionNumberAction(
 
 export async function getMediaDataAction(projectId: string, mediaId: string) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("id, editor_id")
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !project || project.editor_id !== editorProfile.id) {
-      throw new Error("Project not found or unauthorized");
-    }
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
 
     // Get the main media and all its versions
     const { data: mediaData, error: mediaError } = await supabase
@@ -839,39 +720,61 @@ export async function getMediaDataAction(projectId: string, mediaId: string) {
     };
   }
 }
+
 export async function updateMediaStatusAction(
   mediaId: string,
   newStatus: string
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify media ownership through project
-    const { data: media, error: mediaError } = await supabase
+    // First get the project ID from the media
+    const supabase = await createClient();
+    const { data: mediaData } = await supabase
       .from("project_media")
-      .select(
-        `
-        id,
-        project_id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", mediaId)
       .single();
 
-    if (mediaError || !media || media.project.editor_id !== editorProfile.id) {
-      throw new Error("Media not found or unauthorized");
+    if (!mediaData) throw new Error("Media not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(mediaData.project_id);
+
+    // Debug logging
+    console.log("Access check result:", {
+      role: accessCheck.role,
+      isOwner: accessCheck.is_owner,
+      hasAccess: accessCheck.has_access,
+    });
+
+    // Check if user has edit status permission
+    const canEditStatus = hasPermission(
+      accessCheck.role,
+      accessCheck.is_owner,
+      "editStatus"
+    );
+    console.log("Can edit status:", canEditStatus);
+
+    if (!canEditStatus) {
+      throw new Error(
+        `You don't have permission to edit media status. Your role: ${accessCheck.role}, Owner: ${accessCheck.is_owner}`
+      );
     }
 
     // Update the status
-    const { error: updateError } = await supabase
+    const { error: updateError } = await authSupabase
       .from("project_media")
       .update({ status: newStatus })
       .eq("id", mediaId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error("Supabase update error:", updateError);
+      throw updateError;
+    }
 
-    revalidatePath(`/dashboard/projects/${media.project_id}`);
+    revalidatePath(`/dashboard/projects/${mediaData.project_id}`);
 
     return { success: true };
   } catch (error) {
@@ -894,21 +797,22 @@ export async function createReviewLinkAction(
     expiresAt?: string;
     requiresPassword: boolean;
     password?: string;
-    allowDownload: boolean; // ✅ NEW PARAMETER
+    allowDownload: boolean;
   }
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
 
-    // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("id, editor_id")
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !project || project.editor_id !== editorProfile.id) {
-      throw new Error("Project not found or unauthorized");
+    // Check if user has review link creation permission
+    if (
+      !hasPermission(
+        accessCheck.role,
+        accessCheck.is_owner,
+        "createReviewLinks"
+      )
+    ) {
+      throw new Error("You don't have permission to create review links");
     }
 
     // Verify media belongs to project and is a parent (not a version)
@@ -944,7 +848,7 @@ export async function createReviewLinkAction(
       link_token: linkToken,
       title: options.title?.trim() || null,
       requires_password: options.requiresPassword,
-      allow_download: options.allowDownload, // ✅ NEW FIELD
+      allow_download: options.allowDownload,
     };
 
     if (options.expiresAt) {
@@ -980,7 +884,6 @@ export async function createReviewLinkAction(
   }
 }
 
-// ✅ ALSO UPDATE THE updateReviewLinkAction function to handle the new field:
 export async function updateReviewLinkAction(
   linkId: string,
   updates: {
@@ -988,30 +891,37 @@ export async function updateReviewLinkAction(
     expires_at?: string;
     requires_password?: boolean;
     password?: string;
-    allow_download?: boolean; // ✅ NEW PARAMETER
+    allow_download?: boolean;
   }
 ) {
   try {
-    const { supabase, editorProfile } = await getAuthenticatedEditor();
-
-    // Verify review link ownership through project
-    const { data: reviewLink, error: linkError } = await supabase
+    // First get the project ID from the review link
+    const supabase = await createClient();
+    const { data: reviewLinkData } = await supabase
       .from("review_links")
-      .select(
-        `
-        id,
-        project:projects!inner(id, editor_id)
-      `
-      )
+      .select("project_id")
       .eq("id", linkId)
       .single();
 
+    if (!reviewLinkData) throw new Error("Review link not found");
+
+    const {
+      supabase: authSupabase,
+      editorProfile,
+      accessCheck,
+    } = await getAuthenticatedEditorWithProjectAccess(
+      reviewLinkData.project_id
+    );
+
+    // Check if user has review link management permission
     if (
-      linkError ||
-      !reviewLink ||
-      reviewLink.project.editor_id !== editorProfile.id
+      !hasPermission(
+        accessCheck.role,
+        accessCheck.is_owner,
+        "createReviewLinks"
+      )
     ) {
-      throw new Error("Review link not found or unauthorized");
+      throw new Error("You don't have permission to manage review links");
     }
 
     const updateData: any = {};
@@ -1036,12 +946,11 @@ export async function updateReviewLinkAction(
       updateData.password_hash = await bcrypt.hash(updates.password, 12);
     }
 
-    // ✅ NEW FIELD HANDLING
     if (updates.allow_download !== undefined) {
       updateData.allow_download = updates.allow_download;
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await authSupabase
       .from("review_links")
       .update(updateData)
       .eq("id", linkId);
@@ -1058,3 +967,307 @@ export async function updateReviewLinkAction(
     };
   }
 }
+
+export interface ProjectAccessCheck {
+  has_access: boolean;
+  role: string | null;
+  is_owner: boolean;
+  project_exists: boolean;
+  membership_status: string | null;
+}
+
+export async function checkProjectAccess(
+  supabase: any,
+  projectId: string
+): Promise<ProjectAccessCheck> {
+  const { data, error } = await supabase
+    .rpc("check_project_access", {
+      project_uuid: projectId,
+    })
+    .single();
+
+  if (error) {
+    console.error("Error checking project access:", error);
+    return {
+      has_access: false,
+      role: null,
+      is_owner: false,
+      project_exists: false,
+      membership_status: null,
+    };
+  }
+
+  return data;
+}
+
+// Additional helper actions for team management
+export async function inviteProjectMember(
+  projectId: string,
+  email: string,
+  role: "viewer" | "reviewer" | "collaborator"
+) {
+  try {
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    // Only owners can invite members
+    if (!accessCheck.is_owner) {
+      throw new Error("Only project owners can invite members");
+    }
+
+    // Check if user exists
+    const { data: userProfile } = await supabase
+      .from("editor_profiles")
+      .select("user_id, id")
+      .eq("email", email)
+      .single();
+
+    if (!userProfile) {
+      throw new Error("User not found with this email address");
+    }
+
+    // Check if already a member
+    const { data: existingMember } = await supabase
+      .from("project_members")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("user_id", userProfile.user_id)
+      .single();
+
+    if (existingMember) {
+      throw new Error("User is already a member of this project");
+    }
+
+    // Create invitation
+    const { data: member, error: inviteError } = await supabase
+      .from("project_members")
+      .insert({
+        project_id: projectId,
+        user_id: userProfile.user_id,
+        role: role,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (inviteError) throw inviteError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+
+    return {
+      success: true,
+      member,
+    };
+  } catch (error) {
+    console.error("Invite member error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to invite member",
+    };
+  }
+}
+
+export async function updateMemberRole(
+  projectId: string,
+  memberId: string,
+  newRole: "viewer" | "reviewer" | "collaborator"
+) {
+  try {
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    // Only owners can update member roles
+    if (!accessCheck.is_owner) {
+      throw new Error("Only project owners can update member roles");
+    }
+
+    const { error: updateError } = await supabase
+      .from("project_members")
+      .update({ role: newRole })
+      .eq("id", memberId)
+      .eq("project_id", projectId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update member role error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to update member role",
+    };
+  }
+}
+
+export async function acceptProjectInvitation(projectId: string) {
+  try {
+    const { supabase, user } = await getAuthenticatedEditor();
+
+    // Update member status to accepted
+    const { error: updateError } = await supabase
+      .from("project_members")
+      .update({
+        status: "accepted",
+        joined_at: new Date().toISOString(),
+      })
+      .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .eq("status", "pending");
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath("/dashboard");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Accept invitation error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to accept invitation",
+    };
+  }
+}
+
+export async function declineProjectInvitation(projectId: string) {
+  try {
+    const { supabase, user } = await getAuthenticatedEditor();
+
+    // Delete the invitation
+    const { error: deleteError } = await supabase
+      .from("project_members")
+      .delete()
+      .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .eq("status", "pending");
+
+    if (deleteError) throw deleteError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath("/dashboard");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Decline invitation error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to decline invitation",
+    };
+  }
+}
+
+export async function leaveProject(projectId: string) {
+  try {
+    const { supabase, user } = await getAuthenticatedEditor();
+
+    // Remove user from project
+    const { error: deleteError } = await supabase
+      .from("project_members")
+      .delete()
+      .eq("project_id", projectId)
+      .eq("user_id", user.id);
+
+    if (deleteError) throw deleteError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath("/dashboard");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Leave project error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to leave project",
+    };
+  }
+}
+
+// Helper function to check if user can upload to project
+export async function canUserUploadToProject(projectId: string) {
+  try {
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    return {
+      success: true,
+      canUpload: hasPermission(
+        accessCheck.role,
+        accessCheck.is_owner,
+        "upload"
+      ),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      canUpload: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to check upload permission",
+    };
+  }
+}
+
+// Helper function to get user permissions for a project
+export async function getUserProjectPermissions(projectId: string) {
+  try {
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    return {
+      success: true,
+      permissions: {
+        canUpload: hasPermission(
+          accessCheck.role,
+          accessCheck.is_owner,
+          "upload"
+        ),
+        canDelete: hasPermission(
+          accessCheck.role,
+          accessCheck.is_owner,
+          "delete"
+        ),
+        canEditStatus: hasPermission(
+          accessCheck.role,
+          accessCheck.is_owner,
+          "editStatus"
+        ),
+        canCreateReviewLinks: hasPermission(
+          accessCheck.role,
+          accessCheck.is_owner,
+          "createReviewLinks"
+        ),
+        canManageVersions: hasPermission(
+          accessCheck.role,
+          accessCheck.is_owner,
+          "manageVersions"
+        ),
+        canManageMembers: accessCheck.is_owner,
+        isOwner: accessCheck.is_owner,
+        role: accessCheck.role,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      permissions: {
+        canUpload: false,
+        canDelete: false,
+        canEditStatus: false,
+        canCreateReviewLinks: false,
+        canManageVersions: false,
+        canManageMembers: false,
+        isOwner: false,
+        role: null,
+      },
+      error:
+        error instanceof Error ? error.message : "Failed to get permissions",
+    };
+  }
+}
+

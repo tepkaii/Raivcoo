@@ -1,7 +1,7 @@
-// app/dashboard/components/app-sidebar.tsx
-
 "use client";
 
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -13,14 +13,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-import { LogOut, SquareUser, LayoutDashboard, FolderOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useLinkStatus } from "next/link";
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,21 +29,30 @@ import PasswordSection from "../../account/PasswordSection";
 import Image from "next/image";
 import {
   ArrowLeftStartOnRectangleIcon,
-  FolderArrowDownIcon,
   FolderIcon,
   UserIcon,
 } from "@heroicons/react/24/solid";
+import { ActivityDropdown } from "./ActivityDropdown";
 
-interface ProfileShowProps {
-  portfolio: AccountData;
-  hasPasswordAuth: boolean;
+interface Portfolio {
+  id: string;
+  full_name: string | null;
+  display_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  has_password: boolean | null;
+  user_id: string;
+  bio: string | null;
+  website: string | null;
+  location: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 function LinkStatus({ href }: { href: string }) {
   const { pending } = useLinkStatus();
   const pathname = usePathname();
 
-  // Only skip the loading indicator if we're on the exact same path
   if (pathname === href) {
     return null;
   }
@@ -78,24 +83,95 @@ function LinkStatus({ href }: { href: string }) {
   ) : null;
 }
 
-export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
-  const pathname = usePathname();
+export function AppSidebar() {
+  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [hasPasswordAuth, setHasPasswordAuth] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const pathname = usePathname();
 
-  // Check if we're in a specific section (more precise than just startsWith)
+  useEffect(() => {
+    async function fetchUserData() {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+        setUser(user);
+
+        const { data: portfolioData, error: portfolioError } = await supabase
+          .from("editor_profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+
+        if (portfolioError && portfolioError.code !== "PGRST116") {
+          console.error("Error fetching portfolio:", portfolioError);
+        } else {
+          setPortfolio(portfolioData);
+        }
+
+        const hasPasswordAuthFromIdentities = user.identities?.some(
+          (identity) =>
+            identity.provider === "email" &&
+            identity.identity_data?.email === user.email
+        );
+
+        setHasPasswordAuth(
+          portfolioData?.has_password || hasPasswordAuthFromIdentities || false
+        );
+      } catch (error) {
+        console.error("Error in fetchUserData:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUserData();
+  }, []);
+
   const isActiveSection = (path: string) => {
-    // For main dashboard, only highlight when exactly on dashboard
     if (path === "/dashboard") {
       return pathname === "/dashboard";
     }
-
-    // For other sections, match if we're on that exact path or any nested path
     return pathname === path || pathname.startsWith(path + "/");
   };
 
+  if (loading) {
+    return (
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="border-b p-0 m-0 bg-background">
+          <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                width={30}
+                height={30}
+                src={"/MainLogo.png"}
+                alt={"Raivcoo Logo"}
+              />
+            </Link>
+            <h1 className="group-data-[collapsible=icon]:hidden">Raivcoo</h1>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <div className="p-4 text-center text-muted-foreground">
+            <div className="animate-pulse">Loading...</div>
+          </div>
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <Sidebar collapsible="icon">
-      {/* Logo/Website Header - Top */}
       <SidebarHeader className="border-b p-0 m-0 bg-background">
         <div className="flex items-center py-0 m-0 gap-2 group-data-[collapsible=icon]:px-2 px-3 h-[49px] relative">
           <Link href="/" className="flex items-center gap-2">
@@ -106,18 +182,17 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
               alt={"Raivcoo Logo"}
             />
           </Link>
-          <h1 className="  group-data-[collapsible=icon]:hidden">Raivcoo</h1>
+          <h1 className="group-data-[collapsible=icon]:hidden">Raivcoo</h1>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="space-y-[-15px]">
-        {/* 🟡 MAIN */}
+        {/* 🟡 PROJECTS */}
         <SidebarGroup>
           <SidebarGroupContent>
             <div className="text-xs mb-2 mt-1 font-medium text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
               Projects
             </div>
-
             <SidebarMenu>
               <SidebarMenuItem>
                 <Link href="/dashboard" className="w-full">
@@ -145,14 +220,19 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {/* ACCOUNT SECTION */}
+
+        {/* 🟡 ACCOUNT SECTION */}
         <SidebarGroup>
           <SidebarGroupContent>
             <div className="text-xs mb-2 mt-1 font-medium text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
               Account
             </div>
-
             <SidebarMenu>
+              {/* ✨ ADD THE ACTIVITY DROPDOWN HERE */}
+              <SidebarMenuItem>
+                <ActivityDropdown />
+              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => setAccountDialogOpen(true)}
@@ -188,67 +268,6 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {/* PROJECTS SECTION */}
-        {/* <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/dashboard/projects" className="w-full">
-                  <SidebarMenuButton
-                    className={cn(
-                      "flex items-center w-full group-data-[collapsible=icon]:justify-center",
-                      isActiveSection("/dashboard/projects") && "bg-muted"
-                    )}
-                  >
-                    <div>
-                      <FolderOpenDot
-                        strokeWidth={1.5}
-                        className={`size-5 ${isActiveSection("/dashboard/projects") ? "text-[#0070F3]" : ""}`}
-                      />
-                    </div>
-                    <span className="group-data-[collapsible=icon]:hidden">
-                      Projects
-                    </span>
-                    <div className="group-data-[collapsible=icon]:hidden">
-                      <LinkStatus href="/dashboard/projects" />
-                    </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup> */}
-
-        {/* EXTENSIONS SECTION */}
-        {/* <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/dashboard/extensions" className="w-full">
-                  <SidebarMenuButton
-                    className={cn(
-                      "flex items-center w-full group-data-[collapsible=icon]:justify-center",
-                      isActiveSection("/dashboard/extensions") && "bg-muted"
-                    )}
-                  >
-                    <div>
-                      <Puzzle
-                        strokeWidth={1.5}
-                        className={`size-5 ${isActiveSection("/dashboard/extensions") ? "text-[#0070F3]" : ""}`}
-                      />
-                    </div>
-                    <span className="group-data-[collapsible=icon]:hidden">
-                      Extensions
-                    </span>
-                    <div className="group-data-[collapsible=icon]:hidden">
-                      <LinkStatus href="/dashboard/extensions" />
-                    </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup> */}
       </SidebarContent>
 
       {/* Account Dialog */}
@@ -262,7 +281,7 @@ export function AppSidebar({ portfolio, hasPasswordAuth }: ProfileShowProps) {
               <AccountForm Account={portfolio} updateAccount={updateAccount} />
               <PasswordSection
                 hasPassword={!!hasPasswordAuth}
-                email={portfolio.email || ""}
+                email={portfolio.email || user.email || ""}
               />
             </>
           )}

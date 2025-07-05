@@ -24,24 +24,31 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border-2 p-6 pr-8 shadow-xs transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  "group pointer-events-auto relative 0 flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border-2 p-6 pr-8 shadow-xs transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
   {
     variants: {
       variant: {
-        default: "bg-[#0070F3] text-white border-[#0070F3]/20",
-        destructive: "bg-[#E5484D] text-white border-[#E5484D]/20",
-        outline: "bg-[#121212] text-white border-[#262626]",
+        default:
+          "bg-[#0070F3] text-white border-[#0070F3]/20 border-2 border-black/20",
+        destructive:
+          "bg-[#E5484D] text-white border-[#E5484D]/20 border-2 border-black/20",
+        outline:
+          "bg-[#121212] text-white border-[#262626] border-2 border-black/20",
         secondary: "bg-secondary text-secondary-foreground border-secondary/20",
         ghost: "bg-accent text-accent-foreground border-transparent",
-        cyan: "bg-[#00B8D4] text-white border-[#00B8D4]/20",
-        warning: "bg-[#FFB224] text-white border-[#FFB224]/20",
-        amber: "bg-[#FFB224] text-white border-[#FFB224]/20",
-        teal: "bg-[#12A594] text-white border-[#12A594]/20",
-        red: "bg-[#E5484D] text-white border-[#E5484D]/20",
-        blue: "bg-[#0070F3] text-white border-[#0070F3]/20",
-        green: "bg-[#46A758] text-white border-[#46A758]/20",
-        purple: "bg-[#8E4EC6] text-white border-[#8E4EC6]/20",
-        pink: "bg-[#E93D82] text-white border-[#E93D82]/20",
+        cyan: "bg-[#00B8D4] text-white border-[#00B8D4]/20 border-2 border-black/20",
+        warning:
+          "bg-[#FFB224] text-white border-[#FFB224]/20 border-2 border-black/20",
+        amber:
+          "bg-[#FFB224] text-white border-[#FFB224]/20 border-2 border-black/20",
+        teal: "bg-[#12A594] text-white border-[#12A594]/20 border-2 border-black/20",
+        red: "bg-[#E5484D] text-white border-[#E5484D]/20 border-2 border-black/20",
+        blue: "bg-[#0070F3] text-white border-[#0070F3]/20 border-2 border-black/20",
+        green:
+          "bg-[#46A758] text-white border-[#46A758]/20 border-2 border-black/20",
+        purple:
+          "bg-[#8E4EC6] text-white border-[#8E4EC6]/20 border-2 border-black/20",
+        pink: "bg-[#E93D82] text-white border-[#E93D82]/20 border-2 border-black/20",
       },
     },
     defaultVariants: {

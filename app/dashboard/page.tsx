@@ -1,4 +1,4 @@
-// app/dashboard/projects/page.tsx
+// app/dashboard/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -20,7 +20,8 @@ export default async function ProjectsPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    const returnUrl = encodeURIComponent("/dashboard");
+    redirect(`/login?returnTo=${returnUrl}`);
   }
 
   // Get editor profile
@@ -34,41 +35,113 @@ export default async function ProjectsPage() {
     redirect("/account");
   }
 
-  // Get all projects with media data (limit first 4 for thumbnails)
-  const { data: projects, error: projectsError } = await supabase
+  // Get projects where user is owner OR accepted member
+  const { data: ownedProjects, error: ownedError } = await supabase
     .from("projects")
     .select(
       `
-      id,
-      name,
-      description,
-      created_at,
-      updated_at,
-      project_media (
-        id,
-        filename,
-        original_filename,
-        file_type,
-        mime_type,
-        file_size,
-        r2_url,
-        uploaded_at,
-        parent_media_id,
-        version_number,
-        is_current_version,
-        version_name
-      )
-    `
+     id,
+     name,
+     description,
+     created_at,
+     updated_at,
+     editor_id,
+     notifications_enabled,
+     project_media (
+       id,
+       filename,
+       original_filename,
+       file_type,
+       mime_type,
+       file_size,
+       r2_url,
+       uploaded_at,
+       parent_media_id,
+       version_number,
+       is_current_version,
+       version_name
+     )
+   `
     )
     .eq("editor_id", editorProfile.id)
     .order("updated_at", { ascending: false });
 
-  if (projectsError) {
-    console.error("Error fetching projects:", projectsError);
+  // Get projects where user is an accepted member
+  const { data: memberProjects, error: memberError } = await supabase
+    .from("projects")
+    .select(
+      `
+     id,
+     name,
+     description,
+     created_at,
+     updated_at,
+     editor_id,
+     notifications_enabled,
+     project_media (
+       id,
+       filename,
+       original_filename,
+       file_type,
+       mime_type,
+       file_size,
+       r2_url,
+       uploaded_at,
+       parent_media_id,
+       version_number,
+       is_current_version,
+       version_name
+     ),
+     project_members!inner (
+       user_id,
+       role,
+       status,
+       notifications_enabled
+     )
+   `
+    )
+    .eq("project_members.user_id", user.id)
+    .eq("project_members.status", "accepted")
+    .order("updated_at", { ascending: false });
+
+  if (ownedError || memberError) {
+    console.error("Error fetching projects:", ownedError || memberError);
   }
 
+  // Combine and deduplicate projects
+  const allProjects = [
+    ...(ownedProjects || []).map((project) => ({
+      ...project,
+      isOwner: true,
+      userRole: "owner" as const,
+      memberNotificationsEnabled: undefined, // Owner doesn't have member notifications
+    })),
+    ...(memberProjects || []).map((project) => ({
+      ...project,
+      isOwner: false,
+      userRole: project.project_members[0]?.role as
+        | "viewer"
+        | "reviewer"
+        | "collaborator",
+      memberNotificationsEnabled:
+        project.project_members[0]?.notifications_enabled,
+    })),
+  ];
+
+  // Remove duplicates (in case user is both owner and member)
+  const uniqueProjects = allProjects.filter(
+    (project, index, self) =>
+      index === self.findIndex((p) => p.id === project.id)
+  );
+
+  // Sort by updated_at
+  uniqueProjects.sort(
+    (a, b) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  );
+
   // Process projects data to include stats and limit media for thumbnails
-  const processedProjects = (projects || []).map((project) => {
+  const processedProjects = uniqueProjects.map((project) => {
     const allMediaFiles = project.project_media || [];
 
     // Get only parent media (not versions) for thumbnails, limit to 4
@@ -130,7 +203,10 @@ export default async function ProjectsPage() {
       </header>
 
       {/* MainProjectsList */}
-      <MainProjectsList projects={processedProjects} />
+      <MainProjectsList
+        projects={processedProjects}
+        currentUserId={editorProfile.id}
+      />
     </div>
   );
 }

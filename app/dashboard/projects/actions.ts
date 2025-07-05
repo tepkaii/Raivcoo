@@ -322,3 +322,129 @@ export async function renameProject(projectId: string, newName: string) {
     throw error;
   }
 }
+// Add this to your existing actions.ts file
+
+export async function updateProject(
+  projectId: string,
+  updates: {
+    name?: string;
+    notifications_enabled?: boolean;
+    member_notifications_enabled?: boolean;
+  }
+) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+
+    const { data: editorProfile, error: profileError } = await supabase
+      .from("editor_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+    if (profileError || !editorProfile)
+      throw new Error("Failed to fetch editor profile");
+
+    // Check if user is owner or member
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id, editor_id, name")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      throw new Error("Project not found");
+    }
+
+    const isOwner = project.editor_id === editorProfile.id;
+    
+    if (!isOwner) {
+      // Check if user is a member
+      const { data: membership, error: memberError } = await supabase
+        .from("project_members")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("user_id", user.id)
+        .eq("status", "accepted")
+        .single();
+
+      if (memberError || !membership) {
+        throw new Error("Unauthorized - You are not a member of this project");
+      }
+    }
+
+    let message = "Updated successfully";
+
+    if (isOwner) {
+      // Owner updates: project name and/or owner notifications
+      if (updates.name !== undefined || updates.notifications_enabled !== undefined) {
+        const updateData: any = {
+          updated_at: new Date().toISOString(),
+        };
+
+        if (updates.name !== undefined) {
+          updateData.name = updates.name;
+        }
+
+        if (updates.notifications_enabled !== undefined) {
+          updateData.notifications_enabled = updates.notifications_enabled;
+        }
+
+        const { error } = await supabase
+          .from("projects")
+          .update(updateData)
+          .eq("id", projectId);
+
+        if (error) {
+          console.error("Error updating project:", error);
+          throw new Error("Failed to update project");
+        }
+
+        // Create message
+        if (updates.name && updates.notifications_enabled !== undefined) {
+          message = `Project renamed to "${updates.name}" and notifications ${
+            updates.notifications_enabled ? "enabled" : "disabled"
+          }`;
+        } else if (updates.name) {
+          message = `Project renamed to "${updates.name}"`;
+        } else if (updates.notifications_enabled !== undefined) {
+          message = `Notifications ${
+            updates.notifications_enabled ? "enabled" : "disabled"
+          }`;
+        }
+      }
+    } else {
+      // Member updates: only their own notification preferences
+      if (updates.member_notifications_enabled !== undefined) {
+        const { error } = await supabase
+          .from("project_members")
+          .update({
+            notifications_enabled: updates.member_notifications_enabled,
+          })
+          .eq("project_id", projectId)
+          .eq("user_id", user.id);
+
+        if (error) {
+          console.error("Error updating member notifications:", error);
+          throw new Error("Failed to update notification preferences");
+        }
+
+        message = `Notifications ${
+          updates.member_notifications_enabled ? "enabled" : "disabled"
+        }`;
+      }
+    }
+
+    revalidatePath("/dashboard/projects");
+
+    return {
+      success: true,
+      message,
+    };
+  } catch (error) {
+    console.error("Error in updateProject:", error);
+    throw error;
+  }
+}

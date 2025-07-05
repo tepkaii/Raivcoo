@@ -22,9 +22,10 @@ export default async function AccountPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+if (!user) {
+  const returnUrl = encodeURIComponent(`/account`);
+  redirect(`/login?returnTo=${returnUrl}`);
+}
 
   const { data: Account } = await supabase
     .from("editor_profiles")
