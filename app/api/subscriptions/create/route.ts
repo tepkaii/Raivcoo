@@ -3,11 +3,19 @@ import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { order, planId, planName, amount } = await request.json();
+    const {
+      order,
+      planId,
+      planName,
+      amount,
+      storageGb,
+      pendingOrderId,
+      action,
+      currentSubId,
+    } = await request.json();
 
     const supabase = await createClient();
 
-    // Get the current user
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -16,63 +24,63 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // First, create the order record
+    // Update the pending order
     const { data: orderRecord, error: orderError } = await supabase
       .from("orders")
-      .insert({
-        user_id: user.id,
+      .update({
         paypal_order_id: order.id,
         paypal_payment_id:
           order.purchase_units?.[0]?.payments?.captures?.[0]?.id || null,
-        plan_id: planId,
-        plan_name: planName,
-        amount: parseFloat(amount),
-        currency: "USD",
         status: "completed",
-        payment_method: "paypal",
         transaction_id:
           order.purchase_units?.[0]?.payments?.captures?.[0]?.id || null,
         completed_at: new Date().toISOString(),
         metadata: {
+          storage_gb: storageGb,
+          action: action,
+          current_subscription_id: currentSubId,
           paypal_order: order,
         },
       })
+      .eq("id", pendingOrderId)
+      .eq("user_id", user.id)
       .select()
       .single();
 
     if (orderError || !orderRecord) {
-      console.error("Error creating order:", orderError);
+      console.error("Error updating order:", orderError);
       return NextResponse.json(
-        { error: "Failed to create order record" },
+        { error: "Failed to update order record" },
         { status: 500 }
       );
     }
 
-    // Calculate subscription period (30 days from now)
     const now = new Date();
-    const periodStart = now;
-    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    // Check if user already has a subscription
-    const { data: existingSubscription } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    if (existingSubscription) {
+    // Handle different action types
+    if (action === "upgrade" || action === "downgrade") {
       // Update existing subscription
+      if (!currentSubId) {
+        return NextResponse.json(
+          { error: "Current subscription ID required for upgrade/downgrade" },
+          { status: 400 }
+        );
+      }
       const { error: updateError } = await supabase
         .from("subscriptions")
         .update({
-          order_id: orderRecord.id,
           plan_id: planId,
           plan_name: planName,
-          status: "active",
-          current_period_start: periodStart.toISOString(),
+          storage_gb: storageGb || (planId === "pro" ? 250 : 0.5),
+          current_period_start: now.toISOString(),
           current_period_end: periodEnd.toISOString(),
-          updated_at: new Date().toISOString(),
+          status: "active",
+          order_id: orderRecord.id,
+          updated_at: now.toISOString(),
+          last_action: action || "new", // Track the action
         })
+        .eq("id", currentSubId)
         .eq("user_id", user.id);
 
       if (updateError) {
@@ -83,21 +91,31 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
+      // New subscription or replacing existing one
+
+      // First, cancel any existing active subscriptions
+      await supabase
+        .from("subscriptions")
+        .update({ status: "cancelled", updated_at: now.toISOString() })
+        .eq("user_id", user.id)
+        .eq("status", "active");
+
       // Create new subscription
-      const { error: insertError } = await supabase
+      const { error: subscriptionError } = await supabase
         .from("subscriptions")
         .insert({
           user_id: user.id,
-          order_id: orderRecord.id,
           plan_id: planId,
           plan_name: planName,
           status: "active",
-          current_period_start: periodStart.toISOString(),
+          storage_gb: storageGb || (planId === "pro" ? 250 : 0.5),
+          current_period_start: now.toISOString(),
           current_period_end: periodEnd.toISOString(),
+          order_id: orderRecord.id,
         });
 
-      if (insertError) {
-        console.error("Error creating subscription:", insertError);
+      if (subscriptionError) {
+        console.error("Error creating subscription:", subscriptionError);
         return NextResponse.json(
           { error: "Failed to create subscription" },
           { status: 500 }
@@ -109,6 +127,7 @@ export async function POST(request: NextRequest) {
       success: true,
       order_id: orderRecord.id,
       subscription_status: "active",
+      action: action || "created",
     });
   } catch (error) {
     console.error("Error processing subscription:", error);

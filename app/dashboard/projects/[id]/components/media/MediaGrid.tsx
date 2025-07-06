@@ -18,7 +18,7 @@ import {
   reorderVersionsAction,
   updateVersionNameAction,
   updateMediaStatusAction,
-} from "../../lib/actions";
+} from "../../lib/GeneralActions";
 import {
   MediaFile,
   OrganizedMedia,
@@ -31,7 +31,7 @@ import { ProjectReferencesDialog } from "./ProjectReferencesDialog";
 import {
   deleteMediaAction,
   deleteVersionAction,
-} from "../../lib/deleteMediaActions";
+} from "../../lib/DeleteMediaActions";
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];

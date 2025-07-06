@@ -3,11 +3,11 @@ import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { planId, planName, amount } = await request.json();
+    const { planId, planName, amount, storageGb, action, currentSubId } =
+      await request.json();
 
     const supabase = await createClient();
 
-    // Get the current user
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
         currency: "USD",
         status: "pending",
         payment_method: "paypal",
+        metadata: {
+          storage_gb: storageGb,
+          action: action,
+          current_subscription_id: currentSubId,
+        },
       })
       .select()
       .single();

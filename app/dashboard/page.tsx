@@ -2,9 +2,9 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { MainProjectsList } from "./components/MainProjectsList";
+import { MainProjectsList } from "./components/MainProjects/MainProjectsList";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { CreateProjectDialog } from "./components/CreateProjectDialog";
+import { CreateProjectDialog } from "./components/MainProjects/CreateProjectDialog";
 import { createProject } from "./projects/actions";
 
 export const metadata: Metadata = {

@@ -21,19 +21,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/utils/supabase/client";
+
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowUpOnSquareStackIcon,
-  Cog6ToothIcon,
-  DocumentDuplicateIcon,
   EyeIcon,
   LinkIcon,
   PhotoIcon,
   TrashIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/solid";
-import { changeMediaStatusAction } from "../../lib/statusChangeActions";
+import { changeMediaStatusAction } from "../../lib/StatusChangeActions";
 
 // Status configuration - can be easily modified
 export const MEDIA_STATUS_OPTIONS = [

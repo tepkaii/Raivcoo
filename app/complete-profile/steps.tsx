@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import { validateDisplayName } from "../account/displayNameValidation";
+import { validateDisplayName } from "../dashboard/profile/displayNameValidation";
 import { AuroraText } from "@/components/ui/aurora-text";
 import {
   Tooltip,

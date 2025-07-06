@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { Resend } from "resend";
-import { ProjectInvitationEmail } from "../../../../components/emails/ProjectInvitationEmail";
+import { ProjectInvitationEmail } from "../../../../components/emails/Members/ProjectInvitationEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 

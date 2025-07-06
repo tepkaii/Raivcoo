@@ -4,8 +4,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
-import { InvitationAcceptedEmail } from "@/app/components/emails/InvitationAcceptedEmail";
-import { InvitationDeclinedEmail } from "@/app/components/emails/InvitationDeclinedEmail";
+import { InvitationAcceptedEmail } from "../../components/emails/Members/InvitationAcceptedEmail";
+import { InvitationDeclinedEmail } from "@/app/components/emails/Members/InvitationDeclinedEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 

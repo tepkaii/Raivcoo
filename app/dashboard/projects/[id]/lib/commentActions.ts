@@ -6,13 +6,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
 
-import { CommentActivityEmail } from "@/app/components/emails/CommentActivityEmail";
+import { CommentActivityEmail } from "@/app/components/emails/Activity/CommentActivityEmail";
 import {
   getCommentActivityDescription,
   getCommentActivityTitle,
   getCommentNotificationSettings,
   getDefaultCommentPreferences,
-} from "@/app/dashboard/lib/ommentNotificationService";
+} from "@/app/dashboard/lib/CommentNotificationService";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 

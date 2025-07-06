@@ -1,4 +1,4 @@
-// app/dashboard/projects/[id]/lib/deleteMediaActions.ts
+// app/dashboard/projects/[id]/lib/DeleteMediaActions.ts
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -6,7 +6,7 @@ import { deleteFileFromR2 } from "@/lib/r2";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
-import { MediaActivityEmail } from "@/app/components/emails/mediaActivityEmail";
+import { MediaActivityEmail } from "@/app/components/emails/Activity/mediaActivityEmail";
 import {
   getNotificationSettings,
   getActivityTitle,

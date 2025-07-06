@@ -3,9 +3,9 @@ import { createClient } from "@/utils/supabase/server";
 import { uploadFileToR2, getPublicUrl } from "@/lib/r2";
 import { nanoid } from "nanoid";
 import { NextRequest, NextResponse } from "next/server";
-import { checkProjectAccess } from "@/app/dashboard/projects/[id]/lib/actions";
+import { checkProjectAccess } from "@/app/dashboard/projects/[id]/lib/GeneralActions";
 import { Resend } from "resend";
-import { MediaActivityEmail } from "@/app/components/emails/mediaActivityEmail";
+import { MediaActivityEmail } from "@/app/components/emails/Activity/mediaActivityEmail";
 import {
   getNotificationSettings,
   getActivityTitle,

@@ -3,13 +3,13 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { Resend } from "resend";
-import { CommentActivityEmail } from "@/app/components/emails/CommentActivityEmail";
+import { CommentActivityEmail } from "@/app/components/emails/Activity/CommentActivityEmail";
 import {
   getCommentActivityDescription,
   getCommentActivityTitle,
   getCommentNotificationSettings,
   getDefaultCommentPreferences,
-} from "../../../dashboard/lib/ommentNotificationService";
+} from "../../../dashboard/lib/CommentNotificationService";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 

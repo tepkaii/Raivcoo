@@ -5,11 +5,9 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
-import { StatusChangeEmail } from "@/app/components/emails/statusChangeEmail";
+import { StatusChangeEmail } from "@/app/components/emails/Activity/statusChangeEmail";
 import {
-  getNotificationSettings,
-  getActivityTitle,
-  getActivityDescription,
+
   getDefaultPreferences,
 } from "../../../lib/MediaNotificationService";
 

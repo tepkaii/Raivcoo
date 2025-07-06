@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { MemberRemovedEmail } from "@/app/components/emails/MemberRemovedEmail";
+import { MemberRemovedEmail } from "@/app/components/emails/Members/MemberRemovedEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 

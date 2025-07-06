@@ -77,6 +77,8 @@ export default function RootLayout({
                 "/invite/",
                 "/settings/",
                 "/activity",
+                "/checkout",
+                "/checkout/",
               ]}
               // excludePaths={["/links/edit"]}
             >

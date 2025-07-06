@@ -8,10 +8,10 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { MediaGrid } from "./components/media/MediaGrid";
-import { MediaViewer } from "./components/media/MediaViewer";
+import { MediaGrid } from "./components/Media/MediaGrid";
+import { MediaViewer } from "./components/Media/MediaViewer";
 import { ReviewComments } from "@/app/review/[token]/review_components/ReviewComments";
-import { TeamManagement } from "./components/TeamManagement";
+import { TeamManagement } from "./components/TeamManagement/TeamManagement";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,7 +32,7 @@ import {
   EyeIcon,
   UsersIcon,
 } from "@heroicons/react/24/solid";
-import { createCommentAction } from "./lib/commentActions";
+import { createCommentAction } from "./lib/CommentActions";
 
 // Define types
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
@@ -419,7 +419,23 @@ export function ProjectWorkspace({
       };
     }
   }, [isResizing, handleMouseMove, handleMouseUp, isMobile]);
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mediaId = urlParams.get("media");
 
+    if (mediaId) {
+      const media = mediaFiles.find((m) => m.id === mediaId);
+      if (media) {
+        setSelectedMedia(media);
+        // Show media player if not visible
+        if (!showMediaPlayer && !isMobile) {
+          setShowMediaPlayer(true);
+        }
+      }
+      // Clean up URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [mediaFiles, showMediaPlayer, isMobile]);
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}

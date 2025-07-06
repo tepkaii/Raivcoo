@@ -1,0 +1,104 @@
+import { createClient } from "@/utils/supabase/server";
+import { redirect } from "next/navigation";
+import SuccessClient from "./SuccessClient";
+
+interface SuccessPageProps {
+  searchParams: Promise<{
+    plan?: string;
+    storage?: string;
+    action?: string;
+  }>;
+}
+
+const pricingTiers = [
+  {
+    id: "free",
+    name: "Free",
+    price: "0",
+    storage: "500MB storage included",
+    features: [
+      "Upload videos, images & files",
+      "2 active review projects",
+      "Basic timestamped comments",
+      "Secure file hosting",
+      "Email notifications",
+      "30-day link expiration",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "5.99",
+    storage: "250GB storage included",
+    features: [
+      "Everything in Free plan",
+      "Unlimited review projects",
+      "Advanced timestamped comments",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Real-time notifications",
+      "File download controls",
+      "Advanced analytics & insights",
+      "Priority support",
+      "Custom branding options",
+      "Advanced security features",
+      "API access",
+      "Dedicated support",
+    ],
+  },
+];
+
+export default async function SuccessPage({ searchParams }: SuccessPageProps) {
+  const supabase = await createClient();
+  const params = await searchParams;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  let selectedPlan = pricingTiers.find((tier) => tier.id === params.plan);
+
+  if (!selectedPlan) {
+    redirect("/dashboard");
+  }
+
+  // Handle custom storage for Pro plan
+  if (params.plan === "pro" && params.storage) {
+    selectedPlan = {
+      ...selectedPlan,
+      storage: `${params.storage}GB storage included`,
+    };
+  }
+
+  // Get current subscription with order details
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select(
+      `
+      *,
+      orders!subscriptions_order_id_fkey (
+        id,
+        amount,
+        currency,
+        completed_at,
+        transaction_id
+      )
+    `
+    )
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .single();
+
+  return (
+    <SuccessClient
+      user={user}
+      selectedPlan={selectedPlan}
+      subscription={subscription}
+      action={params.action}
+    />
+  );
+}

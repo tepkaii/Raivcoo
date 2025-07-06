@@ -1,20 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowRight, X, Loader2 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Check, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import { formatDate } from "../dashboard/lib/formats";
 
 interface Subscription {
   id: string;
   plan_name: string;
+  plan_id: string;
   status: string;
   current_period_end: string;
   paypal_subscription_id?: string;
+  storage_gb?: number;
 }
 
 interface PricingClientProps {
@@ -24,14 +27,14 @@ interface PricingClientProps {
 
 const pricingTiers = [
   {
-    id: "basic" as const,
-    name: "Basic",
-    price: "3.99",
-    storage: "100GB storage included",
-    level: 1,
+    id: "free" as const,
+    name: "Free",
+    price: "0",
+    baseStorage: 0.5, // 500MB
+    level: 0,
     features: [
       "Upload videos, images & files",
-      "5 active review projects",
+      "2 active review projects",
       "Basic timestamped comments",
       "Secure file hosting",
       "Email notifications",
@@ -41,12 +44,14 @@ const pricingTiers = [
   {
     id: "pro" as const,
     name: "Pro",
-    price: "5.99",
-    storage: "250GB storage included",
-    level: 2,
+    basePrice: 5.99,
+    baseStorage: 250, // 250GB base
+    additionalStoragePrice: 1.5, // $1.5 per 50GB
+    additionalStorageUnit: 50, // 50GB increments
+    level: 1,
     popular: true,
     features: [
-      "Everything in Basic plan",
+      "Everything in Free plan",
       "Unlimited review projects",
       "Advanced timestamped comments",
       "Password protection for links",
@@ -55,191 +60,13 @@ const pricingTiers = [
       "File download controls",
       "Advanced analytics & insights",
       "Priority support",
-    ],
-  },
-  {
-    id: "premium" as const,
-    name: "Premium",
-    price: "9.99",
-    storage: "500GB storage included",
-    level: 3,
-    features: [
-      "Everything in Pro plan",
-      "Advanced client management",
       "Custom branding options",
       "Advanced security features",
       "API access",
       "Dedicated support",
-      "Custom integrations",
-      "Advanced reporting",
-      "White-label options",
     ],
   },
 ];
-
-function PayPalCheckout({
-  planId,
-  planName,
-  amount,
-  onCancel,
-  onSuccess,
-}: {
-  planId: string;
-  planName: string;
-  amount: number;
-  onCancel: () => void;
-  onSuccess: () => void;
-}) {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState("");
-  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
-
-  const initialOptions = {
-    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
-    currency: "USD",
-    intent: "capture",
-    environment: "sandbox" as const,
-  };
-
-  return (
-    <PayPalScriptProvider options={initialOptions}>
-      <div className="space-y-4">
-        {error && (
-          <div className="p-4 bg-red-50 text-red-700 rounded-md text-sm">
-            {error}
-          </div>
-        )}
-
-        {isProcessing && (
-          <div className="flex justify-center items-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-            <span>Processing payment...</span>
-          </div>
-        )}
-
-        <PayPalButtons
-          style={{
-            layout: "vertical",
-            color: "blue",
-            shape: "rect",
-            label: "paypal",
-            height: 40,
-          }}
-          createOrder={async (data, actions) => {
-            try {
-              // First create a pending order in our database
-              const response = await fetch("/api/orders/create", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  planId,
-                  planName,
-                  amount,
-                }),
-              });
-
-              if (!response.ok) {
-                throw new Error("Failed to create order");
-              }
-
-              const { orderId } = await response.json();
-              setPendingOrderId(orderId);
-
-              // Then create the PayPal order
-              return actions.order.create({
-                purchase_units: [
-                  {
-                    description: `${planName} Plan Subscription`,
-                    amount: {
-                      currency_code: "USD",
-                      value: amount.toString(),
-                    },
-                    custom_id: orderId, // Use our database order ID
-                  },
-                ],
-              });
-            } catch (error) {
-              console.error("Error creating order:", error);
-              setError("Failed to create order");
-              throw error;
-            }
-          }}
-          onApprove={async (data, actions) => {
-            setIsProcessing(true);
-            setError("");
-
-            try {
-              const order = await actions.order?.capture();
-              console.log("PayPal Order captured:", order);
-
-              if (!pendingOrderId) {
-                throw new Error("No pending order found");
-              }
-
-              // Create subscription in your database
-              const res = await fetch("/api/subscriptions/create", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  order,
-                  planId,
-                  planName,
-                  amount,
-                  pendingOrderId,
-                }),
-              });
-
-              if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(
-                  errorData.error || "Failed to create subscription"
-                );
-              }
-
-              toast({
-                title: "Success!",
-                description: `Payment completed for ${planName} plan`,
-              });
-
-              onSuccess();
-            } catch (err) {
-              console.error("Payment error:", err);
-              setError(
-                err.message ||
-                  "Payment verification failed. Please contact support."
-              );
-            } finally {
-              setIsProcessing(false);
-            }
-          }}
-          onError={(err) => {
-            console.error("PayPal Error", err);
-            setError(
-              "Payment processing failed. Please try again or use a different payment method."
-            );
-          }}
-          onCancel={() => {
-            // Clean up pending order if user cancels
-            if (pendingOrderId) {
-              fetch("/api/orders/cancel", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ orderId: pendingOrderId }),
-              });
-            }
-            onCancel();
-          }}
-        />
-      </div>
-    </PayPalScriptProvider>
-  );
-}
 
 function PricingCard({
   tier,
@@ -251,22 +78,40 @@ function PricingCard({
   currentSubscription: Subscription | null;
 }) {
   const router = useRouter();
-  const [showPayPal, setShowPayPal] = useState(false);
+  const [storageSlider, setStorageSlider] = useState([0]);
 
-  const getCurrentTierLevel = (planName: string) => {
-    const foundTier = pricingTiers.find((t) => t.name === planName);
-    return foundTier?.level || 0;
-  };
+  const isFreePlan = tier.id === "free";
+  const isProPlan = tier.id === "pro";
 
-  const currentTierLevel = currentSubscription
-    ? getCurrentTierLevel(currentSubscription.plan_name)
+  // Calculate storage and pricing for Pro plan
+  const totalStorage = isProPlan
+    ? tier.baseStorage + storageSlider[0] * tier.additionalStorageUnit
+    : tier.baseStorage;
+
+  const totalPrice = isProPlan
+    ? tier.basePrice + storageSlider[0] * tier.additionalStoragePrice
     : 0;
-  const thisTierLevel = tier.level;
 
-  const isCurrentPlan = currentSubscription?.plan_name === tier.name;
-  const isUpgrade = currentSubscription && thisTierLevel > currentTierLevel;
-  const isDowngrade = currentSubscription && thisTierLevel < currentTierLevel;
-  const isDisabled = isCurrentPlan || isDowngrade;
+  // Check subscription status
+  const isCurrentPlan = currentSubscription?.plan_id === tier.id;
+  const currentStorage = currentSubscription?.storage_gb || 0;
+
+  // Determine if this is an upgrade/downgrade/same
+  const isUpgrade =
+    isProPlan &&
+    currentSubscription &&
+    (currentSubscription.plan_id === "free" ||
+      (currentSubscription.plan_id === "pro" && totalStorage > currentStorage));
+
+  const isDowngrade =
+    isProPlan &&
+    currentSubscription?.plan_id === "pro" &&
+    totalStorage < currentStorage;
+
+  const isSameStorage =
+    isProPlan &&
+    currentSubscription?.plan_id === "pro" &&
+    totalStorage === currentStorage;
 
   const handleSubscribe = () => {
     if (!user) {
@@ -274,35 +119,100 @@ function PricingCard({
       return;
     }
 
-    if (isDisabled) return;
-    setShowPayPal(true);
-  };
+    if (isFreePlan) {
+      // Route to checkout for Free plan downgrade
+      if (currentSubscription?.plan_id === "pro") {
+        router.push(
+          `/checkout?plan=free&action=downgrade&currentSub=${currentSubscription.id}`
+        );
+      } else {
+        toast({
+          title: "You're already on the Free plan!",
+          description: "Start uploading and reviewing your files.",
+        });
+        router.push("/dashboard");
+      }
+      return;
+    }
 
-  const handlePaymentSuccess = () => {
-    setShowPayPal(false);
-    router.push("/dashboard?success=true&plan=" + tier.name);
+    if (isSameStorage) {
+      toast({
+        title: "No changes needed",
+        description: "You're already on this storage plan.",
+      });
+      return;
+    }
+
+    // Determine action type
+    let action = "new";
+    if (currentSubscription) {
+      action = isUpgrade ? "upgrade" : isDowngrade ? "downgrade" : "new";
+    }
+
+    // Route to checkout with all necessary parameters
+    const searchParams = new URLSearchParams({
+      plan: tier.id,
+      storage: totalStorage.toString(),
+      price: totalPrice.toFixed(2),
+      action,
+    });
+
+    if (currentSubscription) {
+      searchParams.append("currentSub", currentSubscription.id);
+    }
+
+    router.push(`/checkout?${searchParams.toString()}`);
   };
 
   const getButtonText = () => {
-    if (isCurrentPlan) return "Current Plan";
-    if (isUpgrade) return "Upgrade";
-    if (isDowngrade) return "Not Available";
+    if (isFreePlan) {
+      return currentSubscription?.plan_id === "pro"
+        ? "Downgrade to Free"
+        : "Get Started Free";
+    }
+    if (isSameStorage) return "Current Plan";
+    if (isUpgrade) return `Upgrade (${formatStorage(totalStorage)})`;
+    if (isDowngrade) return `Downgrade (${formatStorage(totalStorage)})`;
     return "Get Started";
   };
 
   const getButtonVariant = () => {
+    if (isSameStorage) return "outline";
     if (isUpgrade) return "default";
-    if (tier.popular && !isDisabled) return "default";
+    if (isDowngrade) return "outline";
+    if (tier.popular && !isCurrentPlan) return "default";
     return "outline";
   };
 
+  const formatStorage = (gb: number) => {
+    if (gb < 1) return `${Math.round(gb * 1000)}MB`;
+    return `${gb}GB`;
+  };
+
+  // Set initial slider position based on current subscription
+  useEffect(() => {
+    if (isProPlan && currentSubscription?.storage_gb) {
+      const currentExtra = currentSubscription.storage_gb - tier.baseStorage;
+      const sliderValue = Math.max(
+        0,
+        Math.round(currentExtra / tier.additionalStorageUnit)
+      );
+      setStorageSlider([sliderValue]);
+    }
+  }, [
+    currentSubscription,
+    isProPlan,
+    tier.baseStorage,
+    tier.additionalStorageUnit,
+  ]);
+
   return (
     <div
-      className={`relative rounded-xl p-8 ${
+      className={`relative rounded-xl p-8 h-fit ${
         tier.popular
           ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
           : "border border-[#3F3F3F] bg-card"
-      } ${isDisabled && !isCurrentPlan ? "opacity-50" : ""}`}
+      }`}
     >
       {tier.popular && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
@@ -310,33 +220,78 @@ function PricingCard({
         </div>
       )}
 
-      {isCurrentPlan && (
+      {isCurrentPlan && !isProPlan && (
         <div className="absolute -top-4 left-4">
           <Badge className="bg-green-600 text-white">Active</Badge>
         </div>
       )}
 
-      {isDowngrade && (
+      {isUpgrade && (
         <div className="absolute -top-4 right-4">
-          <Badge className="bg-gray-500 text-white">
-            Downgrade Not Available
+          <Badge className="bg-blue-600 text-white flex items-center gap-1">
+            <ArrowUp className="h-3 w-3" />
+            Upgrade
           </Badge>
         </div>
       )}
 
-      {isUpgrade && (
+      {isDowngrade && (
         <div className="absolute -top-4 right-4">
-          <Badge className="bg-blue-600 text-white">Upgrade Available</Badge>
+          <Badge className="bg-orange-600 text-white flex items-center gap-1">
+            <ArrowDown className="h-3 w-3" />
+            Downgrade
+          </Badge>
         </div>
       )}
 
       <div className="text-center">
         <h3 className="text-2xl font-bold mb-2">{tier.name}</h3>
         <div className="mb-6">
-          <span className="text-4xl font-bold">${tier.price}</span>
-          <span className="text-muted-foreground">/month</span>
+          <span className="text-4xl font-bold">
+            ${isFreePlan ? "0" : totalPrice.toFixed(2)}
+          </span>
+          {!isFreePlan && <span className="text-muted-foreground">/month</span>}
         </div>
-        <p className="text-muted-foreground mb-6">{tier.storage}</p>
+
+        <p className="text-muted-foreground mb-6">
+          {formatStorage(totalStorage)} storage included
+          {isProPlan && currentSubscription?.storage_gb && (
+            <span className="block text-xs">
+              Currently: {formatStorage(currentSubscription.storage_gb)}
+            </span>
+          )}
+        </p>
+
+        {/* Storage Slider for Pro Plan */}
+        {isProPlan && (
+          <div className="mb-6 space-y-4">
+            <div className="text-sm font-medium">
+              Customize Storage: {formatStorage(totalStorage)}
+            </div>
+            <div className="px-4">
+              <Slider
+                value={storageSlider}
+                onValueChange={setStorageSlider}
+                max={10}
+                min={0}
+                step={1}
+                className="w-full"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Base: {formatStorage(tier.baseStorage)} + {storageSlider[0]} ×{" "}
+              {formatStorage(tier.additionalStorageUnit)}
+              {storageSlider[0] > 0 && (
+                <span>
+                  {" "}
+                  (+$
+                  {(storageSlider[0] * tier.additionalStoragePrice).toFixed(2)})
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         <ul className="space-y-3 mb-8 text-left">
           {tier.features.map((feature: string, index: number) => (
             <li key={index} className="flex items-start">
@@ -346,45 +301,18 @@ function PricingCard({
           ))}
         </ul>
 
-        {!showPayPal ? (
-          <Button
-            onClick={handleSubscribe}
-            disabled={isDisabled}
-            variant={getButtonVariant()}
-            className="w-full"
-            size="lg"
-          >
-            {getButtonText()}
-            {isUpgrade && <ArrowRight className="ml-2 h-4 w-4" />}
-          </Button>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">Complete Payment</h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowPayPal(false)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <PayPalCheckout
-              planId={tier.id}
-              planName={tier.name}
-              amount={parseFloat(tier.price)}
-              onCancel={() => setShowPayPal(false)}
-              onSuccess={handlePaymentSuccess}
-            />
-          </div>
-        )}
-
-        {isDowngrade && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Contact support to downgrade your plan
-          </p>
-        )}
+        <Button
+          onClick={handleSubscribe}
+          disabled={isSameStorage}
+          variant={getButtonVariant()}
+          className="w-full"
+          size="lg"
+        >
+          {getButtonText()}
+          {(isUpgrade || (!isFreePlan && !isSameStorage && !isDowngrade)) && (
+            <ArrowRight className="ml-2 h-4 w-4" />
+          )}
+        </Button>
       </div>
     </div>
   );
@@ -401,28 +329,27 @@ export default function PricingClient({
           Choose Your Plan
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Pay only for the storage you need. All plans include unlimited
-          uploads, reviews, and secure hosting.
+          Start free or upgrade to Pro with flexible storage options. All plans
+          include secure hosting and unlimited uploads.
         </p>
 
         {currentSubscription && (
-          <div className="mt-6 inline-block bg-green-100 text-green-800 px-4 py-2 rounded-lg">
+          <Badge variant={"green"} className="mt-6 inline-block ">
             Current plan: <strong>{currentSubscription.plan_name}</strong>
+            {currentSubscription.storage_gb && (
+              <span> ({currentSubscription.storage_gb}GB)</span>
+            )}
             {currentSubscription.current_period_end && (
               <span>
                 {" "}
-                (expires{" "}
-                {new Date(
-                  currentSubscription.current_period_end
-                ).toLocaleDateString()}
-                )
+                expires on {formatDate(currentSubscription.current_period_end)}
               </span>
             )}
-          </div>
+          </Badge>
         )}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
         {pricingTiers.map((tier) => (
           <PricingCard
             key={tier.id}

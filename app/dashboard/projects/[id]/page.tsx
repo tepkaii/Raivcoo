@@ -2,8 +2,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ProjectWorkspace } from "./ProjectWorkspace";
-import { AccessDeniedUI } from "./AccessDeniedUI";
-import { checkProjectAccess } from "./lib/actions";
+import { AccessDeniedUI } from "./components/TeamManagement/AccessDeniedUI";
+import { checkProjectAccess } from "./lib/GeneralActions";
 import { Metadata } from "next";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
