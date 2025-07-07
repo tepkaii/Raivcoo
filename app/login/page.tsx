@@ -8,6 +8,17 @@ export const metadata: Metadata = {
     "Login to your Raivcoo account to manage your video editing workspace and client projects.",
 };
 
-export default function LoginPage() {
-  return <LoginForm />;
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    returnTo?: string;
+    email?: string;
+    message?: string;
+    error?: string;
+  }>;
+}) {
+  const params = await searchParams;
+
+  return <LoginForm searchParams={params} />;
 }

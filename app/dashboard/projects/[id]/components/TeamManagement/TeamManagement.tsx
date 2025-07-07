@@ -54,11 +54,7 @@ interface TeamManagementProps {
   onMembersUpdate: (newMembers: ProjectMember[]) => void; // Changed to pass new members directly
 }
 
-const roleIcons = {
-  viewer: Eye,
-  reviewer: MessageSquare,
-  collaborator: Users,
-};
+
 
 const roleLabels = {
   viewer: "Viewer",
@@ -99,7 +95,7 @@ function AutocompleteInput({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<NodeJS.Timeout>(null);
   const supabase = createClient();
 
   const fetchSuggestions = async (query: string) => {
@@ -263,7 +259,7 @@ function AutocompleteInput({
                     <img
                       src={profile.avatar_url}
                       alt={getDisplayName(profile)}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-8 h-8 rounded-[5px] object-cover border border-primary"
                     />
                   ) : (
                     <div className="text-sm font-medium">
@@ -495,7 +491,7 @@ export function TeamManagement({
       toast({
         title: "Already a Member",
         description: "This person is already part of the project",
-        variant: "destructive",
+        variant: "outline",
       });
       return;
     }
@@ -660,15 +656,27 @@ export function TeamManagement({
             />
             {selectedProfile && (
               <div className="mt-2 p-2 bg-input/30 rounded border flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-[5px] border border-primary flex items-center justify-center">
+                <div className="w-8 h-8 bg-primary/10 rounded-[5px]  flex items-center justify-center">
                   <div className="text-xs font-medium text-primary">
-                    {(
-                      selectedProfile.display_name ||
-                      selectedProfile.full_name ||
-                      selectedProfile.email
-                    )
-                      .charAt(0)
-                      .toUpperCase()}
+                    {selectedProfile.avatar_url ? (
+                      <img
+                        src={selectedProfile.avatar_url}
+                        alt={
+                          `${selectedProfile.full_name} avatar` || "User avatar"
+                        }
+                        className="w-8 h-8 rounded-[5px] object-cover border border-primary"
+                      />
+                    ) : (
+                      <div className="text-sm font-medium">
+                        {(
+                          selectedProfile.display_name ||
+                          selectedProfile.full_name ||
+                          selectedProfile.email
+                        )
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">

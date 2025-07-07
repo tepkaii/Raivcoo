@@ -2,15 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import {
-  CheckBadgeIcon,
-  CheckCircleIcon,
-  CreditCardIcon,
-} from "@heroicons/react/24/solid";
+import { CheckBadgeIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
 
 interface Plan {
   id: string;
@@ -18,6 +14,7 @@ interface Plan {
   price: string;
   storage: string;
   features: string[];
+  billing?: string;
 }
 
 interface Subscription {
@@ -27,6 +24,7 @@ interface Subscription {
   current_period_start: string;
   current_period_end: string;
   storage_gb?: number;
+  billing_period?: string;
   orders: {
     id: string;
     amount: number;
@@ -41,6 +39,7 @@ interface SuccessClientProps {
   selectedPlan: Plan;
   subscription: Subscription | null;
   action?: string;
+  billingPeriod?: string;
 }
 
 export default function SuccessClient({
@@ -48,6 +47,7 @@ export default function SuccessClient({
   selectedPlan,
   subscription,
   action,
+  billingPeriod = "monthly",
 }: SuccessClientProps) {
   const router = useRouter();
 
@@ -64,18 +64,25 @@ export default function SuccessClient({
     return `${gb}GB`;
   };
 
-  const getSuccessMessage = () => {
-    const storageText = subscription?.storage_gb
-      ? formatStorage(subscription.storage_gb)
-      : selectedPlan.storage.replace(" storage included", "");
+  const formatUploadSize = (planId: string) => {
+    const uploadSizes = {
+      free: "200MB",
+      lite: "2GB",
+      pro: "5GB",
+    };
+    return uploadSizes[planId as keyof typeof uploadSizes] || "Unknown";
+  };
 
+  const getSuccessMessage = () => {
     switch (action) {
       case "upgrade":
-        return `Successfully upgraded to ${storageText} storage!`;
+        return `Successfully upgraded to ${selectedPlan.name}!`;
       case "downgrade":
         return selectedPlan.id === "free"
           ? `Successfully downgraded to Free plan!`
-          : `Successfully downgraded to ${storageText} storage!`;
+          : `Successfully downgraded to ${selectedPlan.name}!`;
+      case "renew":
+        return `Successfully renewed ${selectedPlan.name} plan!`;
       default:
         return `Welcome to ${selectedPlan.name}!`;
     }
@@ -88,20 +95,17 @@ export default function SuccessClient({
       case "downgrade":
         return selectedPlan.id === "free"
           ? "Your subscription has been cancelled and you're now on the Free plan."
-          : "Your plan has been downgraded. Changes are effective immediately.";
+          : "Your plan has been downgraded and is effective immediately.";
+      case "renew":
+        return "Your plan has been renewed and all features are active.";
       default:
         return selectedPlan.id === "free"
-          ? "You're all set with your free account. Start uploading and reviewing!"
-          : "Your subscription is now active. You're all set to start using your new features.";
+          ? "You're all set! Start uploading and reviewing your files."
+          : "Your subscription is now active and ready to use.";
     }
   };
 
-  // Show payment details for:
-  // 1. Any paid plan (not free)
-  // 2. OR if it's a downgrade but NOT to free plan (e.g., Pro with less storage)
-  const showPaymentDetails =
-    selectedPlan.id !== "free" ||
-    (action === "downgrade" && selectedPlan.id !== "free");
+  const showPaymentDetails = selectedPlan.id !== "free";
 
   return (
     <div className="min-h-screen bg-background">
@@ -109,8 +113,8 @@ export default function SuccessClient({
         {/* Success header */}
         <div className="text-center mb-12">
           <div className="flex justify-center mb-6">
-            <div className="rounded-[10px] bg-primary/10 p-4">
-              <CheckCircleIcon className="h-16 w-16 text-primary" />
+            <div className="rounded-full bg-green-100 p-4">
+              <CheckCircleIcon className="h-16 w-16 text-green-600" />
             </div>
           </div>
           <h1 className="text-4xl font-bold text-foreground mb-4">
@@ -124,32 +128,30 @@ export default function SuccessClient({
         <div
           className={`grid ${showPaymentDetails ? "lg:grid-cols-2" : "lg:grid-cols-1 max-w-2xl mx-auto"} gap-8 mb-12`}
         >
-          {/* Order Details - Show for paid plans or paid downgrades */}
+          {/* Payment Details - Only for paid plans */}
           {showPaymentDetails && (
-            <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-              <h2 className="text-xl font-semibold mb-6 flex items-center text-foreground">
-                <CreditCardIcon className="h-5 w-5 mr-2" />
-                {action === "upgrade"
-                  ? "Upgrade"
-                  : action === "downgrade"
-                    ? "Downgrade"
-                    : "Order"}{" "}
-                Details
+            <div className="bg-card rounded-lg border border-border p-6">
+              <h2 className="text-xl font-semibold mb-6 text-foreground">
+                Payment Details
               </h2>
 
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Plan</span>
-                  <div className="text-right flex items-center">
+                  <span className="font-medium text-foreground">
+                    {selectedPlan.name}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Billing</span>
+                  <div className="text-right">
                     <span className="font-medium text-foreground">
-                      {selectedPlan.name} Plan
+                      {billingPeriod === "yearly" ? "Annual" : "Monthly"}
                     </span>
-                    {action && (
-                      <Badge
-                        className="ml-2"
-                        variant={action === "upgrade" ? "default" : "secondary"}
-                      >
-                        {action.charAt(0).toUpperCase() + action.slice(1)}
+                    {billingPeriod === "yearly" && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        30% OFF
                       </Badge>
                     )}
                   </div>
@@ -165,80 +167,73 @@ export default function SuccessClient({
                 )}
 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {action === "downgrade"
-                      ? "New Monthly Cost"
-                      : "Amount Paid"}
-                  </span>
+                  <span className="text-muted-foreground">Amount Paid</span>
                   <span className="font-medium text-foreground">
                     $
                     {subscription?.orders?.amount?.toFixed(2) ||
                       selectedPlan.price}
-                    {action === "downgrade" && "/month"}
                   </span>
                 </div>
 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {action === "downgrade" ? "Change Date" : "Payment Date"}
-                  </span>
+                  <span className="text-muted-foreground">Next Billing</span>
                   <span className="font-medium text-foreground">
-                    {subscription?.orders?.completed_at
-                      ? formatDate(subscription.orders.completed_at)
-                      : formatDate(new Date().toISOString())}
+                    {subscription?.current_period_end
+                      ? formatDate(subscription.current_period_end)
+                      : "Calculating..."}
                   </span>
                 </div>
 
-                {subscription?.orders?.transaction_id &&
-                  action !== "downgrade" && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Transaction ID
-                      </span>
-                      <span className="font-mono text-sm text-foreground">
-                        {subscription.orders.transaction_id}
-                      </span>
-                    </div>
-                  )}
-
-                <div className="border-t border-border pt-4">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Next Billing Date
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {subscription?.current_period_end
-                        ? formatDate(subscription.current_period_end)
-                        : "Calculating..."}
+                {subscription?.orders?.transaction_id && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Transaction</span>
+                    <span className="font-mono text-muted-foreground">
+                      {subscription.orders.transaction_id.slice(-8)}
                     </span>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
 
           {/* Plan Features */}
-          <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <h2 className="text-xl font-semibold mb-6 text-foreground">
-              What's Included in {selectedPlan.name}
+              What's Included
             </h2>
 
             <div className="space-y-3">
-              <div className="flex items-center text-sm">
+              <div className="flex items-center">
                 <CheckCircleIcon className="size-5 text-primary mr-3 flex-shrink-0" />
-                <span className="font-medium text-foreground">
+                <span className="text-foreground">
                   {subscription?.storage_gb
                     ? `${formatStorage(subscription.storage_gb)} storage`
                     : selectedPlan.storage}
                 </span>
               </div>
 
-              {selectedPlan.features.map((feature, index) => (
-                <div key={index} className="flex items-center text-sm">
+              <div className="flex items-center">
+                <CheckCircleIcon className="size-5 text-primary mr-3 flex-shrink-0" />
+                <span className="text-foreground">
+                  {formatUploadSize(selectedPlan.id)} max upload size
+                </span>
+              </div>
+
+              {selectedPlan.features.slice(0, 4).map((feature, index) => (
+                <div key={index} className="flex items-center">
                   <CheckBadgeIcon className="size-5 text-primary mr-3 flex-shrink-0" />
                   <span className="text-muted-foreground">{feature}</span>
                 </div>
               ))}
+
+              {selectedPlan.features.length > 4 && (
+                <div className="flex items-center">
+                  <CheckBadgeIcon className="size-5 text-primary mr-3 flex-shrink-0" />
+                  <span className="text-muted-foreground">
+                    +{selectedPlan.features.length - 4} more features
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -251,31 +246,31 @@ export default function SuccessClient({
           </Button>
           <Button
             variant="outline"
-            onClick={() => router.push("/support")}
+            onClick={() => window.open("mailto:support@raivcoo.com")}
             size="lg"
           >
             Contact Support
           </Button>
         </div>
 
-        {/* Footer info */}
-        <div className="mt-12 text-center text-sm text-muted-foreground">
-          <p className="mb-2">
-            Questions about your{" "}
-            {selectedPlan.id === "free" ? "account" : "subscription"}? We're
-            here to help!
+        {/* Simple footer */}
+        <div className="mt-12 text-center">
+          <p className="text-sm text-muted-foreground mb-4">
+            Questions? Contact{" "}
+            <Link
+              href="mailto:support@raivcoo.com"
+              className="text-primary hover:underline"
+            >
+              support@raivcoo.com
+            </Link>
           </p>
-          <div className="flex justify-center space-x-4">
-            <Link href="/support" className="text-primary hover:underline">
-              Support Center
+          <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
+            <Link href="/terms" className="hover:underline">
+              Terms
             </Link>
             <span>•</span>
-            <Link href="/terms" className="text-primary hover:underline">
-              Terms of Service
-            </Link>
-            <span>•</span>
-            <Link href="/privacy" className="text-primary hover:underline">
-              Privacy Policy
+            <Link href="/privacy" className="hover:underline">
+              Privacy
             </Link>
           </div>
         </div>

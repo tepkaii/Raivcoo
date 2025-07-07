@@ -1,21 +1,22 @@
-// app/complete-profile/page.tsx - corrected version
-
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { completeInitialProfile } from "./actions";
 import { Metadata } from "next";
-import StepByStepProfileForm from "./steps";
-import Link from "next/link";
-import Image from "next/image";
-import { HelpCircle } from "lucide-react";
-
+import CompleteProfileForm from "./complete-profile-form";
+import { completeProfile } from "./actions";
 export const metadata: Metadata = {
   title: "Complete Your Profile - Raivcoo",
   description: "Set up your Raivcoo profile to get started.",
 };
 
-export default async function CompleteProfilePage() {
+export default async function CompleteProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ returnTo?: string }>; // Change this to Promise
+}) {
   const supabase = await createClient();
+
+  // Await searchParams
+  const params = await searchParams;
 
   const {
     data: { user },
@@ -32,46 +33,29 @@ export default async function CompleteProfilePage() {
     .eq("user_id", user.id)
     .single();
 
-  // If user already has a complete profile with display_name and account_type, redirect to  the home page
-  if (profile?.display_name && profile?.account_type) {
-    redirect("/");
+  // If user already has a complete profile with both display_name and full_name, redirect
+  if (profile?.display_name && profile?.full_name) {
+    const redirectUrl = params.returnTo
+      ? decodeURIComponent(params.returnTo)
+      : "/";
+    redirect(redirectUrl);
   }
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b px-4 py-2">
-        <div className="container max-w-screen-2xl mx-auto flex justify-between items-center">
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/MainLogo.png"
-              alt="Raivcoo Logo"
-              width={50}
-              height={50}
-              className="rounded-[5px]"
-              priority
-              quality={100}
-            />
-          </Link>
-          <Link
-            href="/support"
-            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-          >
-            <HelpCircle className="w-4 h-4 mr-1" />
-            Support
-          </Link>
-        </div>
-      </header>
       <div className="flex flex-1 items-center justify-center">
-        <StepByStepProfileForm
+        <CompleteProfileForm
           profile={
             profile || {
               email: user.email,
               user_id: user.id,
               display_name: null,
-              account_type: "editor", // Set default to "editor" instead of null
+              full_name: null,
+              avatar_url: null,
             }
           }
-          updateProfile={completeInitialProfile}
+          updateProfile={completeProfile}
+          returnTo={params.returnTo} // Use params instead of searchParams
         />
       </div>
     </div>

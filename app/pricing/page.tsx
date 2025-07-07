@@ -8,12 +8,12 @@ export default async function PricingPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Get subscription - get the user's subscription regardless of status
+  // Get subscription - get the user's most recent subscription regardless of status
   let currentSubscription = null;
   if (user) {
     const { data: subscription } = await supabase
       .from("subscriptions")
-      .select("*, storage_gb")
+      .select("*, storage_gb, billing_period, max_upload_size_mb")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false }) // Get most recent
       .limit(1)

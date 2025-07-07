@@ -489,7 +489,7 @@ export const MediaCard = React.memo(
                       {media.hasReviewLinks && (
                         <DropdownMenuItem onClick={handleViewReviewLinks}>
                           <EyeIcon className="h-4 w-4 mr-2" />
-                          Manage Review Links
+                          View & Manage Review Links
                         </DropdownMenuItem>
                       )}
                     </>

@@ -32,18 +32,17 @@ export default function ProfileClient({
       <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center h-full">
           <SidebarTrigger />
-          <div className="border-r ml-1 border-l flex items-center h-full gap-3">
+          <div className="border-r ml-2 border-l flex items-center h-full gap-3">
             <h1 className="text-xl ml-4 mr-4">Profile Information</h1>
           </div>
         </div>
       </header>
       <div className=" p-6 space-y-8">
         {/* Profile Information */}
-        <Card className="p-6">
-          <div className="space-y-6">
-            <ProfileForm Profile={profile} updateProfile={updateProfile} />
-          </div>
-        </Card>
+
+        <div className="space-y-6">
+          <ProfileForm Profile={profile} updateProfile={updateProfile} />
+        </div>
 
         {/* Password & Security */}
         <Card className="p-6">
@@ -61,6 +60,25 @@ export default function ProfileClient({
             />
           </div>
         </Card>
+        {/* Support info */}
+        <div className="text-center ">
+          <p className="text-xs text-muted-foreground">
+            Need help? Contact us at{" "}
+            <a
+              href="mailto:ravivcoo@gmail.com"
+              className="hover:underline transition-all"
+            >
+              Ravivcoo@gmail.com
+            </a>{" "}
+            or{" "}
+            <a
+              href="https://twitter.com/raivcoo"
+              className="hover:underline transition-all"
+            >
+              Twitter
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );

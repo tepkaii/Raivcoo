@@ -439,7 +439,7 @@ export function ProjectWorkspace({
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-background border-b h-[50px] flex justify-between items-center sticky top-0 z-50">
+      <header className="bg-background border-b h-[50px] flex justify-between items-center sticky top-0 ">
         <div className="flex items-center h-full">
           <div className="flex items-center justify-center border-l border-r h-full mr-3">
             <div className="flex items-center mr-2 ml-2 h-full">
@@ -448,7 +448,9 @@ export function ProjectWorkspace({
           </div>
           <div className="border-r flex items-center h-full">
             <div className="mr-3">
-              <span>{project.name} - Project</span>
+              <span className="text-sm md:text-base">
+                {project.name} - Project
+              </span>
               {!isOwner && userRole && (
                 <span className="ml-2 text-xs bg-muted px-2 py-1 rounded capitalize">
                   {userRole}
@@ -456,6 +458,34 @@ export function ProjectWorkspace({
               )}
             </div>
           </div>
+          {/* Team Management Dialog Button - Only for owners */}
+          {canManageMembers && (
+            <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
+              <DialogTrigger asChild>
+                <div className="border-r flex items-center border-border h-full">
+                  <Button
+                    variant="ghost"
+                    className="border-none bg-none ml-1 mr-1 "
+                    size="sm"
+                    title="Manage Team Members "
+                  >
+                    <UsersIcon className="size-5 " />
+                  </Button>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Team Management</DialogTitle>
+                </DialogHeader>
+                <TeamManagement
+                  projectId={project.id}
+                  members={members}
+                  isOwner={isOwner}
+                  onMembersUpdate={handleMembersUpdate} // Pass the smooth update function
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Panel Toggle Buttons + Team Dialog Button - Only show on desktop (md and up) */}
@@ -524,7 +554,7 @@ export function ProjectWorkspace({
             <Button
               onClick={handleCommentsToggle}
               variant="ghost"
-              className="border-none bg-none"
+              className="border-none bg-none mr-2"
               size="sm"
               disabled={
                 !canComment ||
@@ -557,33 +587,6 @@ export function ProjectWorkspace({
                 }`}
               />
             </Button>
-
-            {/* Team Management Dialog Button - Only for owners */}
-            {canManageMembers && (
-              <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="border-none bg-none"
-                    size="sm"
-                    title="Manage Team Members"
-                  >
-                    <UsersIcon className="size-5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Team Management</DialogTitle>
-                  </DialogHeader>
-                  <TeamManagement
-                    projectId={project.id}
-                    members={members}
-                    isOwner={isOwner}
-                    onMembersUpdate={handleMembersUpdate} // Pass the smooth update function
-                  />
-                </DialogContent>
-              </Dialog>
-            )}
           </div>
         )}
       </header>

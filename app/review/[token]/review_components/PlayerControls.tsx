@@ -27,6 +27,9 @@ interface MediaComment {
   user_email?: string;
   content: string;
   timestamp_seconds?: number;
+  user_avatar_url?: string; // 🔥 ADD THIS
+  user_display_name?: string; // 🔥 ADD THIS
+  user_full_name?: string; // 🔥 ADD THIS
   ip_address?: string;
   user_agent?: string;
   is_approved: boolean;
@@ -605,13 +608,31 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     const position =
                       (comment.timestamp_seconds! / duration) * 100;
 
-                    // Check if user is authenticated and has avatar
+                    // 🔥 SMART AVATAR LOGIC: Show avatar for ANY logged-in user
                     const isCurrentUser =
                       authenticatedUser?.id === comment.user_id;
-                    const hasValidAvatar =
-                      isCurrentUser &&
-                      authenticatedUser?.avatar_url &&
-                      !avatarError;
+
+                    // Get avatar URL from multiple sources
+                    const getAvatarUrl = () => {
+                      // If this is the current user, use their avatar directly
+                      if (
+                        isCurrentUser &&
+                        authenticatedUser?.avatar_url &&
+                        !avatarError
+                      ) {
+                        return authenticatedUser.avatar_url;
+                      }
+
+                      // Otherwise, use the joined avatar data for other users
+                      if (comment.user_avatar_url && !avatarError) {
+                        return comment.user_avatar_url;
+                      }
+
+                      return null;
+                    };
+
+                    const avatarUrl = getAvatarUrl();
+                    const hasValidAvatar = !!avatarUrl;
 
                     return (
                       <div
@@ -636,7 +657,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                         >
                           {hasValidAvatar ? (
                             <img
-                              src={authenticatedUser.avatar_url}
+                              src={avatarUrl}
                               alt={`${comment.user_name}'s avatar`}
                               className="w-full h-full object-cover"
                               onError={() => setAvatarError(true)}
@@ -664,7 +685,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               <div className="min-w-12"></div>
             </div>
           )}
-
         {/* Control Buttons */}
         <div className="flex items-center justify-center gap-4">
           {/* Skip Back */}

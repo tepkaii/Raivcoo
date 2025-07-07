@@ -189,7 +189,7 @@ export function ActivityDropdown() {
       setActivities((prev) => prev.filter((a) => a.id !== activityId));
       const result = await deleteActivity(activityId);
       if (result.success) {
-        toast({ title: "Notification deleted", variant: "default" });
+        toast({ title: "Notification deleted", variant: "green" });
         const countResult = await getUnreadActivityCount();
         if (countResult.success) setUnreadCount(countResult.count);
       } else {
@@ -214,6 +214,7 @@ export function ActivityDropdown() {
         toast({
           title: "Success",
           description: "All notifications marked as read.",
+          variant: "green",
         });
       } else {
         toast({
@@ -233,6 +234,7 @@ export function ActivityDropdown() {
         toast({
           title: "Success",
           description: "All notifications have been cleared.",
+          variant: "green",
         });
       } else {
         toast({

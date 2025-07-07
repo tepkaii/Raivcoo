@@ -114,7 +114,7 @@ export default async function ProjectsPage() {
       ...project,
       isOwner: true,
       userRole: "owner" as const,
-      memberNotificationsEnabled: undefined, // Owner doesn't have member notifications
+      memberNotificationsEnabled: undefined,
     })),
     ...(memberProjects || []).map((project) => ({
       ...project,
@@ -128,7 +128,7 @@ export default async function ProjectsPage() {
     })),
   ];
 
-  // Remove duplicates (in case user is both owner and member)
+  // Remove duplicates
   const uniqueProjects = allProjects.filter(
     (project, index, self) =>
       index === self.findIndex((p) => p.id === project.id)
@@ -140,11 +140,10 @@ export default async function ProjectsPage() {
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   );
 
-  // Process projects data to include stats and limit media for thumbnails
+  // Process projects data
   const processedProjects = uniqueProjects.map((project) => {
     const allMediaFiles = project.project_media || [];
 
-    // Get only parent media (not versions) for thumbnails, limit to 4
     const parentMedia = allMediaFiles
       .filter((file) => !file.parent_media_id)
       .sort(
@@ -175,7 +174,7 @@ export default async function ProjectsPage() {
 
     return {
       ...project,
-      project_media: parentMedia, // Only first 4 for thumbnails
+      project_media: parentMedia,
       stats: {
         totalFiles,
         totalSize,
@@ -186,10 +185,13 @@ export default async function ProjectsPage() {
     };
   });
 
+  // Calculate owned project count
+  const ownedProjectCount = processedProjects.filter((p) => p.isOwner).length;
+
   return (
     <div className="min-h-screen space-y-6">
       {/* Header */}
-      <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
+      <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 ">
         <div className="flex items-center h-full">
           <SidebarTrigger />
           <div className="border-r ml-2 border-l flex items-center h-full gap-3">
@@ -198,8 +200,11 @@ export default async function ProjectsPage() {
             </h1>
           </div>
         </div>
-        {/* Pass the server action directly */}
-        <CreateProjectDialog createProjectAction={createProject} />
+
+        <CreateProjectDialog
+          createProjectAction={createProject}
+          currentProjectCount={ownedProjectCount}
+        />
       </header>
 
       {/* MainProjectsList */}

@@ -47,6 +47,7 @@ interface MediaComment {
   parent_comment_id?: string;
   user_name: string;
   user_email?: string;
+  user_avatar_url?: string; // 🔥 ADD THIS - will come from editor_profiles join
   content: string;
   timestamp_seconds?: number;
   ip_address?: string;
@@ -147,7 +148,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
         toast({
           title: "Download Disabled",
           description: "Downloads are not allowed for this review link",
-          variant: "destructive",
+          variant: "warning",
         });
         return;
       }

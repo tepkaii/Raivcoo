@@ -54,7 +54,7 @@ function LinkStatus({ href }: { href: string }) {
   return pending ? (
     <div className="flex flex-col items-center">
       <svg
-        className="size-4 text-purple-600 animate-spin"
+        className="size-4 text-blue-600 animate-spin"
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
@@ -309,26 +309,28 @@ export function AppSidebar() {
         {/* Menu Section */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <div className="text-xs mb-2 mt-1 font-medium text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
+            <div className="text-xs  mb-2 mt-1 font-medium text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
               Menu
             </div>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-[5px]">
               {/* Search */}
               <SidebarMenuItem>
-                <div className="w-full px-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-                  <GlobalSearch
-                    compact={true}
-                    onMediaSelect={(media) => {
-                      // Handle media selection - navigate to project and select media
-                      if (media.projectId) {
-                        window.location.href = `/dashboard/projects/${media.projectId}?media=${media.id}`;
-                      }
-                    }}
-                  />
-                  <span className="ml-2 group-data-[collapsible=icon]:hidden text-sm">
-                    Search
-                  </span>
-                </div>
+                <SidebarMenuButton className="p-0 m-0">
+                  <div className="w-full px-2 group-data-[collapsible=icon]:px-0 flex group-data-[collapsible=icon]:justify-center  items-center">
+                    <GlobalSearch
+                      compact={true}
+                      onMediaSelect={(media) => {
+                        // Handle media selection - navigate to project and select media
+                        if (media.projectId) {
+                          window.location.href = `/dashboard/projects/${media.projectId}?media=${media.id}`;
+                        }
+                      }}
+                    />
+                    <span className="ml-2 group-data-[collapsible=icon]:hidden text-sm">
+                      Search
+                    </span>
+                  </div>
+                </SidebarMenuButton>
               </SidebarMenuItem>
               {/* Activity Dropdown */}
               <SidebarMenuItem>

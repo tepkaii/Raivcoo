@@ -7,6 +7,7 @@ interface CheckoutPageProps {
     plan?: string;
     storage?: string;
     price?: string;
+    billing?: string;
     action?: string;
     currentSub?: string;
   }>;
@@ -25,6 +26,23 @@ const pricingTiers = [
       "Secure file hosting",
       "Email notifications",
       "30-day link expiration",
+      "200MB max upload size",
+    ],
+  },
+  {
+    id: "lite",
+    name: "Lite",
+    price: "2.99", // Base price
+    storage: "50GB storage included", // Base storage
+    features: [
+      "Everything in Free plan",
+      "Unlimited review projects",
+      "Advanced timestamped comments",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Real-time notifications",
+      "2GB max upload size",
+      "Basic analytics",
     ],
   },
   {
@@ -33,19 +51,15 @@ const pricingTiers = [
     price: "5.99", // Base price
     storage: "250GB storage included", // Base storage
     features: [
-      "Everything in Free plan",
-      "Unlimited review projects",
-      "Advanced timestamped comments",
-      "Password protection for links",
-      "Custom expiration dates",
-      "Real-time notifications",
-      "File download controls",
+      "Everything in Lite plan",
       "Advanced analytics & insights",
       "Priority support",
       "Custom branding options",
       "Advanced security features",
       "API access",
       "Dedicated support",
+      "5GB max upload size",
+      "Team collaboration features",
     ],
   },
 ];
@@ -72,8 +86,12 @@ export default async function CheckoutPage({
     redirect("/pricing");
   }
 
-  // Handle custom storage and pricing for Pro plan
-  if (params.plan === "pro" && params.storage && params.price) {
+  // Handle custom storage and pricing for Lite and Pro plans
+  if (
+    (params.plan === "lite" || params.plan === "pro") &&
+    params.storage &&
+    params.price
+  ) {
     selectedPlan = {
       ...selectedPlan,
       price: params.price,
@@ -100,6 +118,7 @@ export default async function CheckoutPage({
       currentSubscription={currentSubscription}
       customStorage={params.storage ? parseFloat(params.storage) : undefined}
       action={params.action}
+      billingPeriod={params.billing || "monthly"} // Pass billing period from URL params
     />
   );
 }

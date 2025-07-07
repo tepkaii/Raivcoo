@@ -23,6 +23,7 @@ import React from "react";
 import Image from "next/image";
 import { NavLinks, NavDropdownItems } from "./NavComponents";
 import { Button } from "@/components/ui/button";
+import { UserCircleIcon } from "@heroicons/react/24/solid";
 
 export default async function Header() {
   const supabase = createClient();
@@ -37,9 +38,6 @@ export default async function Header() {
         .select("*")
         .eq("user_id", user.id)
         .single();
-  // if (user && (!account?.display_name || account.display_name.trim() === "")) {
-  //   redirect("/complete-profile");
-  // }
   return (
     <header
       className="fixed top-0 z-50 right-0 left-0 md:p-6
@@ -116,11 +114,11 @@ backdrop-blur-sm"
 
                       <DropdownMenuItem>
                         <Link
-                          href={"/account"}
+                          href={"/dashboard/profile"}
                           className="flex items-center gap-2 cursor-pointer"
                         >
-                          <SquareUser className="h-4 w-4" />
-                          <span>Account</span>{" "}
+                          <UserCircleIcon className="h-4 w-4" />
+                          <span>Profile</span>{" "}
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>

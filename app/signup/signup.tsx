@@ -12,7 +12,12 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import BG from "../../public/BackgroundImage.png";
 import { Button } from "@/components/ui/button";
-export default function SignUpForm() {
+export default function SignUpForm({
+  searchParams,
+}: {
+  searchParams?: { returnTo?: string };
+}) {
+  const returnTo = searchParams?.returnTo;
   const [isFormSubmitting, startFormTransition] = useTransition();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const { toast } = useToast();
@@ -60,14 +65,15 @@ export default function SignUpForm() {
     try {
       const formData = new FormData();
       formData.append("provider", provider);
-      // This will automatically redirect if successful
-      await signUp(formData);
 
-      // The code below will only run if there was NO redirect
-      // (which means there was likely an error that didn't throw)
+      // Add returnTo to form data for social auth
+      if (returnTo) {
+        formData.append("returnTo", returnTo);
+      }
+
+      await signUp(formData);
       setLoadingProvider(null);
     } catch (error) {
-      // This will catch any errors during the process
       toast({
         title: "Social Sign Up Failed",
         description:
@@ -310,7 +316,7 @@ export default function SignUpForm() {
               <p className="mt-4">
                 Already have an account?{" "}
                 <Link
-                  href="/login"
+                  href={`/login${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
                   className="font-medium text-blue-600 hover:underline dark:text-blue-500"
                 >
                   Log in

@@ -54,5 +54,5 @@ export async function generateDownloadUrl(
 
 // Use the public development URL format
 export function getPublicUrl(key: string) {
-  return `https://pub-2b5f5f8686774c33af6ac2af46b53443.r2.dev/${key}`;
+  return `https://cdn.raivcoo.com/${key}`;
 }

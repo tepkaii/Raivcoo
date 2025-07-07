@@ -6,7 +6,7 @@ import HomePage from "./components/Home/HomePage";
 export default async function Page() {
   return (
     <div>
-      <HomePage2 />
+      <HomePage />
     </div>
   );
 }

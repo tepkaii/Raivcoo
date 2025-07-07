@@ -1,13 +1,54 @@
-// app/complete-profile/actions.ts
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 const MIN_DISPLAY_NAME_LENGTH = 3;
 const MAX_DISPLAY_NAME_LENGTH = 20;
+const AVATAR_MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-export async function completeInitialProfile(formData: FormData) {
+async function uploadImageToImgBB(
+  file: Buffer,
+  fileName: string,
+  contentType: string
+): Promise<string> {
+  if (file.length > AVATAR_MAX_SIZE) {
+    throw new Error(
+      `File size exceeds ${AVATAR_MAX_SIZE / (1024 * 1024)}MB limit`
+    );
+  }
+
+  if (!ACCEPTED_IMAGE_TYPES.includes(contentType)) {
+    throw new Error("Invalid file type. Only JPEG, PNG and WebP are supported");
+  }
+
+  const formData = new FormData();
+  formData.append("image", new Blob([file], { type: contentType }));
+  formData.append("name", fileName);
+
+  const response = await fetch(
+    `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload image: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.data?.url) {
+    throw new Error("Invalid ImgBB response");
+  }
+
+  return data.data.url;
+}
+
+export async function completeProfile(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,13 +58,18 @@ export async function completeInitialProfile(formData: FormData) {
     throw new Error("Not authenticated");
   }
 
+  let returnTo: string | null = null;
+
   try {
     // Get required fields from form
     const displayName = (formData.get("display_name") as string)?.toLowerCase();
+    const fullName = formData.get("full_name") as string;
+    returnTo = formData.get("returnTo") as string;
+    const avatarFile = formData.get("avatar") as File;
 
     // Basic validation
-    if (!displayName) {
-      throw new Error("Display name are required");
+    if (!displayName || !fullName) {
+      throw new Error("Display name and full name are required");
     }
 
     if (
@@ -40,7 +86,7 @@ export async function completeInitialProfile(formData: FormData) {
       .from("editor_profiles")
       .select("display_name")
       .eq("display_name", displayName)
-      .neq("user_id", user.id) // Don't match the current user
+      .neq("user_id", user.id)
       .limit(1);
 
     if (checkError) {
@@ -52,47 +98,27 @@ export async function completeInitialProfile(formData: FormData) {
       throw new Error("This display name is already taken");
     }
 
-    // Check if the user already has a profile
-    const { data: existingProfile, error: profileError } = await supabase
-      .from("editor_profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    if (profileError && profileError.code !== "PGRST116") {
-      // PGRST116 is "not found"
-      console.error("Error fetching profile:", profileError);
-    }
-
     // Prepare profile data
-    const profileData = {
+    const profileData: any = {
       user_id: user.id,
       display_name: displayName,
+      full_name: fullName.trim(),
       email: user.email,
     };
 
-    // Try an insert first if no profile exists
-    if (!existingProfile) {
-      const { error: insertError } = await supabase
-        .from("editor_profiles")
-        .insert(profileData);
-
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        // If insert fails due to unique constraint, try upsert
-        if (insertError.code === "23505") {
-          // PostgreSQL unique violation
-          console.log("");
-        } else {
-          throw new Error(`Failed to create profile: ${insertError.message}`);
-        }
-      } else {
-        revalidatePath("/dashboard");
-        return { message: "Profile completed successfully" };
-      }
+    // Handle avatar upload if provided
+    if (avatarFile && avatarFile instanceof File && avatarFile.size > 0) {
+      const bytes = await avatarFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const avatarUrl = await uploadImageToImgBB(
+        buffer,
+        `avatar_${user.id}`,
+        avatarFile.type
+      );
+      profileData.avatar_url = avatarUrl;
     }
 
-    // Update profile (or fall back to this if insert failed)
+    // Upsert profile
     const { error: updateError } = await supabase
       .from("editor_profiles")
       .upsert(profileData, {
@@ -102,15 +128,18 @@ export async function completeInitialProfile(formData: FormData) {
 
     if (updateError) {
       console.error("Upsert error:", updateError);
-      throw new Error(`Failed to update profile: ${updateError.message}`);
+      throw new Error(`Failed to complete profile: ${updateError.message}`);
     }
 
     revalidatePath("/dashboard");
-    return { message: "Profile completed successfully" };
   } catch (error) {
     console.error("Profile completion error:", error);
     throw error instanceof Error ? error : new Error("Unexpected error");
   }
+
+  // Move redirect outside try-catch to prevent NEXT_REDIRECT error logging
+  const redirectUrl = returnTo ? decodeURIComponent(returnTo) : "/dashboard";
+  redirect(redirectUrl);
 }
 
 export async function validateDisplayName(

@@ -444,10 +444,6 @@ export async function deleteCommentAction(
   }
 }
 
-// app/review/[token]/lib/actions.ts - UPDATE THE createCommentAction FUNCTION
-
-// app/review/[token]/lib/actions.ts - ADD LOGS TO createCommentAction
-
 export async function createCommentAction(data: {
   mediaId: string;
   userName: string;
@@ -587,8 +583,8 @@ export async function getCommentsAction(mediaId: string) {
     const supabase = await createClient();
 
     const { data: comments, error } = await supabase
-      .from("media_comments")
-      .select("*, is_resolved") // Added is_resolved to select
+      .from("comments_with_avatars") // 🚀 Use the optimized view
+      .select("*")
       .eq("media_id", mediaId)
       .eq("is_approved", true)
       .order("created_at", { ascending: true });
@@ -621,7 +617,6 @@ export async function getCommentsAction(mediaId: string) {
     return { success: false, error: "Failed to get comments" };
   }
 }
-
 export async function updateCommentAction(
   commentId: string,
   content: string,

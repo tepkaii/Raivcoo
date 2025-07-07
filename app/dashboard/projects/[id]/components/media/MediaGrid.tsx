@@ -618,7 +618,7 @@ export function MediaGrid({
       toast({
         title: "Media Deleted",
         description: "Media file has been permanently deleted",
-        variant: "destructive",
+        variant: "green",
       });
 
       setDeleteDialog({ open: false, isDeleting: false });

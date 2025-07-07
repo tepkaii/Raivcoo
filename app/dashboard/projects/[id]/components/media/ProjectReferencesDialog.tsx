@@ -40,7 +40,7 @@ export function ProjectReferencesDialog({
       toast({
         title: "Copied!",
         description: `URL for "${title || url}" copied to clipboard`,
-        variant: "default",
+        variant: "green",
       });
     } catch (error) {
       toast({

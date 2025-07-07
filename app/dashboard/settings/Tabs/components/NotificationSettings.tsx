@@ -82,7 +82,7 @@ export function NotificationSettings({
           toast({
             title: "Settings Updated",
             description: "Your notification preferences have been saved.",
-            variant: "default",
+            variant: "green",
           });
         } else {
           toast({

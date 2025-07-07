@@ -102,23 +102,24 @@ export default async function InviteAcceptPage({ params }: InvitePageProps) {
   }
 
   // Get inviter info
-  const { data: inviterProfile } = await supabase
-    .from("editor_profiles")
-    .select("full_name, display_name, email")
-    .eq("id", invitation.invited_by)
-    .single();
+const { data: inviterProfile } = await supabase
+  .from("editor_profiles")
+  .select("full_name, display_name, email, avatar_url") // Add avatar_url here
+  .eq("id", invitation.invited_by)
+  .single();
 
-  const inviterName =
-    inviterProfile?.display_name ||
-    inviterProfile?.full_name ||
-    inviterProfile?.email ||
-    "Someone";
+const inviterName =
+  inviterProfile?.display_name ||
+  inviterProfile?.full_name ||
+  inviterProfile?.email ||
+  "Someone";
 
-  return (
-    <InvitationAcceptance
-      invitation={invitation}
-      inviterName={inviterName}
-      currentUser={user}
-    />
-  );
+return (
+  <InvitationAcceptance
+    invitation={invitation}
+    inviterName={inviterName}
+    inviterAvatarUrl={inviterProfile?.avatar_url} // Add this prop
+    currentUser={user}
+  />
+);
 }

@@ -1,3 +1,4 @@
+// app/signup/page.tsx
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Metadata } from "next";
@@ -9,8 +10,13 @@ export const metadata: Metadata = {
     "Create a free Raivcoo account to start building your video editing portfolio today. Share your projects and connect with potential clients.",
 };
 
-export default async function SignUpPage() {
+export default async function SignUpPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const supabase = await createClient();
+  const params = await searchParams;
 
   const {
     data: { session },
@@ -20,5 +26,5 @@ export default async function SignUpPage() {
     redirect("/");
   }
 
-  return <SignUpForm />;
+  return <SignUpForm searchParams={params} />;
 }

@@ -7,6 +7,7 @@ interface SuccessPageProps {
     plan?: string;
     storage?: string;
     action?: string;
+    billing?: string; // Add billing parameter
   }>;
 }
 
@@ -23,6 +24,23 @@ const pricingTiers = [
       "Secure file hosting",
       "Email notifications",
       "30-day link expiration",
+      "200MB max upload size",
+    ],
+  },
+  {
+    id: "lite",
+    name: "Lite",
+    price: "2.99",
+    storage: "50GB storage included",
+    features: [
+      "Everything in Free plan",
+      "Unlimited review projects",
+      "Advanced timestamped comments",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Real-time notifications",
+      "2GB max upload size",
+      "Basic analytics",
     ],
   },
   {
@@ -31,19 +49,15 @@ const pricingTiers = [
     price: "5.99",
     storage: "250GB storage included",
     features: [
-      "Everything in Free plan",
-      "Unlimited review projects",
-      "Advanced timestamped comments",
-      "Password protection for links",
-      "Custom expiration dates",
-      "Real-time notifications",
-      "File download controls",
+      "Everything in Lite plan",
       "Advanced analytics & insights",
       "Priority support",
       "Custom branding options",
       "Advanced security features",
       "API access",
       "Dedicated support",
+      "5GB max upload size",
+      "Team collaboration features",
     ],
   },
 ];
@@ -66,11 +80,12 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
     redirect("/dashboard");
   }
 
-  // Handle custom storage for Pro plan
-  if (params.plan === "pro" && params.storage) {
+  // Handle custom storage for Lite and Pro plans
+  if ((params.plan === "lite" || params.plan === "pro") && params.storage) {
     selectedPlan = {
       ...selectedPlan,
       storage: `${params.storage}GB storage included`,
+      billing: params.billing,
     };
   }
 
@@ -99,6 +114,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
       selectedPlan={selectedPlan}
       subscription={subscription}
       action={params.action}
+      billingPeriod={params.billing || "monthly"} // Pass billing period from URL
     />
   );
 }

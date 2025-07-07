@@ -15,26 +15,34 @@ import { useSearchParams } from "next/navigation";
 import BG from "../../public/BackgroundImage.png";
 import { Button } from "@/components/ui/button";
 
-export default function LoginForm() {
+export default function LoginForm({
+  searchParams,
+}: {
+  searchParams?: {
+    returnTo?: string;
+    email?: string;
+    message?: string;
+    error?: string;
+  };
+}) {
   // Separate loading states for each method
   const [isEmailLoading, startEmailTransition] = useTransition();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const { toast } = useToast();
-  const searchParams = useSearchParams();
 
   // Get URL parameters
-  const returnTo = searchParams.get("returnTo");
-  const suggestedEmail = searchParams.get("email");
-  const message = searchParams.get("message");
-  const urlError = searchParams.get("error");
 
+  const returnTo = searchParams?.returnTo;
+  const suggestedEmail = searchParams?.email;
+  const message = searchParams?.message;
+  const urlError = searchParams?.error;
   // Show message if provided (like "Please sign in with the email address that received this invitation")
   React.useEffect(() => {
     if (message) {
       toast({
         title: "Authentication Required",
         description: decodeURIComponent(message),
-        variant: "default",
+        variant: "warning",
       });
     }
   }, [message, toast]);
@@ -65,7 +73,7 @@ export default function LoginForm() {
         toast({
           title: "Oops! Something went wrong",
           description: getErrorMessage(result.error),
-          variant: "destructive",
+          variant: "warning",
         });
       } else {
         toast({
@@ -295,7 +303,7 @@ export default function LoginForm() {
             <p className="text-center text-sm text-muted-foreground mt-6">
               Don't have an account?{" "}
               <Link
-                href="/signup"
+                href={`/signup${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
                 className="font-medium text-blue-600 hover:underline dark:text-blue-500"
               >
                 Sign up

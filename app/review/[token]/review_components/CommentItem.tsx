@@ -1,5 +1,4 @@
 // app/review/[token]/review_components/CommentItem.tsx
-// @ts-nocheck
 "use client";
 
 import React, { useState } from "react";
@@ -42,7 +41,9 @@ interface MediaComment {
   user_id?: string;
   user_name: string;
   user_email?: string;
-  user_avatar_url?: string; // Add this field
+  user_avatar_url?: string; // From the database view
+  user_display_name?: string; // From the database view
+  user_full_name?: string; // From the database view
   content: string;
   timestamp_seconds?: number;
   ip_address?: string;
@@ -105,7 +106,7 @@ interface CommentItemProps {
     id: string;
     email: string;
     name?: string;
-    avatar_url?: string; // Add this
+    avatar_url?: string;
   } | null;
   replyingTo?: string | null;
 }
@@ -128,13 +129,46 @@ const SingleComment: React.FC<{
   const [isResolved, setIsResolved] = useState(comment.is_resolved);
 
   const supabase = createClient();
-
+  const isCurrentUser = props.authenticatedUser?.id === comment.user_id;
   const getSessionId = () => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("reviewSessionId");
   };
 
+  // 🔥 SMART DISPLAY NAME LOGIC
+  const getDisplayName = () => {
+    // If this is the current authenticated user, use their data directly
+    if (isCurrentUser && props.authenticatedUser?.name) {
+      return props.authenticatedUser.name;
+    }
+
+    // Otherwise, use the joined profile data for other users
+    if (comment.user_display_name?.trim()) {
+      return comment.user_display_name.trim();
+    }
+    if (comment.user_full_name?.trim()) {
+      return comment.user_full_name.trim();
+    }
+
+    // Final fallback
+    return comment.user_name || "Guest User";
+  };
+
+  const displayName = getDisplayName();
+
+  // 🔥 AVATAR LOGIC - Show avatar for ANY logged-in user who has one
+
+  // 🔥 FALLBACK INITIALS LOGIC
   const getInitials = (name: string) => {
+    if (!name || name.trim() === "") return "G";
+
+    if (
+      name.toLowerCase() === "guest user" ||
+      name.toLowerCase() === "anonymous"
+    ) {
+      return "G";
+    }
+
     return name
       .split(" ")
       .map((n) => n[0])
@@ -143,6 +177,20 @@ const SingleComment: React.FC<{
       .slice(0, 2);
   };
 
+  // 🔥 GRADIENT AVATAR COLORS BASED ON COMMENT TYPE
+  const getAvatarUrl = () => {
+    // If this is the current authenticated user, use their avatar directly
+    if (isCurrentUser && props.authenticatedUser?.avatar_url && !avatarError) {
+      return props.authenticatedUser.avatar_url;
+    }
+
+    // Otherwise, use the joined avatar data for other users
+    if (comment.user_avatar_url && !avatarError) {
+      return comment.user_avatar_url;
+    }
+
+    return null;
+  };
   const getAvatarColor = () => {
     if (comment.annotation_data) {
       return "bg-gradient-to-br from-purple-500 to-pink-600";
@@ -153,20 +201,14 @@ const SingleComment: React.FC<{
     return "bg-gradient-to-br from-blue-500 to-purple-600";
   };
 
+  const avatarUrl = getAvatarUrl();
+  const hasValidAvatar = !!avatarUrl;
   const hasPin = !!comment.annotation_data;
   const hasDrawing = !!comment.drawing_data;
   const isBeingRepliedTo = props.replyingTo === comment.id;
   const canEdit = props.canEdit && !comment.is_being_edited;
-  const canResolve = props.canEdit && !comment.parent_comment_id;
-  const isCurrentUser = props.authenticatedUser?.id === comment.user_id;
+  const canResolve = !comment.parent_comment_id; // Anyone can resolve parent comments
 
-  // Use authenticated user's avatar if it's their comment and they have one
-  const avatarUrl =
-    isCurrentUser && props.authenticatedUser?.avatar_url && !avatarError
-      ? props.authenticatedUser.avatar_url
-      : null;
-
-  const hasValidAvatar = !!avatarUrl;
   const linkifiedContent = linkifyToReact(comment.content, {
     target: "_blank",
     className:
@@ -241,53 +283,24 @@ const SingleComment: React.FC<{
   // Direct Supabase update - UI updates immediately via local state
   const handleToggleResolution = async () => {
     setIsResolutionLoading(true);
-
     const newResolvedStatus = !isResolved;
 
     try {
-      const sessionId = getSessionId();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      // Check ownership permissions
-      let canModify = false;
-      if (user) {
-        canModify = comment.user_id === user.id;
-      } else {
-        if (!sessionId) {
-          toast({
-            title: "Error",
-            description: "Session ID required for anonymous users",
-            variant: "destructive",
-          });
-          return;
-        }
-        canModify = comment.session_id === sessionId;
-      }
-
-      if (!canModify) {
-        toast({
-          title: "Error",
-          description: "You can only modify your own comments",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      // Check if this is a parent comment (only parent comments can be resolved)
       if (comment.parent_comment_id) {
         toast({
           title: "Error",
           description: "Only parent comments can be resolved",
           variant: "destructive",
         });
+        setIsResolutionLoading(false);
         return;
       }
 
       // Update local state immediately for instant UI feedback
       setIsResolved(newResolvedStatus);
 
-      // Update database
+      // Update database - anyone can now update resolution status
       const { error } = await supabase
         .from("media_comments")
         .update({
@@ -299,6 +312,7 @@ const SingleComment: React.FC<{
       if (error) {
         // Revert local state if database update failed
         setIsResolved(!newResolvedStatus);
+        console.error("Failed to update resolution status:", error);
         throw error;
       }
 
@@ -311,6 +325,7 @@ const SingleComment: React.FC<{
         });
       }
 
+      // Show success message
       toast({
         title: "Success",
         description: newResolvedStatus
@@ -320,8 +335,10 @@ const SingleComment: React.FC<{
       });
     } catch (error) {
       console.error("Failed to toggle resolution:", error);
-      // Revert local state on error
+
+      // Revert local state on error if it hasn't been reverted already
       setIsResolved(!newResolvedStatus);
+
       toast({
         title: "Error",
         description: "Failed to update comment resolution",
@@ -345,16 +362,16 @@ const SingleComment: React.FC<{
             {hasValidAvatar ? (
               <img
                 src={avatarUrl}
-                alt={`${comment.user_name}'s avatar`}
+                alt={`${displayName}'s avatar`}
                 className="w-full h-full object-cover"
                 onError={() => setAvatarError(true)}
               />
             ) : (
-              getInitials(comment.user_name)
+              getInitials(displayName)
             )}
           </div>
 
-          {/* Vertical connector line - rest stays the same */}
+          {/* Vertical connector line */}
           {!isLast && (
             <div
               className={`w-0.5 bg-gray-600 absolute top-8 bottom-0 left-1/2 transform -translate-x-1/2 ${
@@ -366,12 +383,12 @@ const SingleComment: React.FC<{
 
         {/* Comment content */}
         <div
-          className={`flex-1  ${comment.is_being_edited ? "opacity-60" : ""}`}
+          className={`flex-1 ${comment.is_being_edited ? "opacity-60" : ""}`}
         >
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{comment.user_name}</span>
+              <span className="text-sm font-medium">{displayName}</span>
 
               {comment.is_pinned && (
                 <div
@@ -387,7 +404,7 @@ const SingleComment: React.FC<{
               )}
             </div>
 
-            <div className="flex items-center ">
+            <div className="flex items-center">
               {/* Resolution toggle button */}
               {canResolve && (
                 <button
@@ -395,8 +412,8 @@ const SingleComment: React.FC<{
                   disabled={isResolutionLoading}
                   className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors duration-200 ${
                     isResolved
-                      ? " text-green-600"
-                      : "text-muted-foreground hover:text-green-300 "
+                      ? "text-green-600"
+                      : "text-muted-foreground hover:text-green-300"
                   }`}
                   title={isResolved ? "Mark as unresolved" : "Mark as resolved"}
                 >
@@ -429,8 +446,8 @@ const SingleComment: React.FC<{
                   onClick={() => onAction("pin", comment)}
                   className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors duration-200 ${
                     props.isActivePinComment
-                      ? " text-purple-600"
-                      : "text-muted-foreground hover:text-purple-300 "
+                      ? "text-purple-600"
+                      : "text-muted-foreground hover:text-purple-300"
                   }`}
                   title={
                     props.isActivePinComment
@@ -448,8 +465,8 @@ const SingleComment: React.FC<{
                   onClick={() => onAction("drawing", comment)}
                   className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors duration-200 ${
                     props.isActiveDrawingComment
-                      ? " text-teal-600"
-                      : "text-muted-foreground hover:text-teal-300 "
+                      ? "text-teal-600"
+                      : "text-muted-foreground hover:text-teal-300"
                   }`}
                   title={
                     props.isActiveDrawingComment

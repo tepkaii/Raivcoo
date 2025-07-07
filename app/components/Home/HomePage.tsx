@@ -48,7 +48,56 @@ function AnimatedSection({ children, className }: any) {
   );
 }
 
-function PricingCard({ plan, price, storage, features, popular = false }: any) {
+function PricingCard({
+  plan,
+  price,
+  storage,
+  features,
+  popular = false,
+  isYearly = false,
+}: any) {
+  const [storageSlider, setStorageSlider] = useState([0]);
+
+  // Calculate pricing for interactive plans
+  const isInteractive = plan === "Lite" || plan === "Pro";
+
+  let totalStorage,
+    displayPrice,
+    basePrice,
+    additionalStoragePrice,
+    additionalStorageUnit,
+    baseStorage;
+
+  if (plan === "Lite") {
+    baseStorage = 50;
+    basePrice = 2.99;
+    additionalStoragePrice = 1.0;
+    additionalStorageUnit = 25;
+    totalStorage = baseStorage + storageSlider[0] * additionalStorageUnit;
+    const monthlyPrice = basePrice + storageSlider[0] * additionalStoragePrice;
+    displayPrice = isYearly ? monthlyPrice * 8.4 : monthlyPrice; // 30% discount
+  } else if (plan === "Pro") {
+    baseStorage = 250;
+    basePrice = 5.99;
+    additionalStoragePrice = 1.5;
+    additionalStorageUnit = 50;
+    totalStorage = baseStorage + storageSlider[0] * additionalStorageUnit;
+    const monthlyPrice = basePrice + storageSlider[0] * additionalStoragePrice;
+    displayPrice = isYearly ? monthlyPrice * 8.4 : monthlyPrice; // 30% discount
+  } else {
+    displayPrice = parseFloat(price);
+    totalStorage = null;
+  }
+
+  const savings = isYearly && isInteractive ? (displayPrice / 8.4) * 3.6 : 0;
+
+  const formatStorage = (gb: number) => {
+    if (gb < 1) return `${Math.round(gb * 1000)}MB`;
+    return `${gb}GB`;
+  };
+
+  const maxSliderValue = plan === "Lite" ? 4 : plan === "Pro" ? 35 : 0; // Lite: 50-150GB, Pro: 250-2000GB
+
   return (
     <div
       className={`relative rounded-xl p-8 ${popular ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent" : "border border-[#3F3F3F] bg-card"}`}
@@ -60,92 +109,130 @@ function PricingCard({ plan, price, storage, features, popular = false }: any) {
       )}
       <div className="text-center">
         <h3 className="text-2xl font-bold mb-2">{plan}</h3>
-        <div className="mb-6">
-          <span className="text-4xl font-bold">${price}</span>
-          <span className="text-muted-foreground">/month</span>
+        <div className="mb-2">
+          <span className="text-4xl font-bold">
+            ${plan === "Free" ? "0" : displayPrice.toFixed(2)}
+          </span>
+          {plan !== "Free" && (
+            <span className="text-muted-foreground">
+              /{isYearly ? "year" : "month"}
+            </span>
+          )}
         </div>
-        <p className="text-muted-foreground mb-6">{storage}</p>
+
+        {savings > 0 && (
+          <div className="text-sm text-green-600 font-medium mb-4">
+            Save ${savings.toFixed(2)} yearly
+          </div>
+        )}
+
+        <div className="mb-6">
+          <p className="text-muted-foreground">
+            {isInteractive && totalStorage
+              ? formatStorage(totalStorage)
+              : storage}{" "}
+            storage
+          </p>
+        </div>
+
+        {/* Interactive Storage Slider */}
+        {isInteractive && (
+          <div className="mb-6 space-y-4">
+            <div className="text-sm font-medium">
+              Customize Storage: {formatStorage(totalStorage)}
+            </div>
+            <div className="px-4">
+              <Slider
+                value={storageSlider}
+                onValueChange={setStorageSlider}
+                max={maxSliderValue}
+                min={0}
+                step={1}
+                className="w-full"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Base: {formatStorage(baseStorage)}
+              {storageSlider[0] > 0 && (
+                <span>
+                  {" "}
+                  + {storageSlider[0]} × {formatStorage(additionalStorageUnit)}
+                  (+$
+                  {(
+                    storageSlider[0] *
+                    additionalStoragePrice *
+                    (isYearly ? 8.4 : 1)
+                  ).toFixed(2)}
+                  )
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         <ul className="space-y-3 mb-8 text-left">
-          {features.map((feature: string, index: number) => (
+          {features.slice(0, 5).map((feature: string, index: number) => (
             <li key={index} className="flex items-start">
               <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
               <span className="text-sm">{feature}</span>
             </li>
           ))}
+          {features.length > 5 && (
+            <li className="text-sm text-muted-foreground">
+              +{features.length - 5} more features
+            </li>
+          )}
         </ul>
-        <Button
-          variant={popular ? "default" : "outline"}
-          className="w-full"
-          size="lg"
-        >
-          Get Started
-        </Button>
+
+        <Link href="/pricing">
+          <Button
+            variant={popular ? "default" : "outline"}
+            className="w-full"
+            size="lg"
+          >
+            {plan === "Free" ? "Get Started" : "Choose Plan"}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </Link>
       </div>
     </div>
   );
 }
 
-function CustomPricingCard() {
-  const [storageValue, setStorageValue] = useState([1]);
-  const storageGB = storageValue[0] * 500;
-  const price = storageValue[0] * 18;
-
+function YearlyToggle({
+  isYearly,
+  setIsYearly,
+}: {
+  isYearly: boolean;
+  setIsYearly: (value: boolean) => void;
+}) {
   return (
-    <div className="relative rounded-xl p-8 border border-[#3F3F3F] bg-card">
-      <div className="text-center">
-        <h3 className="text-2xl font-bold mb-2">Custom Plan</h3>
-        <div className="mb-6">
-          <span className="text-4xl font-bold">${price}</span>
-          <span className="text-muted-foreground">/month</span>
-        </div>
-
-        <div className="mb-6">
-          <p className="text-muted-foreground mb-4">
-            Choose your storage: {storageGB}GB
-          </p>
-          <div className="px-4">
-            <Slider
-              value={storageValue}
-              onValueChange={setStorageValue}
-              max={20}
-              min={1}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>500GB</span>
-              <span>10TB</span>
-            </div>
-          </div>
-        </div>
-
-        <ul className="space-y-3 mb-8 text-left">
-          <li className="flex items-start">
-            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-sm">All Standard features included</span>
-          </li>
-          <li className="flex items-start">
-            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-sm">Custom storage: {storageGB}GB</span>
-          </li>
-          <li className="flex items-start">
-            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-sm">Unlimited file uploads</span>
-          </li>
-          <li className="flex items-start">
-            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-sm">Priority support</span>
-          </li>
-          <li className="flex items-start">
-            <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-sm">Advanced analytics</span>
-          </li>
-        </ul>
-
-        <Button variant="outline" className="w-full" size="lg">
-          Get Started
-        </Button>
-      </div>
+    <div className="flex items-center justify-center gap-4 mb-8">
+      <span
+        className={`text-sm ${!isYearly ? "font-medium" : "text-muted-foreground"}`}
+      >
+        Monthly
+      </span>
+      <button
+        onClick={() => setIsYearly(!isYearly)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+          isYearly ? "bg-[#0070F3]" : "bg-gray-300"
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            isYearly ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+      <span
+        className={`text-sm ${isYearly ? "font-medium" : "text-muted-foreground"}`}
+      >
+        Yearly
+      </span>
+      <Badge variant="secondary" className="text-xs">
+        Save 30%
+      </Badge>
     </div>
   );
 }
@@ -153,6 +240,7 @@ function CustomPricingCard() {
 export default function HomePage() {
   const featuresRef = useRef<HTMLDivElement>(null);
   const pricingRef = useRef<HTMLDivElement>(null);
+  const [isYearly, setIsYearly] = useState(false);
 
   return (
     <div className="min-h-screen bg-background overflow-hidden text-foreground">
@@ -469,58 +557,63 @@ export default function HomePage() {
                 Simple, Transparent Pricing
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Pay only for the storage you need. All plans include unlimited
-                uploads, reviews, and secure hosting.
+                Start free or upgrade with flexible storage options. All plans
+                include secure hosting and unlimited uploads.
               </p>
             </div>
 
+            <YearlyToggle isYearly={isYearly} setIsYearly={setIsYearly} />
+
             <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               <PricingCard
-                plan="Professional"
-                price="3.99"
-                storage="100GB storage included"
+                plan="Free"
+                price="0"
+                storage="500MB"
+                isYearly={isYearly}
                 features={[
                   "Upload videos, images & files",
-                  "5 active review projects",
+                  "2 active review projects",
                   "Basic timestamped comments",
                   "Secure file hosting",
                   "Email notifications",
                   "30-day link expiration",
+                  "200MB max upload size",
                 ]}
               />
 
               <PricingCard
-                plan="Studio"
+                plan="Pro"
                 price="5.99"
-                storage="250GB storage included"
+                storage="250GB"
                 popular={true}
+                isYearly={isYearly}
                 features={[
-                  "Everything in Professional plan",
+                  "Everything in Lite plan",
+                  "Advanced analytics & insights",
+                  "Priority support",
+                  "Custom branding options",
+                  "Advanced security features",
+                  "API access",
+                  "Dedicated support",
+                  "5GB max upload size",
+                  "Team collaboration features",
+                ]}
+              />
+
+              <PricingCard
+                plan="Lite"
+                price="2.99"
+                storage="50GB"
+                isYearly={isYearly}
+                features={[
+                  "Everything in Free plan",
                   "Unlimited review projects",
                   "Advanced timestamped comments",
                   "Password protection for links",
                   "Custom expiration dates",
                   "Real-time notifications",
-                  "File download controls",
-                  "Advanced analytics & insights",
-                  "Priority support",
-                ]}
-              />
-
-              <PricingCard
-                plan="Studio Pro"
-                price="9.99"
-                storage="500GB storage included"
-                features={[
-                  "Everything in Studio plan",
-                  "Advanced client management",
-                  "Custom branding options",
-                  "Advanced security features",
-                  "API access",
-                  "Dedicated support",
-                  "Custom integrations",
-                  "Advanced reporting",
-                  "White-label options",
+                  "2GB max upload size",
+                  "Basic analytics",
                 ]}
               />
             </div>
@@ -652,24 +745,17 @@ export default function HomePage() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <button
-                  onClick={() => {
-                    pricingRef.current?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                  }}
-                >
+                <Link href="/pricing">
                   <Button size="lg" variant="outline">
                     View Pricing
                   </Button>
-                </button>
+                </Link>
               </div>
 
               <div className="mt-8 flex items-center justify-center gap-8 text-sm text-muted-foreground">
                 <div className="flex items-center">
                   <Upload className="h-4 w-4 mr-2" />
-                  <span>Free 1GB to start</span>
+                  <span>Free 500MB to start</span>
                 </div>
                 <div className="flex items-center">
                   <Shield className="h-4 w-4 mr-2" />

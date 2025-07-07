@@ -2,16 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Search,
-  X,
-  FileText,
-  Folder,
-  Filter,
-  Image,
-  Video,
-  Play,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,7 +18,16 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import debounce from "lodash.debounce";
-import { RevButtons } from "@/components/ui/RevButtons";
+import { motion } from "framer-motion";
+import {
+  DocumentTextIcon,
+  FolderIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  PhotoIcon,
+  PlayIcon,
+  VideoCameraIcon,
+} from "@heroicons/react/24/solid";
 
 // Updated search filters for actual data structure
 interface EnhancedSearchFilters {
@@ -68,7 +68,7 @@ interface EnhancedSearchResult {
 interface GlobalSearchProps {
   onMediaSelect?: (media: EnhancedSearchResult) => void;
   currentProjectId?: string;
-  compact?: boolean; // For sidebar icon version
+  compact?: boolean;
 }
 
 export function GlobalSearch({
@@ -81,6 +81,7 @@ export function GlobalSearch({
   const [results, setResults] = useState<EnhancedSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [filters, setFilters] = useState<EnhancedSearchFilters>({
     status: "all",
     sortBy: "updated_at",
@@ -92,6 +93,7 @@ export function GlobalSearch({
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const debouncedSearchRef = useRef<ReturnType<typeof debounce> | null>(null);
   const pathname = usePathname();
 
   const hasActiveFilters =
@@ -101,18 +103,40 @@ export function GlobalSearch({
     filters.type !== "all" ||
     filters.mediaType !== "all";
 
+  // Animation variants for cards only
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const cardVariants = {
+    hidden: {
+      opacity: 0,
+      y: 20,
+      scale: 0.95,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 24,
+      },
+    },
+  };
+
   // Enhanced search function
-  // In your GlobalSearch.tsx, update the performSearch function:
   const performSearch = useCallback(
     async (term: string, searchFilters: EnhancedSearchFilters) => {
       setIsSearching(true);
       try {
-        console.log("Searching with:", {
-          term,
-          searchFilters,
-          currentProjectId,
-        });
-
         const response = await fetch("/api/search", {
           method: "POST",
           headers: {
@@ -132,7 +156,6 @@ export function GlobalSearch({
         }
 
         const data = await response.json();
-        console.log("Search response:", data);
         setResults(data.results || []);
       } catch (error) {
         console.error("Search error:", error);
@@ -147,47 +170,72 @@ export function GlobalSearch({
   // Load initial results
   const loadInitialResults = useCallback(async () => {
     await performSearch("", {
-      ...filters,
+      status: "all",
       sortBy: "updated_at",
       sortOrder: "desc",
+      type: "all",
+      mediaType: "all",
     });
-  }, [filters, performSearch]);
+  }, [performSearch]);
 
+  // Initialize debounced search function
   useEffect(() => {
-    if (isOpen && searchTerm === "" && results.length === 0) {
-      loadInitialResults();
-    }
-  }, [isOpen, searchTerm, results.length, loadInitialResults]);
+    debouncedSearchRef.current = debounce(
+      async (term: string, searchFilters: EnhancedSearchFilters) => {
+        const currentHasActiveFilters =
+          searchFilters.status !== "all" ||
+          searchFilters.sortBy !== "updated_at" ||
+          searchFilters.sortOrder !== "desc" ||
+          searchFilters.type !== "all" ||
+          searchFilters.mediaType !== "all";
 
-  // Debounced search
-  const debouncedSearch = useCallback(
-    debounce(async (term: string, searchFilters: EnhancedSearchFilters) => {
-      if (term.trim().length === 0 && !hasActiveFilters) {
-        loadInitialResults();
-        return;
-      }
+        if (term.trim().length === 0 && !currentHasActiveFilters) {
+          await performSearch("", {
+            status: "all",
+            sortBy: "updated_at",
+            sortOrder: "desc",
+            type: "all",
+            mediaType: "all",
+          });
+          return;
+        }
 
-      if (
-        !hasActiveFilters &&
-        term.trim().length > 0 &&
-        term.trim().length < 2
-      ) {
-        setResults([]);
-        setIsSearching(false);
-        return;
-      }
+        if (
+          !currentHasActiveFilters &&
+          term.trim().length > 0 &&
+          term.trim().length < 2
+        ) {
+          setResults([]);
+          setIsSearching(false);
+          return;
+        }
 
-      await performSearch(term, searchFilters);
-    }, 300),
-    [hasActiveFilters, loadInitialResults, performSearch]
-  );
+        await performSearch(term, searchFilters);
+      },
+      300
+    );
 
-  useEffect(() => {
-    debouncedSearch(searchTerm, filters);
     return () => {
-      debouncedSearch.cancel();
+      if (debouncedSearchRef.current) {
+        debouncedSearchRef.current.cancel();
+      }
     };
-  }, [searchTerm, filters, debouncedSearch]);
+  }, [performSearch]);
+
+  // Only load initial results when search is first opened
+  useEffect(() => {
+    if (isOpen && !hasLoaded) {
+      loadInitialResults();
+      setHasLoaded(true);
+    }
+  }, [isOpen, hasLoaded, loadInitialResults]);
+
+  // Handle search term and filter changes
+  useEffect(() => {
+    if (hasLoaded && debouncedSearchRef.current) {
+      debouncedSearchRef.current(searchTerm, filters);
+    }
+  }, [searchTerm, filters, hasLoaded]);
 
   // Close search when route changes
   useEffect(() => {
@@ -195,6 +243,7 @@ export function GlobalSearch({
     setSearchTerm("");
     setResults([]);
     setShowFilters(false);
+    setHasLoaded(false);
   }, [pathname]);
 
   // Focus input when opened
@@ -248,15 +297,15 @@ export function GlobalSearch({
 
   const getTypeIcon = (result: EnhancedSearchResult) => {
     if (result.type === "project") {
-      return <Folder className="h-4 w-4 text-muted-foreground" />;
+      return <FolderIcon className="h-4 w-4 text-muted-foreground" />;
     } else if (result.type === "media") {
       if (result.mediaType === "video") {
-        return <Video className="h-4 w-4 text-muted-foreground" />;
+        return <VideoCameraIcon className="h-4 w-4 text-muted-foreground" />;
       } else {
-        return <Image className="h-4 w-4 text-muted-foreground" />;
+        return <PhotoIcon className="h-4 w-4 text-muted-foreground" />;
       }
     }
-    return <FileText className="h-4 w-4 text-muted-foreground" />;
+    return <DocumentTextIcon className="h-4 w-4 text-muted-foreground" />;
   };
 
   const handleResultClick = (result: EnhancedSearchResult) => {
@@ -292,30 +341,24 @@ export function GlobalSearch({
     <div className="relative">
       {/* Search Button */}
       {compact ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsOpen(true)}
-          className="h-8 w-8"
-          title="Search projects and media"
-        >
-          <Search className="size-6" strokeWidth={1.5} />
-        </Button>
+        <div onClick={() => setIsOpen(true)} title="Search projects and media">
+          <MagnifyingGlassIcon className="size-6" strokeWidth={1.5} />
+        </div>
       ) : (
-        <RevButtons
+        <Button
           variant="ghost"
           size="sm"
           onClick={() => setIsOpen(true)}
           className="w-full justify-start border border-dashed text-muted-foreground md:w-[300px]"
         >
-          <Search className="md:mr-2 h-4 w-4" />
+          <MagnifyingGlassIcon className="md:mr-2 h-4 w-4" />
           <span className="hidden md:inline-flex">
             Search projects and media...
           </span>
-          <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 md:flex">
+          <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-card px-1.5 font-mono text-[10px] font-medium opacity-100 md:flex">
             <span className="text-xs">{isMac ? "⌘" : "Ctrl+"}</span>K
           </kbd>
-        </RevButtons>
+        </Button>
       )}
 
       {/* Search Dialog */}
@@ -330,15 +373,19 @@ export function GlobalSearch({
 
           {/* Search Panel */}
           <div className="fixed left-1/2 top-[20%] z-50 w-full max-w-2xl -translate-x-1/2 p-4">
-            <Card ref={searchRef} className="w-full shadow-lg">
+            <Card ref={searchRef} className="w-full bg-background/90">
               <div className="flex items-center border-b px-3">
-                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                <MagnifyingGlassIcon className="ml-2 mr-2 h-4 w-4 shrink-0" />
                 <Input
                   ref={inputRef}
                   placeholder="Search projects and media..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex h-11 w-full border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+                  className="border-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+                  style={{
+                    backgroundColor: "transparent",
+                    background: "none",
+                  }}
                 />
                 <div className="flex items-center gap-1">
                   <Button
@@ -347,7 +394,7 @@ export function GlobalSearch({
                     className={cn("ml-2", hasActiveFilters && "text-primary")}
                     onClick={() => setShowFilters(!showFilters)}
                   >
-                    <Filter className="h-4 w-4" />
+                    <FunnelIcon className="h-4 w-4" />
                     {hasActiveFilters && (
                       <span className="ml-1 h-2 w-2 rounded-full bg-primary" />
                     )}
@@ -364,9 +411,9 @@ export function GlobalSearch({
 
               {/* Filters Panel */}
               {showFilters && (
-                <div className="border-b p-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
+                <div className="border-b px-4 py-2">
+                  <div className="flex items-end gap-1">
+                    <div className="space-y-2 flex-1">
                       <Label className="text-xs">Type</Label>
                       <Select
                         value={filters.type}
@@ -386,7 +433,7 @@ export function GlobalSearch({
                     </div>
 
                     {filters.type === "media" && (
-                      <div className="space-y-2">
+                      <div className="space-y-2 flex-1">
                         <Label className="text-xs">Media Type</Label>
                         <Select
                           value={filters.mediaType}
@@ -411,7 +458,7 @@ export function GlobalSearch({
                       </div>
                     )}
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex-1">
                       <Label className="text-xs">Status</Label>
                       <Select
                         value={filters.status}
@@ -440,7 +487,7 @@ export function GlobalSearch({
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex-1">
                       <Label className="text-xs">Sort By</Label>
                       <Select
                         value={filters.sortBy}
@@ -463,22 +510,22 @@ export function GlobalSearch({
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
 
-                  {hasActiveFilters && (
-                    <div className="mt-4 flex justify-end">
-                      <RevButtons
-                        variant="outline"
-                        size="sm"
-                        onClick={clearFilters}
-                      >
-                        Clear Filters
-                      </RevButtons>
-                    </div>
-                  )}
+                    {hasActiveFilters && (
+                      <div className="space-y-2 flex-1">
+                        <Label className="text-xs opacity-0">Clear</Label>
+                        <Button
+                          variant="outline"
+                          onClick={clearFilters}
+                          className="h-9 w-full"
+                        >
+                          Clear Filters
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-
               {/* Search Results */}
               <div className="max-h-[400px] overflow-y-auto p-2">
                 {isSearching ? (
@@ -489,13 +536,20 @@ export function GlobalSearch({
                     </div>
                   </div>
                 ) : results.length > 0 ? (
-                  <div className="space-y-1">
-                    {results.map((result) => (
-                      <div
+                  <motion.div
+                    className="space-y-1"
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    key={results.length}
+                  >
+                    {results.map((result, index) => (
+                      <motion.div
                         key={`${result.type}-${result.id}`}
+                        variants={cardVariants}
                         onClick={() => handleResultClick(result)}
                         className={cn(
-                          "flex items-center justify-between rounded-md px-3 py-2 hover:bg-accent cursor-pointer",
+                          "group relative flex items-center justify-between rounded-md px-3 py-2 hover:bg-accent cursor-pointer",
                           "focus:bg-accent focus:outline-none"
                         )}
                       >
@@ -506,14 +560,6 @@ export function GlobalSearch({
                               <p className="text-sm font-medium truncate">
                                 {result.title}
                               </p>
-                              {result.type === "media" && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs flex-shrink-0"
-                                >
-                                  {result.mediaType}
-                                </Badge>
-                              )}
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span className="truncate">
@@ -530,11 +576,12 @@ export function GlobalSearch({
                             </div>
                           </div>
                         </div>
+
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {result.status && (
                             <Badge
                               variant={getStatusVariant(result.status)}
-                              className="text-xs"
+                              className="text-xs rounded-full"
                             >
                               {result.status.replace("_", " ")}
                             </Badge>
@@ -551,20 +598,27 @@ export function GlobalSearch({
                               }}
                               title="View full media"
                             >
-                              <Play className="h-3 w-3" />
+                              <PlayIcon className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 ) : (
                   <div className="py-6 text-center text-sm text-muted-foreground">
-                    {searchTerm.length > 0 &&
-                    searchTerm.length < 2 &&
-                    !hasActiveFilters
-                      ? "Type at least 2 characters to search"
-                      : `No results found${searchTerm ? ` for "${searchTerm}"` : ""}`}
+                    {!hasLoaded ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        Loading...
+                      </div>
+                    ) : searchTerm.length > 0 &&
+                      searchTerm.length < 2 &&
+                      !hasActiveFilters ? (
+                      "Type at least 2 characters to search"
+                    ) : (
+                      `No results found${searchTerm ? ` for "${searchTerm}"` : ""}`
+                    )}
                   </div>
                 )}
               </div>

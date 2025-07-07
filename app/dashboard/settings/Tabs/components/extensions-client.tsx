@@ -153,10 +153,10 @@ export default function ExtensionsClient({
                   You can log in to the extension with your email: {email}
                 </p>
               </div>
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="secondary" size="sm">
                 <Link href="/set-password">
                   Change Password
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
             </div>

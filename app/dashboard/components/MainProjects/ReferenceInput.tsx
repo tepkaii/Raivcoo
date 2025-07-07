@@ -50,7 +50,7 @@ export function ReferenceInput({
       toast({
         title: "Already Added",
         description: "This URL is already in your references",
-        variant: "destructive",
+        variant: "outline",
       });
       return;
     }
@@ -85,7 +85,7 @@ export function ReferenceInput({
       toast({
         title: "Reference Added",
         description: `Added: ${truncateText(newReference.title || normalizedUrl, 50)}`,
-        variant: "default",
+        variant: "green",
       });
     } catch (error) {
       console.error("Error adding reference:", error);
@@ -158,13 +158,13 @@ export function ReferenceInput({
         toast({
           title: "References Added",
           description: message,
-          variant: "default",
+          variant: "green",
         });
       } else if (duplicateCount > 0) {
         toast({
           title: "All Duplicates",
           description: "All URLs were already in your references",
-          variant: "destructive",
+          variant: "outline",
         });
       }
 
@@ -190,7 +190,7 @@ export function ReferenceInput({
       toast({
         title: "Reference Removed",
         description: `Removed: ${truncateText(removedRef.title || removedRef.url, 50)}`,
-        variant: "default",
+        variant: "green",
       });
     }
   };

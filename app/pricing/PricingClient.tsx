@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Check, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Check, ArrowRight, ArrowUp, ArrowDown, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
@@ -18,6 +19,8 @@ interface Subscription {
   current_period_end: string;
   paypal_subscription_id?: string;
   storage_gb?: number;
+  billing_period?: string;
+  max_upload_size_mb?: number;
 }
 
 interface PricingClientProps {
@@ -29,8 +32,9 @@ const pricingTiers = [
   {
     id: "free" as const,
     name: "Free",
-    price: "0",
+    price: 0,
     baseStorage: 0.5, // 500MB
+    maxUploadSize: 200, // 200MB
     level: 0,
     features: [
       "Upload videos, images & files",
@@ -39,8 +43,10 @@ const pricingTiers = [
       "Secure file hosting",
       "Email notifications",
       "30-day link expiration",
+      "200MB max upload size",
     ],
   },
+
   {
     id: "pro" as const,
     name: "Pro",
@@ -48,8 +54,32 @@ const pricingTiers = [
     baseStorage: 250, // 250GB base
     additionalStoragePrice: 1.5, // $1.5 per 50GB
     additionalStorageUnit: 50, // 50GB increments
-    level: 1,
+    maxStorage: 2048, // 2TB max
+    maxUploadSize: 5120, // 5GB
+    level: 2,
     popular: true,
+    features: [
+      "Everything in Lite plan",
+      "Advanced analytics & insights",
+      "Priority support",
+      "Custom branding options",
+      "Advanced security features",
+      "API access",
+      "Dedicated support",
+      "5GB max upload size",
+      "Team collaboration features",
+    ],
+  },
+  {
+    id: "lite" as const,
+    name: "Lite",
+    basePrice: 2.99,
+    baseStorage: 50, // 50GB base
+    additionalStoragePrice: 1.0, // $1.0 per 25GB
+    additionalStorageUnit: 25, // 25GB increments
+    maxStorage: 150, // 150GB max
+    maxUploadSize: 2048, // 2GB
+    level: 1,
     features: [
       "Everything in Free plan",
       "Unlimited review projects",
@@ -57,61 +87,124 @@ const pricingTiers = [
       "Password protection for links",
       "Custom expiration dates",
       "Real-time notifications",
-      "File download controls",
-      "Advanced analytics & insights",
-      "Priority support",
-      "Custom branding options",
-      "Advanced security features",
-      "API access",
-      "Dedicated support",
+      "2GB max upload size",
+      "Basic analytics",
     ],
   },
 ];
+
+// Check if subscription is truly expired (both status and time)
+const isSubscriptionExpired = (subscription: Subscription | null): boolean => {
+  if (!subscription) return false;
+
+  // Check if status is inactive
+  if (subscription.status === "inactive") return true;
+
+  // Check if current period has ended (even if status is still "active")
+  if (subscription.current_period_end) {
+    const currentDate = new Date();
+    const periodEndDate = new Date(subscription.current_period_end);
+    return currentDate > periodEndDate;
+  }
+
+  return false;
+};
 
 function PricingCard({
   tier,
   user,
   currentSubscription,
+  isYearly,
 }: {
   tier: (typeof pricingTiers)[0];
   user: User | null;
   currentSubscription: Subscription | null;
+  isYearly: boolean;
 }) {
   const router = useRouter();
   const [storageSlider, setStorageSlider] = useState([0]);
 
   const isFreePlan = tier.id === "free";
-  const isProPlan = tier.id === "pro";
 
-  // Calculate storage and pricing for Pro plan
-  const totalStorage = isProPlan
-    ? tier.baseStorage + storageSlider[0] * tier.additionalStorageUnit
-    : tier.baseStorage;
+  // Calculate storage and pricing
+  const totalStorage = isFreePlan
+    ? tier.baseStorage
+    : tier.baseStorage + storageSlider[0] * tier.additionalStorageUnit;
 
-  const totalPrice = isProPlan
-    ? tier.basePrice + storageSlider[0] * tier.additionalStoragePrice
-    : 0;
+  const monthlyPrice = isFreePlan
+    ? 0
+    : tier.basePrice + storageSlider[0] * tier.additionalStoragePrice;
+
+  // Change from 20% discount (10 months) to 30% discount (8.4 months)
+  const yearlyPrice = monthlyPrice * 8.4; // 30% discount (pay for 8.4 months, get 12)
+  const displayPrice = isYearly ? yearlyPrice : monthlyPrice;
+  const savings = isYearly && !isFreePlan ? monthlyPrice * 3.6 : 0; // 3.6 months savings
 
   // Check subscription status
   const isCurrentPlan = currentSubscription?.plan_id === tier.id;
+  const isExpired = isSubscriptionExpired(currentSubscription);
   const currentStorage = currentSubscription?.storage_gb || 0;
+  const currentBillingPeriod = currentSubscription?.billing_period || "monthly";
+  const selectedBillingPeriod = isYearly ? "yearly" : "monthly";
 
-  // Determine if this is an upgrade/downgrade/same
-  const isUpgrade =
-    isProPlan &&
+  // Active subscription check
+  const hasActiveSubscription =
     currentSubscription &&
+    currentSubscription.status === "active" &&
+    !isExpired;
+
+  // FREE PLAN LOGIC: Block if user has any active subscription
+  const isBlockedFreePlan = isFreePlan && hasActiveSubscription;
+
+  // BILLING PERIOD RESTRICTIONS
+  const isBlockedYearlyToMonthly =
+    hasActiveSubscription &&
+    currentBillingPeriod === "yearly" &&
+    selectedBillingPeriod === "monthly";
+
+  // UPGRADE LOGIC: Only allow upgrades mid-term
+  const isUpgrade =
+    !isFreePlan &&
+    hasActiveSubscription &&
+    // Cross-plan upgrades (free -> lite/pro, lite -> pro)
     (currentSubscription.plan_id === "free" ||
-      (currentSubscription.plan_id === "pro" && totalStorage > currentStorage));
+      (currentSubscription.plan_id === "lite" && tier.id === "pro") ||
+      // Same plan with more storage
+      (currentSubscription.plan_id === tier.id &&
+        totalStorage > currentStorage) ||
+      // Monthly to yearly billing (same plan, same storage)
+      (currentBillingPeriod === "monthly" &&
+        selectedBillingPeriod === "yearly" &&
+        currentSubscription.plan_id === tier.id &&
+        totalStorage === currentStorage));
 
+  // DOWNGRADE LOGIC: Block ALL downgrades mid-term
   const isDowngrade =
-    isProPlan &&
-    currentSubscription?.plan_id === "pro" &&
+    hasActiveSubscription &&
+    // Cross-plan downgrades (pro -> lite, lite -> free)
+    ((tier.id === "lite" && currentSubscription.plan_id === "pro") ||
+      (tier.id === "free" && currentSubscription.plan_id !== "free") ||
+      // Same plan with less storage
+      (currentSubscription.plan_id === tier.id &&
+        totalStorage < currentStorage) ||
+      // Yearly to monthly (considered downgrade)
+      isBlockedYearlyToMonthly);
+  const isStorageDowngrade =
+    hasActiveSubscription &&
+    currentSubscription.plan_id === tier.id &&
     totalStorage < currentStorage;
+  // RENEWAL LOGIC: Expired subscription renewal
+  const isRenewal = !isFreePlan && currentSubscription && isExpired;
 
-  const isSameStorage =
-    isProPlan &&
-    currentSubscription?.plan_id === "pro" &&
-    totalStorage === currentStorage;
+  // SAME PLAN LOGIC: Exact match
+  const isSamePlan =
+    hasActiveSubscription &&
+    currentSubscription.plan_id === tier.id &&
+    totalStorage === currentStorage &&
+    currentBillingPeriod === selectedBillingPeriod;
+
+  // NEW SUBSCRIPTION: No current subscription or expired
+  const isNewSubscription = !currentSubscription || isExpired;
 
   const handleSubscribe = () => {
     if (!user) {
@@ -119,41 +212,77 @@ function PricingCard({
       return;
     }
 
-    if (isFreePlan) {
-      // Route to checkout for Free plan downgrade
-      if (currentSubscription?.plan_id === "pro") {
-        router.push(
-          `/checkout?plan=free&action=downgrade&currentSub=${currentSubscription.id}`
-        );
-      } else {
-        toast({
-          title: "You're already on the Free plan!",
-          description: "Start uploading and reviewing your files.",
-        });
-        router.push("/dashboard");
-      }
+    // FREE PLAN: Block if user has active subscription
+    if (isBlockedFreePlan) {
+      toast({
+        title: "Cannot downgrade mid-term",
+        description: `Your current plan expires on ${formatDate(currentSubscription.current_period_end)}. Changes will take effect at renewal.`,
+        variant: "destructive",
+      });
       return;
     }
 
-    if (isSameStorage) {
+    // FREE PLAN: Redirect to dashboard
+    if (isFreePlan && !hasActiveSubscription) {
+      toast({
+        title: "You're on the Free plan!",
+        description: "Start uploading and reviewing your files.",
+        variant: "outline",
+      });
+      router.push("/dashboard");
+      return;
+    }
+
+    // BLOCK DOWNGRADES: All downgrades blocked mid-term
+    if (isDowngrade) {
+      const renewalDate = currentSubscription?.current_period_end
+        ? formatDate(currentSubscription.current_period_end)
+        : "your next billing date";
+
+      toast({
+        title: "Downgrades available at renewal",
+        description: `You can schedule this change for ${renewalDate}. Upgrades are available immediately.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // SAME PLAN: No changes needed
+    if (isSamePlan) {
       toast({
         title: "No changes needed",
-        description: "You're already on this storage plan.",
+        description: "You're already on this exact plan configuration.",
+        variant: "outline",
       });
       return;
     }
 
     // Determine action type
     let action = "new";
-    if (currentSubscription) {
-      action = isUpgrade ? "upgrade" : isDowngrade ? "downgrade" : "new";
+    if (currentSubscription && !isExpired) {
+      if (isUpgrade) {
+        // Check if it's a billing period change
+        if (
+          currentSubscription.plan_id === tier.id &&
+          totalStorage === currentStorage &&
+          currentBillingPeriod === "monthly" &&
+          selectedBillingPeriod === "yearly"
+        ) {
+          action = "upgrade"; // Billing change treated as upgrade
+        } else {
+          action = "upgrade";
+        }
+      }
+    } else if (isRenewal) {
+      action = "renew";
     }
 
-    // Route to checkout with all necessary parameters
+    // Route to checkout
     const searchParams = new URLSearchParams({
       plan: tier.id,
       storage: totalStorage.toString(),
-      price: totalPrice.toFixed(2),
+      price: displayPrice.toFixed(2),
+      billing: selectedBillingPeriod,
       action,
     });
 
@@ -166,20 +295,43 @@ function PricingCard({
 
   const getButtonText = () => {
     if (isFreePlan) {
-      return currentSubscription?.plan_id === "pro"
-        ? "Downgrade to Free"
-        : "Get Started Free";
+      if (isBlockedFreePlan) {
+        return "Available at Renewal";
+      }
+      return "Go to Dashboard";
     }
-    if (isSameStorage) return "Current Plan";
-    if (isUpgrade) return `Upgrade (${formatStorage(totalStorage)})`;
-    if (isDowngrade) return `Downgrade (${formatStorage(totalStorage)})`;
+
+    if (isRenewal) return `Renew ${tier.name}`;
+    if (isSamePlan) return "Current Plan";
+
+    if (isDowngrade) {
+      return "Available at Renewal";
+    }
+
+    if (isUpgrade) {
+      // Check if it's a billing change
+      if (
+        currentSubscription?.plan_id === tier.id &&
+        totalStorage === currentStorage &&
+        currentBillingPeriod === "monthly" &&
+        selectedBillingPeriod === "yearly"
+      ) {
+        return "Switch to Yearly";
+      }
+
+      if (currentSubscription?.plan_id === tier.id) {
+        return `Upgrade to ${formatStorage(totalStorage)}`;
+      }
+      return `Upgrade to ${tier.name}`;
+    }
+
     return "Get Started";
   };
 
   const getButtonVariant = () => {
-    if (isSameStorage) return "outline";
-    if (isUpgrade) return "default";
-    if (isDowngrade) return "outline";
+    if (isBlockedFreePlan || isDowngrade) return "outline"; // Disabled style
+    if (isSamePlan && !isRenewal) return "outline";
+    if (isUpgrade || isRenewal) return "default";
     if (tier.popular && !isCurrentPlan) return "default";
     return "outline";
   };
@@ -189,9 +341,18 @@ function PricingCard({
     return `${gb}GB`;
   };
 
-  // Set initial slider position based on current subscription
+  const formatUploadSize = (mb: number) => {
+    if (mb >= 1024) return `${(mb / 1024).toFixed(0)}GB`;
+    return `${mb}MB`;
+  };
+
+  // Set initial slider position based on current subscription or defaults
   useEffect(() => {
-    if (isProPlan && currentSubscription?.storage_gb) {
+    if (
+      !isFreePlan &&
+      currentSubscription?.storage_gb &&
+      currentSubscription.plan_id === tier.id
+    ) {
       const currentExtra = currentSubscription.storage_gb - tier.baseStorage;
       const sliderValue = Math.max(
         0,
@@ -201,14 +362,22 @@ function PricingCard({
     }
   }, [
     currentSubscription,
-    isProPlan,
+    isFreePlan,
     tier.baseStorage,
     tier.additionalStorageUnit,
+    tier.id,
   ]);
+
+  // Calculate max slider value
+  const maxSliderValue = isFreePlan
+    ? 0
+    : Math.floor(
+        (tier.maxStorage - tier.baseStorage) / tier.additionalStorageUnit
+      );
 
   return (
     <div
-      className={`relative rounded-xl p-8 h-fit ${
+      className={`relative rounded-xl p-8 h-full flex-1 flex flex-col ${
         tier.popular
           ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
           : "border border-[#3F3F3F] bg-card"
@@ -220,50 +389,58 @@ function PricingCard({
         </div>
       )}
 
-      {isCurrentPlan && !isProPlan && (
+      {/* ACTIVE BADGE: Show for current active plan */}
+      {isCurrentPlan && hasActiveSubscription && (
         <div className="absolute -top-4 left-4">
           <Badge className="bg-green-600 text-white">Active</Badge>
         </div>
       )}
 
-      {isUpgrade && (
-        <div className="absolute -top-4 right-4">
-          <Badge className="bg-blue-600 text-white flex items-center gap-1">
-            <ArrowUp className="h-3 w-3" />
-            Upgrade
-          </Badge>
+      {/* EXPIRED BADGE: Show for expired plans */}
+      {isExpired && isCurrentPlan && (
+        <div className="absolute -top-4 left-4">
+          <Badge className="bg-orange-600 text-white">Expired</Badge>
         </div>
       )}
 
-      {isDowngrade && (
-        <div className="absolute -top-4 right-4">
-          <Badge className="bg-orange-600 text-white flex items-center gap-1">
-            <ArrowDown className="h-3 w-3" />
-            Downgrade
-          </Badge>
-        </div>
-      )}
-
-      <div className="text-center">
+      <div className="text-center flex-1 flex flex-col">
         <h3 className="text-2xl font-bold mb-2">{tier.name}</h3>
-        <div className="mb-6">
+        <div className="mb-2">
           <span className="text-4xl font-bold">
-            ${isFreePlan ? "0" : totalPrice.toFixed(2)}
+            ${isFreePlan ? "0" : displayPrice.toFixed(2)}
           </span>
-          {!isFreePlan && <span className="text-muted-foreground">/month</span>}
-        </div>
-
-        <p className="text-muted-foreground mb-6">
-          {formatStorage(totalStorage)} storage included
-          {isProPlan && currentSubscription?.storage_gb && (
-            <span className="block text-xs">
-              Currently: {formatStorage(currentSubscription.storage_gb)}
+          {!isFreePlan && (
+            <span className="text-muted-foreground">
+              /{isYearly ? "year" : "month"}
             </span>
           )}
-        </p>
+        </div>
 
-        {/* Storage Slider for Pro Plan */}
-        {isProPlan && (
+        {savings > 0 && (
+          <div className="text-sm text-green-600 font-medium mb-4">
+            Save ${savings.toFixed(2)} yearly
+          </div>
+        )}
+
+        <div className="mb-6">
+          <p className="text-muted-foreground">
+            {formatStorage(totalStorage)} storage
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {formatUploadSize(tier.maxUploadSize)} max upload
+          </p>
+          {isCurrentPlan && currentSubscription?.storage_gb && (
+            <span className="block text-xs text-muted-foreground">
+              Currently: {formatStorage(currentSubscription.storage_gb)}
+              {currentSubscription.billing_period && (
+                <span> ({currentSubscription.billing_period})</span>
+              )}
+            </span>
+          )}
+        </div>
+
+        {/* Storage Slider for Lite and Pro Plans */}
+        {!isFreePlan && (
           <div className="mb-6 space-y-4">
             <div className="text-sm font-medium">
               Customize Storage: {formatStorage(totalStorage)}
@@ -272,27 +449,42 @@ function PricingCard({
               <Slider
                 value={storageSlider}
                 onValueChange={setStorageSlider}
-                max={10}
+                max={maxSliderValue}
                 min={0}
                 step={1}
                 className="w-full"
+                // Remove the disabled prop - let slider work freely
               />
             </div>
             <div className="text-xs text-muted-foreground">
-              Base: {formatStorage(tier.baseStorage)} + {storageSlider[0]} ×{" "}
-              {formatStorage(tier.additionalStorageUnit)}
+              Base: {formatStorage(tier.baseStorage)}
               {storageSlider[0] > 0 && (
                 <span>
                   {" "}
+                  + {storageSlider[0]} ×{" "}
+                  {formatStorage(tier.additionalStorageUnit)}
                   (+$
-                  {(storageSlider[0] * tier.additionalStoragePrice).toFixed(2)})
+                  {(
+                    storageSlider[0] *
+                    tier.additionalStoragePrice *
+                    (isYearly ? 10 : 1)
+                  ).toFixed(2)}
+                  )
                 </span>
               )}
             </div>
+
+            {/* Show warning when slider creates a downgrade scenario */}
+            {isStorageDowngrade && (
+              <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded-md">
+                Storage reduction available at renewal (
+                {formatDate(currentSubscription.current_period_end)})
+              </div>
+            )}
           </div>
         )}
 
-        <ul className="space-y-3 mb-8 text-left">
+        <ul className="space-y-3 mb-8 text-left flex-grow">
           {tier.features.map((feature: string, index: number) => (
             <li key={index} className="flex items-start">
               <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
@@ -300,19 +492,28 @@ function PricingCard({
             </li>
           ))}
         </ul>
+        <div className="mt-auto">
+          <Button
+            onClick={handleSubscribe}
+            disabled={
+              (isSamePlan && !isRenewal) || isDowngrade || isBlockedFreePlan
+            }
+            variant={getButtonVariant()}
+            className="w-full"
+            size="lg"
+          >
+            {getButtonText()}
+            {(isUpgrade || isRenewal || (isFreePlan && !isBlockedFreePlan)) &&
+              !isDowngrade && <ArrowRight className="ml-2 h-4 w-4" />}
+          </Button>
 
-        <Button
-          onClick={handleSubscribe}
-          disabled={isSameStorage}
-          variant={getButtonVariant()}
-          className="w-full"
-          size="lg"
-        >
-          {getButtonText()}
-          {(isUpgrade || (!isFreePlan && !isSameStorage && !isDowngrade)) && (
-            <ArrowRight className="ml-2 h-4 w-4" />
+          {/* Show additional info for blocked actions */}
+          {isDowngrade && currentSubscription?.current_period_end && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Available on {formatDate(currentSubscription.current_period_end)}
+            </p>
           )}
-        </Button>
+        </div>
       </div>
     </div>
   );
@@ -322,6 +523,11 @@ export default function PricingClient({
   user,
   currentSubscription,
 }: PricingClientProps) {
+  const [isYearly, setIsYearly] = useState(false);
+
+  // Check if subscription is expired
+  const isExpired = isSubscriptionExpired(currentSubscription);
+
   return (
     <div className="container mx-auto px-4 py-20">
       <div className="text-center mb-16">
@@ -329,34 +535,78 @@ export default function PricingClient({
           Choose Your Plan
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Start free or upgrade to Pro with flexible storage options. All plans
-          include secure hosting and unlimited uploads.
+          Start free or upgrade with flexible storage options. All plans include
+          secure hosting and unlimited uploads.
         </p>
 
-        {currentSubscription && (
-          <Badge variant={"green"} className="mt-6 inline-block ">
-            Current plan: <strong>{currentSubscription.plan_name}</strong>
-            {currentSubscription.storage_gb && (
-              <span> ({currentSubscription.storage_gb}GB)</span>
-            )}
-            {currentSubscription.current_period_end && (
-              <span>
-                {" "}
-                expires on {formatDate(currentSubscription.current_period_end)}
-              </span>
-            )}
+        {/* Billing Period Toggle */}
+        <div className="flex items-center justify-center gap-4 mt-8 mb-8">
+          <span
+            className={`text-sm ${!isYearly ? "font-medium" : "text-muted-foreground"}`}
+          >
+            Monthly
+          </span>
+          <Switch
+            checked={isYearly}
+            onCheckedChange={setIsYearly}
+            className="data-[state=checked]:bg-[#0070F3]"
+          />
+          <span
+            className={`text-sm ${isYearly ? "font-medium" : "text-muted-foreground"}`}
+          >
+            Yearly
+          </span>
+          <Badge variant="secondary" className="text-xs">
+            Save 30%
           </Badge>
+        </div>
+
+        {/* Current subscription info */}
+        {currentSubscription && (
+          <div className="space-y-2">
+            <Badge
+              variant={isExpired ? "destructive" : "default"}
+              className="inline-block"
+            >
+              Current plan: <strong>{currentSubscription.plan_name}</strong>
+              {currentSubscription.storage_gb && (
+                <span> ({currentSubscription.storage_gb}GB)</span>
+              )}
+              {isExpired ? (
+                <span> - Expired</span>
+              ) : currentSubscription.current_period_end ? (
+                <span>
+                  {" "}
+                  expires on{" "}
+                  {formatDate(currentSubscription.current_period_end)}
+                </span>
+              ) : null}
+            </Badge>
+
+            {/* Show policy notice for active subscriptions */}
+            {currentSubscription.status === "active" && !isExpired && (
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Upgrades take effect immediately. Downgrades and cancellations
+                take effect at your next billing cycle.
+              </p>
+            )}
+          </div>
         )}
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+      <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {pricingTiers.map((tier) => (
-          <PricingCard
-            key={tier.id}
-            tier={tier}
-            user={user}
-            currentSubscription={currentSubscription}
-          />
+          <div key={tier.id} className="flex">
+            {" "}
+            {/* Add flex wrapper */}
+            <PricingCard
+              key={tier.id}
+              tier={tier}
+              user={user}
+              currentSubscription={currentSubscription}
+              isYearly={isYearly}
+            />
+          </div>
         ))}
       </div>
     </div>

@@ -23,6 +23,7 @@ interface InvitationAcceptanceProps {
     created_at: string;
   };
   inviterName: string;
+  inviterAvatarUrl?: string; // Add this
   currentUser: any;
 }
 
@@ -42,6 +43,7 @@ export function InvitationAcceptance({
   invitation,
   inviterName,
   currentUser,
+  inviterAvatarUrl, // Add this
 }: InvitationAcceptanceProps) {
   const [isPending, startTransition] = useTransition();
   const [isAccepting, setIsAccepting] = useState(false);
@@ -95,6 +97,7 @@ export function InvitationAcceptance({
           toast({
             title: "Invitation Declined",
             description: "You've declined the invitation",
+            variant: "outline",
           });
 
           // Redirect to dashboard
@@ -127,8 +130,18 @@ export function InvitationAcceptance({
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full bg-primary-foreground shadow-lg rounded-lg p-6 border">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-primary/10 rounded-[5px] border-2 border-black/20 flex items-center justify-center mx-auto mb-4">
-            <UsersIcon className="size-10 text-primary" />
+          <div className="size-20 bg-primary/10 rounded-[10px] border-2 border-black/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+            {inviterAvatarUrl ? (
+              <img
+                src={inviterAvatarUrl}
+                alt={inviterName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-xl">
+                {inviterName.charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
           <h1 className="text-2xl font-semibold text-foreground mb-2">
             You're Invited!

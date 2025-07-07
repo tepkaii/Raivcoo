@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
 
       const { data: ownedProjects, error: ownedError } =
         await ownedProjectsQuery;
-      console.log("Owned projects:", ownedProjects, ownedError);
 
       // Then get projects where user is a member
       const { data: membershipProjects, error: memberError } = await supabase
@@ -58,8 +57,6 @@ export async function POST(request: NextRequest) {
         )
         .eq("user_id", user.id)
         .eq("status", "accepted");
-
-      console.log("Member projects:", membershipProjects, memberError);
 
       // Combine and deduplicate projects
       const allProjects = [];
@@ -85,8 +82,6 @@ export async function POST(request: NextRequest) {
           }
         });
       }
-
-      console.log("All projects combined:", allProjects);
 
       if (allProjects.length > 0) {
         results.push(
@@ -134,8 +129,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      console.log("User accessible projects:", userProjects);
-
       if (userProjects.length > 0) {
         // Now search media in these projects
         let mediaQuery = supabase
@@ -170,7 +163,6 @@ export async function POST(request: NextRequest) {
         }
 
         const { data: media, error: mediaError } = await mediaQuery;
-        console.log("Media results:", media, mediaError);
 
         if (media && media.length > 0) {
           // Get project names for the media
@@ -206,7 +198,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log("Final results before sorting:", results);
+   
 
     // Apply sorting
     results.sort((a, b) => {
@@ -232,7 +224,6 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log("Final sorted results:", results.slice(0, 50));
 
     return NextResponse.json({
       results: results.slice(0, 50),

@@ -17,7 +17,7 @@ export default function PasswordSection({
   email,
 }: PasswordSectionProps) {
   return (
-    <Card className="border ">
+    <Card className="border bg-primary-foreground ">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-medium flex items-center gap-2">
           <ShieldCheckIcon className="h-5 w-5 text-emerald-500" />
@@ -36,10 +36,10 @@ export default function PasswordSection({
                 You can sign in with your email and password
               </p>
             </div>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/set-password">
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/set-password" className="flex items-center">
                 Change Password
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
           </div>

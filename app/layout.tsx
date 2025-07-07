@@ -89,7 +89,13 @@ export default function RootLayout({
             <SpeedInsights />
           </main>
           <HideOnPaths
-            pathStarts={["/dashboard", "/review/", "/media/", "/invite/"]}
+            pathStarts={[
+              "/dashboard",
+              "/review/",
+              "/media/",
+              "/invite/",
+              "/complete-profile",
+            ]}
           >
             <Footer />
           </HideOnPaths>

@@ -21,6 +21,61 @@ export async function createProject(formData: FormData) {
   if (profileError || !editorProfile)
     throw new Error("Failed to fetch editor profile");
 
+  // Get user's subscription status
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("plan_id, status, current_period_end")
+    .eq("user_id", user.id)
+    .single();
+
+  // Count existing owned projects
+  const { data: existingProjects, error: countError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("editor_id", editorProfile.id);
+
+  if (countError) {
+    console.error("Error counting projects:", countError);
+    throw new Error("Failed to verify project limits");
+  }
+
+  const projectCount = existingProjects?.length || 0;
+
+  // Define limits
+  const FREE_PROJECT_LIMIT = 2;
+  // Pro plan is unlimited - no limit check needed
+
+  // Check subscription status
+  const isPaidPlan =
+    subscription &&
+    subscription.plan_id === "pro" &&
+    subscription.status === "active";
+  const isExpired =
+    subscription &&
+    subscription.current_period_end &&
+    new Date(subscription.current_period_end) < new Date();
+  const isFreePlan = !subscription || subscription.plan_id === "free";
+
+  // Validate project limits based on current subscription status
+  if (isPaidPlan && !isExpired) {
+    // Active Pro plan - unlimited projects, no limit check
+    // Allow project creation
+  } else {
+    // Free plan OR expired subscription - both get free plan limits
+    if (projectCount >= FREE_PROJECT_LIMIT) {
+      if (isExpired) {
+        throw new Error(
+          `Your subscription has expired. You can still create up to ${FREE_PROJECT_LIMIT} projects on the free plan, but you've already reached that limit (${projectCount}/${FREE_PROJECT_LIMIT}). Please upgrade to Pro for unlimited projects.`
+        );
+      } else {
+        throw new Error(
+          `Free plan allows only ${FREE_PROJECT_LIMIT} projects. You currently have ${projectCount}/${FREE_PROJECT_LIMIT}. Please upgrade to Pro for unlimited projects.`
+        );
+      }
+    }
+    // If they're within the free limit, let them create the project
+  }
+
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
   const referencesJson = formData.get("references") as string;
@@ -47,7 +102,7 @@ export async function createProject(formData: FormData) {
         editor_id: editorProfile.id,
         name: name.trim(),
         description: description?.trim() || null,
-        project_references: references, // Add references to insert
+        project_references: references,
       })
       .select("id, name")
       .single();
@@ -67,6 +122,37 @@ export async function createProject(formData: FormData) {
       : new Error("An unexpected error occurred during project creation.");
   }
 }
+
+// Helper function to get subscription info (you can use this elsewhere too)
+export async function getSubscriptionInfo(userId: string) {
+  const supabase = await createClient();
+
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("plan_id, status, current_period_end")
+    .eq("user_id", userId)
+    .single();
+
+  const isPaidPlan =
+    subscription &&
+    subscription.plan_id === "pro" &&
+    subscription.status === "active";
+  const isExpired =
+    subscription &&
+    subscription.current_period_end &&
+    new Date(subscription.current_period_end) < new Date();
+  const isFreePlan = !subscription || subscription.plan_id === "free";
+
+  return {
+    subscription,
+    isPaidPlan,
+    isExpired,
+    isFreePlan,
+    plan: subscription?.plan_id || "free",
+    status: subscription?.status || "inactive",
+  };
+}
+
 
 export async function uploadMedia(formData: FormData) {
   const supabase = await createClient();

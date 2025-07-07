@@ -10,13 +10,21 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const provider = formData.get("provider") as "discord" | "google" | undefined;
+  const returnTo = formData.get("returnTo") as string | undefined;
   const supabase = createClient();
 
   if (provider) {
-    const { data, error } = await (await supabase).auth.signInWithOAuth({
+    // For OAuth, encode returnTo in the callback URL
+    const callbackUrl = returnTo
+      ? `https://www.raivcoo.com/auth/callback?returnTo=${encodeURIComponent(returnTo)}`
+      : `https://www.raivcoo.com/auth/callback`;
+
+    const { data, error } = await (
+      await supabase
+    ).auth.signInWithOAuth({
       provider: provider,
       options: {
-        redirectTo: `https://www.raivcoo.com/auth/callback`,
+        redirectTo: callbackUrl,
       },
     });
 
@@ -34,7 +42,9 @@ export async function signUp(formData: FormData) {
       };
     }
 
-    const { data, error } = await (await supabase).auth.signUp({
+    const { data, error } = await (
+      await supabase
+    ).auth.signUp({
       email,
       password,
       options: {

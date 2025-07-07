@@ -227,14 +227,8 @@ export async function POST(
 
         if (mediaError) throw mediaError;
 
-        uploadedFiles.push({
-          id: mediaFile.id,
-          name: file.name,
-          type: file.type,
-          size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-          url: publicUrl,
-          user_id: user.id,
-        });
+        // ✅ Push the complete MediaFile object instead of a partial one
+        uploadedFiles.push(mediaFile);
       } catch (error) {
         console.error(`Error uploading ${file.name}:`, error);
         return NextResponse.json(
@@ -268,13 +262,15 @@ export async function POST(
 
           // Process each recipient
           for (const recipient of recipients) {
-            const isMyMedia = uploadedFiles.some(
-              (file) => file.user_id === recipient.user_id
-            );
+            // ✅ Fix: Check if the uploader and recipient are the same user
+            const isMyMedia = user.id === recipient.user_id;
 
             console.log(
               `🔔 Processing recipient: ${recipient.full_name} (${recipient.role})`
             );
+            console.log(`🔔 Uploader user_id: ${user.id}`);
+            console.log(`🔔 Recipient user_id: ${recipient.user_id}`);
+            console.log(`🔔 Is my media: ${isMyMedia}`);
 
             // 🔥 CHECK PROJECT-LEVEL NOTIFICATIONS FOR THIS SPECIFIC USER
             const {
@@ -357,7 +353,11 @@ export async function POST(
                   editorProfile.full_name ||
                   editorProfile.email ||
                   "Unknown User",
-                mediaItems: uploadedFiles,
+                mediaItems: uploadedFiles.map((file) => ({
+                  name: file.original_filename,
+                  type: file.mime_type,
+                  size: `${(file.file_size / 1024 / 1024).toFixed(2)} MB`,
+                })),
               });
 
               const description = await getActivityDescription({
@@ -369,7 +369,11 @@ export async function POST(
                   editorProfile.email ||
                   "Unknown User",
                 projectName: project.name,
-                mediaItems: uploadedFiles,
+                mediaItems: uploadedFiles.map((file) => ({
+                  name: file.original_filename,
+                  type: file.mime_type,
+                  size: `${(file.file_size / 1024 / 1024).toFixed(2)} MB`,
+                })),
               });
 
               // Create activity notification
@@ -383,10 +387,10 @@ export async function POST(
                   activity_data: {
                     type: "media_upload",
                     media_count: uploadedFiles.length,
-                    media_details: uploadedFiles.map((item) => ({
-                      name: item.name,
-                      type: item.type,
-                      size: item.size,
+                    media_details: uploadedFiles.map((file) => ({
+                      name: file.original_filename,
+                      type: file.mime_type,
+                      size: `${(file.file_size / 1024 / 1024).toFixed(2)} MB`,
                     })),
                     is_owner: recipient.is_owner,
                     is_my_media: isMyMedia,
@@ -439,10 +443,10 @@ export async function POST(
                       projectUrl,
                       activityType: "upload",
                       mediaCount: uploadedFiles.length,
-                      mediaDetails: uploadedFiles.map((item) => ({
-                        name: item.name,
-                        type: item.type,
-                        size: item.size,
+                      mediaDetails: uploadedFiles.map((file) => ({
+                        name: file.original_filename,
+                        type: file.mime_type,
+                        size: `${(file.file_size / 1024 / 1024).toFixed(2)} MB`,
                       })),
                       isOwner: recipient.is_owner,
                       isMyMedia,

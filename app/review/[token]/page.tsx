@@ -185,19 +185,12 @@ export default async function Page({
   // ✅ USE RPC FUNCTION TO CHECK PROJECT ACCESS
   let userProjectRelationship = null;
   if (user && reviewLink.project_id) {
-    console.log("🔥 CHECKING PROJECT ACCESS WITH RPC:", {
-      userId: user.id,
-      projectId: reviewLink.project_id,
-    });
-
     const { data: accessData, error: accessError } = await supabase
       .rpc("check_project_access", {
         project_uuid: reviewLink.project_id,
         user_uuid: user.id,
       })
       .single();
-
-    console.log("🔥 RPC ACCESS CHECK RESULT:", { accessData, accessError });
 
     if (accessData && !accessError) {
       const { has_access, role, is_owner, project_exists } = accessData;
@@ -209,7 +202,6 @@ export default async function Page({
           isMember: false,
           isOutsider: false,
         };
-        console.log("🔥 USER IS PROJECT OWNER (RPC)");
       } else if (has_access && role && role !== "owner") {
         userProjectRelationship = {
           role: role,
@@ -217,7 +209,6 @@ export default async function Page({
           isMember: true,
           isOutsider: false,
         };
-        console.log("🔥 USER IS PROJECT MEMBER (RPC):", role);
       } else if (project_exists && !has_access) {
         userProjectRelationship = {
           role: "outsider",
@@ -225,7 +216,6 @@ export default async function Page({
           isMember: false,
           isOutsider: true,
         };
-        console.log("🔥 USER IS OUTSIDER (RPC)");
       }
     }
   }
@@ -239,7 +229,6 @@ export default async function Page({
         isMember: false,
         isOutsider: true,
       };
-      console.log("🔥 USER IS AUTHENTICATED OUTSIDER (DEFAULT)");
     } else {
       userProjectRelationship = {
         role: "guest",
@@ -247,7 +236,6 @@ export default async function Page({
         isMember: false,
         isOutsider: false,
       };
-      console.log("🔥 USER IS GUEST (DEFAULT)");
     }
   }
 
@@ -292,11 +280,8 @@ export default async function Page({
     }
   }
 
-  console.log("🔥 FINAL CONTEXT BEING PASSED:", {
-    projectId: reviewLink.project_id,
-    userProjectRelationship,
-    reviewToken: token,
-  });
+
+
 
   return (
     <MediaInterface

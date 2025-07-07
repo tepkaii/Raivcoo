@@ -3,8 +3,15 @@ import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { planId, planName, amount, storageGb, action, currentSubId } =
-      await request.json();
+    const {
+      planId,
+      planName,
+      amount,
+      storageGb,
+      action,
+      currentSubId,
+      billingPeriod = "monthly",
+    } = await request.json();
 
     const supabase = await createClient();
 
@@ -31,6 +38,7 @@ export async function POST(request: NextRequest) {
           storage_gb: storageGb,
           action: action,
           current_subscription_id: currentSubId,
+          billing_period: billingPeriod,
         },
       })
       .select()

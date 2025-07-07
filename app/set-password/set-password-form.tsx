@@ -63,7 +63,7 @@ export default function SetPasswordForm({
         description: hasExistingPassword
           ? "Your password has been updated successfully."
           : "Your password has been set successfully.",
-        variant: "success",
+        variant: "green",
       });
 
       setIsLoading(false);

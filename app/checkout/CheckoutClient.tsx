@@ -16,6 +16,7 @@ interface Subscription {
   plan_name: string;
   status: string;
   current_period_end: string;
+  billing_period?: string;
 }
 
 interface Plan {
@@ -24,6 +25,7 @@ interface Plan {
   price: string;
   storage: string;
   features: string[];
+  billing?: string;
 }
 
 interface CheckoutClientProps {
@@ -31,7 +33,8 @@ interface CheckoutClientProps {
   selectedPlan: Plan;
   currentSubscription: Subscription | null;
   customStorage?: number;
-  action?: string; // "new", "upgrade", "downgrade"
+  action?: string; // "new", "upgrade", "downgrade", "renew"
+  billingPeriod?: string;
 }
 
 function PayPalCheckout({
@@ -41,6 +44,7 @@ function PayPalCheckout({
   storageGb,
   action,
   currentSubId,
+  billingPeriod,
   onSuccess,
 }: {
   planId: string;
@@ -49,6 +53,7 @@ function PayPalCheckout({
   storageGb?: number;
   action?: string;
   currentSubId?: string;
+  billingPeriod?: string;
   onSuccess: () => void;
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -123,6 +128,7 @@ function PayPalCheckout({
                   storageGb,
                   action,
                   currentSubId,
+                  billingPeriod,
                 }),
               });
 
@@ -138,7 +144,7 @@ function PayPalCheckout({
               return actions.order.create({
                 purchase_units: [
                   {
-                    description: `${planName} Plan${storageGb ? ` (${storageGb}GB)` : ""} ${action ? `- ${action}` : ""}`,
+                    description: `${planName} Plan${storageGb ? ` (${storageGb}GB)` : ""} ${action ? `- ${action}` : ""} - ${billingPeriod || "monthly"}`,
                     amount: {
                       currency_code: "USD",
                       value: amount.toFixed(2),
@@ -178,6 +184,7 @@ function PayPalCheckout({
                   pendingOrderId,
                   action,
                   currentSubId,
+                  billingPeriod,
                 }),
               });
 
@@ -229,18 +236,29 @@ export default function CheckoutClient({
   currentSubscription,
   customStorage,
   action,
+  billingPeriod = "monthly",
 }: CheckoutClientProps) {
   const router = useRouter();
 
   const handlePaymentSuccess = () => {
+    const actionMessage = {
+      upgrade: "Upgrade completed successfully!",
+      downgrade: "Downgrade completed successfully!",
+      renew: "Plan renewed successfully!",
+      new: "Payment completed successfully!",
+    };
+
     toast({
       title: "Success!",
-      description: `${action === "upgrade" ? "Upgrade" : action === "downgrade" ? "Downgrade" : "Payment"} completed successfully!`,
+      description:
+        actionMessage[action as keyof typeof actionMessage] ||
+        "Payment completed successfully!",
     });
 
     const successParams = new URLSearchParams({
       plan: selectedPlan.id,
       action: action || "new",
+      billing: billingPeriod,
     });
 
     if (customStorage) {
@@ -251,29 +269,43 @@ export default function CheckoutClient({
   };
 
   const subtotal = parseFloat(selectedPlan.price);
-  const tax = subtotal * 0.08; // 8% tax
-  const total = subtotal + tax;
+  const total = subtotal; // No taxes
 
   // For free plan downgrades, handle differently
   const isFreeDowngrade = selectedPlan.id === "free" && action === "downgrade";
 
   const getActionTitle = () => {
+    const periodText = billingPeriod === "yearly" ? " (Yearly)" : " (Monthly)";
+
     switch (action) {
       case "upgrade":
-        return "Upgrade Plan";
+        return `Upgrade Plan${periodText}`;
       case "downgrade":
-        return isFreeDowngrade ? "Downgrade to Free" : "Downgrade Plan";
+        return isFreeDowngrade
+          ? "Downgrade to Free"
+          : `Downgrade Plan${periodText}`;
+      case "renew":
+        return `Renew Plan${periodText}`;
       default:
-        return "New Subscription";
+        return `New Subscription${periodText}`;
     }
+  };
+
+  const formatUploadSize = (planId: string) => {
+    const uploadSizes = {
+      free: "200MB",
+      lite: "2GB",
+      pro: "5GB",
+    };
+    return uploadSizes[planId as keyof typeof uploadSizes] || "Unknown";
   };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+      <div className="bg-card border-b border-border w-full">
+        <div className="w-full  px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-3">
             <div className="flex items-center">
               <Link
                 href="/pricing"
@@ -312,79 +344,111 @@ export default function CheckoutClient({
                     <p className="text-sm text-muted-foreground">
                       {selectedPlan.storage}
                     </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatUploadSize(selectedPlan.id)} max upload size
+                    </p>
+                    <div className="mt-2">
+                      {billingPeriod === "yearly" ? (
+                        <p className="text-sm font-medium text-green-600">
+                          Yearly Billing (30% savings)
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Monthly Billing
+                        </p>
+                      )}
+                    </div>
                     {action && (
                       <Badge
                         className="mt-2"
-                        variant={action === "upgrade" ? "default" : "secondary"}
+                        variant={
+                          action === "upgrade" || action === "renew"
+                            ? "default"
+                            : "secondary"
+                        }
                       >
                         {action.charAt(0).toUpperCase() + action.slice(1)}
                       </Badge>
                     )}
                   </div>
-                  {selectedPlan.id === "pro" && (
-                    <Badge variant="default" className="ml-2">
-                      Popular
-                    </Badge>
-                  )}
+                  <div className="flex flex-col gap-1">
+                    {(selectedPlan.id === "pro" ||
+                      selectedPlan.id === "lite") && (
+                      <Badge variant="default" className="ml-2">
+                        {selectedPlan.id === "pro" ? "Popular" : "Great Value"}
+                      </Badge>
+                    )}
+                    {billingPeriod === "yearly" && !isFreeDowngrade && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-2 text-xs text-green-700"
+                      >
+                        30% OFF
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 {/* Features list */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-foreground mb-2">
-                    Included features:
+                    What's included:
                   </p>
-                  {selectedPlan.features.slice(0, 5).map((feature, index) => (
+                  {selectedPlan.features.slice(0, 4).map((feature, index) => (
                     <div key={index} className="flex items-center text-sm">
-                      <CheckBadgeIcon className="size-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
+                      <CheckBadgeIcon className="size-4 text-primary mr-2 flex-shrink-0" />
                       <span className="text-muted-foreground">{feature}</span>
                     </div>
                   ))}
-                  {selectedPlan.features.length > 5 && (
+                  {selectedPlan.features.length > 4 && (
                     <p className="text-sm text-muted-foreground">
-                      +{selectedPlan.features.length - 5} more features
+                      +{selectedPlan.features.length - 4} more features
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* Pricing breakdown */}
+              {/* Pricing */}
               {!isFreeDowngrade && (
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">
-                      ${subtotal.toFixed(2)}
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold text-foreground">
+                      Total
                     </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tax (8%)</span>
-                    <span className="text-foreground">${tax.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-border pt-3">
-                    <div className="flex justify-between font-semibold text-lg">
-                      <span className="text-foreground">Total</span>
-                      <span className="text-foreground">
-                        ${total.toFixed(2)}/month
+                    <div className="text-right">
+                      <span className="text-xl font-bold text-foreground">
+                        ${total.toFixed(2)}
                       </span>
+                      <span className="text-sm text-muted-foreground ml-1">
+                        /{billingPeriod === "yearly" ? "year" : "month"}
+                      </span>
+                      {billingPeriod === "yearly" && (
+                        <p className="text-xs text-green-600">
+                          ${(total / 12).toFixed(2)}/month equivalent
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Billing info */}
+              {/* Simple billing info */}
               <div className="text-sm text-muted-foreground space-y-2">
                 {isFreeDowngrade ? (
                   <>
-                    <p>• Downgrade will take effect immediately</p>
                     <p>• No payment required</p>
-                    <p>• Current billing cycle will be cancelled</p>
+                    <p>• Downgrade takes effect immediately</p>
                   </>
                 ) : (
                   <>
-                    <p>• Billed monthly starting today</p>
-                    <p>• Cancel anytime</p>
-                    <p>• Includes all features listed</p>
-                    <p>• 30-day money-back guarantee</p>
+                    <p>• One-time payment, no recurring charges</p>
+                    <p>• Cancel anytime before renewal</p>
+                    <p>• Contact support@raivcoo.com for refunds</p>
+                    {billingPeriod === "yearly" && (
+                      <p className="text-green-600 font-medium">
+                        • 30% savings with yearly plan
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -395,25 +459,24 @@ export default function CheckoutClient({
           <div className="lg:pl-8">
             <div className="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
               <h2 className="text-xl font-semibold mb-4 text-foreground">
-                Account Information
+                Account
               </h2>
-              <div className="p-4 bg-primary-foreground rounded-md">
+              <div className="p-4 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">Signed in as:</p>
                 <p className="font-medium text-foreground">{user.email}</p>
               </div>
             </div>
 
-            <div className="bg-[#ffffff] rounded-lg border border-border p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4 text-primary-foreground">
-                {isFreeDowngrade ? "Confirm Downgrade" : "Payment Method"}
+            <div className="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4 text-foreground">
+                {isFreeDowngrade ? "Confirm Downgrade" : "Payment"}
               </h2>
 
               {isFreeDowngrade ? (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Click below to confirm your downgrade to the Free plan. This
-                    action is immediate and will cancel your current
-                    subscription.
+                    Confirm your downgrade to the Free plan. This will cancel
+                    your current subscription.
                   </p>
                   <Button
                     onClick={handlePaymentSuccess}
@@ -424,40 +487,38 @@ export default function CheckoutClient({
                   </Button>
                 </div>
               ) : (
-                <PayPalCheckout
-                  planId={selectedPlan.id}
-                  planName={selectedPlan.name}
-                  amount={total}
-                  storageGb={customStorage}
-                  action={action}
-                  currentSubId={currentSubscription?.id}
-                  onSuccess={handlePaymentSuccess}
-                />
+                <div className="space-y-4">
+                  <PayPalCheckout
+                    planId={selectedPlan.id}
+                    planName={selectedPlan.name}
+                    amount={total}
+                    storageGb={customStorage}
+                    action={action}
+                    currentSubId={currentSubscription?.id}
+                    billingPeriod={billingPeriod}
+                    onSuccess={handlePaymentSuccess}
+                  />
+                </div>
               )}
             </div>
 
-            {/* Policy links */}
-            <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>
-                  By completing this {action || "purchase"}, you agree to our:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Link href="/terms" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>
-                  <span>•</span>
-                  <Link
-                    href="/privacy"
-                    className="text-primary hover:underline"
-                  >
-                    Privacy Policy
-                  </Link>
-                  <span>•</span>
-                  <Link href="/refund" className="text-primary hover:underline">
-                    Refund Policy
-                  </Link>
-                </div>
+            {/* Simple policy links */}
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground">
+                <Link href="/terms" className="text-primary hover:underline">
+                  Terms
+                </Link>
+                {" • "}
+                <Link href="/privacy" className="text-primary hover:underline">
+                  Privacy
+                </Link>
+                {" • "}
+                <Link
+                  href="mailto:support@raicoo.com"
+                  className="text-primary hover:underline"
+                >
+                  Support
+                </Link>
               </div>
             </div>
           </div>
