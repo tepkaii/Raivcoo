@@ -77,7 +77,7 @@ function PayPalCheckout({
     clientId,
     currency: "USD",
     intent: "capture" as const,
-    environment: "sandbox" as const,
+    environment: "production" as const,
   };
 
   // Helper function to calculate plan details
