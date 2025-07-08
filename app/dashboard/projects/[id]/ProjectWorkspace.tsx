@@ -36,6 +36,7 @@ import {
 import { createCommentAction } from "./lib/CommentActions";
 
 // Define types
+// 
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
 
 interface ProjectMember {

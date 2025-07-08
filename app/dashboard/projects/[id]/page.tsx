@@ -11,6 +11,7 @@ import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Define types
+// 
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
 
 interface ProjectMember {
