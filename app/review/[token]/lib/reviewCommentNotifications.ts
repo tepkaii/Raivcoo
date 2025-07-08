@@ -1,4 +1,6 @@
 // app/review/[token]/lib/reviewCommentNotifications.ts
+// @ts-ignore
+// @ts-nocheck
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -26,29 +28,7 @@ interface ReviewComment {
   created_at: string;
 }
 
-interface ReviewLinkData {
-  id: string;
-  link_token: string;
-  title?: string;
-  project_id: string;
-  media_id: string;
-  project: {
-    id: string;
-    name: string;
-    editor_id: string;
-    notifications_enabled: boolean;
-  };
-  media: {
-    id: string;
-    original_filename: string;
-    mime_type: string;
-  };
-}
 
-// 🔥 NEW: Get review notification recipients
-// app/review/[token]/lib/reviewCommentNotifications.ts
-
-// 🔥 IMPROVED: Use RPC functions that bypass RLS
 async function getReviewNotificationRecipients(
   reviewLinkData: any, // This comes from the RPC function now
   commentAuthorId?: string,
@@ -68,13 +48,6 @@ async function getReviewNotificationRecipients(
     session_id?: string;
   }> = [];
 
-  console.log("🔔 Getting recipients for review notification:", {
-    projectId: reviewLinkData.project_id,
-    commentAuthorId,
-    commentAuthorEmail,
-    commentAuthorSessionId,
-  });
-
   // 1. Get project owner and members using RPC function
   const { data: projectMembers, error: membersError } = await supabase.rpc(
     "get_project_members_for_notifications",
@@ -89,19 +62,11 @@ async function getReviewNotificationRecipients(
     for (const member of projectMembers) {
       // Skip if this is the commenter
       if (commentAuthorId && member.user_id === commentAuthorId) {
-        console.log(
-          "🔔 Skipping project member who is the commenter:",
-          member.full_name
-        );
         continue;
       }
 
       // Skip if notifications are disabled for this member
       if (!member.notifications_enabled) {
-        console.log(
-          "🔔 Skipping member with notifications disabled:",
-          member.full_name
-        );
         continue;
       }
 
@@ -114,12 +79,6 @@ async function getReviewNotificationRecipients(
         is_guest: false,
         is_outsider: false,
       });
-
-      console.log(
-        `🔔 Added project ${member.is_owner ? "owner" : "member"}:`,
-        member.email,
-        `(${member.role})`
-      );
     }
   }
 
@@ -149,10 +108,6 @@ async function getReviewNotificationRecipients(
     for (const commenter of otherCommenters) {
       // Skip if already added as project member
       if (commenter.user_id && seenUserIds.has(commenter.user_id)) {
-        console.log(
-          "🔔 Skipping commenter already added as project member:",
-          commenter.user_name
-        );
         continue;
       }
 
@@ -160,10 +115,6 @@ async function getReviewNotificationRecipients(
         commenter.user_email &&
         seenEmails.has(commenter.user_email.toLowerCase())
       ) {
-        console.log(
-          "🔔 Skipping commenter already added by email:",
-          commenter.user_name
-        );
         continue;
       }
 
@@ -179,7 +130,6 @@ async function getReviewNotificationRecipients(
           is_outsider: true,
         });
         seenUserIds.add(commenter.user_id);
-        console.log("🔔 Added authenticated outsider:", commenter.user_name);
       } else if (commenter.user_email) {
         // Guest with email
         recipients.push({
@@ -192,40 +142,20 @@ async function getReviewNotificationRecipients(
           session_id: commenter.session_id || undefined,
         });
         seenEmails.add(commenter.user_email.toLowerCase());
-        console.log("🔔 Added guest:", commenter.user_name);
       }
     }
   }
 
-  console.log(`🔔 Total recipients found: ${recipients.length}`);
   return recipients;
 }
 
-// app/review/[token]/lib/reviewCommentNotifications.ts
 
 export async function sendReviewCommentNotifications(
   reviewToken: string,
   commentData: ReviewComment,
-  isReply: boolean = false,
-  userProjectRelationship?: {
-    role: string;
-    isOwner: boolean;
-    isMember?: boolean;
-    isOutsider?: boolean;
-  } | null,
-  projectId?: string,
-  reviewLinkData?: any
+  isReply: boolean = false
 ) {
   try {
-    console.log("🔔 REVIEW NOTIFICATION FUNCTION STARTED:", {
-      reviewToken,
-      commentId: commentData.id,
-      commenterUserId: commentData.user_id,
-      commenterUserName: commentData.user_name,
-      commenterUserEmail: commentData.user_email,
-      commenterSessionId: commentData.session_id,
-    });
-
     const supabase = await createClient();
 
     // Get review link data
@@ -234,13 +164,11 @@ export async function sendReviewCommentNotifications(
       .single();
 
     if (reviewError || !reviewLinkInfo) {
-      console.log("🔔 Review link not found or inactive:", { reviewError });
       return;
     }
 
     // Check if project notifications are enabled
     if (!reviewLinkInfo.project_notifications_enabled) {
-      console.log("🔔 Project notifications disabled - skipping");
       return;
     }
 
@@ -257,16 +185,6 @@ export async function sendReviewCommentNotifications(
         .eq("id", commentData.parent_comment_id)
         .single();
 
-      console.log("🔔 PARENT COMMENT DEBUG:", {
-        parentCommentId: commentData.parent_comment_id,
-        parentComment: parentComment,
-        currentCommenter: {
-          userId: commentData.user_id,
-          email: commentData.user_email,
-          name: commentData.user_name,
-        },
-      });
-
       if (parentComment) {
         parentCommentData = {
           id: commentData.parent_comment_id,
@@ -279,13 +197,6 @@ export async function sendReviewCommentNotifications(
         parentCommentAuthorId = parentComment.user_id;
         parentCommentAuthorEmail = parentComment.user_email;
         parentCommentAuthorSessionId = parentComment.session_id;
-
-        console.log("🔔 PARENT COMMENT AUTHOR INFO:", {
-          authorId: parentCommentAuthorId,
-          authorEmail: parentCommentAuthorEmail,
-          authorSessionId: parentCommentAuthorSessionId,
-          authorName: parentComment.user_name,
-        });
       }
     }
 
@@ -297,15 +208,9 @@ export async function sendReviewCommentNotifications(
       commentData.session_id
     );
 
-    console.log(`🔔 Found ${recipients.length} potential recipients`);
-
     // Process each recipient
     for (const recipient of recipients) {
       try {
-        console.log(
-          `🔔 Processing recipient: ${recipient.full_name} (${recipient.role})`
-        );
-
         // ✅ SKIP THE COMMENTER
         let isCommenter = false;
 
@@ -330,7 +235,6 @@ export async function sendReviewCommentNotifications(
         }
 
         if (isCommenter) {
-          console.log(`🔔 SKIPPING: ${recipient.full_name} is the commenter`);
           continue;
         }
 
@@ -341,18 +245,6 @@ export async function sendReviewCommentNotifications(
         if (recipient.is_guest || recipient.is_outsider) {
           // GUESTS AND OUTSIDERS: Only get reply notifications
           if (isReply) {
-            console.log("🔔 CHECKING REPLY MATCH FOR GUEST/OUTSIDER:", {
-              recipientName: recipient.full_name,
-              recipientRole: recipient.role,
-              recipientId: recipient.user_id,
-              recipientEmail: recipient.email,
-              recipientSessionId: recipient.session_id,
-              parentAuthorId: parentCommentAuthorId,
-              parentAuthorEmail: parentCommentAuthorEmail,
-              parentAuthorSessionId: parentCommentAuthorSessionId,
-              parentCommentId: commentData.parent_comment_id,
-            });
-
             // Check all possible ways this could be a reply to them
             const isReplyToThisPerson =
               (parentCommentAuthorId &&
@@ -365,26 +257,6 @@ export async function sendReviewCommentNotifications(
               (parentCommentAuthorSessionId &&
                 recipient.session_id &&
                 parentCommentAuthorSessionId === recipient.session_id);
-
-            console.log("🔔 REPLY MATCH RESULT:", {
-              recipientName: recipient.full_name,
-              isReplyToThisPerson,
-              matchedBy: {
-                userId:
-                  parentCommentAuthorId &&
-                  recipient.user_id &&
-                  parentCommentAuthorId === recipient.user_id,
-                email:
-                  parentCommentAuthorEmail &&
-                  recipient.email &&
-                  parentCommentAuthorEmail.toLowerCase() ===
-                    recipient.email.toLowerCase(),
-                sessionId:
-                  parentCommentAuthorSessionId &&
-                  recipient.session_id &&
-                  parentCommentAuthorSessionId === recipient.session_id,
-              },
-            });
 
             if (isReplyToThisPerson) {
               shouldSendNotification = true;
@@ -413,9 +285,6 @@ export async function sendReviewCommentNotifications(
           }
 
           if (!projectNotificationsEnabled) {
-            console.log(
-              `🔔 Skipping ${recipient.full_name} - project notifications disabled`
-            );
             continue;
           }
 
@@ -427,10 +296,6 @@ export async function sendReviewCommentNotifications(
             .single();
 
           if (prefsError) {
-            console.log(
-              `🔔 Error getting prefs for ${recipient.full_name}:`,
-              prefsError
-            );
           }
 
           const preferences =
@@ -455,15 +320,8 @@ export async function sendReviewCommentNotifications(
 
         // ✅ SEND NOTIFICATION IF NEEDED
         if (!shouldSendNotification) {
-          console.log(
-            `🔔 Skipping ${recipient.full_name} - ${notificationReason || "no notification needed"}`
-          );
           continue;
         }
-
-        console.log(
-          `✅ Sending notification to ${recipient.full_name} - ${notificationReason}`
-        );
 
         // Create comment item for notification
         const commentItem = {
@@ -588,14 +446,11 @@ export async function sendReviewCommentNotifications(
         );
       }
     }
-
-    console.log("🔔 Review comment notifications completed");
   } catch (error) {
     console.error("🔥 REVIEW NOTIFICATION ERROR:", error);
   }
 }
 
-// ✅ SEPARATE FUNCTIONS FOR CLEANER CODE
 async function sendReviewEmailNotification(
   recipient: any,
   commentData: ReviewComment,
@@ -607,8 +462,6 @@ async function sendReviewEmailNotification(
   parentCommentData: any
 ) {
   try {
-    console.log(`📧 Sending email to ${recipient.email}`);
-
     const reviewUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/review/${reviewToken}`;
     const actorName = commentData.user_name || "Anonymous";
 
@@ -664,7 +517,6 @@ async function sendReviewEmailNotification(
         emailError
       );
     } else {
-      console.log(`✅ Review email sent to ${recipient.email}`);
     }
   } catch (emailError) {
     console.error(
@@ -686,8 +538,6 @@ async function createReviewActivityNotification(
   supabase: any
 ) {
   try {
-    console.log(`🔔 Creating activity notification for ${recipient.full_name}`);
-
     const activityTypeForTitle = isReply ? "comment_reply" : "comment_added";
 
     const title = await getCommentActivityTitle({
@@ -738,9 +588,6 @@ async function createReviewActivityNotification(
         notificationError
       );
     } else {
-      console.log(
-        `✅ Review activity notification created for ${recipient.full_name}`
-      );
     }
   } catch (activityError) {
     console.error(

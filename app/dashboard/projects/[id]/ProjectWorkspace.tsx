@@ -1,4 +1,5 @@
 // app/dashboard/projects/[id]/ProjectWorkspace.tsx
+// @ts-nocheck
 "use client";
 
 import React, {

@@ -9,9 +9,6 @@ export interface ProjectReference {
   addedAt: string;
 }
 
-// Simple URL detection specifically for references
-const REFERENCE_URL_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{2,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
 /**
  * Validate if string is a valid URL for references

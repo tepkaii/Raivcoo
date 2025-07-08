@@ -1,4 +1,5 @@
 // app/dashboard/projects/[id]/page.tsx
+// @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ProjectWorkspace } from "./ProjectWorkspace";

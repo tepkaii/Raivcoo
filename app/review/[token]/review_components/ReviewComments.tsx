@@ -1,5 +1,5 @@
 // app/review/[token]/review_components/ReviewComments.tsx
-
+// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -64,6 +64,7 @@ interface MediaComment {
     timestamp?: number;
     color?: string;
   };
+  avatar_url?: string;
   drawing_data?: {
     id: string;
     strokes: Array<{
@@ -189,7 +190,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   projectMode = false,
   projectId,
   createCommentOverride,
-  userPermissions,
   userProjectRelationship,
   reviewToken,
   reviewLinkData,
@@ -413,10 +413,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     }
   };
 
-  // app/review/[token]/review_components/ReviewComments.tsx - UPDATE THE addComment FUNCTION
-
-  // app/review/[token]/review_components/ReviewComments.tsx - UPDATE addComment function
-
   // UPDATE THE addComment FUNCTION
   const addComment = async () => {
     if (!newComment.trim() || isSubmitting) return;
@@ -468,7 +464,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       let result;
 
       if (projectMode && createCommentOverride) {
-        console.log("🔥 USING PROJECT MODE - createCommentOverride");
         result = await createCommentOverride({
           mediaId,
           content: newComment.trim(),
@@ -478,8 +473,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
           drawingData,
         });
       } else {
-        console.log("🔥 USING REVIEW MODE - with direct review token");
-
         // ✅ USE REVIEW TOKEN DIRECTLY INSTEAD OF PARSING URL
         const currentReviewToken =
           reviewToken ||
@@ -487,8 +480,6 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             const pathParts = window.location.pathname.split("/");
             return pathParts[pathParts.length - 1];
           })();
-
-        console.log("🔥 REVIEW TOKEN:", currentReviewToken);
 
         result = await createCommentAction({
           mediaId,

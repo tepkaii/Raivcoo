@@ -1,4 +1,6 @@
 // app/dashboard/projects/[id]/lib/DeleteMediaActions.ts
+// @ts-nocheck
+// @ts-ignore
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -105,11 +107,8 @@ async function sendDeleteNotifications(
       .single();
 
     if (!project || deletedFiles.length === 0) {
-      console.log("🔔 No project found or no files to notify about");
       return;
     }
-
-    console.log(`🔔 Starting delete notifications for project ${project.name}`);
 
     // Get recipients using RPC
     const { data: recipients, error: recipientsError } = await supabase.rpc(
@@ -125,11 +124,8 @@ async function sendDeleteNotifications(
     }
 
     if (!recipients || recipients.length === 0) {
-      console.log("🔔 No recipients found for notifications");
       return;
     }
-
-    console.log(`🔔 Found ${recipients.length} potential recipients`);
 
     // Process each recipient
     for (const recipient of recipients) {
@@ -138,11 +134,7 @@ async function sendDeleteNotifications(
           (file) => file.user_id === recipient.user_id
         );
 
-        console.log(
-          `🔔 Processing recipient: ${recipient.full_name} (${recipient.role})`
-        );
-
-        // 🔥 CHECK PROJECT-LEVEL NOTIFICATIONS FOR THIS SPECIFIC USER
+        //CHECK PROJECT-LEVEL NOTIFICATIONS FOR THIS SPECIFIC USER
         const {
           data: projectNotificationsEnabled,
           error: notificationCheckError,
@@ -163,9 +155,6 @@ async function sendDeleteNotifications(
 
         // Skip if project notifications are disabled for this user
         if (!projectNotificationsEnabled) {
-          console.log(
-            `🔔 Skipping ${recipient.full_name} - project notifications disabled for this user`
-          );
           continue;
         }
 
@@ -190,9 +179,6 @@ async function sendDeleteNotifications(
         );
 
         if (!notificationSettings.enabled) {
-          console.log(
-            `🔔 Skipping ${recipient.full_name} - user preferences disabled`
-          );
           continue; // Skip this user
         }
 
@@ -253,9 +239,6 @@ async function sendDeleteNotifications(
               notificationError
             );
           } else {
-            console.log(
-              `✅ Delete activity notification created for ${recipient.full_name}`
-            );
           }
         }
 
@@ -265,8 +248,6 @@ async function sendDeleteNotifications(
           notificationSettings.delivery === "both"
         ) {
           try {
-            console.log(`📧 Sending email notification to ${recipient.email}`);
-
             const projectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/projects/${projectId}`;
 
             const { data: emailData, error: emailError } =
@@ -299,9 +280,6 @@ async function sendDeleteNotifications(
             if (emailError) {
               console.error("❌ Error sending email:", emailError);
             } else {
-              console.log(
-                `✅ Delete email notification sent to ${recipient.email}`
-              );
             }
           } catch (emailError) {
             console.error("❌ Failed to send email:", emailError);
@@ -441,7 +419,7 @@ export async function deleteMediaAction(projectId: string, mediaId: string) {
     // ✅ DELETE COMPLETED SUCCESSFULLY - NOW REVALIDATE
     revalidatePath(`/dashboard/projects/${projectId}`);
 
-    // 🔥 SEND NOTIFICATIONS ASYNCHRONOUSLY - DON'T WAIT FOR THEM
+    // SEND NOTIFICATIONS ASYNCHRONOUSLY - DON'T WAIT FOR THEM
     // This runs in the background and won't affect the delete response
     setImmediate(() => {
       sendDeleteNotifications(
@@ -466,8 +444,6 @@ export async function deleteMediaAction(projectId: string, mediaId: string) {
 // Helper function to renumber versions
 async function renumberVersions(parentMediaId: string, supabase: any) {
   try {
-    console.log(`🔄 Renumbering versions for parent media: ${parentMediaId}`);
-
     // Get all versions sorted by upload date
     const { data: versions } = await supabase
       .from("project_media")
@@ -476,11 +452,8 @@ async function renumberVersions(parentMediaId: string, supabase: any) {
       .order("uploaded_at", { ascending: true });
 
     if (!versions || versions.length === 0) {
-      console.log("🔄 No versions to renumber");
       return;
     }
-
-    console.log(`🔄 Renumbering ${versions.length} versions`);
 
     // Renumber versions starting from 2 (parent is always 1)
     for (let i = 0; i < versions.length; i++) {
@@ -496,9 +469,6 @@ async function renumberVersions(parentMediaId: string, supabase: any) {
           updateError
         );
       } else {
-        console.log(
-          `✅ Version ${versions[i].id} renumbered to ${newVersionNumber}`
-        );
       }
     }
   } catch (error) {

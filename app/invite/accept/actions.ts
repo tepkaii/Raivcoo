@@ -20,8 +20,6 @@ async function createActivityNotification(params: {
   actorName: string;
   activityData: any;
 }) {
-  console.log("🎯 Creating activity notification:", params);
-
   const supabase = await createClient();
 
   try {
@@ -41,7 +39,6 @@ async function createActivityNotification(params: {
     if (error) {
       console.error("❌ Error creating activity notification:", error);
     } else {
-      console.log("✅ Activity notification created successfully");
     }
   } catch (error) {
     console.error("❌ Failed to create activity notification:", error);
@@ -49,8 +46,6 @@ async function createActivityNotification(params: {
 }
 
 export async function acceptInvitation(invitationId: string) {
-  console.log("🚀 Starting acceptInvitation for:", invitationId);
-
   try {
     const supabase = await createClient();
 
@@ -60,15 +55,12 @@ export async function acceptInvitation(invitationId: string) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      console.log("❌ No authenticated user found");
       return {
         success: false,
         error: "You must be signed in to accept invitations",
         requireAuth: true,
       };
     }
-
-    console.log("✅ User authenticated:", user.id);
 
     // Get user's editor profile
     const { data: editorProfile, error: profileError } = await supabase
@@ -78,14 +70,11 @@ export async function acceptInvitation(invitationId: string) {
       .single();
 
     if (!editorProfile) {
-      console.log("❌ Editor profile not found");
       return {
         success: false,
         error: "Editor profile not found. Please complete your profile setup.",
       };
     }
-
-    console.log("✅ Editor profile found:", editorProfile);
 
     // Get the invitation first
     const { data: invitation, error: invitationError } = await supabase
@@ -95,14 +84,11 @@ export async function acceptInvitation(invitationId: string) {
       .single();
 
     if (invitationError || !invitation) {
-      console.log("❌ Invitation not found:", invitationError);
       return {
         success: false,
         error: "Invitation not found or has been removed",
       };
     }
-
-    console.log("✅ Invitation found:", invitation);
 
     // Get project data using RPC function (bypasses RLS)
     const { data: projectData, error: projectError } = await supabase.rpc(
@@ -111,14 +97,11 @@ export async function acceptInvitation(invitationId: string) {
     );
 
     if (projectError || !projectData) {
-      console.log("❌ Project not found:", projectError);
       return {
         success: false,
         error: "Project not found",
       };
     }
-
-    console.log("✅ Project found:", projectData);
 
     // Check if invitation has expired
     const now = new Date();
@@ -126,7 +109,6 @@ export async function acceptInvitation(invitationId: string) {
     const isExpired = now > expiresAt;
 
     if (isExpired) {
-      console.log("❌ Invitation has expired");
       return {
         success: false,
         error: "This invitation has expired. Please request a new invitation.",
@@ -135,7 +117,6 @@ export async function acceptInvitation(invitationId: string) {
 
     // Check if already used
     if (invitation.used_at) {
-      console.log("❌ Invitation already used");
       return {
         success: false,
         error: "This invitation has already been used",
@@ -147,17 +128,11 @@ export async function acceptInvitation(invitationId: string) {
       editorProfile.email.toLowerCase() === invitation.email.toLowerCase();
 
     if (!emailMatch) {
-      console.log("❌ Email mismatch:", {
-        editorEmail: editorProfile.email,
-        invitationEmail: invitation.email,
-      });
       return {
         success: false,
         error: `This invitation was sent to ${invitation.email}, but you're signed in as ${editorProfile.email}`,
       };
     }
-
-    console.log("✅ Email matches");
 
     // Check if user is already a member (try to find existing record)
     const { data: existingMember, error: memberCheckError } = await supabase
@@ -168,8 +143,6 @@ export async function acceptInvitation(invitationId: string) {
       .maybeSingle();
 
     if (existingMember) {
-      console.log("✅ Updating existing member:", existingMember);
-
       // Update existing member status to accepted
       const { error: updateError } = await supabase
         .from("project_members")
@@ -178,17 +151,13 @@ export async function acceptInvitation(invitationId: string) {
           joined_at: new Date().toISOString(),
         })
         .eq("id", existingMember.id);
-
       if (updateError) {
-        console.log("❌ Failed to update member:", updateError);
         return {
           success: false,
           error: "Failed to accept invitation. Please try again.",
         };
       }
     } else {
-      console.log("✅ Creating new member record");
-
       // Create new member record
       const newMemberData = {
         project_id: invitation.project_id,
@@ -204,16 +173,12 @@ export async function acceptInvitation(invitationId: string) {
         .insert(newMemberData);
 
       if (memberError) {
-        console.log("❌ Failed to create member:", memberError);
         return {
           success: false,
           error: "Failed to accept invitation. Please try again.",
         };
       }
     }
-
-    console.log("✅ Member status updated successfully");
-
     // Mark invitation as used
     const { error: invitationUpdateError } = await supabase
       .from("project_invitations")
@@ -223,12 +188,7 @@ export async function acceptInvitation(invitationId: string) {
     if (invitationUpdateError) {
       console.error("⚠️ Error updating invitation:", invitationUpdateError);
     } else {
-      console.log("✅ Invitation marked as used");
     }
-
-    // 🔥 SEND EMAIL AND ACTIVITY NOTIFICATIONS
-    console.log("🔥 Starting notification process...");
-
     if (projectData?.editor_profiles) {
       const projectOwner = projectData.editor_profiles;
       const memberName =
@@ -241,17 +201,8 @@ export async function acceptInvitation(invitationId: string) {
         projectOwner.email;
       const acceptedAt = new Date().toISOString();
 
-      console.log("📧 Preparing email notification:", {
-        projectOwner: projectOwner.email,
-        memberName,
-        ownerName,
-        projectName: projectData.name,
-      });
-
       // Send email notification to project owner
       try {
-        console.log("📧 Sending email...");
-
         const { data: emailData, error: emailError } = await resend.emails.send(
           {
             from: process.env.RESEND_FROM_EMAIL!,
@@ -272,15 +223,12 @@ export async function acceptInvitation(invitationId: string) {
         if (emailError) {
           console.error("❌ Error sending acceptance email:", emailError);
         } else {
-          console.log("✅ Email sent successfully:", emailData);
         }
       } catch (emailError) {
         console.error("❌ Failed to send acceptance email:", emailError);
       }
 
       // Create activity notification for project owner
-      console.log("📱 Creating activity notification...");
-
       await createActivityNotification({
         userId: projectOwner.user_id,
         projectId: invitation.project_id,
@@ -296,11 +244,7 @@ export async function acceptInvitation(invitationId: string) {
         },
       });
     } else {
-      console.log("❌ No project owner found for notifications");
     }
-
-    console.log("🎉 Accept invitation completed successfully");
-
     return {
       success: true,
       message: "Invitation accepted successfully!",
@@ -317,8 +261,6 @@ export async function acceptInvitation(invitationId: string) {
 }
 
 export async function declineInvitation(invitationId: string) {
-  console.log("🚀 Starting declineInvitation for:", invitationId);
-
   try {
     const supabase = await createClient();
 
@@ -328,14 +270,11 @@ export async function declineInvitation(invitationId: string) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      console.log("❌ No authenticated user found");
       return {
         success: false,
         error: "You must be signed in to decline invitations",
       };
     }
-
-    console.log("✅ User authenticated:", user.id);
 
     // Get user's editor profile
     const { data: editorProfile, error: profileError } = await supabase
@@ -343,16 +282,12 @@ export async function declineInvitation(invitationId: string) {
       .select("id, user_id, email, full_name, display_name")
       .eq("user_id", user.id)
       .single();
-
     if (!editorProfile) {
-      console.log("❌ Editor profile not found");
       return {
         success: false,
         error: "Editor profile not found.",
       };
     }
-
-    console.log("✅ Editor profile found:", editorProfile);
 
     // Get the invitation first
     const { data: invitation, error: invitationError } = await supabase
@@ -362,14 +297,11 @@ export async function declineInvitation(invitationId: string) {
       .single();
 
     if (invitationError || !invitation) {
-      console.log("❌ Invitation not found:", invitationError);
       return {
         success: false,
         error: "Invitation not found",
       };
     }
-
-    console.log("✅ Invitation found:", invitation);
 
     // Get project data using RPC function (bypasses RLS)
     const { data: projectData, error: projectError } = await supabase.rpc(
@@ -378,18 +310,14 @@ export async function declineInvitation(invitationId: string) {
     );
 
     if (projectError || !projectData) {
-      console.log("❌ Project not found:", projectError);
       return {
         success: false,
         error: "Project not found",
       };
     }
 
-    console.log("✅ Project found:", projectData);
-
     // Check if already used
     if (invitation.used_at) {
-      console.log("❌ Invitation already used");
       return {
         success: false,
         error: "This invitation has already been processed",
@@ -405,8 +333,6 @@ export async function declineInvitation(invitationId: string) {
       .maybeSingle();
 
     if (existingMember) {
-      console.log("✅ Updating existing member to declined:", existingMember);
-
       // Update existing member status to declined
       const { error: updateError } = await supabase
         .from("project_members")
@@ -432,11 +358,7 @@ export async function declineInvitation(invitationId: string) {
       };
     }
 
-    console.log("✅ Invitation marked as declined");
-
     // 🔥 SEND EMAIL AND ACTIVITY NOTIFICATIONS
-    console.log("🔥 Starting notification process...");
-
     if (projectData?.editor_profiles) {
       const projectOwner = projectData.editor_profiles;
       const memberName =
@@ -449,17 +371,8 @@ export async function declineInvitation(invitationId: string) {
         projectOwner.email;
       const declinedAt = new Date().toISOString();
 
-      console.log("📧 Preparing email notification:", {
-        projectOwner: projectOwner.email,
-        memberName,
-        ownerName,
-        projectName: projectData.name,
-      });
-
       // Send email notification to project owner
       try {
-        console.log("📧 Sending decline email...");
-
         const { data: emailData, error: emailError } = await resend.emails.send(
           {
             from: process.env.RESEND_FROM_EMAIL!,
@@ -478,15 +391,12 @@ export async function declineInvitation(invitationId: string) {
         if (emailError) {
           console.error("❌ Error sending decline email:", emailError);
         } else {
-          console.log("✅ Email sent successfully:", emailData);
         }
       } catch (emailError) {
         console.error("❌ Failed to send decline email:", emailError);
       }
 
       // Create activity notification for project owner
-      console.log("📱 Creating activity notification...");
-
       await createActivityNotification({
         userId: projectOwner.user_id,
         projectId: invitation.project_id,
@@ -502,10 +412,7 @@ export async function declineInvitation(invitationId: string) {
         },
       });
     } else {
-      console.log("❌ No project owner found for notifications");
     }
-
-    console.log("🎉 Decline invitation completed successfully");
 
     return {
       success: true,
@@ -523,12 +430,10 @@ export async function declineInvitation(invitationId: string) {
 
 // Helper action to redirect after successful acceptance
 export async function redirectToProject(projectId: string) {
-  console.log("🔄 Redirecting to project:", projectId);
   redirect(`/dashboard/projects/${projectId}`);
 }
 
 // Helper action to redirect after decline
 export async function redirectToDashboard() {
-  console.log("🔄 Redirecting to dashboard");
   redirect("/dashboard");
 }

@@ -61,7 +61,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Define the type for a single activity notification
+
 interface ActivityNotification {
   id: string;
   title: string;

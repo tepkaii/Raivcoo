@@ -43,37 +43,42 @@ export async function createProject(formData: FormData) {
 
   // Define limits
   const FREE_PROJECT_LIMIT = 2;
-  // Pro plan is unlimited - no limit check needed
 
-  // Check subscription status
-  const isPaidPlan =
+  // Check subscription status and plan
+  const hasPaidPlan =
     subscription &&
-    subscription.plan_id === "pro" &&
-    subscription.status === "active";
+    (subscription.plan_id === "lite" || subscription.plan_id === "pro");
+  const isActive = subscription && subscription.status === "active";
   const isExpired =
     subscription &&
     subscription.current_period_end &&
     new Date(subscription.current_period_end) < new Date();
-  const isFreePlan = !subscription || subscription.plan_id === "free";
 
-  // Validate project limits based on current subscription status
-  if (isPaidPlan && !isExpired) {
-    // Active Pro plan - unlimited projects, no limit check
-    // Allow project creation
-  } else {
-    // Free plan OR expired subscription - both get free plan limits
+  // Determine if user has unlimited projects
+  const hasUnlimitedProjects = hasPaidPlan && isActive && !isExpired;
+
+  // Validate project limits
+  if (!hasUnlimitedProjects) {
+    // User is on free plan limits (either no subscription, free plan, inactive subscription, or expired)
     if (projectCount >= FREE_PROJECT_LIMIT) {
-      if (isExpired) {
-        throw new Error(
-          `Your subscription has expired. You can still create up to ${FREE_PROJECT_LIMIT} projects on the free plan, but you've already reached that limit (${projectCount}/${FREE_PROJECT_LIMIT}). Please upgrade to Pro for unlimited projects.`
-        );
+      let errorMessage = "";
+
+      if (!subscription || subscription.plan_id === "free") {
+        // No subscription or free plan
+        errorMessage = `Free plan allows only ${FREE_PROJECT_LIMIT} projects. You currently have ${projectCount}/${FREE_PROJECT_LIMIT}. Please upgrade to Lite or Pro for unlimited projects.`;
+      } else if (!isActive) {
+        // Inactive subscription
+        errorMessage = `Your ${subscription.plan_id} subscription is inactive. You can create up to ${FREE_PROJECT_LIMIT} projects on the free plan, but you've reached that limit (${projectCount}/${FREE_PROJECT_LIMIT}). Please reactivate your subscription for unlimited projects.`;
+      } else if (isExpired) {
+        // Expired subscription
+        errorMessage = `Your ${subscription.plan_id} subscription has expired. You can create up to ${FREE_PROJECT_LIMIT} projects on the free plan, but you've reached that limit (${projectCount}/${FREE_PROJECT_LIMIT}). Please renew your subscription for unlimited projects.`;
       } else {
-        throw new Error(
-          `Free plan allows only ${FREE_PROJECT_LIMIT} projects. You currently have ${projectCount}/${FREE_PROJECT_LIMIT}. Please upgrade to Pro for unlimited projects.`
-        );
+        // Fallback error
+        errorMessage = `You've reached the project limit (${projectCount}/${FREE_PROJECT_LIMIT}). Please upgrade to Lite or Pro for unlimited projects.`;
       }
+
+      throw new Error(errorMessage);
     }
-    // If they're within the free limit, let them create the project
   }
 
   const name = formData.get("name") as string;
@@ -123,36 +128,81 @@ export async function createProject(formData: FormData) {
   }
 }
 
-// Helper function to get subscription info (you can use this elsewhere too)
+// Updated helper function to get subscription info
 export async function getSubscriptionInfo(userId: string) {
   const supabase = await createClient();
 
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("plan_id, status, current_period_end")
+    .select("plan_id, status, current_period_end, plan_name")
     .eq("user_id", userId)
     .single();
 
-  const isPaidPlan =
+  const hasPaidPlan =
     subscription &&
-    subscription.plan_id === "pro" &&
-    subscription.status === "active";
+    (subscription.plan_id === "lite" || subscription.plan_id === "pro");
+  const isActive = subscription && subscription.status === "active";
   const isExpired =
     subscription &&
     subscription.current_period_end &&
     new Date(subscription.current_period_end) < new Date();
-  const isFreePlan = !subscription || subscription.plan_id === "free";
+  const hasUnlimitedProjects = hasPaidPlan && isActive && !isExpired;
+  const isFreePlan =
+    !subscription || subscription.plan_id === "free" || !hasUnlimitedProjects;
 
   return {
     subscription,
-    isPaidPlan,
+    hasPaidPlan,
+    isActive,
     isExpired,
+    hasUnlimitedProjects,
     isFreePlan,
     plan: subscription?.plan_id || "free",
     status: subscription?.status || "inactive",
+    planName: subscription?.plan_name || "Free",
   };
 }
 
+// Updated helper function for the dashboard page
+export async function getPlanLimits(
+  planId: string | null,
+  hasActiveSubscription: boolean
+) {
+  // If no active subscription or free plan, apply free limits
+  if (!hasActiveSubscription || !planId || planId === "free") {
+    return {
+      maxProjects: 2,
+      planName: "Free",
+      isActive: false,
+      hasLimit: true,
+    };
+  }
+
+  // Both lite and pro have unlimited projects when active
+  switch (planId) {
+    case "lite":
+      return {
+        maxProjects: -1, // unlimited
+        planName: "Lite",
+        isActive: true,
+        hasLimit: false,
+      };
+    case "pro":
+      return {
+        maxProjects: -1, // unlimited
+        planName: "Pro",
+        isActive: true,
+        hasLimit: false,
+      };
+    default:
+      return {
+        maxProjects: 2,
+        planName: "Free",
+        isActive: false,
+        hasLimit: true,
+      };
+  }
+}
 
 export async function uploadMedia(formData: FormData) {
   const supabase = await createClient();
@@ -408,7 +458,6 @@ export async function renameProject(projectId: string, newName: string) {
     throw error;
   }
 }
-// Add this to your existing actions.ts file
 
 export async function updateProject(
   projectId: string,
@@ -445,7 +494,7 @@ export async function updateProject(
     }
 
     const isOwner = project.editor_id === editorProfile.id;
-    
+
     if (!isOwner) {
       // Check if user is a member
       const { data: membership, error: memberError } = await supabase
@@ -465,7 +514,10 @@ export async function updateProject(
 
     if (isOwner) {
       // Owner updates: project name and/or owner notifications
-      if (updates.name !== undefined || updates.notifications_enabled !== undefined) {
+      if (
+        updates.name !== undefined ||
+        updates.notifications_enabled !== undefined
+      ) {
         const updateData: any = {
           updated_at: new Date().toISOString(),
         };

@@ -7,57 +7,68 @@ interface SuccessPageProps {
     plan?: string;
     storage?: string;
     action?: string;
-    billing?: string; // Add billing parameter
+    billing?: string;
   }>;
 }
 
 const pricingTiers = [
   {
-    id: "free",
+    id: "free" as const,
     name: "Free",
     price: "0",
-    storage: "500MB storage included",
+    baseStorage: 0.5, // 500MB
+    maxUploadSize: 200, // 200MB
+    level: 0,
     features: [
-      "Upload videos, images & files",
-      "2 active review projects",
-      "Basic timestamped comments",
-      "Secure file hosting",
-      "Email notifications",
-      "30-day link expiration",
+      "Upload videos, images",
       "200MB max upload size",
+      "2 Active projects",
+      "2 Members per project",
+      "Timestamped comments",
+      "Accurate Pin/Draw Annotation",
+      "Email/App notifications",
     ],
   },
   {
-    id: "lite",
+    id: "lite" as const,
     name: "Lite",
-    price: "2.99",
-    storage: "50GB storage included",
+    basePrice: 2.99,
+    baseStorage: 50, // 50GB base
+    additionalStoragePrice: 1.0, // $1.0 per 25GB
+    additionalStorageUnit: 25, // 25GB increments
+    maxStorage: 150, // 150GB max
+    maxUploadSize: 2048, // 2GB
+    level: 1,
     features: [
       "Everything in Free plan",
-      "Unlimited review projects",
-      "Advanced timestamped comments",
+      "2GB max upload size",
+      "flexible storage up to 150GB",
+      "Unlimited projects",
+      "Unlimited members",
       "Password protection for links",
       "Custom expiration dates",
-      "Real-time notifications",
-      "2GB max upload size",
-      "Basic analytics",
     ],
   },
   {
-    id: "pro",
+    id: "pro" as const,
     name: "Pro",
-    price: "5.99",
-    storage: "250GB storage included",
+    basePrice: 5.99,
+    baseStorage: 250, // 250GB base
+    additionalStoragePrice: 1.5, // $1.5 per 50GB
+    additionalStorageUnit: 50, // 50GB increments
+    maxStorage: 2048, // 2TB max
+    maxUploadSize: 5120, // 5GB
+    level: 2,
+    popular: true,
     features: [
-      "Everything in Lite plan",
-      "Advanced analytics & insights",
-      "Priority support",
-      "Custom branding options",
-      "Advanced security features",
-      "API access",
-      "Dedicated support",
+      "Everything in Free plan",
       "5GB max upload size",
-      "Team collaboration features",
+      "flexible storage up to 2TB",
+      "Unlimited projects",
+      "Unlimited members",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Priority support",
     ],
   },
 ];
@@ -80,14 +91,24 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
     redirect("/dashboard");
   }
 
-  // Handle custom storage for Lite and Pro plans
-  if ((params.plan === "lite" || params.plan === "pro") && params.storage) {
-    selectedPlan = {
-      ...selectedPlan,
-      storage: `${params.storage}GB storage included`,
-      billing: params.billing,
-    };
-  }
+  // Create display version of the plan
+  const customStorage = params.storage ? parseFloat(params.storage) : undefined;
+
+  const planForDisplay = {
+    id: selectedPlan.id,
+    name: selectedPlan.name,
+    price:
+      selectedPlan.id === "free"
+        ? "0"
+        : selectedPlan.basePrice?.toString() || "0",
+    storage: customStorage
+      ? `${customStorage}GB storage`
+      : selectedPlan.id === "free"
+        ? "500MB storage"
+        : `${selectedPlan.baseStorage}GB+ flexible storage`,
+    features: selectedPlan.features,
+    billing: params.billing,
+  };
 
   // Get current subscription with order details
   const { data: subscription } = await supabase
@@ -111,10 +132,10 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   return (
     <SuccessClient
       user={user}
-      selectedPlan={selectedPlan}
+      selectedPlan={planForDisplay}
       subscription={subscription}
       action={params.action}
-      billingPeriod={params.billing || "monthly"} // Pass billing period from URL
+      billingPeriod={params.billing || "monthly"}
     />
   );
 }

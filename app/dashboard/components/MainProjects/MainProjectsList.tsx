@@ -36,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
-import { deleteProject, updateProject } from "../../projects/actions";
+import { deleteProject, updateProject } from "../../lib/actions";
 import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 import { EditProjectDialog } from "./EditProjectDialog.";
 import {

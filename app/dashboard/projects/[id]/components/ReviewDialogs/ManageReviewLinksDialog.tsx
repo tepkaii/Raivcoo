@@ -1,13 +1,10 @@
-// aa/app/dashboard/projects/[id]/components/reviews_Dialogs/ManageReviewLinksDialog.tsx
+// app/dashboard/projects/[id]/components/reviews_Dialogs/ManageReviewLinksDialog.tsx
 // @ts-nocheck
+// @ts-ignore
 "use client";
 
-import React, { useState } from "react";
-import {
-
-  Settings,
-  Loader2,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Settings, Loader2, Crown } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,19 +20,28 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { MediaFile, ReviewLink } from "@/app/dashboard/lib/types";
-import { 
-  ArrowTopRightOnSquareIcon, 
-  CalendarIcon, 
-  ClipboardDocumentIcon, 
-  LockClosedIcon, 
+import {
+  ArrowTopRightOnSquareIcon,
+  CalendarIcon,
+  ClipboardDocumentIcon,
+  LockClosedIcon,
   TrashIcon,
 } from "@heroicons/react/24/solid";
+import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
+import { createClient } from "@/utils/supabase/client";
 
 interface ManageLinksDialogState {
   open: boolean;
   mediaFile?: MediaFile;
   links: ReviewLink[];
   isLoading: boolean;
+}
+
+interface ReviewLinkPermissions {
+  canSetPassword: boolean;
+  canDisableDownload: boolean;
+  planName: string;
+  isActive: boolean;
 }
 
 interface ManageReviewLinksDialogProps {
@@ -56,6 +62,70 @@ export function ManageReviewLinksDialog({
   const [editingLinkTitles, setEditingLinkTitles] = useState<{
     [key: string]: string;
   }>({});
+  const [permissions, setPermissions] = useState<ReviewLinkPermissions | null>(
+    null
+  );
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
+
+  // Load permissions when dialog opens
+  useEffect(() => {
+    if (manageLinksDialog.open) {
+      loadPermissions();
+    }
+  }, [manageLinksDialog.open]);
+
+  const loadPermissions = async () => {
+    try {
+      setIsLoadingPermissions(true);
+
+      const supabase = createClient();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error("Not authenticated");
+      }
+
+      const subscriptionInfo = await getSubscriptionInfo(user.id);
+
+      const hasActiveSubscription =
+        subscriptionInfo.hasPaidPlan &&
+        subscriptionInfo.isActive &&
+        !subscriptionInfo.isExpired;
+
+      let perms: ReviewLinkPermissions;
+
+      if (hasActiveSubscription) {
+        perms = {
+          canSetPassword: true,
+          canDisableDownload: true,
+          planName: subscriptionInfo.planName,
+          isActive: true,
+        };
+      } else {
+        perms = {
+          canSetPassword: false,
+          canDisableDownload: false,
+          planName: subscriptionInfo.planName,
+          isActive: false,
+        };
+      }
+
+      setPermissions(perms);
+    } catch (error) {
+      console.error("Failed to load permissions:", error);
+
+      setPermissions({
+        canSetPassword: false,
+        canDisableDownload: false,
+        planName: "Free",
+        isActive: false,
+      });
+    } finally {
+      setIsLoadingPermissions(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -89,15 +159,26 @@ export function ManageReviewLinksDialog({
     }
   };
 
-  // ✅ HANDLE DOWNLOAD PERMISSION TOGGLE
-  const handleDownloadToggle = (linkId: string, currentAllowDownload: boolean) => {
-    onUpdateReviewLink(linkId, { 
-      allow_download: !currentAllowDownload 
+  const handleDownloadToggle = (
+    linkId: string,
+    currentAllowDownload: boolean
+  ) => {
+    if (!permissions?.canDisableDownload) {
+      toast({
+        title: "Feature Not Available",
+        description: "Upgrade to Lite or Pro to control download permissions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onUpdateReviewLink(linkId, {
+      allow_download: !currentAllowDownload,
     });
-    
+
     toast({
       title: "Download Permission Updated",
-      description: `Downloads ${!currentAllowDownload ? 'enabled' : 'disabled'} for this review link`,
+      description: `Downloads ${!currentAllowDownload ? "enabled" : "disabled"} for this review link`,
       variant: "default",
     });
   };
@@ -113,9 +194,19 @@ export function ManageReviewLinksDialog({
         })
       }
     >
-      <DialogContent className="max-w-4xl"> {/* ✅ WIDER DIALOG FOR MORE CONTENT */}
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>View Review Links</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Manage Review Links
+            {permissions && (
+              <Badge
+                variant={permissions.isActive ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {permissions.planName}
+              </Badge>
+            )}
+          </DialogTitle>
           {manageLinksDialog.mediaFile && (
             <p className="text-sm text-muted-foreground">
               Managing links for:{" "}
@@ -125,7 +216,7 @@ export function ManageReviewLinksDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {manageLinksDialog.isLoading ? (
+          {manageLinksDialog.isLoading || isLoadingPermissions ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
@@ -191,7 +282,7 @@ export function ManageReviewLinksDialog({
                               placeholder="Link title"
                               className="flex-1"
                             />
-                            <Button 
+                            <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => onDeleteReviewLink(link.id)}
@@ -205,7 +296,7 @@ export function ManageReviewLinksDialog({
 
                       {/* Settings and Badges Row */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                        {/* ✅ SETTINGS TOGGLES */}
+                        {/* Settings Toggles */}
                         <div className="flex flex-wrap items-center gap-4">
                           {/* Active Toggle */}
                           <div className="flex items-center space-x-2">
@@ -218,37 +309,47 @@ export function ManageReviewLinksDialog({
                             <Label className="text-sm">Active</Label>
                           </div>
 
-                          {/* ✅ DOWNLOAD PERMISSION TOGGLE */}
+                          {/* Download Permission Toggle */}
                           <div className="flex items-center space-x-2">
                             <Switch
-                              checked={link.allow_download ?? false}
+                              checked={link.allow_download ?? true}
                               onCheckedChange={() =>
-                                handleDownloadToggle(link.id, link.allow_download ?? false)
+                                handleDownloadToggle(
+                                  link.id,
+                                  link.allow_download ?? true
+                                )
                               }
+                              disabled={!permissions?.canDisableDownload} // Always disabled for free users
                             />
                             <Label className="text-sm flex items-center gap-1">
-                             
                               Allow Downloads
+                              {!permissions?.canDisableDownload && (
+                                <Crown className="h-3 w-3 text-orange-500" />
+                              )}
                             </Label>
                           </div>
                         </div>
 
-                        {/* ✅ BADGES */}
+                        {/* Badges */}
                         <div className="flex flex-wrap items-center gap-2">
                           {link.requires_password && (
-                            <Badge variant="green">
+                            <Badge variant="secondary">
                               <LockClosedIcon className="h-3 w-3 mr-1" />
                               Protected
                             </Badge>
                           )}
-                          
-                          {/* ✅ DOWNLOAD STATUS BADGE */}
-                        
 
                           {link.expires_at && (
                             <Badge variant="outline">
                               <CalendarIcon className="h-3 w-3 mr-1" />
                               Expires {formatDate(link.expires_at)}
+                            </Badge>
+                          )}
+
+                          {/* Plan restrictions info */}
+                          {!permissions?.canDisableDownload && (
+                            <Badge variant="outline" className="text-xs">
+                              Lite/Pro for download control
                             </Badge>
                           )}
                         </div>
@@ -268,7 +369,9 @@ export function ManageReviewLinksDialog({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleCopyReviewLink(link.link_token)}
+                            onClick={() =>
+                              handleCopyReviewLink(link.link_token)
+                            }
                             title="Copy link to clipboard"
                           >
                             <ClipboardDocumentIcon className="h-3 w-3" />
@@ -277,16 +380,16 @@ export function ManageReviewLinksDialog({
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                              window.open(getReviewUrl(link.link_token), "_blank")
+                              window.open(
+                                getReviewUrl(link.link_token),
+                                "_blank"
+                              )
                             }
                             title="Open link in new tab"
                           >
                             <ArrowTopRightOnSquareIcon className="h-3 w-3" />
                           </Button>
                         </div>
-
-                      
-                     
                       </div>
                     </div>
                   </Card>

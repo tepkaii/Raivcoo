@@ -63,15 +63,10 @@ export default function RootLayout({
                 "/login",
                 "/signup",
                 "/dashboard",
-
                 "/review/",
-
                 "/complete-profile",
                 "/set-password",
-                "/account/",
-                "/account",
                 "/media",
-                "/pricing",
                 "/success",
                 "/subscription",
                 "/invite/",

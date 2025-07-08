@@ -1,9 +1,11 @@
+// app/checkout/CheckoutClient.tsx
+
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
@@ -37,6 +39,7 @@ interface CheckoutClientProps {
   billingPeriod?: string;
 }
 
+// Fixed PayPalCheckout component with proper types
 function PayPalCheckout({
   planId,
   planName,
@@ -73,8 +76,59 @@ function PayPalCheckout({
   const initialOptions = {
     clientId,
     currency: "USD",
-    intent: "capture",
+    intent: "capture" as const,
     environment: "sandbox" as const,
+  };
+
+  // Helper function to calculate plan details
+  const getPlanDetails = () => {
+    const pricingTiers = {
+      free: {
+        basePrice: 0,
+        baseStorage: 0.5,
+        additionalStoragePrice: 0,
+        additionalStorageUnit: 1,
+      },
+      lite: {
+        basePrice: 2.99,
+        baseStorage: 50,
+        additionalStoragePrice: 1.0,
+        additionalStorageUnit: 25,
+      },
+      pro: {
+        basePrice: 5.99,
+        baseStorage: 250,
+        additionalStoragePrice: 1.5,
+        additionalStorageUnit: 50,
+      },
+    };
+
+    const tierInfo = pricingTiers[planId as keyof typeof pricingTiers] || {
+      basePrice: amount,
+      baseStorage: storageGb || 1,
+      additionalStoragePrice: 0,
+      additionalStorageUnit: 1,
+    };
+
+    const totalStorage = storageGb || tierInfo.baseStorage;
+    const additionalStorage = Math.max(0, totalStorage - tierInfo.baseStorage);
+    const additionalStorageUnits =
+      tierInfo.additionalStorageUnit > 0
+        ? additionalStorage / tierInfo.additionalStorageUnit
+        : 0;
+    const additionalStorageCost =
+      additionalStorageUnits * tierInfo.additionalStoragePrice;
+
+    // Apply yearly discount (30% off = 8.4 months)
+    const yearlyMultiplier = billingPeriod === "yearly" ? 8.4 : 1;
+
+    return {
+      basePrice: tierInfo.basePrice * yearlyMultiplier,
+      additionalStorage,
+      additionalStorageCost: additionalStorageCost * yearlyMultiplier,
+      totalStorage,
+      additionalStorageUnits,
+    };
   };
 
   return (
@@ -116,6 +170,7 @@ function PayPalCheckout({
             try {
               setError("");
 
+              // Generate order ID on our server first
               const response = await fetch("/api/orders/create", {
                 method: "POST",
                 headers: {
@@ -141,17 +196,101 @@ function PayPalCheckout({
               const { orderId } = responseData;
               setPendingOrderId(orderId);
 
+              const details = getPlanDetails();
+
+              // Prepare items array
+              const items = [];
+
+              // Base plan item
+              if (details.basePrice > 0) {
+                items.push({
+                  name: `${planName} Plan - ${billingPeriod === "yearly" ? "1 Year" : "1 Month"}`,
+                  description: `${planName} plan access for ${billingPeriod === "yearly" ? "12 months" : "1 month"} - one-time payment`,
+                  sku: `${planId}-base-${billingPeriod}`,
+                  unit_amount: {
+                    currency_code: "USD",
+                    value: details.basePrice.toFixed(2),
+                  },
+                  quantity: "1",
+                  category: "DIGITAL_GOODS" as const,
+                });
+              }
+
+              // Additional storage item (if any)
+              if (
+                details.additionalStorage > 0 &&
+                details.additionalStorageCost > 0
+              ) {
+                items.push({
+                  name: `Additional Storage (+${details.additionalStorage}GB)`,
+                  description: `+${details.additionalStorage}GB storage (${details.additionalStorageUnits} blocks)`,
+                  sku: `${planId}-storage-${billingPeriod}`,
+                  unit_amount: {
+                    currency_code: "USD",
+                    value: details.additionalStorageCost.toFixed(2),
+                  },
+                  quantity: "1",
+                  category: "DIGITAL_GOODS" as const,
+                });
+              }
+
+              // If no items (like free plan), create a single item
+              if (items.length === 0) {
+                items.push({
+                  name: `${planName} Plan`,
+                  description: `${planName} subscription plan`,
+                  sku: `${planId}-plan`,
+                  unit_amount: {
+                    currency_code: "USD",
+                    value: amount.toFixed(2),
+                  },
+                  quantity: "1",
+                  category: "DIGITAL_GOODS" as const,
+                });
+              }
+
+              // Calculate item total
+              const itemTotal = items.reduce((sum, item) => {
+                return (
+                  sum +
+                  parseFloat(item.unit_amount.value) * parseInt(item.quantity)
+                );
+              }, 0);
+
+              console.log("Creating PayPal order with items:", items);
+              console.log("Item total:", itemTotal, "Amount:", amount);
+
+              // Simplified order creation - try without payment_source first
               return actions.order.create({
+                intent: "CAPTURE" as const,
                 purchase_units: [
                   {
-                    description: `${planName} Plan${storageGb ? ` (${storageGb}GB)` : ""} ${action ? `- ${action}` : ""} - ${billingPeriod || "monthly"}`,
+                    reference_id: orderId,
+                    description: `${planName} Plan${storageGb ? ` (${storageGb}GB)` : ""} - ${action ? `${action} - ` : ""}${billingPeriod || "monthly"} billing`,
+                    custom_id: orderId,
+                    soft_descriptor: "RAICOO",
                     amount: {
                       currency_code: "USD",
                       value: amount.toFixed(2),
+                      breakdown: {
+                        item_total: {
+                          currency_code: "USD",
+                          value: amount.toFixed(2),
+                        },
+                      },
                     },
-                    custom_id: orderId,
+                    items: items,
                   },
                 ],
+                application_context: {
+                  brand_name: "Raicoo",
+                  locale: "en-US",
+                  landing_page: "BILLING",
+                  shipping_preference: "NO_SHIPPING",
+                  user_action: "PAY_NOW",
+                  return_url: `${window.location.origin}/checkout/success`,
+                  cancel_url: `${window.location.origin}/checkout/cancel`,
+                },
               });
             } catch (error: any) {
               console.error("Error creating order:", error);
@@ -165,6 +304,7 @@ function PayPalCheckout({
 
             try {
               const order = await actions.order?.capture();
+              console.log("Captured order:", order);
 
               if (!pendingOrderId) {
                 throw new Error("No pending order found");
@@ -185,6 +325,7 @@ function PayPalCheckout({
                   action,
                   currentSubId,
                   billingPeriod,
+                  paypalOrderId: data.orderID,
                 }),
               });
 
@@ -300,11 +441,19 @@ export default function CheckoutClient({
     return uploadSizes[planId as keyof typeof uploadSizes] || "Unknown";
   };
 
+  const formatStorage = (storage: string | number) => {
+    if (typeof storage === "number") {
+      if (storage < 1) return `${Math.round(storage * 1000)}MB`;
+      return `${storage}GB`;
+    }
+    return storage;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b border-border w-full">
-        <div className="w-full  px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3">
             <div className="flex items-center">
               <Link
@@ -342,11 +491,19 @@ export default function CheckoutClient({
                       {selectedPlan.name} Plan
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      {selectedPlan.storage}
+                      {customStorage
+                        ? `${customStorage}GB storage`
+                        : selectedPlan.storage}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {formatUploadSize(selectedPlan.id)} max upload size
                     </p>
+                    {(selectedPlan.id === "lite" ||
+                      selectedPlan.id === "pro") && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Flexible storage - pay only for what you need
+                      </p>
+                    )}
                     <div className="mt-2">
                       {billingPeriod === "yearly" ? (
                         <p className="text-sm font-medium text-green-600">
@@ -372,10 +529,14 @@ export default function CheckoutClient({
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
-                    {(selectedPlan.id === "pro" ||
-                      selectedPlan.id === "lite") && (
+                    {selectedPlan.id === "pro" && (
                       <Badge variant="default" className="ml-2">
-                        {selectedPlan.id === "pro" ? "Popular" : "Great Value"}
+                        Best Value
+                      </Badge>
+                    )}
+                    {selectedPlan.id === "lite" && (
+                      <Badge variant="secondary" className="ml-2">
+                        Great Value
                       </Badge>
                     )}
                     {billingPeriod === "yearly" && !isFreeDowngrade && (
@@ -394,15 +555,15 @@ export default function CheckoutClient({
                   <p className="text-sm font-medium text-foreground mb-2">
                     What's included:
                   </p>
-                  {selectedPlan.features.slice(0, 4).map((feature, index) => (
+                  {selectedPlan.features.slice(0, 5).map((feature, index) => (
                     <div key={index} className="flex items-center text-sm">
                       <CheckBadgeIcon className="size-4 text-primary mr-2 flex-shrink-0" />
                       <span className="text-muted-foreground">{feature}</span>
                     </div>
                   ))}
-                  {selectedPlan.features.length > 4 && (
+                  {selectedPlan.features.length > 5 && (
                     <p className="text-sm text-muted-foreground">
-                      +{selectedPlan.features.length - 4} more features
+                      +{selectedPlan.features.length - 5} more features
                     </p>
                   )}
                 </div>
@@ -443,12 +604,15 @@ export default function CheckoutClient({
                   <>
                     <p>• One-time payment, no recurring charges</p>
                     <p>• Cancel anytime before renewal</p>
-                    <p>• Contact support@raivcoo.com for refunds</p>
+                    <p>• Contact support@raicoo.com for refunds</p>
                     {billingPeriod === "yearly" && (
                       <p className="text-green-600 font-medium">
                         • 30% savings with yearly plan
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Cheap pricing, flexible storage options
+                    </p>
                   </>
                 )}
               </div>
@@ -461,7 +625,7 @@ export default function CheckoutClient({
               <h2 className="text-xl font-semibold mb-4 text-foreground">
                 Account
               </h2>
-              <div className="p-4 bg-muted rounded-md">
+              <div className="p-4 bg-primary-foreground rounded-md">
                 <p className="text-sm text-muted-foreground">Signed in as:</p>
                 <p className="font-medium text-foreground">{user.email}</p>
               </div>
@@ -487,7 +651,7 @@ export default function CheckoutClient({
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 p-3 bg-white rounded-md">
                   <PayPalCheckout
                     planId={selectedPlan.id}
                     planName={selectedPlan.name}
@@ -514,7 +678,7 @@ export default function CheckoutClient({
                 </Link>
                 {" • "}
                 <Link
-                  href="mailto:support@raicoo.com"
+                  href="mailto:support@raivcoo.com"
                   className="text-primary hover:underline"
                 >
                   Support

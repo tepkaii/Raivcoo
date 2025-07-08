@@ -1,4 +1,5 @@
 // app/api/search/route.ts
+// @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 

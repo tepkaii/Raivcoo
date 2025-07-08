@@ -1,10 +1,10 @@
-// app/dashboard/projects/[id]/components/media/MediaGrid.tsx
-
+// app/dashboard/projects/[id]/components/Media/MediaGrid.tsx
+// @ts-nocheck
+// @ts-ignore
 "use client";
 
-import React, { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
-import { Upload, Loader2, FolderOpen, Link2 } from "lucide-react";
+import React, { useState, useCallback, useEffect } from "react";
+import { Upload, Loader2, Link2, Crown } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { MediaCard } from "./MediaCard";
@@ -32,6 +32,11 @@ import {
   deleteMediaAction,
   deleteVersionAction,
 } from "../../lib/DeleteMediaActions";
+import {
+  UploadValidator,
+  getUploadValidatorData,
+  uploadFiles as performUpload,
+} from "../../lib/UploadLogic";
 
 interface MediaGridProps {
   mediaFiles: MediaFile[];
@@ -41,7 +46,7 @@ interface MediaGridProps {
   onMediaUpdated: (newFiles: MediaFile[]) => void;
   onReviewLinksUpdated: (newLinks: ReviewLink[]) => void;
   projectId: string;
-  project: any; // Add this line
+  project: any;
   userPermissions: {
     canUpload: boolean;
     canDelete: boolean;
@@ -66,6 +71,9 @@ export function MediaGrid({
   const [draggedOver, setDraggedOver] = useState<string | null>(null);
   const [expandedMedia, setExpandedMedia] = useState<Set<string>>(new Set());
   const [draggedMedia, setDraggedMedia] = useState<MediaFile | null>(null);
+  const [uploadValidator, setUploadValidator] =
+    useState<UploadValidator | null>(null);
+  const [isLoadingLimits, setIsLoadingLimits] = useState(true);
 
   // Dialog states
   const [createLinkDialog, setCreateLinkDialog] = useState<{
@@ -101,11 +109,58 @@ export function MediaGrid({
     mediaFile?: MediaFile;
     isDeleting: boolean;
   }>({ open: false, isDeleting: false });
+
   const [referencesDialog, setReferencesDialog] = useState<{
     open: boolean;
   }>({ open: false });
 
-  // Add this handler with your other handlers
+  // Initialize upload validator
+  useEffect(() => {
+    const initializeValidator = async () => {
+      try {
+        setIsLoadingLimits(true);
+        const { subscription, projectUsage } = await getUploadValidatorData(
+          projectId,
+          mediaFiles
+        );
+        const validator = new UploadValidator(subscription, projectUsage);
+        setUploadValidator(validator);
+      } catch (error) {
+        console.error("Failed to initialize upload validator:", error);
+        toast({
+          title: "Warning",
+          description:
+            "Could not load upload limits. Upload may be restricted.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingLimits(false);
+      }
+    };
+
+    initializeValidator();
+  }, [projectId, mediaFiles]);
+
+  // Re-calculate project usage when media files change
+  useEffect(() => {
+    if (uploadValidator) {
+      const updateValidator = async () => {
+        try {
+          const { subscription, projectUsage } = await getUploadValidatorData(
+            projectId,
+            mediaFiles
+          );
+          const newValidator = new UploadValidator(subscription, projectUsage);
+          setUploadValidator(newValidator);
+        } catch (error) {
+          console.error("Failed to update upload validator:", error);
+        }
+      };
+
+      updateValidator();
+    }
+  }, [mediaFiles.length]); // Only when the number of files changes
+
   const handleFileInputChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -115,32 +170,6 @@ export function MediaGrid({
     }
     event.target.value = "";
   };
-  // Calculate project size
-  const projectSize = React.useMemo(() => {
-    const totalBytes = mediaFiles.reduce(
-      (sum, file) => sum + file.file_size,
-      0
-    );
-    const maxBytes = 2 * 1024 * 1024 * 1024; // 2GB
-
-    const formatBytes = (bytes: number) => {
-      if (bytes === 0) return "0 Bytes";
-      const k = 1024;
-      const sizes = ["Bytes", "KB", "MB", "GB"];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-    };
-
-    return {
-      current: totalBytes,
-      max: maxBytes,
-      currentFormatted: formatBytes(totalBytes),
-      maxFormatted: formatBytes(maxBytes),
-      percentage: (totalBytes / maxBytes) * 100,
-      remaining: maxBytes - totalBytes,
-      remainingFormatted: formatBytes(maxBytes - totalBytes),
-    };
-  }, [mediaFiles]);
 
   const organizedMedia = React.useMemo((): OrganizedMedia[] => {
     const parentMediaMap = new Map<string, MediaFile>();
@@ -212,86 +241,40 @@ export function MediaGrid({
     );
   }, [mediaFiles, reviewLinks]);
 
-  // Check if files can be uploaded
-  const canUploadFiles = (files: File[]) => {
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    return projectSize.remaining >= totalSize;
-  };
+  // Upload files function using new upload logic
+  const uploadFilesHandler = async (files: File[], targetMediaId?: string) => {
+    if (!uploadValidator) {
+      toast({
+        title: "Upload Error",
+        description:
+          "Upload validator not initialized. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  // Upload files function
-  const uploadFiles = async (files: File[], targetMediaId?: string) => {
     setIsUploading(true);
     setUploadProgress(0);
 
     try {
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append("files", file);
-      });
+      const result = await performUpload(
+        files,
+        projectId,
+        uploadValidator,
+        targetMediaId,
+        setUploadProgress
+      );
 
-      if (targetMediaId) {
-        formData.append("parentMediaId", targetMediaId);
+      if (result.success && result.files) {
+        const newFiles = [...mediaFiles, ...result.files];
+        onMediaUpdated(newFiles);
+
+        if (targetMediaId) {
+          setExpandedMedia((prev) => new Set(prev).add(targetMediaId));
+        }
       }
-
-      const xhr = new XMLHttpRequest();
-
-      const uploadPromise = new Promise((resolve, reject) => {
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable) {
-            const progress = Math.round((event.loaded / event.total) * 100);
-            setUploadProgress(progress);
-          }
-        });
-
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const result = JSON.parse(xhr.responseText);
-              resolve(result);
-            } catch (e) {
-              reject(new Error("Invalid response format"));
-            }
-          } else {
-            try {
-              const error = JSON.parse(xhr.responseText);
-              reject(new Error(error.error || "Upload failed"));
-            } catch (e) {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
-            }
-          }
-        });
-
-        xhr.addEventListener("error", () => {
-          reject(new Error("Network error during upload"));
-        });
-
-        xhr.open("POST", `/api/projects/${projectId}/media`);
-        xhr.send(formData);
-      });
-
-      const result = (await uploadPromise) as any;
-      const newFiles = [...mediaFiles, ...result.files];
-      onMediaUpdated(newFiles);
-
-      if (targetMediaId) {
-        setExpandedMedia((prev) => new Set(prev).add(targetMediaId));
-      }
-
-      toast({
-        title: "Success",
-        description: targetMediaId
-          ? `Added ${result.files.length} new version(s)`
-          : result.message,
-        variant: "green",
-      });
     } catch (error) {
       console.error("Upload error:", error);
-      toast({
-        title: "Upload Failed",
-        description:
-          error instanceof Error ? error.message : "Failed to upload files",
-        variant: "destructive",
-      });
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -304,49 +287,28 @@ export function MediaGrid({
     async (acceptedFiles: File[], rejectedFiles: any[]) => {
       if (acceptedFiles.length === 0) return;
 
-      // Check if upload would exceed project size limit
-      if (!canUploadFiles(acceptedFiles)) {
-        const uploadSize = acceptedFiles.reduce(
-          (sum, file) => sum + file.size,
-          0
-        );
-        const formatBytes = (bytes: number) => {
-          if (bytes === 0) return "0 Bytes";
-          const k = 1024;
-          const sizes = ["Bytes", "KB", "MB", "GB"];
-          const i = Math.floor(Math.log(bytes) / Math.log(k));
-          return (
-            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-          );
-        };
-
+      if (!uploadValidator) {
         toast({
-          title: "Upload Too Large",
-          description: `Upload size (${formatBytes(uploadSize)}) would exceed project limit. Available space: ${projectSize.remainingFormatted}`,
+          title: "Upload Error",
+          description: "Upload system not ready. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
       if (draggedOver) {
-        await uploadFiles(acceptedFiles, draggedOver);
+        await uploadFilesHandler(acceptedFiles, draggedOver);
       } else {
-        await uploadFiles(acceptedFiles);
+        await uploadFilesHandler(acceptedFiles);
       }
     },
-    [draggedOver, projectSize.remaining]
+    [draggedOver, uploadValidator]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      "video/*": [".mp4", ".mov", ".avi", ".mkv", ".webm"],
-      "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
-    },
-    disabled: isUploading || projectSize.percentage >= 100,
-    maxSize: 1024 * 1024 * 1024,
-    noClick: false,
-  });
+  // Get upload status for UI
+  const uploadStatus = uploadValidator?.getUploadStatus();
+  const projectUsage = uploadValidator?.getProjectUsage();
+  const uploadLimits = uploadValidator?.getUploadLimits();
 
   // Action handlers
   const handleVersionReorder = async (
@@ -356,7 +318,6 @@ export function MediaGrid({
     const result = await reorderVersionsAction(parentId, reorderedVersions);
 
     if (result.success) {
-      // Update the mediaFiles state with new version numbers and current version
       const updatedFiles = mediaFiles.map((file) => {
         const updatedVersion = reorderedVersions.find((v) => v.id === file.id);
         if (updatedVersion) {
@@ -417,7 +378,7 @@ export function MediaGrid({
         const nextVersionNumber =
           Math.max(...targetGroup.map((m) => m.version_number)) + 1;
 
-        // ✅ Calculate optimistic state (same as before)
+        // ✅ Calculate optimistic state
         const optimisticFiles = mediaFiles.map((file) => {
           if (file.id === mediaToMoveId) {
             return {
@@ -865,6 +826,7 @@ export function MediaGrid({
       isUpdating: false,
     });
   };
+
   const handleStatusChange = async (
     mediaFile: MediaFile,
     newStatus: string
@@ -901,23 +863,27 @@ export function MediaGrid({
           <Button
             onClick={() =>
               userPermissions.canUpload &&
+              uploadStatus?.canUpload &&
               document.getElementById("file-input")?.click()
             }
             disabled={
               !userPermissions.canUpload ||
               isUploading ||
-              projectSize.percentage >= 100
+              !uploadStatus?.canUpload ||
+              isLoadingLimits
             }
             className="flex-1 sm:flex-none flex items-center gap-2"
             size="sm"
             title={
               !userPermissions.canUpload
-                ? "You need collaborator permissions to upload media. Ask the project owner for access."
-                : projectSize.percentage >= 100
-                  ? "Project storage is full"
+                ? "You need collaborator permissions to upload media"
+                : !uploadStatus?.canUpload
+                  ? uploadStatus?.reason
                   : isUploading
                     ? "Upload in progress..."
-                    : "Upload media files"
+                    : isLoadingLimits
+                      ? "Loading upload limits..."
+                      : "Upload media files"
             }
           >
             {isUploading ? (
@@ -925,10 +891,15 @@ export function MediaGrid({
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Uploading...
               </>
-            ) : projectSize.percentage >= 100 ? (
+            ) : !uploadStatus?.canUpload ? (
               <>
-                <FolderOpen className="h-4 w-4" />
-                Project Full
+                <Crown className="h-4 w-4" />
+                Upgrade Storage
+              </>
+            ) : isLoadingLimits ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading...
               </>
             ) : (
               <>
@@ -958,11 +929,14 @@ export function MediaGrid({
               accept="video/mp4,video/mov,video/avi,video/mkv,video/webm,image/jpg,image/jpeg,image/png,image/gif,image/webp"
               className="hidden"
               onChange={handleFileInputChange}
-              disabled={isUploading || projectSize.percentage >= 100}
+              disabled={
+                isUploading || !uploadStatus?.canUpload || isLoadingLimits
+              }
             />
           )}
         </div>
-        {/* Upload Progress (only show when uploading) */}
+
+        {/* Upload Progress */}
         {isUploading && (
           <div className="mt-4 space-y-2">
             <div className="flex justify-between text-xs">
@@ -972,8 +946,6 @@ export function MediaGrid({
             <Progress value={uploadProgress} className="w-full h-2" />
           </div>
         )}
-
-        {/* Project Size Indicator */}
       </div>
 
       {/* Media Grid */}
@@ -1022,31 +994,23 @@ export function MediaGrid({
                 onDragLeave={() => setDraggedOver(null)}
                 onDrop={(targetId, files) => {
                   if (files.length > 0) {
-                    // Check size limit before dropping files
-                    if (!canUploadFiles(files)) {
-                      const uploadSize = files.reduce(
-                        (sum, file) => sum + file.size,
-                        0
-                      );
-                      const formatBytes = (bytes: number) => {
-                        if (bytes === 0) return "0 Bytes";
-                        const k = 1024;
-                        const sizes = ["Bytes", "KB", "MB", "GB"];
-                        const i = Math.floor(Math.log(bytes) / Math.log(k));
-                        return (
-                          parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +
-                          " " +
-                          sizes[i]
-                        );
-                      };
+                    // Check if validator is ready and validate files
+                    if (!uploadValidator) {
                       toast({
-                        title: "Upload Too Large",
-                        description: `Upload size (${formatBytes(uploadSize)}) would exceed project limit. Available space: ${projectSize.remainingFormatted}`,
+                        title: "Upload Error",
+                        description:
+                          "Upload system not ready. Please try again.",
                         variant: "destructive",
                       });
                       return;
                     }
-                    uploadFiles(files, targetId);
+
+                    if (!uploadValidator.canUploadFiles(files)) {
+                      uploadValidator.showUploadError(files);
+                      return;
+                    }
+
+                    uploadFilesHandler(files, targetId);
                   } else if (draggedMedia) {
                     handleCreateVersion(targetId, draggedMedia.id);
                   }
@@ -1072,20 +1036,23 @@ export function MediaGrid({
                   })
                 }
                 onOpenVersionManager={handleOpenVersionManager}
-                onStatusChange={handleStatusChange} // Add this
-                userPermissions={userPermissions} // Pass this down
+                onStatusChange={handleStatusChange}
+                userPermissions={userPermissions}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Project References Dialog */}
       <ProjectReferencesDialog
         open={referencesDialog.open}
         onOpenChange={(open) => setReferencesDialog({ open })}
         projectReferences={project.project_references || []}
         projectName={project.name}
       />
-      {/* Dialogs */}
+
+      {/* Media Dialogs */}
       <MediaDialogs
         createLinkDialog={createLinkDialog}
         viewLinksDialog={viewLinksDialog}

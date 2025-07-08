@@ -18,8 +18,6 @@ async function createActivityNotification(params: {
   actorName: string;
   activityData: any;
 }) {
-  console.log("🎯 Creating activity notification:", params);
-
   const supabase = await createClient();
 
   try {
@@ -39,7 +37,6 @@ async function createActivityNotification(params: {
     if (error) {
       console.error("❌ Error creating activity notification:", error);
     } else {
-      console.log("✅ Activity notification created successfully");
     }
   } catch (error) {
     console.error("❌ Failed to create activity notification:", error);
@@ -159,7 +156,6 @@ export async function POST(
       const inviteUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/invite/accept/${invitationToken}`;
 
       // 🔥 CREATE ACTIVITY NOTIFICATION FOR INVITEE
-      console.log("📱 Creating activity notification for invitee...");
       await createActivityNotification({
         userId: existingEditor.user_id,
         projectId: projectId,
@@ -243,9 +239,6 @@ export async function POST(
       if (error) throw error;
 
       const inviteUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/invite/accept/${invitationToken}`;
-
-      // 🔥 FOR NEW USERS: Create activity notification only if they later sign up
-      // This will be handled when they accept the invitation and create their account
 
       // Send email to new user
       try {

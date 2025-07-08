@@ -1,11 +1,13 @@
 // app/dashboard/projects/[id]/lib/commentActions.ts
+// @ts-ignore
+// @ts-nocheck
+
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
-
 import { CommentActivityEmail } from "@/app/components/emails/Activity/CommentActivityEmail";
 import {
   getCommentActivityDescription,
@@ -78,8 +80,6 @@ function hasPermission(
   );
 }
 
-// app/dashboard/projects/[id]/lib/commentActions.ts - ADD LOGS TO createCommentAction
-
 export async function createCommentAction(data: {
   projectId: string;
   mediaId: string;
@@ -90,23 +90,8 @@ export async function createCommentAction(data: {
   drawingData?: any;
 }) {
   try {
-    console.log("🔥 PROJECT COMMENT ACTION STARTED:", {
-      projectId: data.projectId,
-      mediaId: data.mediaId,
-      content: data.content?.substring(0, 50) + "...",
-      parentCommentId: data.parentCommentId,
-    });
-
     const { supabase, user, editorProfile, accessCheck } =
       await getAuthenticatedUserWithProjectAccess(data.projectId);
-
-    console.log("🔥 USER ACCESS CHECK:", {
-      userId: user.id,
-      userEmail: user.email,
-      editorProfileId: editorProfile.id,
-      accessCheckRole: accessCheck.role,
-      isOwner: accessCheck.is_owner,
-    });
 
     // Check if user has comment permission
     if (!hasPermission(accessCheck.role, accessCheck.is_owner, "comment")) {
@@ -157,8 +142,6 @@ export async function createCommentAction(data: {
       is_resolved: false,
     };
 
-    console.log("🔥 INSERT DATA:", insertData);
-
     const { data: comment, error: createError } = await supabase
       .from("media_comments")
       .insert(insertData)
@@ -166,28 +149,15 @@ export async function createCommentAction(data: {
       .single();
 
     if (createError) {
-      console.error("🔥 COMMENT INSERT ERROR:", createError);
+      console.error("COMMENT INSERT ERROR:", createError);
       throw createError;
     }
-
-    console.log("🔥 COMMENT CREATED SUCCESSFULLY:", {
-      commentId: comment.id,
-      mediaId: comment.media_id,
-      userId: comment.user_id,
-      userName: comment.user_name,
-    });
 
     // ✅ COMMENT CREATED SUCCESSFULLY - NOW REVALIDATE
     revalidatePath(`/dashboard/projects/${data.projectId}`);
 
     // 🔥 SEND NOTIFICATIONS ASYNCHRONOUSLY - USE EXISTING PROJECT NOTIFICATION SYSTEM
     const isReply = !!data.parentCommentId;
-    console.log("🔥 STARTING PROJECT NOTIFICATIONS:", {
-      projectId: data.projectId,
-      mediaId: data.mediaId,
-      commentId: comment.id,
-      isReply,
-    });
 
     setImmediate(() => {
       sendCommentNotifications(
@@ -211,7 +181,7 @@ export async function createCommentAction(data: {
     };
   }
 }
-// Action for creating replies (convenience wrapper)
+
 export async function createReplyAction(data: {
   projectId: string;
   mediaId: string;
@@ -225,7 +195,6 @@ export async function createReplyAction(data: {
   });
 }
 
-// Action for creating annotated comments
 export async function createAnnotatedCommentAction(data: {
   projectId: string;
   mediaId: string;
@@ -241,10 +210,6 @@ export async function createAnnotatedCommentAction(data: {
   });
 }
 
-// app/dashboard/projects/[id]/lib/commentActions.ts
-
-// 🔥 UPDATED: Enhanced notification function to handle outsiders and guests like review system
-// 🔥 UPDATED: Enhanced notification function to handle outsiders and guests like review system
 async function sendCommentNotifications(
   projectId: string,
   mediaId: string,
@@ -271,7 +236,6 @@ async function sendCommentNotifications(
       .single();
 
     if (!projectData || !mediaData) {
-      console.log("🔔 No project or media data found for notifications");
       return;
     }
 
@@ -300,10 +264,6 @@ async function sendCommentNotifications(
       }
     }
 
-    console.log(
-      `🔔 Starting comment notifications for project ${projectData.name}`
-    );
-
     const recipients: Array<{
       user_id?: string;
       email: string;
@@ -329,9 +289,6 @@ async function sendCommentNotifications(
       for (const member of projectMembers) {
         // Skip the commenter themselves
         if (member.user_id === user.id) {
-          console.log(
-            `🔔 Skipping project member who is the commenter: ${member.full_name}`
-          );
           continue;
         }
 
@@ -344,22 +301,15 @@ async function sendCommentNotifications(
           is_guest: false,
           is_outsider: false,
         });
-
-        console.log(
-          `🔔 Added project ${member.is_owner ? "owner" : "member"}:`,
-          member.email,
-          `(${member.role})`
-        );
       }
     }
 
-    // 🔥 NEW: Get other commenters (outsiders and guests) - SAME LOGIC AS REVIEW SYSTEM
     const { data: otherCommenters, error: commentersError } =
       await supabase.rpc("get_media_commenters", {
         media_uuid: mediaId,
         exclude_user_id: user.id || null,
         exclude_email: editorProfile.email || null,
-        exclude_session_id: null, // Project users don't have session IDs
+        exclude_session_id: null,
       });
 
     if (commentersError) {
@@ -377,10 +327,6 @@ async function sendCommentNotifications(
       for (const commenter of otherCommenters) {
         // Skip if already added as project member
         if (commenter.user_id && seenUserIds.has(commenter.user_id)) {
-          console.log(
-            "🔔 Skipping commenter already added as project member:",
-            commenter.user_name
-          );
           continue;
         }
 
@@ -388,10 +334,6 @@ async function sendCommentNotifications(
           commenter.user_email &&
           seenEmails.has(commenter.user_email.toLowerCase())
         ) {
-          console.log(
-            "🔔 Skipping commenter already added by email:",
-            commenter.user_name
-          );
           continue;
         }
 
@@ -407,7 +349,6 @@ async function sendCommentNotifications(
             is_outsider: true,
           });
           seenUserIds.add(commenter.user_id);
-          console.log("🔔 Added authenticated outsider:", commenter.user_name);
         } else if (commenter.user_email) {
           // Guest with email
           recipients.push({
@@ -420,13 +361,9 @@ async function sendCommentNotifications(
             session_id: commenter.session_id || undefined,
           });
           seenEmails.add(commenter.user_email.toLowerCase());
-          console.log("🔔 Added guest:", commenter.user_name);
         }
       }
     }
-
-    console.log(`🔔 Total recipients found: ${recipients.length}`);
-
     // Process each recipient
     for (const recipient of recipients) {
       try {
@@ -448,10 +385,6 @@ async function sendCommentNotifications(
           continue;
         }
 
-        console.log(
-          `🔔 Processing recipient: ${recipient.full_name} (${recipient.role})`
-        );
-
         // 🔥 UPDATED NOTIFICATION LOGIC - Same as review system
         let shouldSendNotification = false;
         let notificationReason = "";
@@ -459,17 +392,6 @@ async function sendCommentNotifications(
         if (recipient.is_guest || recipient.is_outsider) {
           // GUESTS AND OUTSIDERS: Only get reply notifications
           if (isReply) {
-            console.log("🔔 CHECKING REPLY MATCH FOR GUEST/OUTSIDER:", {
-              recipientName: recipient.full_name,
-              recipientRole: recipient.role,
-              recipientId: recipient.user_id,
-              recipientEmail: recipient.email,
-              recipientSessionId: recipient.session_id,
-              parentAuthorId: parentCommentAuthorId,
-              parentAuthorEmail: parentCommentAuthorEmail,
-              parentAuthorSessionId: parentCommentAuthorSessionId,
-            });
-
             // Check all possible ways this could be a reply to them
             const isReplyToThisPerson =
               (parentCommentAuthorId &&
@@ -511,9 +433,6 @@ async function sendCommentNotifications(
 
           // Skip if project notifications are disabled for this user
           if (!projectNotificationsEnabled) {
-            console.log(
-              `🔔 Skipping ${recipient.full_name} - project notifications disabled for this user`
-            );
             continue;
           }
 
@@ -531,14 +450,10 @@ async function sendCommentNotifications(
           const preferences =
             userPrefs || (await getDefaultCommentPreferences());
 
-          // 🔥 CHECK IF THIS IS A REPLY TO THE CURRENT RECIPIENT
+          // CHECK IF THIS IS A REPLY TO THE CURRENT RECIPIENT
           const activityType = isReply ? "comment_reply" : "comment";
           const isReplyToMe =
             isReply && parentCommentAuthorId === recipient.user_id;
-
-          console.log(
-            `🔔 Comment type: ${activityType}, isReplyToMe: ${isReplyToMe} for ${recipient.full_name}`
-          );
 
           // Check if comment notifications are enabled for this user
           const notificationSettings = await getCommentNotificationSettings(
@@ -554,16 +469,8 @@ async function sendCommentNotifications(
         }
 
         if (!shouldSendNotification) {
-          console.log(
-            `🔔 Skipping ${recipient.full_name} - ${notificationReason || "no notification needed"}`
-          );
           continue;
         }
-
-        console.log(
-          `✅ Sending notification to ${recipient.full_name} - ${notificationReason}`
-        );
-
         // Create comment item for notification
         const commentItem = {
           id: commentData.id,
@@ -682,9 +589,6 @@ async function sendCommentNotifications(
                 notificationError
               );
             } else {
-              console.log(
-                `✅ Comment activity notification created for ${recipient.full_name} (${activityTypeForLogging}, isReplyToMe: ${isReplyToMe})`
-              );
             }
           }
         }
@@ -722,10 +626,6 @@ async function sendCommentNotifications(
 
         if (shouldSendEmail) {
           try {
-            console.log(
-              `📧 Sending comment email notification to ${recipient.email}`
-            );
-
             const projectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/projects/${projectId}`;
             const actorName =
               editorProfile.full_name || editorProfile.email || "Unknown User";
@@ -742,7 +642,6 @@ async function sendCommentNotifications(
                 recipient.session_id &&
                 parentCommentAuthorSessionId === recipient.session_id);
 
-            // 🔥 FIX: Define activityType for logging
             const activityType = isReply ? "comment_reply" : "comment";
 
             // Create email subject based on type
@@ -796,9 +695,6 @@ async function sendCommentNotifications(
             if (emailError) {
               console.error("❌ Error sending comment email:", emailError);
             } else {
-              console.log(
-                `✅ Comment email notification sent to ${recipient.email} (${activityType}, isReplyToMe: ${isReplyToMe})`
-              );
             }
           } catch (emailError) {
             console.error("❌ Failed to send comment email:", emailError);

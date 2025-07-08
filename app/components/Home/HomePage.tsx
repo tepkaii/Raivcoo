@@ -1,4 +1,3 @@
-// app/home/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -8,18 +7,12 @@ import { useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
-  Shield,
-  Clock,
-  Users,
-  Zap,
-  Play,
   MessageCircle,
-  Database,
-  Star,
+  Users,
+  Play,
   Upload,
   FileVideo,
   Image as ImageIcon,
-  FileText,
 } from "lucide-react";
 
 import { BorderTrail } from "@/components/ui/border-trail";
@@ -29,7 +22,12 @@ import { Badge } from "@/components/ui/badge";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { PlayIcon } from "@heroicons/react/24/solid";
+import {
+  ChatBubbleOvalLeftIcon,
+  PlayIcon,
+  UsersIcon,
+} from "@heroicons/react/24/solid";
+import { Switch } from "@/components/ui/switch";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -48,72 +46,129 @@ function AnimatedSection({ children, className }: any) {
   );
 }
 
+const pricingTiers = [
+  {
+    id: "free" as const,
+    name: "Free",
+    price: 0,
+    baseStorage: 0.5, // 500MB
+    maxUploadSize: 200, // 200MB
+    level: 0,
+    features: [
+      "Upload videos, images",
+      "200MB max upload size",
+      "2 Active projects",
+      "2 Members per project",
+      "Timestamped comments",
+      "Accurate Pin/Draw Annotation",
+      "Email/App notifications",
+    ],
+  },
+  {
+    id: "pro" as const,
+    name: "Pro",
+    basePrice: 5.99,
+    baseStorage: 250, // 250GB base
+    additionalStoragePrice: 1.5, // $1.5 per 50GB
+    additionalStorageUnit: 50, // 50GB increments
+    maxStorage: 2048, // 2TB max
+    maxUploadSize: 5120, // 5GB
+    level: 2,
+    popular: true,
+    features: [
+      "Everything in Free plan",
+      "5GB max upload size",
+      "flexible storage up to 2TB",
+      "Unlimited projects",
+      "Unlimited members",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Priority support",
+    ],
+  },
+  {
+    id: "lite" as const,
+    name: "Lite",
+    basePrice: 2.99,
+    baseStorage: 50, // 50GB base
+    additionalStoragePrice: 1.0, // $1.0 per 25GB
+    additionalStorageUnit: 25, // 25GB increments
+    maxStorage: 150, // 150GB max
+    maxUploadSize: 2048, // 2GB
+    level: 1,
+    features: [
+      "Everything in Free plan",
+      "2GB max upload size",
+      "flexible storage up to 150GB",
+      "Unlimited projects",
+      "Unlimited members",
+      "Password protection for links",
+      "Custom expiration dates",
+    ],
+  },
+];
+
 function PricingCard({
-  plan,
-  price,
-  storage,
-  features,
-  popular = false,
-  isYearly = false,
-}: any) {
+  tier,
+  isYearly,
+}: {
+  tier: (typeof pricingTiers)[0];
+  isYearly: boolean;
+}) {
   const [storageSlider, setStorageSlider] = useState([0]);
 
-  // Calculate pricing for interactive plans
-  const isInteractive = plan === "Lite" || plan === "Pro";
+  const isFreePlan = tier.id === "free";
 
-  let totalStorage,
-    displayPrice,
-    basePrice,
-    additionalStoragePrice,
-    additionalStorageUnit,
-    baseStorage;
+  // Calculate storage and pricing
+  const totalStorage = isFreePlan
+    ? tier.baseStorage
+    : tier.baseStorage + storageSlider[0] * tier.additionalStorageUnit;
 
-  if (plan === "Lite") {
-    baseStorage = 50;
-    basePrice = 2.99;
-    additionalStoragePrice = 1.0;
-    additionalStorageUnit = 25;
-    totalStorage = baseStorage + storageSlider[0] * additionalStorageUnit;
-    const monthlyPrice = basePrice + storageSlider[0] * additionalStoragePrice;
-    displayPrice = isYearly ? monthlyPrice * 8.4 : monthlyPrice; // 30% discount
-  } else if (plan === "Pro") {
-    baseStorage = 250;
-    basePrice = 5.99;
-    additionalStoragePrice = 1.5;
-    additionalStorageUnit = 50;
-    totalStorage = baseStorage + storageSlider[0] * additionalStorageUnit;
-    const monthlyPrice = basePrice + storageSlider[0] * additionalStoragePrice;
-    displayPrice = isYearly ? monthlyPrice * 8.4 : monthlyPrice; // 30% discount
-  } else {
-    displayPrice = parseFloat(price);
-    totalStorage = null;
-  }
+  const monthlyPrice = isFreePlan
+    ? 0
+    : tier.basePrice + storageSlider[0] * tier.additionalStoragePrice;
 
-  const savings = isYearly && isInteractive ? (displayPrice / 8.4) * 3.6 : 0;
+  const yearlyPrice = monthlyPrice * 8.4; // 30% discount
+  const displayPrice = isYearly ? yearlyPrice : monthlyPrice;
+  const savings = isYearly && !isFreePlan ? monthlyPrice * 3.6 : 0;
 
   const formatStorage = (gb: number) => {
     if (gb < 1) return `${Math.round(gb * 1000)}MB`;
     return `${gb}GB`;
   };
 
-  const maxSliderValue = plan === "Lite" ? 4 : plan === "Pro" ? 35 : 0; // Lite: 50-150GB, Pro: 250-2000GB
+  const formatUploadSize = (mb: number) => {
+    if (mb >= 1024) return `${(mb / 1024).toFixed(0)}GB`;
+    return `${mb}MB`;
+  };
+
+  const maxSliderValue = isFreePlan
+    ? 0
+    : Math.floor(
+        (tier.maxStorage - tier.baseStorage) / tier.additionalStorageUnit
+      );
 
   return (
     <div
-      className={`relative rounded-xl p-8 ${popular ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent" : "border border-[#3F3F3F] bg-card"}`}
+      className={`relative rounded-xl p-8 h-full flex-1 flex flex-col ${
+        tier.popular
+          ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
+          : "border  bg-primary-foreground"
+      }`}
     >
-      {popular && (
+      {tier.popular && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-          <Badge className="bg-[#0070F3] text-white">Most Popular</Badge>
+          <Badge className="bg-[#0070F3] text-white">Best Value</Badge>
         </div>
       )}
-      <div className="text-center">
-        <h3 className="text-2xl font-bold mb-2">{plan}</h3>
+
+      <div className="text-center flex-1 flex flex-col">
+        <h3 className="text-2xl font-bold mb-2">{tier.name}</h3>
         <div className="mb-2">
           <span className="text-4xl font-bold">
-            ${plan === "Free" ? "0" : displayPrice.toFixed(2)}
+            ${isFreePlan ? "0" : displayPrice.toFixed(2)}
           </span>
-          {plan !== "Free" && (
+          {!isFreePlan && (
             <span className="text-muted-foreground">
               /{isYearly ? "year" : "month"}
             </span>
@@ -128,15 +183,15 @@ function PricingCard({
 
         <div className="mb-6">
           <p className="text-muted-foreground">
-            {isInteractive && totalStorage
-              ? formatStorage(totalStorage)
-              : storage}{" "}
-            storage
+            {formatStorage(totalStorage)} storage
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {formatUploadSize(tier.maxUploadSize)} max upload
           </p>
         </div>
 
-        {/* Interactive Storage Slider */}
-        {isInteractive && (
+        {/* Storage Slider for Lite and Pro Plans */}
+        {!isFreePlan && (
           <div className="mb-6 space-y-4">
             <div className="text-sm font-medium">
               Customize Storage: {formatStorage(totalStorage)}
@@ -152,15 +207,16 @@ function PricingCard({
               />
             </div>
             <div className="text-xs text-muted-foreground">
-              Base: {formatStorage(baseStorage)}
+              Base: {formatStorage(tier.baseStorage)}
               {storageSlider[0] > 0 && (
                 <span>
                   {" "}
-                  + {storageSlider[0]} × {formatStorage(additionalStorageUnit)}
+                  + {storageSlider[0]} ×{" "}
+                  {formatStorage(tier.additionalStorageUnit)}
                   (+$
                   {(
                     storageSlider[0] *
-                    additionalStoragePrice *
+                    tier.additionalStoragePrice *
                     (isYearly ? 8.4 : 1)
                   ).toFixed(2)}
                   )
@@ -170,69 +226,28 @@ function PricingCard({
           </div>
         )}
 
-        <ul className="space-y-3 mb-8 text-left">
-          {features.slice(0, 5).map((feature: string, index: number) => (
+        <ul className="space-y-3 mb-8 text-left flex-grow">
+          {tier.features.map((feature: string, index: number) => (
             <li key={index} className="flex items-start">
               <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
               <span className="text-sm">{feature}</span>
             </li>
           ))}
-          {features.length > 5 && (
-            <li className="text-sm text-muted-foreground">
-              +{features.length - 5} more features
-            </li>
-          )}
         </ul>
 
-        <Link href="/pricing">
-          <Button
-            variant={popular ? "default" : "outline"}
-            className="w-full"
-            size="lg"
-          >
-            {plan === "Free" ? "Get Started" : "Choose Plan"}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </Link>
+        <div className="mt-auto">
+          <Link href={tier.id === "free" ? "/signup" : "/pricing"}>
+            <Button
+              variant={tier.popular ? "default" : "outline"}
+              className="w-full"
+              size="lg"
+            >
+              {tier.id === "free" ? "Start Free" : "Choose Plan"}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function YearlyToggle({
-  isYearly,
-  setIsYearly,
-}: {
-  isYearly: boolean;
-  setIsYearly: (value: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-center gap-4 mb-8">
-      <span
-        className={`text-sm ${!isYearly ? "font-medium" : "text-muted-foreground"}`}
-      >
-        Monthly
-      </span>
-      <button
-        onClick={() => setIsYearly(!isYearly)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          isYearly ? "bg-[#0070F3]" : "bg-gray-300"
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            isYearly ? "translate-x-6" : "translate-x-1"
-          }`}
-        />
-      </button>
-      <span
-        className={`text-sm ${isYearly ? "font-medium" : "text-muted-foreground"}`}
-      >
-        Yearly
-      </span>
-      <Badge variant="secondary" className="text-xs">
-        Save 30%
-      </Badge>
     </div>
   );
 }
@@ -272,9 +287,9 @@ export default function HomePage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mt-6"
           >
-            A complete video review platform. Upload your videos, images, and
-            files directly to our secure servers. Share links with clients and
-            get timestamped feedback without any logins required.
+            Upload your videos and images. Share with clients. Get timestamped
+            feedback with accurate pin and draw annotations. No client signup
+            required.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -284,7 +299,7 @@ export default function HomePage() {
           >
             <Link href="/signup">
               <Button size="lg" variant="default" className="px-4">
-                Start Free Trial
+                Start For Free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -296,10 +311,11 @@ export default function HomePage() {
                 });
               }}
             >
-              <Button size="lg" variant="outline" className="px-4">
-                <PlayIcon className="mr-2 h-5 w-5" />
-                See Demo
-              </Button>
+              <Link href="/pricing">
+                <Button size="lg" variant="outline">
+                  View Pricing
+                </Button>
+              </Link>
             </button>
           </motion.div>
         </section>
@@ -311,7 +327,7 @@ export default function HomePage() {
               <Image
                 quality={100}
                 priority
-                src="/1.png"
+                src="/image.png"
                 alt="Video Review Dashboard"
                 width={1200}
                 height={700}
@@ -324,227 +340,52 @@ export default function HomePage() {
 
         {/* Features Section */}
         <AnimatedSection className="py-16">
-          <div ref={featuresRef} className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-              Complete File Hosting & Review Platform
-            </h2>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Your own secure media server with powerful review tools. No
-              third-party dependencies.
-            </p>
-          </div>
-        </AnimatedSection>
-
-        {/* Features Grid */}
-        <AnimatedSection className="container mx-auto px-4 pb-16">
-          <div className="grid md:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
-                <Upload className="h-6 w-6 text-[#0070F3]" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Direct Upload</h3>
-              <p className="text-muted-foreground">
-                Upload videos, images, and reference files directly to our
-                secure servers.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
-                <MessageCircle className="h-6 w-6 text-[#0070F3]" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">
-                Timestamped Comments
-              </h3>
-              <p className="text-muted-foreground">
-                Get precise feedback with comments linked to specific moments in
-                your content.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-[#0070F3]" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Secure Hosting</h3>
-              <p className="text-muted-foreground">
-                Your files are hosted securely with password protection and
-                expiration controls.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-              <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-[#0070F3]" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">No Login Required</h3>
-              <p className="text-muted-foreground">
-                Clients can view content and leave feedback without creating
-                accounts.
-              </p>
-            </div>
-          </div>
-        </AnimatedSection>
-
-        {/* File Types Section */}
-        <AnimatedSection className="py-16">
-          <div className="container mx-auto px-4">
+          <div ref={featuresRef} className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-                Support for All Your Creative Files
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+                Everything You Need for Video Review
               </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Upload and share any type of creative content directly from our
-                platform.
+              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+                Simple tools for video editors to get client feedback
+                efficiently.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              <div className="text-center p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="w-16 h-16 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <FileVideo className="h-8 w-8 text-[#0070F3]" />
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
+                <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
+                  <Upload className="h-6 w-6 text-[#0070F3]" />
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Videos</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Upload videos in any format - MP4, MOV, AVI, and more. Our
-                  platform handles the hosting and streaming.
+                <h3 className="text-xl font-semibold mb-2">Upload & Share</h3>
+                <p className="text-muted-foreground">
+                  Upload videos and images. Generate shareable links that work
+                  on any device.
                 </p>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• HD & 4K video support</li>
-                  <li>• Automatic compression</li>
-                  <li>• Frame-accurate comments</li>
-                </ul>
               </div>
 
-              <div className="text-center p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="w-16 h-16 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <ImageIcon className="h-8 w-8 text-[#0070F3]" />
+              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
+                <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
+                  <ChatBubbleOvalLeftIcon className="h-6 w-6 text-[#0070F3]" />
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Images</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Share high-resolution images, mockups, and visual references
-                  with pixel-perfect feedback.
-                </p>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• PNG, JPG, SVG support</li>
-                  <li>• Zoom for detail review</li>
-                  <li>• Annotation tools</li>
-                </ul>
-              </div>
-
-              <div className="text-center p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="w-16 h-16 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-[#0070F3]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Reference Files</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Upload scripts, mood boards, briefs, and any reference
-                  materials alongside your main content.
-                </p>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• PDF, DOC, TXT files</li>
-                  <li>• Audio files for review</li>
-                  <li>• Archive attachments</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </AnimatedSection>
-
-        {/* Feature Details */}
-        <AnimatedSection className="py-16">
-          <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
-              <Image
-                quality={100}
-                priority
-                src="/2.png"
-                alt="Upload and Review Flow"
-                width={600}
-                height={400}
-                className="w-full h-auto rounded-xl border border-[#3F3F3F] shadow-xl"
-              />
-              <div>
-                <h3 className="text-2xl md:text-3xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-                  Upload Once. Share Everywhere.
+                <h3 className="text-xl font-semibold mb-2">
+                  Timestamped Comments
                 </h3>
-                <p className="text-muted-foreground text-lg leading-relaxed mb-6">
-                  Drag and drop your files directly into our platform. We handle
-                  all the hosting, compression, and delivery. Generate secure
-                  shareable links that work on any device, anywhere.
+                <p className="text-muted-foreground">
+                  Get feedback pinned to exact moments in your videos with
+                  frame-accurate comments.
                 </p>
-                <ul className="space-y-3">
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>Secure cloud storage with automatic backups</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>Fast global CDN delivery for instant loading</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>Automatic format optimization for web viewing</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>
-                      Real-time notifications when clients view your content
-                    </span>
-                  </li>
-                </ul>
               </div>
-            </div>
-          </div>
-        </AnimatedSection>
 
-        <AnimatedSection className="py-16">
-          <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
-              <div className="order-2 md:order-1">
-                <h3 className="text-2xl md:text-3xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-                  Enterprise-Grade Security
-                </h3>
-                <p className="text-muted-foreground text-lg leading-relaxed mb-6">
-                  Your content is protected with bank-level security. Control
-                  who sees what with granular permissions, password protection,
-                  and detailed access logs.
+              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
+                <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
+                  <UsersIcon className="h-6 w-6 text-[#0070F3]" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">No Client Signup</h3>
+                <p className="text-muted-foreground">
+                  Clients can view and comment without creating accounts. Just
+                  share the link.
                 </p>
-                <ul className="space-y-3">
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>
-                      256-bit SSL encryption for all uploads and streams
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>
-                      Password-protected review links with custom expiration
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>
-                      Detailed analytics on who viewed your content and when
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>Watermarking options for sensitive content</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-1" />
-                    <span>Automatic GDPR compliance and data deletion</span>
-                  </li>
-                </ul>
               </div>
-              <Image
-                quality={100}
-                priority
-                src="/3.png"
-                alt="Security Features"
-                width={600}
-                height={400}
-                className="w-full h-auto rounded-xl border border-[#3F3F3F] shadow-xl order-1 md:order-2"
-              />
             </div>
           </div>
         </AnimatedSection>
@@ -554,173 +395,41 @@ export default function HomePage() {
           <div ref={pricingRef} className="container mx-auto px-4">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-                Simple, Transparent Pricing
+                Choose Your Plan
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Start free or upgrade with flexible storage options. All plans
-                include secure hosting and unlimited uploads.
+                Start free or upgrade with flexible storage options.
               </p>
             </div>
 
-            <YearlyToggle isYearly={isYearly} setIsYearly={setIsYearly} />
-
-            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              <PricingCard
-                plan="Free"
-                price="0"
-                storage="500MB"
-                isYearly={isYearly}
-                features={[
-                  "Upload videos, images & files",
-                  "2 active review projects",
-                  "Basic timestamped comments",
-                  "Secure file hosting",
-                  "Email notifications",
-                  "30-day link expiration",
-                  "200MB max upload size",
-                ]}
+            {/* Billing Period Toggle */}
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <span
+                className={`text-sm ${!isYearly ? "font-medium" : "text-muted-foreground"}`}
+              >
+                Monthly
+              </span>
+              <Switch
+                checked={isYearly}
+                onCheckedChange={setIsYearly}
+                className="data-[state=checked]:bg-[#0070F3]"
               />
-
-              <PricingCard
-                plan="Pro"
-                price="5.99"
-                storage="250GB"
-                popular={true}
-                isYearly={isYearly}
-                features={[
-                  "Everything in Lite plan",
-                  "Advanced analytics & insights",
-                  "Priority support",
-                  "Custom branding options",
-                  "Advanced security features",
-                  "API access",
-                  "Dedicated support",
-                  "5GB max upload size",
-                  "Team collaboration features",
-                ]}
-              />
-
-              <PricingCard
-                plan="Lite"
-                price="2.99"
-                storage="50GB"
-                isYearly={isYearly}
-                features={[
-                  "Everything in Free plan",
-                  "Unlimited review projects",
-                  "Advanced timestamped comments",
-                  "Password protection for links",
-                  "Custom expiration dates",
-                  "Real-time notifications",
-                  "2GB max upload size",
-                  "Basic analytics",
-                ]}
-              />
+              <span
+                className={`text-sm ${isYearly ? "font-medium" : "text-muted-foreground"}`}
+              >
+                Yearly
+              </span>
+              <Badge variant="secondary" className="text-xs">
+                Save 30%
+              </Badge>
             </div>
 
-            <div className="text-center mt-12">
-              <p className="text-muted-foreground mb-4">
-                All plans include secure hosting, CDN delivery, and automatic
-                backups. No credit card required for free trial.
-              </p>
-              <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center">
-                  <Database className="h-4 w-4 mr-2" />
-                  <span>Your own storage</span>
+            <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {pricingTiers.map((tier) => (
+                <div key={tier.id} className="flex">
+                  <PricingCard tier={tier} isYearly={isYearly} />
                 </div>
-                <div className="flex items-center">
-                  <Shield className="h-4 w-4 mr-2" />
-                  <span>Bank-level security</span>
-                </div>
-                <div className="flex items-center">
-                  <Zap className="h-4 w-4 mr-2" />
-                  <span>Global CDN</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </AnimatedSection>
-
-        {/* Testimonials */}
-        <AnimatedSection className="py-16">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-              Trusted by Creators Worldwide
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="h-4 w-4 text-yellow-500 fill-current"
-                    />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  "Finally, a platform that hosts everything securely. No more
-                  dealing with multiple file-sharing services. Upload once,
-                  share everywhere."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-[#0070F3] to-[#0052CC] rounded-full mr-3"></div>
-                  <div>
-                    <p className="font-semibold">Sarah Chen</p>
-                    <p className="text-sm text-muted-foreground">
-                      Video Editor
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="h-4 w-4 text-yellow-500 fill-current"
-                    />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  "The direct upload feature is a game-changer. Fast, secure,
-                  and my clients love how easy it is to access the content."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-[#0070F3] to-[#003D82] rounded-full mr-3"></div>
-                  <div>
-                    <p className="font-semibold">Marcus Rodriguez</p>
-                    <p className="text-sm text-muted-foreground">
-                      Freelance Director
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="h-4 w-4 text-yellow-500 fill-current"
-                    />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  "Having our own secure hosting solution gives us complete
-                  control. The analytics show exactly who accessed what and
-                  when."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-[#0070F3] to-[#0085FF] rounded-full mr-3"></div>
-                  <div>
-                    <p className="font-semibold">Emma Thompson</p>
-                    <p className="text-sm text-muted-foreground">
-                      Creative Agency
-                    </p>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </AnimatedSection>
@@ -728,20 +437,20 @@ export default function HomePage() {
         {/* CTA Section */}
         <AnimatedSection className="py-20">
           <div className="container mx-auto px-4 text-center">
-            <div className="bg-card border-2 border-[#3F3F3F] rounded-xl p-12 max-w-3xl mx-auto relative overflow-hidden">
+            <div className="bg-primary-foreground border-2  rounded-xl p-12 max-w-3xl mx-auto relative overflow-hidden">
               <BorderTrail />
               <h2 className="text-3xl md:text-4xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-                Ready to Host Your Creative Content?
+                Cheap Pricing. Choose the Storage You Need.
               </h2>
               <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-                Join thousands of creators who've taken control of their content
-                hosting and review process. Start your free trial today.
+                Start free with 500MB or upgrade from just $2.99/month. Flexible
+                storage options - pay only for what you use.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/signup">
                   <Button size="lg" variant="default">
-                    Start Free Trial
+                    Start Free
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
@@ -750,21 +459,6 @@ export default function HomePage() {
                     View Pricing
                   </Button>
                 </Link>
-              </div>
-
-              <div className="mt-8 flex items-center justify-center gap-8 text-sm text-muted-foreground">
-                <div className="flex items-center">
-                  <Upload className="h-4 w-4 mr-2" />
-                  <span>Free 500MB to start</span>
-                </div>
-                <div className="flex items-center">
-                  <Shield className="h-4 w-4 mr-2" />
-                  <span>Secure hosting included</span>
-                </div>
-                <div className="flex items-center">
-                  <Zap className="h-4 w-4 mr-2" />
-                  <span>Setup in minutes</span>
-                </div>
               </div>
             </div>
           </div>

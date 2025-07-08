@@ -27,9 +27,7 @@ interface MediaComment {
   user_email?: string;
   content: string;
   timestamp_seconds?: number;
-  user_avatar_url?: string; // 🔥 ADD THIS
-  user_display_name?: string; // 🔥 ADD THIS
-  user_full_name?: string; // 🔥 ADD THIS
+  avatar_url?: string; // ✅ USE THE NEW AVATAR FIELD
   ip_address?: string;
   user_agent?: string;
   is_approved: boolean;
@@ -47,7 +45,6 @@ interface PlayerControlsProps {
   onTimeUpdate?: (time: number) => void;
   fullscreenContainerRef?: React.RefObject<HTMLDivElement>;
   authenticatedUser?: {
-    // ✅ ADD THIS
     id: string;
     email: string;
     name?: string;
@@ -63,7 +60,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   className = "",
   onTimeUpdate,
   fullscreenContainerRef,
-  authenticatedUser, // ✅ ADD THIS
+  authenticatedUser,
 }) => {
   // All hooks must be declared first, regardless of mediaType
   const [isPlaying, setIsPlaying] = useState(false);
@@ -608,13 +605,13 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     const position =
                       (comment.timestamp_seconds! / duration) * 100;
 
-                    // 🔥 SMART AVATAR LOGIC: Show avatar for ANY logged-in user
+                    // ✅ UPDATED AVATAR LOGIC: Use the new avatar_url field
                     const isCurrentUser =
                       authenticatedUser?.id === comment.user_id;
 
-                    // Get avatar URL from multiple sources
+                    // Get avatar URL from the stored field
                     const getAvatarUrl = () => {
-                      // If this is the current user, use their avatar directly
+                      // If this is the current user, prefer their live avatar
                       if (
                         isCurrentUser &&
                         authenticatedUser?.avatar_url &&
@@ -623,9 +620,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                         return authenticatedUser.avatar_url;
                       }
 
-                      // Otherwise, use the joined avatar data for other users
-                      if (comment.user_avatar_url && !avatarError) {
-                        return comment.user_avatar_url;
+                      // Otherwise, use the stored avatar from when the comment was created
+                      if (comment.avatar_url && !avatarError) {
+                        return comment.avatar_url;
                       }
 
                       return null;
@@ -685,6 +682,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               <div className="min-w-12"></div>
             </div>
           )}
+
         {/* Control Buttons */}
         <div className="flex items-center justify-center gap-4">
           {/* Skip Back */}

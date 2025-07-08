@@ -1,6 +1,10 @@
-// app/api/subscriptions/create/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { Resend } from "resend";
+import { OrderConfirmationEmail } from "../../../components/emails/Payment/OrderConfirmationEmail";
+import { SubscriptionWelcomeEmail } from "../../../components/emails/Payment/SubscriptionWelcomeEmail";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +18,7 @@ export async function POST(request: NextRequest) {
       action,
       currentSubId,
       billingPeriod = "monthly",
+      paypalOrderId, // Fallback if order is null
     } = await request.json();
 
     const supabase = await createClient();
@@ -26,23 +31,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Update the pending order
+    // Get user profile for email
+    const { data: profile } = await supabase
+      .from("editor_profiles")
+      .select("full_name, display_name")
+      .eq("user_id", user.id)
+      .single();
+
+    const customerName =
+      profile?.display_name ||
+      profile?.full_name ||
+      user.email?.split("@")[0] ||
+      "Customer";
+
+    // ✅ SAFE ORDER UPDATE with null checks
     const { data: orderRecord, error: orderError } = await supabase
       .from("orders")
       .update({
-        paypal_order_id: order.id,
+        paypal_order_id: order?.id || paypalOrderId || null,
         paypal_payment_id:
-          order.purchase_units?.[0]?.payments?.captures?.[0]?.id || null,
+          order?.purchase_units?.[0]?.payments?.captures?.[0]?.id || null,
         status: "completed",
         transaction_id:
-          order.purchase_units?.[0]?.payments?.captures?.[0]?.id || null,
+          order?.purchase_units?.[0]?.payments?.captures?.[0]?.id ||
+          paypalOrderId ||
+          `manual-${Date.now()}`,
         completed_at: new Date().toISOString(),
         metadata: {
           storage_gb: storageGb,
           action: action,
           current_subscription_id: currentSubId,
           billing_period: billingPeriod,
-          paypal_order: order,
+          paypal_order: order || { fallback_order_id: paypalOrderId },
         },
       })
       .eq("id", pendingOrderId)
@@ -51,7 +71,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError || !orderRecord) {
-      console.error("Error updating order:", orderError);
+      console.error("❌ Error updating order:", orderError);
       return NextResponse.json(
         { error: "Failed to update order record" },
         { status: 500 }
@@ -74,9 +94,13 @@ export async function POST(request: NextRequest) {
     const maxUploadSize =
       maxUploadSizes[planId as keyof typeof maxUploadSizes] || 200;
 
+    let subscriptionCreated = false;
+    let isUpgrade = false;
+
     // Handle different action types
     if (action === "upgrade" || action === "downgrade" || action === "renew") {
-      // Update existing subscription
+      isUpgrade = action === "upgrade";
+
       if (!currentSubId && action !== "renew") {
         return NextResponse.json(
           { error: "Current subscription ID required for upgrade/downgrade" },
@@ -86,7 +110,6 @@ export async function POST(request: NextRequest) {
 
       if (action === "renew") {
         // For renewals, we might not have currentSubId if subscription was expired
-        // Create new subscription or reactivate existing one
         const { data: existingSub } = await supabase
           .from("subscriptions")
           .select("id")
@@ -120,6 +143,7 @@ export async function POST(request: NextRequest) {
               { status: 500 }
             );
           }
+          subscriptionCreated = true;
         } else {
           // Create new subscription for renewal
           await supabase
@@ -156,6 +180,7 @@ export async function POST(request: NextRequest) {
               { status: 500 }
             );
           }
+          subscriptionCreated = true;
         }
       } else {
         // Regular upgrade/downgrade
@@ -186,10 +211,10 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           );
         }
+        subscriptionCreated = true;
       }
     } else {
       // New subscription
-
       // Cancel any existing active subscriptions
       await supabase
         .from("subscriptions")
@@ -223,6 +248,61 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+      subscriptionCreated = true;
+    }
+
+    // 🔥 SEND EMAILS ONLY IF SUBSCRIPTION WAS SUCCESSFULLY CREATED
+    if (subscriptionCreated && user.email) {
+      try {
+        // Send Order Confirmation Email
+        const confirmationResult = await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL!,
+          to: [user.email],
+          subject: `Order Confirmation - ${planName} Plan`,
+          react: OrderConfirmationEmail({
+            customerName,
+            customerEmail: user.email,
+            orderNumber: orderRecord.id.slice(-8).toUpperCase(),
+            planName,
+            planId,
+            amount,
+            storageGb,
+            billingPeriod,
+            paymentMethod: "PayPal",
+            transactionId: orderRecord.transaction_id || "N/A",
+            orderDate: new Date(orderRecord.completed_at!).toLocaleDateString(),
+            action,
+          }),
+        });
+
+        // Send Subscription Welcome Email (delay by 2 seconds)
+        setTimeout(async () => {
+          try {
+            const welcomeResult = await resend.emails.send({
+              from: process.env.RESEND_FROM_EMAIL!,
+              to: [user.email!],
+              subject: isUpgrade
+                ? `${planName} Plan Upgrade Confirmed!`
+                : `Welcome to ${planName} Plan!`,
+              react: SubscriptionWelcomeEmail({
+                customerName,
+                customerEmail: user.email!,
+                planName,
+                planId,
+                storageGb,
+                billingPeriod,
+                periodEnd: periodEnd.toISOString(),
+                isUpgrade,
+              }),
+            });
+          } catch (emailError) {
+            console.error("❌ Error sending welcome email:", emailError);
+          }
+        }, 2000);
+      } catch (emailError) {
+        console.error("❌ Error sending confirmation email:", emailError);
+        // Don't fail the request if email fails
+      }
     }
 
     return NextResponse.json({
@@ -230,9 +310,10 @@ export async function POST(request: NextRequest) {
       order_id: orderRecord.id,
       subscription_status: "active",
       action: action || "created",
+      emails_sent: subscriptionCreated && !!user.email,
     });
   } catch (error) {
-    console.error("Error processing subscription:", error);
+    console.error("❌ Error processing subscription:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

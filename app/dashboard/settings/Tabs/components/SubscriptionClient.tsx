@@ -4,16 +4,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Download,
   Settings,
   AlertCircle,
   CheckCircle,
   Clock,
   XCircle,
   ArrowRight,
-  TrendingUp,
-  TrendingDown,
-  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/hooks/use-toast";
@@ -196,31 +192,6 @@ export default function SubscriptionClient({
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const downloadReceipt = async (orderId: string) => {
-    try {
-      const response = await fetch(`/api/orders/${orderId}/receipt`);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = url;
-        a.download = `receipt-${orderId}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-      } else {
-        throw new Error("Failed to download receipt");
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to download receipt.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -504,17 +475,6 @@ export default function SubscriptionClient({
                     <p className="text-xs text-green-600">
                       (${(order.amount / 12).toFixed(2)}/month)
                     </p>
-                  )}
-                  {order.status === "completed" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => downloadReceipt(order.id)}
-                    >
-                      <Download className="mr-1 h-3 w-3" />
-                      Receipt
-                    </Button>
                   )}
                 </div>
               </div>

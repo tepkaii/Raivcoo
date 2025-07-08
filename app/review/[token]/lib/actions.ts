@@ -3,25 +3,8 @@
 
 import { createClient } from "@/utils/supabase/server";
 
-interface MediaComment {
-  id: string;
-  media_id: string;
-  parent_comment_id?: string;
-  user_name: string;
-  user_email?: string;
-  content: string;
-  timestamp_seconds?: number;
-  annotation_data?: string;
-  ip_address?: string;
-  user_agent?: string;
-  is_approved: boolean;
-  is_pinned: boolean;
-  is_resolved: boolean; // NEW: Added for completion feature
-  created_at: string;
-  updated_at: string;
-}
 
-// NEW: Toggle comment resolution status
+
 export async function toggleCommentResolutionAction(
   commentId: string,
   sessionId?: string
@@ -109,7 +92,6 @@ export async function toggleCommentResolutionAction(
   }
 }
 
-// NEW: Get resolution statistics for a media file
 export async function getCommentResolutionStatsAction(mediaId: string) {
   try {
     const supabase = await createClient();
@@ -150,8 +132,6 @@ export async function getCommentResolutionStatsAction(mediaId: string) {
     };
   }
 }
-
-// UPDATED: Modified existing functions to include is_resolved in queries
 
 export async function getCommentsByTimestampAction(
   mediaId: string,
@@ -217,8 +197,6 @@ export async function getAnnotatedCommentsAction(mediaId: string) {
     };
   }
 }
-
-
 
 export async function getCommentStatsAction(mediaId: string) {
   try {
@@ -290,7 +268,6 @@ export async function getCommentStatsAction(mediaId: string) {
   }
 }
 
-// Additional helper function to get comments with annotations
 export async function getCommentsWithAnnotationsAction(mediaId: string) {
   try {
     const supabase = await createClient();
@@ -315,7 +292,6 @@ export async function getCommentsWithAnnotationsAction(mediaId: string) {
   }
 }
 
-// Helper function to get comments at specific timestamp
 export async function getCommentsAtTimestampAction(
   mediaId: string,
   timestamp: number,
@@ -457,11 +433,9 @@ export async function createCommentAction(data: {
   annotationData?: any;
   drawingData?: any;
   sessionId?: string;
-
   reviewToken?: string;
-  projectId?: string; // ✅ ADD PROJECT ID
+  projectId?: string;
   userProjectRelationship?: {
-    // ✅ ADD USER RELATIONSHIP
     role: string;
     isOwner: boolean;
     isMember?: boolean;
@@ -469,21 +443,6 @@ export async function createCommentAction(data: {
   } | null;
 }) {
   try {
-    console.log("🔥 REVIEW COMMENT ACTION STARTED:", {
-      mediaId: data.mediaId,
-      userName: data.userName,
-      userEmail: data.userEmail,
-      userId: data.userId,
-      content: data.content?.substring(0, 50) + "...",
-      parentCommentId: data.parentCommentId,
-      reviewToken: data.reviewToken,
-      projectId: data.projectId,
-      userRole: data.userProjectRelationship?.role,
-      isOwner: data.userProjectRelationship?.isOwner,
-      isMember: data.userProjectRelationship?.isMember,
-      isOutsider: data.userProjectRelationship?.isOutsider,
-    });
-
     const supabase = await createClient();
 
     // Get current user if authenticated
@@ -491,10 +450,17 @@ export async function createCommentAction(data: {
       data: { user },
     } = await supabase.auth.getUser();
 
-    console.log("🔥 REVIEW USER CHECK:", {
-      authenticatedUser: user?.id,
-      providedUserId: data.userId,
-    });
+    // ✅ GET USER'S AVATAR URL IF THEY'RE AUTHENTICATED
+    let avatarUrl = null;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("editor_profiles")
+        .select("avatar_url")
+        .eq("user_id", user.id)
+        .single();
+
+      avatarUrl = profile?.avatar_url || null;
+    }
 
     const insertData = {
       media_id: data.mediaId,
@@ -509,12 +475,11 @@ export async function createCommentAction(data: {
       annotation_data: data.annotationData || null,
       drawing_data: data.drawingData || null,
       session_id: data.sessionId,
+      avatar_url: avatarUrl, // ✅ ADD AVATAR URL
       is_approved: true,
       is_pinned: false,
       is_resolved: false,
     };
-
-    console.log("🔥 REVIEW INSERT DATA:", insertData);
 
     const { data: comment, error } = await supabase
       .from("media_comments")
@@ -527,30 +492,9 @@ export async function createCommentAction(data: {
       return { success: false, error: error.message };
     }
 
-    console.log("🔥 REVIEW COMMENT CREATED:", {
-      commentId: comment.id,
-      mediaId: comment.media_id,
-      reviewToken: data.reviewToken,
-    });
-
     // ✅ SEND NOTIFICATIONS ASYNCHRONOUSLY WITH COMPLETE CONTEXT
     if (data.reviewToken) {
       const isReply = !!data.parentCommentId;
-      console.log("🔥 STARTING REVIEW NOTIFICATIONS WITH FULL CONTEXT:", {
-        reviewToken: data.reviewToken,
-        commentId: comment.id,
-        isReply,
-        projectId: data.projectId,
-        userRole: data.userProjectRelationship?.role,
-        isOwner: data.userProjectRelationship?.isOwner,
-        isMember: data.userProjectRelationship?.isMember,
-        isOutsider: data.userProjectRelationship?.isOutsider,
-        commenterUserId: comment.user_id,
-        commenterUserName: comment.user_name,
-        commenterUserEmail: comment.user_email,
-        commenterSessionId: comment.session_id,
-      });
-
       // Import the notification function
       const { sendReviewCommentNotifications } = await import(
         "./reviewCommentNotifications"
@@ -561,14 +505,10 @@ export async function createCommentAction(data: {
           data.reviewToken!,
           comment,
           isReply,
-          data.userProjectRelationship, // ✅ PASS USER RELATIONSHIP CONTEXT
-          data.projectId // ✅ PASS PROJECT ID
+       
         );
       });
     } else {
-      console.log(
-        "🔥 NO REVIEW TOKEN PROVIDED - SKIPPING REVIEW NOTIFICATIONS"
-      );
     }
 
     return { success: true, comment };
@@ -583,7 +523,7 @@ export async function getCommentsAction(mediaId: string) {
     const supabase = await createClient();
 
     const { data: comments, error } = await supabase
-      .from("comments_with_avatars") // 🚀 Use the optimized view
+      .from("media_comments") // ✅ Query the table directly now
       .select("*")
       .eq("media_id", mediaId)
       .eq("is_approved", true)
@@ -617,6 +557,7 @@ export async function getCommentsAction(mediaId: string) {
     return { success: false, error: "Failed to get comments" };
   }
 }
+
 export async function updateCommentAction(
   commentId: string,
   content: string,
@@ -796,6 +737,10 @@ export async function updateCommentAction(
  * @param newStatus - New status value (on_hold, in_progress, needs_review, rejected, approved)
  * @returns Promise with success status and optional error message
  */
+
+
+
+
 export async function updateMediaStatusAction(
   mediaId: string,
   newStatus: string

@@ -5,7 +5,7 @@ import { Metadata } from "next";
 import { MainProjectsList } from "./components/MainProjects/MainProjectsList";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { CreateProjectDialog } from "./components/MainProjects/CreateProjectDialog";
-import { createProject } from "./projects/actions";
+import { createProject } from "./lib/actions";
 
 export const metadata: Metadata = {
   title: "Projects | Dashboard",
@@ -34,6 +34,26 @@ export default async function ProjectsPage() {
   if (profileError || !editorProfile) {
     redirect("/account");
   }
+
+  // Get subscription info
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  // Determine if user has active subscription
+  const hasActiveSubscription =
+    subscription &&
+    subscription.status === "active" &&
+    subscription.current_period_end &&
+    new Date(subscription.current_period_end) > new Date();
+
+  // Get plan limits - only free plan has limits
+  const planLimits = getPlanLimits(
+    subscription?.plan_id,
+    hasActiveSubscription
+  );
 
   // Get projects where user is owner OR accepted member
   const { data: ownedProjects, error: ownedError } = await supabase
@@ -204,6 +224,8 @@ export default async function ProjectsPage() {
         <CreateProjectDialog
           createProjectAction={createProject}
           currentProjectCount={ownedProjectCount}
+          planLimits={planLimits}
+          subscription={subscription}
         />
       </header>
 
@@ -214,4 +236,42 @@ export default async function ProjectsPage() {
       />
     </div>
   );
+}
+
+// Helper function to get plan limits - only free plan has limits
+function getPlanLimits(planId: string | null, hasActiveSubscription: boolean) {
+  // If no active subscription or free plan, apply free limits
+  if (!hasActiveSubscription || !planId || planId === "free") {
+    return {
+      maxProjects: 2,
+      planName: "Free",
+      isActive: false,
+      hasLimit: true,
+    };
+  }
+
+  // Both lite and pro have unlimited projects
+  switch (planId) {
+    case "lite":
+      return {
+        maxProjects: -1, // unlimited
+        planName: "Lite",
+        isActive: true,
+        hasLimit: false,
+      };
+    case "pro":
+      return {
+        maxProjects: -1, // unlimited
+        planName: "Pro",
+        isActive: true,
+        hasLimit: false,
+      };
+    default:
+      return {
+        maxProjects: 2,
+        planName: "Free",
+        isActive: false,
+        hasLimit: true,
+      };
+  }
 }

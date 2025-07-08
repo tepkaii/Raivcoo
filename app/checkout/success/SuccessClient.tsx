@@ -193,6 +193,12 @@ export default function SuccessClient({
                   </div>
                 )}
               </div>
+
+              <div className="mt-6 pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  Cheap pricing with flexible storage options
+                </p>
+              </div>
             </div>
           )}
 
@@ -218,6 +224,15 @@ export default function SuccessClient({
                   {formatUploadSize(selectedPlan.id)} max upload size
                 </span>
               </div>
+
+              {(selectedPlan.id === "lite" || selectedPlan.id === "pro") && (
+                <div className="flex items-center">
+                  <CheckCircleIcon className="size-5 text-primary mr-3 flex-shrink-0" />
+                  <span className="text-foreground">
+                    Flexible storage - pay only for what you need
+                  </span>
+                </div>
+              )}
 
               {selectedPlan.features.slice(0, 4).map((feature, index) => (
                 <div key={index} className="flex items-center">
@@ -265,11 +280,11 @@ export default function SuccessClient({
             </Link>
           </p>
           <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
-            <Link href="/terms" className="hover:underline">
+            <Link href="/TermsOfService" className="hover:underline">
               Terms
             </Link>
             <span>•</span>
-            <Link href="/privacy" className="hover:underline">
+            <Link href="/PrivacyPolicy" className="hover:underline">
               Privacy
             </Link>
           </div>

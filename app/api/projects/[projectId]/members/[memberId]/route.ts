@@ -77,11 +77,6 @@ export async function DELETE(
     const supabase = await createClient();
     const { projectId, memberId } = await params;
 
-    console.log("🚀 Starting member removal process for:", {
-      projectId,
-      memberId,
-    });
-
     // Get authenticated user
     const {
       data: { user },
@@ -105,8 +100,6 @@ export async function DELETE(
       );
     }
 
-    console.log("✅ Project owner found:", editorProfile.email);
-
     // Verify project ownership and get project details
     const { data: project } = await supabase
       .from("projects")
@@ -117,8 +110,6 @@ export async function DELETE(
     if (!project || project.editor_id !== editorProfile.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
-
-    console.log("✅ Project ownership verified:", project.name);
 
     // 🔥 FIXED: Get member details with proper join
     const { data: memberData, error: memberFetchError } = await supabase
@@ -136,7 +127,6 @@ export async function DELETE(
       .single();
 
     if (memberFetchError || !memberData) {
-      console.log("❌ Member not found:", memberFetchError);
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
@@ -164,20 +154,6 @@ export async function DELETE(
       editorProfile.full_name ||
       editorProfile.email;
 
-    console.log("✅ Member to remove:", {
-      name: memberName,
-      email: memberProfile.email,
-      status: memberData.status,
-      role: memberData.role,
-      user_id: memberData.user_id,
-    });
-
-    console.log("✅ Project owner:", {
-      name: ownerName,
-      email: editorProfile.email,
-      user_id: user.id,
-    });
-
     // REMOVE THE MEMBER FROM PROJECT
     const { error: deleteError } = await supabase
       .from("project_members")
@@ -190,16 +166,10 @@ export async function DELETE(
       throw deleteError;
     }
 
-    console.log("✅ Member successfully removed from database");
-
     // 🔥 CHECK IF WE SHOULD SEND EMAIL NOTIFICATION
     const shouldSendEmail = memberData.status === "accepted";
 
     if (shouldSendEmail) {
-      console.log(
-        "📧 Member was ACCEPTED - sending removal email notification"
-      );
-
       try {
         const removedAt = new Date().toISOString();
 
@@ -222,24 +192,15 @@ export async function DELETE(
         if (emailError) {
           console.error("❌ Error sending member removal email:", emailError);
         } else {
-          console.log(
-            "✅ Member removal email sent successfully to:",
-            memberProfile.email
-          );
         }
       } catch (emailError) {
         console.error("❌ Failed to send member removal email:", emailError);
       }
     } else {
-      console.log(
-        `📧 Member status was '${memberData.status}' - skipping email notification`
-      );
     }
 
     // Activity notification for owner
     try {
-      console.log("📱 Creating activity notification for project owner");
-
       const { error: activityError } = await supabase
         .from("activity_notifications")
         .insert({
@@ -266,7 +227,6 @@ export async function DELETE(
           activityError
         );
       } else {
-        console.log("✅ Activity notification created successfully");
       }
     } catch (activityError) {
       console.error(
@@ -274,8 +234,6 @@ export async function DELETE(
         activityError
       );
     }
-
-    console.log("🎉 Member removal process completed successfully");
 
     return NextResponse.json({
       success: true,

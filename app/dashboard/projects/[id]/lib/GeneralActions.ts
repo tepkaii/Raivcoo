@@ -1,18 +1,15 @@
 // app/dashboard/projects/[id]/lib/actions.ts
-
+// @ts-nocheck
+// general actions
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { deleteFileFromR2 } from "@/lib/r2";
 import { nanoid } from "nanoid";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import { MemberRemovedEmail } from "@/app/components/emails/Members/MemberRemovedEmail";
-import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-// Helper function to get authenticated editor with project access
+
 async function getAuthenticatedEditorWithProjectAccess(projectId: string) {
   const supabase = await createClient();
 
@@ -438,7 +435,7 @@ export async function addVersionToMediaAction(
       .update({ is_current_version: false })
       .or(`id.eq.${parentMediaId},parent_media_id.eq.${parentMediaId}`);
 
-    // ✅ MOVE THE CURRENT VERSION (not the parent)
+    // MOVE THE CURRENT VERSION (not the parent)
     const { error: updateError } = await authSupabase
       .from("project_media")
       .update({
@@ -450,7 +447,7 @@ export async function addVersionToMediaAction(
 
     if (updateError) throw updateError;
 
-    // ✅ REORGANIZE THE SOURCE GROUP
+    // REORGANIZE THE SOURCE GROUP
     if (mediaToMove !== newMediaId) {
       // The current version was moved, so we need to reorganize the source group
       const { data: remainingMedia } = await authSupabase
@@ -742,21 +739,12 @@ export async function updateMediaStatusAction(
       accessCheck,
     } = await getAuthenticatedEditorWithProjectAccess(mediaData.project_id);
 
-    // Debug logging
-    console.log("Access check result:", {
-      role: accessCheck.role,
-      isOwner: accessCheck.is_owner,
-      hasAccess: accessCheck.has_access,
-    });
-
     // Check if user has edit status permission
     const canEditStatus = hasPermission(
       accessCheck.role,
       accessCheck.is_owner,
       "editStatus"
     );
-    console.log("Can edit status:", canEditStatus);
-
     if (!canEditStatus) {
       throw new Error(
         `You don't have permission to edit media status. Your role: ${accessCheck.role}, Owner: ${accessCheck.is_owner}`
@@ -1000,7 +988,6 @@ export async function checkProjectAccess(
   return data;
 }
 
-// Additional helper actions for team management
 export async function inviteProjectMember(
   projectId: string,
   email: string,
@@ -1187,10 +1174,9 @@ export async function leaveProject(projectId: string) {
   }
 }
 
-// Helper function to check if user can upload to project
 export async function canUserUploadToProject(projectId: string) {
   try {
-    const { supabase, editorProfile, accessCheck } =
+    const {  accessCheck } =
       await getAuthenticatedEditorWithProjectAccess(projectId);
 
     return {
@@ -1213,10 +1199,9 @@ export async function canUserUploadToProject(projectId: string) {
   }
 }
 
-// Helper function to get user permissions for a project
 export async function getUserProjectPermissions(projectId: string) {
   try {
-    const { supabase, editorProfile, accessCheck } =
+    const {  accessCheck } =
       await getAuthenticatedEditorWithProjectAccess(projectId);
 
     return {

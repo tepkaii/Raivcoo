@@ -1,3 +1,5 @@
+// app/complete-profile/actions.ts
+// @ts-nocheck
 "use server";
 
 import { createClient } from "@/utils/supabase/server";

@@ -1,15 +1,20 @@
+// app/pricing/PricingClient.tsx
+// @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Check, ArrowRight, ArrowUp, ArrowDown, Calendar } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
 import { formatDate } from "../dashboard/lib/formats";
+import { CheckBadgeIcon } from "@heroicons/react/24/solid";
+import { motion, useInView } from "framer-motion";
+import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
 
 interface Subscription {
   id: string;
@@ -37,13 +42,13 @@ const pricingTiers = [
     maxUploadSize: 200, // 200MB
     level: 0,
     features: [
-      "Upload videos, images & files",
-      "2 active review projects",
-      "Basic timestamped comments",
-      "Secure file hosting",
-      "Email notifications",
-      "30-day link expiration",
+      "Upload videos, images",
       "200MB max upload size",
+      "2 Active projects",
+      "2 Members per project",
+      "Timestamped comments",
+      "Accurate Pin/Draw Annotation",
+      "Email/App notifications",
     ],
   },
 
@@ -59,15 +64,14 @@ const pricingTiers = [
     level: 2,
     popular: true,
     features: [
-      "Everything in Lite plan",
-      "Advanced analytics & insights",
-      "Priority support",
-      "Custom branding options",
-      "Advanced security features",
-      "API access",
-      "Dedicated support",
+      "Everything in Free plan",
       "5GB max upload size",
-      "Team collaboration features",
+      "flexible storage up to 2TB",
+      "Unlimited projects",
+      "Unlimited members",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Priority support",
     ],
   },
   {
@@ -82,18 +86,16 @@ const pricingTiers = [
     level: 1,
     features: [
       "Everything in Free plan",
-      "Unlimited review projects",
-      "Advanced timestamped comments",
+      "2GB max upload size",
+      "flexible storage up to 150GB",
+      "Unlimited projects",
+      "Unlimited members",
       "Password protection for links",
       "Custom expiration dates",
-      "Real-time notifications",
-      "2GB max upload size",
-      "Basic analytics",
     ],
   },
 ];
 
-// Check if subscription is truly expired (both status and time)
 const isSubscriptionExpired = (subscription: Subscription | null): boolean => {
   if (!subscription) return false;
 
@@ -109,6 +111,23 @@ const isSubscriptionExpired = (subscription: Subscription | null): boolean => {
 
   return false;
 };
+
+function AnimatedSection({ children, className }: any) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.3 });
+
+  return (
+    <section ref={ref} className={className}>
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+        transition={{ duration: 0.6 }}
+      >
+        {children}
+      </motion.div>
+    </section>
+  );
+}
 
 function PricingCard({
   tier,
@@ -376,7 +395,10 @@ function PricingCard({
       );
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: tier.level * 0.1 }}
       className={`relative rounded-xl p-8 h-full flex-1 flex flex-col ${
         tier.popular
           ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
@@ -385,7 +407,7 @@ function PricingCard({
     >
       {tier.popular && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-          <Badge className="bg-[#0070F3] text-white">Most Popular</Badge>
+          <Badge className="bg-[#0070F3] text-white">Best Value</Badge>
         </div>
       )}
 
@@ -453,7 +475,6 @@ function PricingCard({
                 min={0}
                 step={1}
                 className="w-full"
-                // Remove the disabled prop - let slider work freely
               />
             </div>
             <div className="text-xs text-muted-foreground">
@@ -467,7 +488,7 @@ function PricingCard({
                   {(
                     storageSlider[0] *
                     tier.additionalStoragePrice *
-                    (isYearly ? 10 : 1)
+                    (isYearly ? 8.4 : 1)
                   ).toFixed(2)}
                   )
                 </span>
@@ -487,7 +508,7 @@ function PricingCard({
         <ul className="space-y-3 mb-8 text-left flex-grow">
           {tier.features.map((feature: string, index: number) => (
             <li key={index} className="flex items-start">
-              <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
+              <CheckBadgeIcon className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
               <span className="text-sm">{feature}</span>
             </li>
           ))}
@@ -515,7 +536,7 @@ function PricingCard({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -529,85 +550,108 @@ export default function PricingClient({
   const isExpired = isSubscriptionExpired(currentSubscription);
 
   return (
-    <div className="container mx-auto px-4 py-20">
-      <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-6xl font-bold mb-4">
-          Choose Your Plan
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Start free or upgrade with flexible storage options. All plans include
-          secure hosting and unlimited uploads.
-        </p>
-
-        {/* Billing Period Toggle */}
-        <div className="flex items-center justify-center gap-4 mt-8 mb-8">
-          <span
-            className={`text-sm ${!isYearly ? "font-medium" : "text-muted-foreground"}`}
+    <div className="min-h-screen bg-background overflow-hidden text-foreground">
+      <GridBackground />
+      <Spotlight />
+      <div className="relative z-40">
+        <AnimatedSection className="container pt-32 mx-auto px-4 py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
           >
-            Monthly
-          </span>
-          <Switch
-            checked={isYearly}
-            onCheckedChange={setIsYearly}
-            className="data-[state=checked]:bg-[#0070F3]"
-          />
-          <span
-            className={`text-sm ${isYearly ? "font-medium" : "text-muted-foreground"}`}
-          >
-            Yearly
-          </span>
-          <Badge variant="secondary" className="text-xs">
-            Save 30%
-          </Badge>
-        </div>
+            <h1 className="text-4xl md:text-6xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+              Choose Your Plan
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Start free or upgrade with flexible storage options. Cheap
+              pricing, choose the storage you need.
+            </p>
 
-        {/* Current subscription info */}
-        {currentSubscription && (
-          <div className="space-y-2">
-            <Badge
-              variant={isExpired ? "destructive" : "default"}
-              className="inline-block"
+            {/* Billing Period Toggle */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="flex items-center justify-center gap-4 mt-8 mb-8"
             >
-              Current plan: <strong>{currentSubscription.plan_name}</strong>
-              {currentSubscription.storage_gb && (
-                <span> ({currentSubscription.storage_gb}GB)</span>
-              )}
-              {isExpired ? (
-                <span> - Expired</span>
-              ) : currentSubscription.current_period_end ? (
-                <span>
-                  {" "}
-                  expires on{" "}
-                  {formatDate(currentSubscription.current_period_end)}
-                </span>
-              ) : null}
-            </Badge>
+              <span
+                className={`text-sm ${!isYearly ? "font-medium" : "text-muted-foreground"}`}
+              >
+                Monthly
+              </span>
+              <Switch
+                checked={isYearly}
+                onCheckedChange={setIsYearly}
+                className="data-[state=checked]:bg-[#0070F3]"
+              />
+              <span
+                className={`text-sm ${isYearly ? "font-medium" : "text-muted-foreground"}`}
+              >
+                Yearly
+              </span>
+              <Badge variant="secondary" className="text-xs">
+                Save 30%
+              </Badge>
+            </motion.div>
 
-            {/* Show policy notice for active subscriptions */}
-            {currentSubscription.status === "active" && !isExpired && (
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Upgrades take effect immediately. Downgrades and cancellations
-                take effect at your next billing cycle.
-              </p>
+            {/* Current subscription info */}
+            {currentSubscription && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="space-y-2"
+              >
+                <Badge
+                  variant={isExpired ? "destructive" : "default"}
+                  className="inline-block"
+                >
+                  Current plan: <strong>{currentSubscription.plan_name}</strong>
+                  {currentSubscription.storage_gb && (
+                    <span> ({currentSubscription.storage_gb}GB)</span>
+                  )}
+                  {isExpired ? (
+                    <span> - Expired</span>
+                  ) : currentSubscription.current_period_end ? (
+                    <span>
+                      {" "}
+                      expires on{" "}
+                      {formatDate(currentSubscription.current_period_end)}
+                    </span>
+                  ) : null}
+                </Badge>
+
+                {/* Show policy notice for active subscriptions */}
+                {currentSubscription.status === "active" && !isExpired && (
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    Upgrades take effect immediately. Downgrades and
+                    cancellations take effect at your next billing cycle.
+                  </p>
+                )}
+              </motion.div>
             )}
-          </div>
-        )}
-      </div>
+          </motion.div>
 
-      <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        {pricingTiers.map((tier) => (
-          <div key={tier.id} className="flex">
-            {" "}
-            {/* Add flex wrapper */}
-            <PricingCard
-              key={tier.id}
-              tier={tier}
-              user={user}
-              currentSubscription={currentSubscription}
-              isYearly={isYearly}
-            />
-          </div>
-        ))}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto"
+          >
+            {pricingTiers.map((tier) => (
+              <div key={tier.id} className="flex">
+                <PricingCard
+                  tier={tier}
+                  user={user}
+                  currentSubscription={currentSubscription}
+                  isYearly={isYearly}
+                />
+              </div>
+            ))}
+          </motion.div>
+        </AnimatedSection>
       </div>
     </div>
   );

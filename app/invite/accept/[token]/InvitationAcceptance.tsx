@@ -12,7 +12,6 @@ import {
   redirectToDashboard,
 } from "../actions";
 import { formatFullDate } from "@/app/dashboard/lib/formats";
-import { UsersIcon } from "@heroicons/react/24/solid";
 
 interface InvitationAcceptanceProps {
   invitation: {
@@ -60,6 +59,7 @@ export function InvitationAcceptance({
           toast({
             title: "Invitation Accepted",
             description: `You've joined the project as a ${roleLabels[invitation.role as keyof typeof roleLabels]}`,
+            variant: "green",
           });
 
           // Redirect to the project
@@ -97,7 +97,7 @@ export function InvitationAcceptance({
           toast({
             title: "Invitation Declined",
             description: "You've declined the invitation",
-            variant: "outline",
+            variant: "green",
           });
 
           // Redirect to dashboard

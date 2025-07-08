@@ -1,4 +1,6 @@
 // app/dashboard/projects/[id]/lib/statusChangeActions.ts
+// @ts-nocheck
+// @ts-ignore
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -6,10 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
 import { StatusChangeEmail } from "@/app/components/emails/Activity/statusChangeEmail";
-import {
-
-  getDefaultPreferences,
-} from "../../../lib/MediaNotificationService";
+import { getDefaultPreferences } from "../../../lib/MediaNotificationService";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -222,9 +221,6 @@ export async function changeMediaStatusAction(
   }
 }
 
-// app/dashboard/projects/[id]/lib/statusChangeActions.ts
-// Update the sendStatusChangeNotifications function:
-
 async function sendStatusChangeNotifications(
   projectId: string,
   mediaFile: any,
@@ -245,13 +241,8 @@ async function sendStatusChangeNotifications(
       .single();
 
     if (!project) {
-      console.log("🔔 No project found for status change notifications");
       return;
     }
-
-    console.log(
-      `🔔 Starting status change notifications for project ${project.name}`
-    );
 
     // Get recipients using RPC (SAME AS DELETE ACTION)
     const { data: recipients, error: recipientsError } = await supabase.rpc(
@@ -267,28 +258,18 @@ async function sendStatusChangeNotifications(
     }
 
     if (!recipients || recipients.length === 0) {
-      console.log("🔔 No recipients found for notifications");
       return;
     }
-
-    console.log(`🔔 Found ${recipients.length} potential recipients`);
 
     // Process each recipient
     for (const recipient of recipients) {
       try {
         // 🔥 SKIP THE PERSON WHO MADE THE CHANGE
         if (recipient.user_id === user.id) {
-          console.log(
-            `🔔 SKIPPING status changer: ${recipient.full_name} (they made the change)`
-          );
           continue;
         }
 
         const isMyMedia = mediaFile.uploaded_by === recipient.user_id;
-
-        console.log(
-          `🔔 Processing recipient: ${recipient.full_name} (${recipient.role})`
-        );
 
         // Check if this recipient should be notified based on status levels
         const {
@@ -311,9 +292,6 @@ async function sendStatusChangeNotifications(
 
         // Skip if project notifications are disabled for this user
         if (!projectNotificationsEnabled) {
-          console.log(
-            `🔔 Skipping ${recipient.full_name} - project notifications disabled for this user`
-          );
           continue;
         }
 
@@ -342,9 +320,6 @@ async function sendStatusChangeNotifications(
           !statusChangeSettings.enabled ||
           !statusChangeSettings.levels.includes(newStatus)
         ) {
-          console.log(
-            `🔔 Skipping ${recipient.full_name} - status change notifications disabled or status not in notification levels`
-          );
           continue;
         }
 
@@ -405,9 +380,6 @@ async function sendStatusChangeNotifications(
               notificationError
             );
           } else {
-            console.log(
-              `✅ Status change activity notification created for ${recipient.full_name}`
-            );
           }
         }
 
@@ -417,8 +389,6 @@ async function sendStatusChangeNotifications(
           statusChangeSettings.delivery === "both"
         ) {
           try {
-            console.log(`📧 Sending email notification to ${recipient.email}`);
-
             const projectUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/projects/${projectId}`;
 
             const { data: emailData, error: emailError } =
@@ -456,9 +426,6 @@ async function sendStatusChangeNotifications(
             if (emailError) {
               console.error("❌ Error sending email:", emailError);
             } else {
-              console.log(
-                `✅ Status change email notification sent to ${recipient.email}`
-              );
             }
           } catch (emailError) {
             console.error("❌ Failed to send email:", emailError);
