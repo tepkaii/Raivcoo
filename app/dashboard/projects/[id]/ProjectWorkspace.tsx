@@ -709,10 +709,10 @@ export function ProjectWorkspace({
         {/* Comments Panel - Desktop only */}
         {!isMobile && showCommentsPanel && canComment && (
           <div
-            className="border-l flex flex-col flex-shrink-0 min-w-0"
+            className="border-l rounded-md p-4 flex flex-col flex-shrink-0 min-w-0"
             style={{ width: `${widths.comments}%` }}
           >
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden bg-primary-foreground/35 border rounded-2xl">
               {selectedMedia ? (
                 <ReviewComments
                   mediaId={selectedMedia.id}

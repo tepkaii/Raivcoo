@@ -145,7 +145,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`flex h-full min-h-0 relative ${className}`}
+      className={`flex h-full min-h-0 relative   ${className}`}
     >
       {/* Left Panel */}
       <div style={{ width: getLeftPanelWidth() }}>{leftPanel}</div>
@@ -177,38 +177,43 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
 
       {/* Right Panel */}
       <div
-        className={` flex flex-col  transition-all duration-200 ${
+        className={`flex flex-col transition-all duration-200 p-3 min-h-full ${
           isRightPanelOpen ? "flex-shrink-0" : "hidden"
         }`}
         style={{ width: getRightPanelWidth() }}
       >
-        {/* Right Panel Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#262626]">
-          <h3 className="text-sm font-medium text-white flex items-center gap-2">
-            <ChatBubbleOvalLeftIcon className="h-4 w-4" />
-            {rightPanelTitle}
-          </h3>
-          {allowCloseRight && (
-            <Button
-              onClick={handleRightPanelToggle}
-              variant="ghost"
-              size="sm"
-              className="text-gray-400 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+        <div className=" bg-primary-foreground/35 border rounded-2xl flex flex-col transition-all duration-200 min-h-full">
+          {/* Right Panel Header */}
+          <div className="flex items-center  justify-between px-4 py-3 border-b border-[#262626]">
+            <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <ChatBubbleOvalLeftIcon className="h-4 w-4" />
+              {rightPanelTitle}
+            </h3>
+            {allowCloseRight && (
+              <Button
+                onClick={handleRightPanelToggle}
+                variant="ghost"
+                size="icon"
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Right Panel Content */}
+          <div className="flex-1 min-h-0">{rightPanel}</div>
         </div>
-
-        {/* Right Panel Content */}
-        <div className="flex-1 min-h-0">{rightPanel}</div>
       </div>
-
       {/* Right Panel Toggle Button (when panel is closed) */}
       {!isRightPanelOpen && allowCloseRight && (
         <div className="absolute right-4 top-4 z-50">
-          <Button onClick={handleRightPanelToggle} size="sm">
-            <ChatBubbleOvalLeftIcon className="h-4 w-4 " />
+          <Button
+            onClick={handleRightPanelToggle}
+            size="sm"
+            className="rounded-full"
+          >
+            <ChatBubbleOvalLeftIcon className="h-4 w-4 " /> {rightPanelTitle}
           </Button>
         </div>
       )}

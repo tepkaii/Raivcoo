@@ -123,7 +123,7 @@ function PayPalCheckout({
     const yearlyMultiplier = billingPeriod === "yearly" ? 8.4 : 1;
 
     return {
-      basePrice: tierInfo.basePrice * yearlyMultiplier,
+      basePrice: 0.01,
       additionalStorage,
       additionalStorageCost: additionalStorageCost * yearlyMultiplier,
       totalStorage,
@@ -410,7 +410,7 @@ export default function CheckoutClient({
   };
 
   const subtotal = parseFloat(selectedPlan.price);
-  const total = subtotal; // No taxes
+  const total = 0.01; // No taxes
 
   // For free plan downgrades, handle differently
   const isFreeDowngrade = selectedPlan.id === "free" && action === "downgrade";
@@ -669,11 +669,17 @@ export default function CheckoutClient({
             {/* Simple policy links */}
             <div className="text-center">
               <div className="text-xs text-muted-foreground">
-                <Link href="/terms" className="text-primary hover:underline">
+                <Link
+                  href="legal/TermsOfService"
+                  className="text-primary hover:underline"
+                >
                   Terms
                 </Link>
                 {" • "}
-                <Link href="/privacy" className="text-primary hover:underline">
+                <Link
+                  href="legal/PrivacyPolicy"
+                  className="text-primary hover:underline"
+                >
                   Privacy
                 </Link>
                 {" • "}

@@ -1,9 +1,10 @@
 // app/dashboard/projects/[id]/components/TeamManagement.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -11,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Eye, MessageSquare, Users, Search, X } from "lucide-react";
+import { Search, X, Crown, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   ChatBubbleOvalLeftEllipsisIcon,
@@ -19,8 +20,10 @@ import {
   TrashIcon,
   UserPlusIcon,
   UsersIcon,
+  LockClosedIcon,
 } from "@heroicons/react/24/solid";
 import { createClient } from "@/utils/supabase/client";
+import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
 
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
 
@@ -51,10 +54,19 @@ interface TeamManagementProps {
   projectId: string;
   members: ProjectMember[];
   isOwner: boolean;
-  onMembersUpdate: (newMembers: ProjectMember[]) => void; // Changed to pass new members directly
+  onMembersUpdate: (newMembers: ProjectMember[]) => void;
 }
 
-
+interface MemberPermissions {
+  canInvite: boolean;
+  maxMembers: number;
+  planName: string;
+  isActive: boolean;
+  currentCount: number;
+  suggestions: {
+    invite?: string;
+  };
+}
 
 const roleLabels = {
   viewer: "Viewer",
@@ -361,6 +373,10 @@ export function TeamManagement({
   );
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [localMembers, setLocalMembers] = useState<ProjectMember[]>(members);
+  const [permissions, setPermissions] = useState<MemberPermissions | null>(
+    null
+  );
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
 
   const supabase = createClient();
 
@@ -381,6 +397,87 @@ export function TeamManagement({
     };
     getCurrentUser();
   }, [supabase]);
+
+  const loadPermissions = useCallback(async () => {
+    try {
+      setIsLoadingPermissions(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error("Not authenticated");
+      }
+
+      const subscriptionInfo = await getSubscriptionInfo(user.id);
+
+      const hasActiveSubscription =
+        subscriptionInfo.hasPaidPlan &&
+        subscriptionInfo.isActive &&
+        !subscriptionInfo.isExpired;
+
+      // Count ALL members (pending + accepted) - NO +1 for owner
+      const currentCount = localMembers.filter(
+        (m) => m.status !== "declined"
+      ).length;
+
+      let perms: MemberPermissions;
+
+      if (hasActiveSubscription) {
+        perms = {
+          canInvite: true,
+          maxMembers: Infinity,
+          planName: subscriptionInfo.planName,
+          isActive: true,
+          currentCount,
+          suggestions: {},
+        };
+      } else {
+        // Free plan: 2 members per project
+        perms = {
+          canInvite: currentCount < 2,
+          maxMembers: 2,
+          planName: "Free",
+          isActive: false,
+          currentCount,
+          suggestions: {
+            invite: "Upgrade to Lite or Pro for unlimited team members",
+          },
+        };
+      }
+
+      setPermissions(perms);
+    } catch (error) {
+      console.error("Failed to load permissions:", error);
+
+      setPermissions({
+        canInvite: false,
+        maxMembers: 2,
+        planName: "Free",
+        isActive: false,
+        currentCount: localMembers.filter((m) => m.status !== "declined")
+          .length, // NO +1 here either
+        suggestions: {
+          invite:
+            "Could not verify subscription. Team member limits apply on Free plan.",
+        },
+      });
+
+      toast({
+        title: "Warning",
+        description:
+          "Could not load team permissions. Some features may be limited.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPermissions(false);
+    }
+  }, [supabase, localMembers]);
+
+  useEffect(() => {
+    loadPermissions();
+  }, [localMembers]);
 
   // Get existing member emails for filtering
   const existingMemberEmails = localMembers
@@ -469,6 +566,16 @@ export function TeamManagement({
   };
 
   const handleInvite = async () => {
+    if (!permissions?.canInvite) {
+      toast({
+        title: "Team Member Limit Reached",
+        description:
+          permissions?.suggestions.invite || "Upgrade to invite more members",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!inviteEmail.trim()) return;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -519,9 +626,10 @@ export function TeamManagement({
             : `Invited ${inviteEmail} as ${roleLabels[inviteRole]}`,
           variant: "green",
         });
+
         clearInviteForm();
-        // Fetch updated members instead of hard refresh
         await fetchUpdatedMembers();
+        await loadPermissions(); // Refresh permissions
       } else {
         throw new Error(result.error);
       }
@@ -558,12 +666,14 @@ export function TeamManagement({
           description: `Member role changed to ${roleLabels[newRole]}`,
           variant: "green",
         });
+
         // Update local state immediately for smooth UX
         setLocalMembers((prev) =>
           prev.map((member) =>
             member.id === memberId ? { ...member, role: newRole } : member
           )
         );
+
         // Also update parent component
         const updatedMembers = localMembers.map((member) =>
           member.id === memberId ? { ...member, role: newRole } : member
@@ -599,15 +709,18 @@ export function TeamManagement({
           description: "Member has been removed from the project",
           variant: "green",
         });
+
         // Update local state immediately for smooth UX
         setLocalMembers((prev) =>
           prev.filter((member) => member.id !== memberId)
         );
+
         // Also update parent component
         const updatedMembers = localMembers.filter(
           (member) => member.id !== memberId
         );
         onMembersUpdate(updatedMembers);
+        await loadPermissions(); // Refresh permissions
       } else {
         throw new Error(result.error);
       }
@@ -621,24 +734,86 @@ export function TeamManagement({
     }
   };
 
+  const handleInviteClick = () => {
+    if (!permissions?.canInvite) {
+      toast({
+        title: "Team Member Limit Reached",
+        description:
+          permissions?.suggestions.invite || "Upgrade to invite more members",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowInviteForm(!showInviteForm);
+  };
+
+  // Show loading state while permissions are being fetched
+  if (isLoadingPermissions) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">Team Members</h3>
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Team Members</h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-medium">Team Members</h3>
+          {permissions && (
+            <Badge
+              variant={permissions.isActive ? "default" : "secondary"}
+              className="text-xs"
+            >
+              {permissions.planName}
+            </Badge>
+          )}
+          {permissions && !permissions.isActive && (
+            <div className="text-xs text-muted-foreground">
+              {permissions.currentCount}/{permissions.maxMembers} members
+            </div>
+          )}
+        </div>
         {isOwner && (
           <Button
             size="sm"
             className="gap-2"
-            onClick={() => setShowInviteForm(!showInviteForm)}
+            variant={showInviteForm ? "outline" : "default"}
+            onClick={handleInviteClick}
+            disabled={!permissions?.canInvite}
           >
             <UserPlusIcon className="h-4 w-4" />
             {showInviteForm ? "Cancel" : "Invite"}
+            {!permissions?.canInvite && <LockClosedIcon className="h-3 w-3" />}
           </Button>
         )}
       </div>
-      {/* Invite Form - No dialog, just toggleable form */}
-      {showInviteForm && isOwner && (
-        <div className="p-4 border rounded-lg bg-primary-foreground space-y-4">
+
+      {/* Member limit warning for Free plan */}
+      {permissions && !permissions.isActive && !permissions.canInvite && (
+        <div className="p-3  border  rounded-lg">
+          <div className="flex items-center gap-2">
+            <Crown className="h-4 w-4 text-orange-500" />
+            <div className="text-sm">
+              <p className="font-medium">Free Plan Limit Reached</p>
+              <p className="text-muted-foreground">
+                {permissions.suggestions.invite}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Form */}
+      {showInviteForm && isOwner && permissions?.canInvite && (
+        <div className="p-4 border rounded-lg bg-muted/35 space-y-4">
           <h4 className="font-medium">Invite Team Member</h4>
 
           <div>
@@ -656,28 +831,26 @@ export function TeamManagement({
             />
             {selectedProfile && (
               <div className="mt-2 p-2 bg-input/30 rounded border flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-[5px]  flex items-center justify-center">
-                  <div className="text-xs font-medium text-primary">
-                    {selectedProfile.avatar_url ? (
-                      <img
-                        src={selectedProfile.avatar_url}
-                        alt={
-                          `${selectedProfile.full_name} avatar` || "User avatar"
-                        }
-                        className="w-8 h-8 rounded-[5px] object-cover border border-primary"
-                      />
-                    ) : (
-                      <div className="text-sm font-medium">
-                        {(
-                          selectedProfile.display_name ||
-                          selectedProfile.full_name ||
-                          selectedProfile.email
-                        )
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+                <div className="w-8 h-8 bg-primary/10 rounded-[5px] flex items-center justify-center">
+                  {selectedProfile.avatar_url ? (
+                    <img
+                      src={selectedProfile.avatar_url}
+                      alt={
+                        `${selectedProfile.full_name} avatar` || "User avatar"
+                      }
+                      className="w-8 h-8 rounded-[5px] object-cover border border-primary"
+                    />
+                  ) : (
+                    <div className="text-sm font-medium">
+                      {(
+                        selectedProfile.display_name ||
+                        selectedProfile.full_name ||
+                        selectedProfile.email
+                      )
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">
@@ -760,7 +933,6 @@ export function TeamManagement({
                 <div className="text-sm text-muted-foreground">
                   {member.user_profile?.email}
                 </div>
-                {/* Show status for both pending AND declined */}
                 {member.status === "pending" && (
                   <div className="text-xs text-amber-600">
                     Invitation pending
@@ -777,7 +949,6 @@ export function TeamManagement({
             <div className="flex items-center gap-2">
               {isOwner && (
                 <div className="flex items-center gap-1">
-                  {/* Only show role selector for accepted members */}
                   {member.status === "accepted" && (
                     <Select
                       value={member.role}
@@ -811,22 +982,21 @@ export function TeamManagement({
                     </Select>
                   )}
 
-                  {/* Show different text for declined members */}
                   {member.status === "declined" && (
                     <span className="text-sm text-muted-foreground px-3 py-1.5 border rounded-md">
                       Declined
                     </span>
                   )}
 
-                  {/* Show different text for pending members */}
                   {member.status === "pending" && (
-                    <span className="text-sm text-muted-foreground px-3 py-1.5 border rounded-md">
+                    <span className="text-sm text-muted-foreground px-3 py-1.5 border rounded-full">
                       Pending
                     </span>
                   )}
 
                   <Button
                     variant="destructive"
+                    size="icon"
                     onClick={() => handleRemoveMember(member.id)}
                   >
                     <TrashIcon className="h-4 w-4" />
@@ -837,14 +1007,14 @@ export function TeamManagement({
           </div>
         ))}
 
-        {/* Rest of the component remains the same */}
-
         {localMembers.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <UsersIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>No team members yet</p>
             <p className="text-sm">
-              Invite collaborators to work on this project
+              {permissions?.canInvite
+                ? "Invite collaborators to work on this project"
+                : "Upgrade to invite more team members"}
             </p>
           </div>
         )}

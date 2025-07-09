@@ -1,5 +1,6 @@
 // app/dashboard/projects/[id]/lib/actions.ts
 // @ts-nocheck
+// @ts-ignore
 // general actions
 "use server";
 
@@ -988,71 +989,6 @@ export async function checkProjectAccess(
   return data;
 }
 
-export async function inviteProjectMember(
-  projectId: string,
-  email: string,
-  role: "viewer" | "reviewer" | "collaborator"
-) {
-  try {
-    const { supabase, editorProfile, accessCheck } =
-      await getAuthenticatedEditorWithProjectAccess(projectId);
-
-    // Only owners can invite members
-    if (!accessCheck.is_owner) {
-      throw new Error("Only project owners can invite members");
-    }
-
-    // Check if user exists
-    const { data: userProfile } = await supabase
-      .from("editor_profiles")
-      .select("user_id, id")
-      .eq("email", email)
-      .single();
-
-    if (!userProfile) {
-      throw new Error("User not found with this email address");
-    }
-
-    // Check if already a member
-    const { data: existingMember } = await supabase
-      .from("project_members")
-      .select("id")
-      .eq("project_id", projectId)
-      .eq("user_id", userProfile.user_id)
-      .single();
-
-    if (existingMember) {
-      throw new Error("User is already a member of this project");
-    }
-
-    // Create invitation
-    const { data: member, error: inviteError } = await supabase
-      .from("project_members")
-      .insert({
-        project_id: projectId,
-        user_id: userProfile.user_id,
-        role: role,
-        status: "pending",
-      })
-      .select()
-      .single();
-
-    if (inviteError) throw inviteError;
-
-    revalidatePath(`/dashboard/projects/${projectId}`);
-
-    return {
-      success: true,
-      member,
-    };
-  } catch (error) {
-    console.error("Invite member error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to invite member",
-    };
-  }
-}
 
 export async function updateMemberRole(
   projectId: string,
@@ -1089,64 +1025,6 @@ export async function updateMemberRole(
   }
 }
 
-export async function acceptProjectInvitation(projectId: string) {
-  try {
-    const { supabase, user } = await getAuthenticatedEditor();
-
-    // Update member status to accepted
-    const { error: updateError } = await supabase
-      .from("project_members")
-      .update({
-        status: "accepted",
-        joined_at: new Date().toISOString(),
-      })
-      .eq("project_id", projectId)
-      .eq("user_id", user.id)
-      .eq("status", "pending");
-
-    if (updateError) throw updateError;
-
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    revalidatePath("/dashboard");
-
-    return { success: true };
-  } catch (error) {
-    console.error("Accept invitation error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to accept invitation",
-    };
-  }
-}
-
-export async function declineProjectInvitation(projectId: string) {
-  try {
-    const { supabase, user } = await getAuthenticatedEditor();
-
-    // Delete the invitation
-    const { error: deleteError } = await supabase
-      .from("project_members")
-      .delete()
-      .eq("project_id", projectId)
-      .eq("user_id", user.id)
-      .eq("status", "pending");
-
-    if (deleteError) throw deleteError;
-
-    revalidatePath(`/dashboard/projects/${projectId}`);
-    revalidatePath("/dashboard");
-
-    return { success: true };
-  } catch (error) {
-    console.error("Decline invitation error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to decline invitation",
-    };
-  }
-}
 
 export async function leaveProject(projectId: string) {
   try {

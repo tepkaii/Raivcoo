@@ -348,11 +348,11 @@ function PricingCard({
   };
 
   const getButtonVariant = () => {
-    if (isBlockedFreePlan || isDowngrade) return "outline"; // Disabled style
-    if (isSamePlan && !isRenewal) return "outline";
+    if (isBlockedFreePlan || isDowngrade) return "secondary"; // Disabled style
+    if (isSamePlan && !isRenewal) return "secondary";
     if (isUpgrade || isRenewal) return "default";
     if (tier.popular && !isCurrentPlan) return "default";
-    return "outline";
+    return "secondary";
   };
 
   const formatStorage = (gb: number) => {
@@ -402,7 +402,7 @@ function PricingCard({
       className={`relative rounded-xl p-8 h-full flex-1 flex flex-col ${
         tier.popular
           ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
-          : "border border-[#3F3F3F] bg-card"
+          : "border bg-muted/35 backdrop-blur-lg"
       }`}
     >
       {tier.popular && (

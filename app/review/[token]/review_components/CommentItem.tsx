@@ -482,20 +482,6 @@ const SingleComment: React.FC<{
                 </button>
               )}
 
-              {/* Timestamp for video comments */}
-              {props.mediaType === "video" &&
-                comment.timestamp_seconds !== undefined &&
-                comment.timestamp_seconds !== null && (
-                  <button
-                    onClick={() => onAction("timestamp", comment)}
-                    className="text-xs text-blue-400 hover:text-blue-300 font-mono flex items-center gap-1 hover:bg-blue-400/10 px-2 py-1 rounded transition-colors duration-200"
-                    title="Jump to timestamp"
-                  >
-                    <Clock className="h-3 w-3" />
-                    {props.formatTime(comment.timestamp_seconds)}
-                  </button>
-                )}
-
               {/* Actions */}
               <div className="flex items-center gap-1">
                 <Button
@@ -606,11 +592,19 @@ const SingleComment: React.FC<{
           {/* Comment Meta */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{props.formatDate(comment.created_at)}</span>
-            {isResolved && (
-              <span className="text-green-400">
-                Resolved {props.formatDate(comment.updated_at)}
-              </span>
-            )}
+            {/* Timestamp for video comments */}
+            {props.mediaType === "video" &&
+              comment.timestamp_seconds !== undefined &&
+              comment.timestamp_seconds !== null && (
+                <button
+                  onClick={() => onAction("timestamp", comment)}
+                  className="text-xs text-blue-400 mr-2 hover:text-blue-300 font-mono flex items-center gap-1 hover:bg-blue-400/10 px-2 py-1 rounded transition-colors duration-200"
+                  title="Jump to timestamp"
+                >
+                  <Clock className="h-3 w-3" />
+                  {props.formatTime(comment.timestamp_seconds)}
+                </button>
+              )}
           </div>
         </div>
       </div>

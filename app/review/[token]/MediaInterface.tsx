@@ -433,7 +433,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
       mediaType={currentMedia.file_type}
       currentTime={currentTime}
       onSeekToTimestamp={handleSeekToTimestamp}
-      className="h-full"
+      className="h-full "
       onCommentPinClick={handleCommentPinClick}
       onCommentDrawingClick={handleCommentDrawingClick}
       onCommentDeleted={handleCommentDeleted}
@@ -625,6 +625,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           </div>
         ) : (
           // DESKTOP LAYOUT
+
           <SplitPanel
             mode="review"
             leftPanel={mediaContent}

@@ -168,7 +168,7 @@ export function MainProjectsList({
   return (
     <div className="space-y-6 px-4">
       {/* Filters and Controls */}
-      <Card className="bg-primary-foreground">
+      <Card className="bg-transparent border-transparent">
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search */}
@@ -251,16 +251,6 @@ export function MainProjectsList({
                 </Button>
               </div>
             </div>
-          </div>
-
-          {/* Results summary */}
-          <div className="mt-4 pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              Showing {filteredAndSortedProjects.length} of {projects.length}{" "}
-              projects
-              {filterBy === "owned" && " (owned by you)"}
-              {filterBy === "member" && " (you're a member)"}
-            </p>
           </div>
         </CardContent>
       </Card>

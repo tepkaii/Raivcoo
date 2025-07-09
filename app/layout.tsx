@@ -8,6 +8,9 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import HideOnPaths from "./components/HideOnPaths";
 import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+
 export const metadata: Metadata = {
   title: {
     absolute: "",
@@ -48,12 +51,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`antialiased  flex flex-col min-h-screen ${inter.className}`}
+        className={`antialiased  flex flex-col min-h-screen ${GeistSans.className}`}
       >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
-          enableSystem
           disableTransitionOnChange
         >
           <main className="flex-grow ">

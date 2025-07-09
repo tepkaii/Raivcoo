@@ -8,8 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
 import AnimatedGridPattern from "@/components/ui/animated-grid-pattern";
 import { cn } from "@/lib/utils";
-import BlurFade from "@/components/ui/blur-fade";
-import { Button } from "@/components/ui/button";
+
+
 import { RevButtons } from "@/components/ui/RevButtons";
 
 interface FadeInSectionProps {
@@ -55,23 +55,21 @@ interface SectionProps {
 
 const Section = ({ title, children, index }: SectionProps) => (
   <FadeInSection delay={index * 0.1}>
-    <BlurFade delay={index * 0.15} inView>
-      <div className="rounded-lg p-4 sm:p-6 md:p-8 duration-300 bg-card">
-        <div className="flex items-center gap-3 mb-4 sm:mb-6">
-          <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-primary font-semibold text-base sm:text-lg">
-              {index + 1}
-            </span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-semibold text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-            {title}
-          </h2>
+    <div className="rounded-lg p-4 sm:p-6 md:p-8 duration-300 bg-card">
+      <div className="flex items-center gap-3 mb-4 sm:mb-6">
+        <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center">
+          <span className="text-primary font-semibold text-base sm:text-lg">
+            {index + 1}
+          </span>
         </div>
-        <div className="prose prose-gray dark:prose-invert max-w-none prose-base sm:prose-lg">
-          {children}
-        </div>
+        <h2 className="text-2xl sm:text-3xl font-semibold text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+          {title}
+        </h2>
       </div>
-    </BlurFade>
+      <div className="prose prose-gray dark:prose-invert max-w-none prose-base sm:prose-lg">
+        {children}
+      </div>
+    </div>
   </FadeInSection>
 );
 
@@ -80,16 +78,14 @@ const PrivacyPolicy = () => {
     <div className="min-h-screen flex justify-center">
       <main className="pb-12 md:pb-16 space-y-16 mt-32 container">
         <FadeInSection delay={0.2}>
-          <BlurFade delay={0.25} inView>
-            <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
-              <h1 className="text-4xl md:text-5xl font-normal tracking-tighter lg:text-5xl text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-                Privacy Policy
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground mt-2 px-4">
-                How we handle your information and communication preferences
-              </p>
-            </div>
-          </BlurFade>
+          <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
+            <h1 className="text-4xl md:text-5xl font-normal tracking-tighter lg:text-5xl text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+              Privacy Policy
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground mt-2 px-4">
+              How we handle your information and communication preferences
+            </p>
+          </div>
         </FadeInSection>
 
         <Card className="mx-auto border-0">

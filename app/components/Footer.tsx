@@ -69,7 +69,7 @@ const itemVariants = {
 function Footer() {
   return (
     <motion.footer
-      className="w-full py-12 bg-background border-t"
+      className="w-full py-12 bg-background border-t select-none"
       initial="hidden"
       animate="visible"
       variants={containerVariants}

@@ -690,7 +690,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       </div>
 
       {/* Comment Input */}
-      <div className="border-t border p-4">
+      <div className="border-t  p-4">
         <div className="space-y-2">
           {/* User Info Form - only show for non-authenticated users */}
           {!authenticatedUser && showUserForm && (
@@ -716,7 +716,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
           {/* Show Reply Context OR authenticated user info */}
           {replyingTo ? (
-            <div className="flex gap-1 items-center bg-blue-500/10 border border-blue-500/30 rounded p-2">
+            <div className="flex gap-1 items-center bg-blue-500/10 border border-blue-500/30 rounded-xl p-2">
               <div className="text-xs text-blue-400">
                 Replying to{" "}
                 <span className="font-medium">{replyingTo.user_name}</span>
@@ -887,7 +887,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
               <Button
                 onClick={() => startAnnotation("pin")}
                 disabled={isSubmitting}
-                size="sm"
+                size="icon"
                 variant="ghost"
                 className="h-8 px-2 hover:text-purple-400 transition-all"
               >
@@ -897,7 +897,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
               <Button
                 onClick={() => startAnnotation("drawing")}
                 disabled={isSubmitting}
-                size="sm"
+                size="icon"
                 variant="ghost"
                 className="h-8 px-2 hover:text-teal-400 transition-all"
               >
@@ -944,10 +944,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   <Button
                     onClick={cancelAnnotation}
                     size="sm"
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-white"
+                    variant="outline"
                   >
-                    <X className="h-4 w-4 mr-1" />
                     Cancel
                   </Button>
                 </>

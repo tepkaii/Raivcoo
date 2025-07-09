@@ -153,7 +153,7 @@ function PricingCard({
       className={`relative rounded-xl p-8 h-full flex-1 flex flex-col ${
         tier.popular
           ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
-          : "border  bg-primary-foreground"
+          : "border  bg-muted/35"
       }`}
     >
       {tier.popular && (
@@ -238,7 +238,7 @@ function PricingCard({
         <div className="mt-auto">
           <Link href={tier.id === "free" ? "/signup" : "/pricing"}>
             <Button
-              variant={tier.popular ? "default" : "outline"}
+              variant={tier.popular ? "default" : "secondary"}
               className="w-full"
               size="lg"
             >
@@ -352,7 +352,7 @@ export default function HomePage() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
+              <div className="p-6 rounded-xl border  bg-muted/35">
                 <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
                   <Upload className="h-6 w-6 text-[#0070F3]" />
                 </div>
@@ -363,7 +363,7 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
+              <div className="p-6 rounded-xl border bg-muted/35">
                 <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
                   <ChatBubbleOvalLeftIcon className="h-6 w-6 text-[#0070F3]" />
                 </div>
@@ -376,7 +376,7 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 rounded-xl border border-[#3F3F3F] bg-card">
+              <div className="p-6 rounded-xl border bg-muted/35">
                 <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
                   <UsersIcon className="h-6 w-6 text-[#0070F3]" />
                 </div>
@@ -435,9 +435,9 @@ export default function HomePage() {
         </AnimatedSection>
 
         {/* CTA Section */}
-        <AnimatedSection className="py-20">
+        <AnimatedSection className="py-20 ">
           <div className="container mx-auto px-4 text-center">
-            <div className="bg-primary-foreground border-2  rounded-xl p-12 max-w-3xl mx-auto relative overflow-hidden">
+            <div className="bg-muted/35 border-2  rounded-xl p-12 max-w-3xl mx-auto relative overflow-hidden">
               <BorderTrail />
               <h2 className="text-3xl md:text-4xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
                 Cheap Pricing. Choose the Storage You Need.
@@ -455,7 +455,7 @@ export default function HomePage() {
                   </Button>
                 </Link>
                 <Link href="/pricing">
-                  <Button size="lg" variant="outline">
+                  <Button size="lg" variant="secondary">
                     View Pricing
                   </Button>
                 </Link>

@@ -1,18 +1,16 @@
-import { Skeleton } from "@/components/ui/skeleton";
+"use client";
+import Lottie from "lottie-react";
+import animationData from "../../public/assets/lottie/logo-loading.json";
 
-export default function loading() {
+export default function Loading() {
   return (
-    <div className=" p-4 mt-8">
-      <Skeleton className="h-12 w-3/4 mb-6" />
-      <div className="space-y-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ))}
-      </div>
-      <Skeleton className="h-10 w-1/3 mt-6" />
+    <div className="min-h-screen flex items-center justify-center">
+      <Lottie
+        animationData={animationData}
+        loop
+        autoplay
+        style={{ height: 70 }}
+      />
     </div>
   );
 }

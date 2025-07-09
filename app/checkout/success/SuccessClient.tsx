@@ -280,11 +280,11 @@ export default function SuccessClient({
             </Link>
           </p>
           <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
-            <Link href="/TermsOfService" className="hover:underline">
+            <Link href="legal/TermsOfService" className="hover:underline">
               Terms
             </Link>
             <span>•</span>
-            <Link href="/PrivacyPolicy" className="hover:underline">
+            <Link href="legal/PrivacyPolicy" className="hover:underline">
               Privacy
             </Link>
           </div>
