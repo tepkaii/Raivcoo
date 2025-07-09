@@ -1,5 +1,4 @@
-// app/pricing/PricingClient.tsx
-// @ts-nocheck
+// app/pricing/PricingClient.tsx (complete rewrite)
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -51,7 +50,6 @@ const pricingTiers = [
       "Email/App notifications",
     ],
   },
-
   {
     id: "pro" as const,
     name: "Pro",
@@ -98,17 +96,12 @@ const pricingTiers = [
 
 const isSubscriptionExpired = (subscription: Subscription | null): boolean => {
   if (!subscription) return false;
-
-  // Check if status is inactive
   if (subscription.status === "inactive") return true;
-
-  // Check if current period has ended (even if status is still "active")
   if (subscription.current_period_end) {
     const currentDate = new Date();
     const periodEndDate = new Date(subscription.current_period_end);
     return currentDate > periodEndDate;
   }
-
   return false;
 };
 
@@ -142,6 +135,7 @@ function PricingCard({
 }) {
   const router = useRouter();
   const [storageSlider, setStorageSlider] = useState([0]);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const isFreePlan = tier.id === "free";
 
@@ -208,10 +202,12 @@ function PricingCard({
         totalStorage < currentStorage) ||
       // Yearly to monthly (considered downgrade)
       isBlockedYearlyToMonthly);
+
   const isStorageDowngrade =
     hasActiveSubscription &&
     currentSubscription.plan_id === tier.id &&
     totalStorage < currentStorage;
+
   // RENEWAL LOGIC: Expired subscription renewal
   const isRenewal = !isFreePlan && currentSubscription && isExpired;
 
@@ -225,9 +221,10 @@ function PricingCard({
   // NEW SUBSCRIPTION: No current subscription or expired
   const isNewSubscription = !currentSubscription || isExpired;
 
-  const handleSubscribe = () => {
+  // Replace the entire handleSubscribe function with this:
+  const handleSubscribe = async () => {
     if (!user) {
-      router.push(`/login?redirect=/pricing&plan=${tier.id}`);
+      router.push(`/login?redirect=/pricing`);
       return;
     }
 
@@ -280,39 +277,54 @@ function PricingCard({
     let action = "new";
     if (currentSubscription && !isExpired) {
       if (isUpgrade) {
-        // Check if it's a billing period change
-        if (
-          currentSubscription.plan_id === tier.id &&
-          totalStorage === currentStorage &&
-          currentBillingPeriod === "monthly" &&
-          selectedBillingPeriod === "yearly"
-        ) {
-          action = "upgrade"; // Billing change treated as upgrade
-        } else {
-          action = "upgrade";
-        }
+        action = "upgrade";
       }
     } else if (isRenewal) {
       action = "renew";
     }
 
-    // Route to checkout
-    const searchParams = new URLSearchParams({
-      plan: tier.id,
-      storage: totalStorage.toString(),
-      price: displayPrice.toFixed(2),
-      billing: selectedBillingPeriod,
-      action,
-    });
+    // CREATE SESSION HERE - this is where we prevent parameter manipulation
+    setIsCreatingSession(true);
+    try {
+     
 
-    if (currentSubscription) {
-      searchParams.append("currentSub", currentSubscription.id);
+      const response = await fetch("/api/checkout/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: tier.id,
+          customStorage: totalStorage,
+          billingPeriod: selectedBillingPeriod,
+          action: action,
+          currentSubId: currentSubscription?.id,
+        }),
+      });
+
+      const data = await response.json();
+    
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create checkout session");
+      }
+
+   
+      // Navigate to checkout with session ID only ss
+      router.push(`/checkout/ok/${data.sessionId}`);
+    } catch (error) {
+      console.error("Error creating session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to start checkout process. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingSession(false);
     }
-
-    router.push(`/checkout?${searchParams.toString()}`);
   };
 
   const getButtonText = () => {
+    if (isCreatingSession) return "Creating...";
+
     if (isFreePlan) {
       if (isBlockedFreePlan) {
         return "Available at Renewal";
@@ -517,7 +529,10 @@ function PricingCard({
           <Button
             onClick={handleSubscribe}
             disabled={
-              (isSamePlan && !isRenewal) || isDowngrade || isBlockedFreePlan
+              (isSamePlan && !isRenewal) ||
+              isDowngrade ||
+              isBlockedFreePlan ||
+              isCreatingSession
             }
             variant={getButtonVariant()}
             className="w-full"
@@ -525,7 +540,8 @@ function PricingCard({
           >
             {getButtonText()}
             {(isUpgrade || isRenewal || (isFreePlan && !isBlockedFreePlan)) &&
-              !isDowngrade && <ArrowRight className="ml-2 h-4 w-4" />}
+              !isDowngrade &&
+              !isCreatingSession && <ArrowRight className="ml-2 h-4 w-4" />}
           </Button>
 
           {/* Show additional info for blocked actions */}

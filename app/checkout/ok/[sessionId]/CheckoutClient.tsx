@@ -1,5 +1,4 @@
-// app/checkout/CheckoutClient.tsx
-
+// app/checkout/CheckoutClient.tsx (complete rewrite)
 "use client";
 
 import { useState } from "react";
@@ -27,7 +26,6 @@ interface Plan {
   price: string;
   storage: string;
   features: string[];
-  billing?: string;
 }
 
 interface CheckoutClientProps {
@@ -37,25 +35,22 @@ interface CheckoutClientProps {
   customStorage?: number;
   action?: string; // "new", "upgrade", "downgrade", "renew"
   billingPeriod?: string;
+  sessionId: string;
 }
 
-// Fixed PayPalCheckout component with proper types
+// PayPalCheckout component with session-based order creation
 function PayPalCheckout({
-  planId,
+  sessionId,
   planName,
   amount,
-  storageGb,
   action,
-  currentSubId,
   billingPeriod,
   onSuccess,
 }: {
-  planId: string;
+  sessionId: string;
   planName: string;
   amount: number;
-  storageGb?: number;
   action?: string;
-  currentSubId?: string;
   billingPeriod?: string;
   onSuccess: () => void;
 }) {
@@ -78,57 +73,6 @@ function PayPalCheckout({
     currency: "USD",
     intent: "capture" as const,
     environment: "production" as const,
-  };
-
-  // Helper function to calculate plan details
-  const getPlanDetails = () => {
-    const pricingTiers = {
-      free: {
-        basePrice: 0,
-        baseStorage: 0.5,
-        additionalStoragePrice: 0,
-        additionalStorageUnit: 1,
-      },
-      lite: {
-        basePrice: 2.99,
-        baseStorage: 50,
-        additionalStoragePrice: 1.0,
-        additionalStorageUnit: 25,
-      },
-      pro: {
-        basePrice: 5.99,
-        baseStorage: 250,
-        additionalStoragePrice: 1.5,
-        additionalStorageUnit: 50,
-      },
-    };
-
-    const tierInfo = pricingTiers[planId as keyof typeof pricingTiers] || {
-      basePrice: amount,
-      baseStorage: storageGb || 1,
-      additionalStoragePrice: 0,
-      additionalStorageUnit: 1,
-    };
-
-    const totalStorage = storageGb || tierInfo.baseStorage;
-    const additionalStorage = Math.max(0, totalStorage - tierInfo.baseStorage);
-    const additionalStorageUnits =
-      tierInfo.additionalStorageUnit > 0
-        ? additionalStorage / tierInfo.additionalStorageUnit
-        : 0;
-    const additionalStorageCost =
-      additionalStorageUnits * tierInfo.additionalStoragePrice;
-
-    // Apply yearly discount (30% off = 8.4 months)
-    const yearlyMultiplier = billingPeriod === "yearly" ? 8.4 : 1;
-
-    return {
-      basePrice: 0.01,
-      additionalStorage,
-      additionalStorageCost: additionalStorageCost * yearlyMultiplier,
-      totalStorage,
-      additionalStorageUnits,
-    };
   };
 
   return (
@@ -170,20 +114,14 @@ function PayPalCheckout({
             try {
               setError("");
 
-              // Generate order ID on our server first
+              // Create order using session data - user can't manipulate these values
               const response = await fetch("/api/orders/create", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  planId,
-                  planName,
-                  amount,
-                  storageGb,
-                  action,
-                  currentSubId,
-                  billingPeriod,
+                  sessionId: sessionId, // Only pass session ID
                 }),
               });
 
@@ -196,79 +134,30 @@ function PayPalCheckout({
               const { orderId } = responseData;
               setPendingOrderId(orderId);
 
-              const details = getPlanDetails();
-
-              // Prepare items array
+              // Create PayPal order with secure data
               const items = [];
 
-              // Base plan item
-              if (details.basePrice > 0) {
-                items.push({
-                  name: `${planName} Plan - ${billingPeriod === "yearly" ? "1 Year" : "1 Month"}`,
-                  description: `${planName} plan access for ${billingPeriod === "yearly" ? "12 months" : "1 month"} - one-time payment`,
-                  sku: `${planId}-base-${billingPeriod}`,
-                  unit_amount: {
-                    currency_code: "USD",
-                    value: details.basePrice.toFixed(2),
-                  },
-                  quantity: "1",
-                  category: "DIGITAL_GOODS" as const,
-                });
-              }
+              // Single item for the plan
+              items.push({
+                name: `${planName} Plan - ${billingPeriod === "yearly" ? "1 Year" : "1 Month"}`,
+                description: `${planName} plan access for ${billingPeriod === "yearly" ? "12 months" : "1 month"} - one-time payment`,
+                sku: `${planName.toLowerCase()}-${billingPeriod}`,
+                unit_amount: {
+                  currency_code: "USD",
+                  value: amount.toFixed(2),
+                },
+                quantity: "1",
+                category: "DIGITAL_GOODS" as const,
+              });
 
-              // Additional storage item (if any)
-              if (
-                details.additionalStorage > 0 &&
-                details.additionalStorageCost > 0
-              ) {
-                items.push({
-                  name: `Additional Storage (+${details.additionalStorage}GB)`,
-                  description: `+${details.additionalStorage}GB storage (${details.additionalStorageUnits} blocks)`,
-                  sku: `${planId}-storage-${billingPeriod}`,
-                  unit_amount: {
-                    currency_code: "USD",
-                    value: details.additionalStorageCost.toFixed(2),
-                  },
-                  quantity: "1",
-                  category: "DIGITAL_GOODS" as const,
-                });
-              }
-
-              // If no items (like free plan), create a single item
-              if (items.length === 0) {
-                items.push({
-                  name: `${planName} Plan`,
-                  description: `${planName} subscription plan`,
-                  sku: `${planId}-plan`,
-                  unit_amount: {
-                    currency_code: "USD",
-                    value: amount.toFixed(2),
-                  },
-                  quantity: "1",
-                  category: "DIGITAL_GOODS" as const,
-                });
-              }
-
-              // Calculate item total
-              const itemTotal = items.reduce((sum, item) => {
-                return (
-                  sum +
-                  parseFloat(item.unit_amount.value) * parseInt(item.quantity)
-                );
-              }, 0);
-
-              console.log("Creating PayPal order with items:", items);
-              console.log("Item total:", itemTotal, "Amount:", amount);
-
-              // Simplified order creation - try without payment_source first
               return actions.order.create({
                 intent: "CAPTURE" as const,
                 purchase_units: [
                   {
                     reference_id: orderId,
-                    description: `${planName} Plan${storageGb ? ` (${storageGb}GB)` : ""} - ${action ? `${action} - ` : ""}${billingPeriod || "monthly"} billing`,
+                    description: `${planName} Plan - ${action ? `${action} - ` : ""}${billingPeriod || "monthly"} billing`,
                     custom_id: orderId,
-                    soft_descriptor: "RAICOO",
+                    soft_descriptor: "RAIVCOO",
                     amount: {
                       currency_code: "USD",
                       value: amount.toFixed(2),
@@ -283,7 +172,7 @@ function PayPalCheckout({
                   },
                 ],
                 application_context: {
-                  brand_name: "Raicoo",
+                  brand_name: "RAIVCOO",
                   locale: "en-US",
                   landing_page: "BILLING",
                   shipping_preference: "NO_SHIPPING",
@@ -304,7 +193,6 @@ function PayPalCheckout({
 
             try {
               const order = await actions.order?.capture();
-              console.log("Captured order:", order);
 
               if (!pendingOrderId) {
                 throw new Error("No pending order found");
@@ -317,14 +205,8 @@ function PayPalCheckout({
                 },
                 body: JSON.stringify({
                   order,
-                  planId,
-                  planName,
-                  amount,
-                  storageGb,
                   pendingOrderId,
-                  action,
-                  currentSubId,
-                  billingPeriod,
+                  sessionId,
                   paypalOrderId: data.orderID,
                 }),
               });
@@ -378,6 +260,7 @@ export default function CheckoutClient({
   customStorage,
   action,
   billingPeriod = "monthly",
+  sessionId,
 }: CheckoutClientProps) {
   const router = useRouter();
 
@@ -410,7 +293,7 @@ export default function CheckoutClient({
   };
 
   const subtotal = parseFloat(selectedPlan.price);
-  const total = 0.01; // No taxes
+  const total = subtotal; // No taxes
 
   // For free plan downgrades, handle differently
   const isFreeDowngrade = selectedPlan.id === "free" && action === "downgrade";
@@ -604,7 +487,7 @@ export default function CheckoutClient({
                   <>
                     <p>• One-time payment, no recurring charges</p>
                     <p>• Cancel anytime before renewal</p>
-                    <p>• Contact support@raicoo.com for refunds</p>
+                    <p>• Contact support@raivcoo.com for refunds</p>
                     {billingPeriod === "yearly" && (
                       <p className="text-green-600 font-medium">
                         • 30% savings with yearly plan
@@ -653,12 +536,10 @@ export default function CheckoutClient({
               ) : (
                 <div className="space-y-4 p-3 bg-white rounded-md">
                   <PayPalCheckout
-                    planId={selectedPlan.id}
+                    sessionId={sessionId}
                     planName={selectedPlan.name}
                     amount={total}
-                    storageGb={customStorage}
                     action={action}
-                    currentSubId={currentSubscription?.id}
                     billingPeriod={billingPeriod}
                     onSuccess={handlePaymentSuccess}
                   />

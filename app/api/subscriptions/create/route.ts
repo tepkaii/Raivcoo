@@ -1,3 +1,4 @@
+// app/api/subscriptions/create/route.ts (updated for session-based approach)
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { Resend } from "resend";
@@ -10,14 +11,8 @@ export async function POST(request: NextRequest) {
   try {
     const {
       order,
-      planId,
-      planName,
-      amount,
-      storageGb,
       pendingOrderId,
-      action,
-      currentSubId,
-      billingPeriod = "monthly",
+      sessionId,
       paypalOrderId, // Fallback if order is null
     } = await request.json();
 
@@ -30,6 +25,27 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Get the checkout session to get all the order details
+    const { data: session, error: sessionError } = await supabase
+      .from("checkout_sessions")
+      .select("*")
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (sessionError || !session) {
+      return NextResponse.json({ error: "Invalid session" }, { status: 400 });
+    }
+
+    // Extract values from session (these are secure and can't be manipulated)
+    const planId = session.plan_id;
+    const planName = session.plan_name;
+    const amount = session.amount;
+    const storageGb = session.storage_gb;
+    const action = session.action;
+    const currentSubId = session.current_subscription_id;
+    const billingPeriod = session.billing_period;
 
     // Get user profile for email
     const { data: profile } = await supabase

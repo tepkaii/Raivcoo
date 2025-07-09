@@ -1,20 +1,12 @@
+// app/api/orders/create/route.ts (complete rewrite)
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const {
-      planId,
-      planName,
-      amount,
-      storageGb,
-      action,
-      currentSubId,
-      billingPeriod = "monthly",
-    } = await request.json();
+    const { sessionId } = await request.json();
 
     const supabase = await createClient();
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -23,22 +15,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Create pending order
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Session ID required" },
+        { status: 400 }
+      );
+    }
+
+    // Get checkout session
+    const { data: session, error: sessionError } = await supabase
+      .from("checkout_sessions")
+      .select("*")
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: "Invalid or expired session" },
+        { status: 400 }
+      );
+    }
+
+    console.log("Creating order for session:", session);
+    // Check if session is expired
+    if (new Date() > new Date(session.expires_at)) {
+      return NextResponse.json({ error: "Session expired" }, { status: 400 });
+    }
+
+    // Check if session is already used
+    if (session.status !== "pending") {
+      return NextResponse.json(
+        { error: "Session already used" },
+        { status: 400 }
+      );
+    }
+
+    // Create order using session data (user can't manipulate these values)
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
         user_id: user.id,
-        plan_id: planId,
-        plan_name: planName,
-        amount: parseFloat(amount),
+        plan_id: session.plan_id,
+        plan_name: session.plan_name,
+        amount: parseFloat(session.amount),
         currency: "USD",
         status: "pending",
         payment_method: "paypal",
+
         metadata: {
-          storage_gb: storageGb,
-          action: action,
-          current_subscription_id: currentSubId,
-          billing_period: billingPeriod,
+          storage_gb: session.storage_gb,
+          action: session.action,
+
+          billing_period: session.billing_period,
         },
       })
       .select()
@@ -51,6 +80,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Update session status to used
+    await supabase
+      .from("checkout_sessions")
+      .update({ status: "used" })
+      .eq("id", sessionId);
 
     return NextResponse.json({ orderId: order.id });
   } catch (error) {
