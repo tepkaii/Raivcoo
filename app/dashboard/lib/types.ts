@@ -33,6 +33,7 @@ export interface OrganizedMedia {
 }
 
 export interface ReviewLink {
+  allow_download: any;
   id: string;
   link_token: string;
   title?: string;

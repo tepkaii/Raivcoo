@@ -22,6 +22,7 @@ export async function toggleCommentResolutionAction(
       .from("media_comments")
       .select("id, user_id, session_id, is_resolved, parent_comment_id")
       .eq("id", commentId)
+
       .single();
 
     if (fetchError || !comment) {
@@ -426,6 +427,7 @@ export async function createCommentAction(data: {
   userEmail?: string;
   userId?: string;
   content: string;
+  avatarUrl?: string;
   timestampSeconds?: number;
   parentCommentId?: string;
   ipAddress?: string;
@@ -501,12 +503,7 @@ export async function createCommentAction(data: {
       );
 
       setImmediate(() => {
-        sendReviewCommentNotifications(
-          data.reviewToken!,
-          comment,
-          isReply,
-       
-        );
+        sendReviewCommentNotifications(data.reviewToken!, comment, isReply);
       });
     } else {
     }

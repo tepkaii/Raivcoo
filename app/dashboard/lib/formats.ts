@@ -1,3 +1,4 @@
+// dashboard/lib/formats.ts
 export function formatStatus(status: string): string {
   if (!status) return "Unknown";
   return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());

@@ -11,7 +11,6 @@ import {
   Loader2,
   Download,
   Crown,
-  Lock,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
