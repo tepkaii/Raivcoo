@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
@@ -152,16 +151,16 @@ function EmailConfirmationContent() {
               value={otp}
               onChange={setOtp}
               maxLength={6}
-              render={({ slots }) => (
-                <InputOTPGroup>
-                  {slots.map((slot, index) => (
-                    <React.Fragment key={index}>
-                      <InputOTPSlot {...slot} className="" />
-                    </React.Fragment>
-                  ))}
-                </InputOTPGroup>
-              )}
-            />
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
           </div>
           <Button type="submit" className="w-full">
             Confirm Email

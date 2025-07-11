@@ -37,11 +37,21 @@ export default function SignUpForm({
     });
   };
 
+  // In your SignUpForm handleSubmit function, add:
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+
+    console.log("Form data:", {
+      email: formData.get("email"),
+      password: formData.get("password") ? "***" : null,
+      confirmPassword: formData.get("confirmPassword") ? "***" : null,
+    });
+
     startFormTransition(async () => {
       const result = await signUp(formData);
+      console.log("SignUp result:", result);
+
       if (result.error) {
         toast({
           title: "Oops! Something went wrong",
