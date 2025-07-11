@@ -9,7 +9,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/pricing", label: "Pricing" },
 
-  { href: "/tools", label: "Tools" },
+  { href: "/tools", label: "Free Tools" },
 ];
 
 export function NavLinks() {

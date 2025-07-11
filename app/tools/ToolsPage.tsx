@@ -14,7 +14,7 @@ export const tools = [
     title: "Layer Flow",
     description: "Powerful layer management and automation tools",
     category: "layer management",
-    price: "25$",
+    price: "Free",
     downloads: 0,
     thumbnail: "/extension/layerFlow-1-v2.png",
     software: {
@@ -161,7 +161,7 @@ export default function ToolsPage() {
                         variant="outline"
                         className="w-full hover:scale-[1.02] transition-transform duration-200"
                       >
-                        {tool.price === "Free" ? "Download Free" : "Learn More"}
+                        {tool.price === "Free" ? "Download" : "Learn More"}
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </Link>

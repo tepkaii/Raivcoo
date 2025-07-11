@@ -11,7 +11,7 @@ import {
   ChevronDown,
   ArrowRight,
   Layers,
-  Ruler,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BlurFade from "@/components/ui/blur-fade";
@@ -38,18 +38,42 @@ const DuplicateFeatures = {
     },
     items: [
       "Layer Order: Place duplicates above or below the selected layer",
-      "Number of Duplicates: Choose how many duplicates to create",
+      "Number of Duplicates: Choose how many duplicates to create (up to 10)",
       "Name Options: Add prefix, suffix, or change the name entirely",
       "Label Colors: 16 label colors plus random color option for duplicates",
-      "Enabling options like 3D, motion blur, hide, and solo layer.",
+      "Layer attributes: Enable 3D, motion blur, hide, solo, and lock layer options",
     ],
   },
-  mirrorFeature: {
+
+  perLayerMode: {
     id: 2,
+    title: "Per-Layer Settings Mode",
+    icon: Layers,
+    description:
+      "Configure each duplicate individually with unique settings. Perfect for creating complex layer arrangements with different properties for each duplicate.",
+    media: {
+      videos: [
+        {
+          url: "/extension/re-duplicate/Per-layer settings.mp4",
+          title: "Per-Layer Settings in Action",
+        },
+      ],
+    },
+    items: [
+      "Individual Configuration: Set unique properties for each duplicate",
+      "Copy Settings: Easily copy current settings to all duplicates",
+      "Custom Names: Different prefix, suffix, and names for each duplicate",
+      "Unique Properties: Different layer attributes, colors, and transforms per duplicate",
+      "Visual Layer Selector: Easy navigation between duplicate configurations",
+    ],
+  },
+
+  mirrorFeature: {
+    id: 3,
     title: "Mirror Feature",
     icon: Sparkle,
     description:
-      "Mirror the duplicated layers horizontally, vertically, or both.",
+      "Mirror the duplicated layers horizontally, vertically, or both. Automatically flips position, scale, and rotation properties.",
     media: {
       videos: [
         {
@@ -62,45 +86,59 @@ const DuplicateFeatures = {
       "Horizontal Mirror: Flip the duplicated layers horizontally",
       "Vertical Mirror: Flip the duplicated layers vertically",
       "Both Mirror: Flip the duplicated layers both horizontally and vertically",
+      "Keyframe Support: Works with animated properties and keyframes",
+      "Smart Transform: Automatically adjusts position, scale, and rotation",
     ],
   },
+
   precompOptions: {
-    id: 3,
-    title: "Precomp Options",
+    id: 4,
+    title: "Enhanced Precomp Options",
     icon: Layers,
     description:
-      "Options for duplicating precomps, including creating original source precomps and including nested precomps.",
+      "Advanced precomp duplication with customizable nesting levels, folder organization, and source management for complex project structures.",
     media: {
       videos: [
         {
           url: "/extension/re-duplicate/Original and nested Original pre-comps.mp4",
-          title: "Precomp Options Overview",
+          title: "Basic Precomp Duplication",
+        },
+        {
+          url: "/extension/re-duplicate/Original Pre-coms with nested level input and the option to create a folder in the project for it.mp4",
+          title: "Enhanced Precomp Features",
         },
       ],
     },
     items: [
-      "Create Original Source Precomp: Duplicate the precomp as an original source",
-      "Include Nested Precomps: Include nested precomps in the duplication",
+      "Create Unique Source Precomps: Duplicate precomps as independent sources",
+      "Custom Nesting Levels: Choose how deep to duplicate nested precomps (1-∞)",
+      "All Nested Levels: Option to duplicate all nested precomps infinitely",
+      "Project Folder Organization: Automatically create and organize duplicated sources",
+      "Folder Customization: Custom folder names and 16 color label options",
+      "Smart Source Management: Handles complex nested precomp structures",
     ],
   },
-  incrementTransform: {
-    id: 4,
-    title: "Increment Transform",
-    icon: Ruler,
+
+  settingsDialog: {
+    id: 5,
+    title: "Customizable Interface",
+    icon: Settings, // You might want to use a settings icon instead
     description:
-      "Increment the transform properties of the duplicated layers, including position, scale, and rotation.",
+      "Customize the extension interface to show only the features you need. Hide sections, customize color palettes, and streamline your workflow.",
     media: {
       videos: [
         {
-          url: "/extension/re-duplicate/Incersment value.mp4",
-          title: "Increment Transform in Action",
+          url: "/extension/re-duplicate/dr-Settings.mp4", // You'll need to create this video
+          title: "Interface Customization",
         },
       ],
     },
     items: [
-      "Position: Increment the position of the duplicated layers",
-      "Scale: Increment the scale of the duplicated layers",
-      "Rotation: Increment the rotation of the duplicated layers",
+      "Show/Hide Sections: Display only the features you use",
+      "Custom Color Palettes: Choose which label colors to show",
+      "Section Reordering: Arrange interface sections in your preferred order",
+      "Streamlined Workflow: Remove clutter and focus on your needs",
+      "Save Preferences: Your customizations persist between sessions",
     ],
   },
 };
@@ -381,7 +419,7 @@ function ExtensionPage() {
               transition={{ duration: 0.5 }}
             >
               <BlurFade delay={0.25} inView>
-                <div className="bg-card/50 backdrop-blur-sm border rounded-2xl p-6 md:p-8">
+                <div className="bg-card/50 backdrop-blur-lg border rounded-2xl p-6 md:p-8">
                   <h3 className="text-2xl md:text-3xl font-bold tracking-tight mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
                     Compatibility
                   </h3>
@@ -420,12 +458,12 @@ function ExtensionPage() {
                     </li>
                     <li className="flex items-center gap-3">
                       <span className="text-teal-500 text-4xl">•</span>
-                      <p className="text-muted-foreground">Version: 1.0.0</p>
+                      <p className="text-muted-foreground">Version: 2.0.0</p>
                     </li>
                     <li className="flex items-center gap-3">
                       <span className="text-rose-500 text-4xl">•</span>
                       <p className="text-muted-foreground">
-                        Last Update: 2025-2-12
+                        Last Update: 2025-7-11
                       </p>
                     </li>
                   </ul>

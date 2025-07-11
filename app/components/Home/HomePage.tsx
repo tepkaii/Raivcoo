@@ -28,6 +28,8 @@ import {
   UsersIcon,
 } from "@heroicons/react/24/solid";
 import { Switch } from "@/components/ui/switch";
+import { TextAnimate } from "@/components/ui/text-animate";
+import { Card, CardContent } from "@/components/ui/card";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -277,9 +279,18 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-5xl md:text-7xl mt-3 font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
+            className="text-5xl md:text-7xl mt-3 font-bold tracking-tight "
           >
-            Upload. Share. Get Feedback.
+            {" "}
+            <TextAnimate
+              animation="slideUp"
+              startOnView={true}
+              once={false}
+              delay={2}
+              by="word"
+            >
+              Upload. Share. Get Feedback.
+            </TextAnimate>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -323,7 +334,7 @@ export default function HomePage() {
         {/* Hero Image */}
         <AnimatedSection className="">
           <div className="container mx-auto px-4">
-            <div className="relative rounded-xl overflow-hidden border border-[#3F3F3F] shadow-2xl max-w-5xl mx-auto">
+            <div className="relative rounded-xl overflow-hidden border-4 border-muted-foreground/15  max-w-5xl mx-auto">
               <Image
                 quality={100}
                 priority
@@ -331,7 +342,7 @@ export default function HomePage() {
                 alt="Video Review Dashboard"
                 width={1200}
                 height={700}
-                className="w-full h-auto"
+                className="w-full h-auto "
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-20"></div>
             </div>
@@ -342,7 +353,7 @@ export default function HomePage() {
         <AnimatedSection className="py-16">
           <div ref={featuresRef} className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 ">
                 Everything You Need for Video Review
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -389,12 +400,64 @@ export default function HomePage() {
             </div>
           </div>
         </AnimatedSection>
+        <AnimatedSection className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="space-y-24 max-w-6xl mx-auto">
+              {/* Row 1 - Easy to Use Interface */}
+              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
+                <CardContent className="p-5 flex flex-col md:flex-row md:justify-between items-center gap-6">
+                  <div>
+                    <h3 className="text-2xl font-semibold mb-2">Easy to Use</h3>
+                    <p className="text-muted-foreground text-lg">
+                      Upload your videos, share a link, and get feedback. No
+                      complicated setup or training needed.
+                    </p>
+                  </div>
+                  <div className="md:w-4/6">
+                    <img
+                      src="/Easy To use.png"
+                      alt="Easy to use interface"
+                      className="rounded-xl shadow-lg"
+                      loading="lazy"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
+              {/* Row 2 - Extension Integration */}
+              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
+                <CardContent className="p-5 flex flex-col md:flex-row md:justify-between items-center gap-6">
+                  <div className="order-2 md:order-1 md:w-4/6">
+                    <img
+                      src="/extension version.png"
+                      alt="After Effects and Premiere extension"
+                      className="rounded-xl shadow-lg"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="order-1 md:order-2">
+                    <h3 className="text-2xl font-semibold mb-2">
+                      Works with After Effects & Premiere
+                      <span className="text-sm text-muted-foreground ml-2">
+                        (soon)
+                      </span>
+                    </h3>
+                    <p className="text-muted-foreground text-lg">
+                      See comments and timestamps right in your editing
+                      timeline. Click any comment to jump to that moment in both
+                      the app and your editor.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </AnimatedSection>
         {/* Pricing Section */}
         <AnimatedSection className="py-20">
           <div ref={pricingRef} className="container mx-auto px-4">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 ">
                 Choose Your Plan
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">

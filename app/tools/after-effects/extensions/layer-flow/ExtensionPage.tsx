@@ -940,28 +940,15 @@ function ExtensionPage() {
 
                   <div className="flex-1 flex flex-col justify-center space-y-8">
                     <div className="text-center md:text-left">
-                      <div className="text-4xl md:text-5xl font-bold">$25</div>
+                      <div className="text-4xl md:text-5xl font-bold">Free</div>
                       <p className="text-muted-foreground mt-2">
-                        One-time payment
+                        Download for After Effects
                       </p>
                     </div>
 
-                    <ul className="space-y-4">
-                      {[
-                        "No subscriptions or recurring fees",
-                        "Use on multiple computers",
-                        "Full access to all features",
-                      ].map((item) => (
-                        <li key={item} className="flex items-center gap-3">
-                          <Check className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                          <span className="flex-1">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <Link href="https://payhip.com/b/9aevr" className="mt-auto">
-                      <Button variant="default" size="lg" className="w-full">
-                        Buy Now
+                    <Link href="https://payhip.com/b/AJIMO" className="mt-auto">
+                      <Button variant="default" className="w-full" size="lg">
+                        Download Now
                         <ArrowRight className="ml-2" />
                       </Button>
                     </Link>
