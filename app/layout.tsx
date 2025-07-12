@@ -17,14 +17,14 @@ export const metadata: Metadata = {
     default: "Raivcoo",
     template: "%s",
   },
-  icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      // { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      // { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-    ],
-    apple: { url: "/favicon.ico" },
-  },
+  // icons: {
+  //   icon: [
+  //     { url: "/favicon.ico" },
+  //     // { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+  //     // { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+  //   ],
+  //   apple: { url: "/favicon.ico" },
+  // },
   keywords: [
     "video editing",
     "portfolio",

@@ -10,8 +10,16 @@ import {
   Minimize,
 } from "lucide-react";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Gauge } from "lucide-react"; // For speed icon
+import {
   BackwardIcon,
   ForwardIcon,
+  InformationCircleIcon,
   PlayIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
@@ -77,6 +85,36 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   const progressRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isVolumeDragging, setIsVolumeDragging] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+
+  // ✅ ADD VIDEO READY STATE MANAGEMENT
+  const getVideoInfo = () => {
+    const video = videoRef.current;
+    if (!video || mediaType === "image" || !isVideoReady) return null;
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    // Simple file size estimate (this is approximate)
+    const duration = video.duration || 0;
+    const estimatedSize = duration * 1000000; // Rough estimate
+
+    const formatFileSize = (bytes: number) => {
+      if (bytes === 0) return "Unknown";
+      const k = 1024;
+      const sizes = ["B", "KB", "MB", "GB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+    };
+
+    return {
+      resolution: `${width}×${height}`,
+      fileSize: formatFileSize(estimatedSize),
+    };
+  };
+
+  const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
   // Mobile detection
   useEffect(() => {
@@ -139,6 +177,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       setDuration(0);
       setCurrentTime(0);
       setIsPlaying(false);
+      setPlaybackSpeed(1); // ✅ RESET SPEED
       return;
     }
 
@@ -153,7 +192,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     setDuration(0);
     setCurrentTime(0);
     setIsPlaying(false);
-
+    setPlaybackSpeed(1); // ✅ RESET SPEED
     const checkVideoReady = () => {
       if (video.readyState >= 1) {
         setDuration(video.duration);
@@ -216,6 +255,24 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       video.removeEventListener("durationchange", handleDurationChange);
     };
   }, [isDragging, onTimeUpdate, videoRef, mediaType, isVideoReady]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && mediaType === "video" && isVideoReady) {
+      video.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, videoRef, mediaType, isVideoReady]);
+
+  const handleSpeedChange = useCallback(
+    (speed: number) => {
+      setPlaybackSpeed(speed);
+      const video = videoRef.current;
+      if (video && mediaType === "video" && isVideoReady) {
+        video.playbackRate = speed;
+      }
+    },
+    [videoRef, mediaType, isVideoReady]
+  );
 
   // Control handlers
   const handlePlayClick = useCallback(async () => {
@@ -360,6 +417,67 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     [duration, mediaType, isVideoReady]
   );
 
+  const handleVolumeInteraction = useCallback(
+    (clientX: number) => {
+      if (mediaType === "image" || !isVideoReady) return;
+
+      const volumeElement = volumeRef.current;
+      if (!volumeElement) return;
+
+      const rect = volumeElement.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+
+      setVolume(pos);
+      setIsMuted(pos === 0);
+
+      const video = videoRef.current;
+      if (video) {
+        video.volume = pos;
+        video.muted = pos === 0;
+      }
+    },
+    [mediaType, isVideoReady, videoRef]
+  );
+
+  useEffect(() => {
+    if (mediaType === "image" || !isVideoReady) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isVolumeDragging) {
+        handleVolumeInteraction(e.clientX);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isVolumeDragging && e.touches.length > 0) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleVolumeInteraction(touch.clientX);
+      }
+    };
+
+    const handleEnd = () => {
+      if (isVolumeDragging) {
+        setIsVolumeDragging(false);
+      }
+    };
+
+    if (isVolumeDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleEnd);
+      document.addEventListener("touchmove", handleTouchMove, {
+        passive: false,
+      });
+      document.addEventListener("touchend", handleEnd);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleEnd);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleEnd);
+      };
+    }
+  }, [isVolumeDragging, handleVolumeInteraction, mediaType, isVideoReady]);
   // Mouse and touch drag handlers
   useEffect(() => {
     if (mediaType === "image" || !isVideoReady) return;
@@ -419,28 +537,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     }
   }, [isMuted, videoRef, mediaType, isVideoReady]);
 
-  const handleVolumeInteraction = useCallback(
-    (clientX: number) => {
-      if (mediaType === "image" || !isVideoReady) return;
-
-      const volumeElement = volumeRef.current;
-      if (!volumeElement) return;
-
-      const rect = volumeElement.getBoundingClientRect();
-      const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-
-      setVolume(pos);
-      setIsMuted(pos === 0);
-
-      const video = videoRef.current;
-      if (video) {
-        video.volume = pos;
-        video.muted = pos === 0;
-      }
-    },
-    [mediaType, isVideoReady, videoRef]
-  );
-
   const handleVolumeClick = useCallback(
     (e: React.MouseEvent) => {
       handleVolumeInteraction(e.clientX);
@@ -458,7 +554,16 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     },
     [handleVolumeInteraction, mediaType, isVideoReady]
   );
-
+  const handleVolumeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (mediaType === "image" || !isVideoReady) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setIsVolumeDragging(true);
+      handleVolumeClick(e);
+    },
+    [handleVolumeClick, mediaType, isVideoReady]
+  );
   const handleTimelineCommentClick = (timestamp: number) => {
     const video = videoRef.current;
     if (!video || mediaType === "image" || !isVideoReady) return;
@@ -491,21 +596,17 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             <span className="text-white font-mono text-sm min-w-12">0:00</span>
           </div>
           <div className="flex items-center justify-center gap-4">
-            <RevButtons variant="ghost" disabled className="text-gray-500 p-3">
+            <RevButtons variant="ghost" disabled size={"icon"}>
               <SkipBack className="h-5 w-5" />
             </RevButtons>
-            <RevButtons variant="ghost" disabled className="text-gray-500 p-4">
+            <RevButtons variant="ghost" size={"icon"}>
               <PlayIcon className="h-6 w-6" />
             </RevButtons>
-            <RevButtons variant="ghost" disabled className="text-gray-500 p-3">
+            <RevButtons variant="ghost" disabled size={"icon"}>
               <SkipForward className="h-5 w-5" />
             </RevButtons>
             <div className="flex items-center gap-2 ml-4">
-              <RevButtons
-                variant="ghost"
-                disabled
-                className="text-gray-500 p-3"
-              >
+              <RevButtons variant="ghost" disabled size={"icon"}>
                 <Volume2 className="h-5 w-5" />
               </RevButtons>
               <input
@@ -689,17 +790,13 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           <RevButtons
             variant="ghost"
             onClick={() => skipTime(-10)}
-            className="text-white hover:bg-white/20 p-3"
+            size={"icon"}
           >
             <BackwardIcon className="h-5 w-5" />
           </RevButtons>
 
           {/* Play/Pause */}
-          <RevButtons
-            variant="ghost"
-            onClick={handlePlayClick}
-            className="text-white hover:bg-white/20 p-2"
-          >
+          <RevButtons variant="ghost" onClick={handlePlayClick} size={"icon"}>
             {isPlaying ? <PauseIcon /> : <PlayIcon className="h-5 w-5" />}
           </RevButtons>
 
@@ -707,19 +804,41 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           <RevButtons
             variant="ghost"
             onClick={() => skipTime(10)}
-            className="text-white hover:bg-white/20 p-3"
+            size={"icon"}
           >
             <ForwardIcon className="h-5 w-5" />
           </RevButtons>
-
+          {/* ✅ COMPACT SPEED CONTROL */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <RevButtons variant="ghost" size="icon">
+                <span className="text-xs font-mono text-white/70 hover:text-white transition-colors">
+                  {playbackSpeed}×
+                </span>
+              </RevButtons>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-28 ">
+              <div className="p-1">
+                <div className="text-xs text-muted-foreground mb-1">Speed</div>
+                {SPEED_OPTIONS.map((speed) => (
+                  <DropdownMenuItem
+                    key={speed}
+                    onClick={() => handleSpeedChange(speed)}
+                    className={`
+              text-sm cursor-pointer px-2 py-1
+              ${playbackSpeed === speed ? "bg-blue-500 text-white" : ""}
+            `}
+                  >
+                    {speed}×
+                  </DropdownMenuItem>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* Volume Controls */}
-          <div className="flex items-center gap-2 ml-4">
+          <div className="flex items-center gap-2 ">
             {/* Mute Toggle Button */}
-            <RevButtons
-              variant="ghost"
-              onClick={toggleMute}
-              className="text-white hover:bg-white/20 p-3"
-            >
+            <RevButtons variant="ghost" onClick={toggleMute} size={"icon"}>
               {isMuted ? (
                 <SpeakerXMarkIcon className="h-5 w-5" />
               ) : (
@@ -732,17 +851,18 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               ref={volumeRef}
               className={`relative ${isMobile ? "w-16 h-3" : "w-20 h-2"} bg-white/20 rounded-full cursor-pointer hover:bg-white/30 transition-colors volume-slider`}
               onClick={handleVolumeClick}
+              onMouseDown={handleVolumeMouseDown}
               onTouchStart={handleVolumeTouchStart}
             >
               {/* Volume fill */}
               <div
-                className="h-full bg-blue-500 rounded-full transition-all duration-150 pointer-events-none"
+                className="h-full bg-blue-500 rounded-full transition-all duration-150 "
                 style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
               />
 
               {/* Volume handle */}
               <div
-                className={`absolute top-1/2 ${isMobile ? "w-3 h-5" : "w-2 h-4"} bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110 pointer-events-none`}
+                className={`absolute top-1/2 ${isMobile ? "w-3 h-5" : "w-2 h-4"} bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110  `}
                 style={{
                   left: `${(isMuted ? 0 : volume) * 100}%`,
                   transform: "translateX(-50%) translateY(-50%)",
@@ -751,18 +871,61 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               />
             </div>
 
-            {/* Fullscreen */}
-            <RevButtons
-              variant="ghost"
-              onClick={toggleFullscreen}
-              className="text-white hover:bg-white/20 p-3"
-            >
-              {isFullscreen ? (
-                <Minimize className="h-5 w-5" />
-              ) : (
-                <Maximize className="h-5 w-5" />
-              )}
-            </RevButtons>
+            {/* Settings & Fullscreen */}
+            <div className="flex items-center gap-2 ml-2">
+              {/* Settings Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <RevButtons variant="ghost" size={"icon"}>
+                    <InformationCircleIcon className="h-5 w-5" />
+                  </RevButtons>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {(() => {
+                    const videoInfo = getVideoInfo();
+                    return videoInfo ? (
+                      <>
+                        <DropdownMenuItem
+                          disabled
+                          className="flex justify-between"
+                        >
+                          <span className="text-muted-foreground">
+                            Quality:
+                          </span>
+                          <span>{videoInfo.resolution}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled
+                          className="flex justify-between"
+                        >
+                          <span className="text-muted-foreground">
+                            File Size:
+                          </span>
+                          <span>{videoInfo.fileSize}</span>
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        No video information available
+                      </DropdownMenuItem>
+                    );
+                  })()}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Fullscreen */}
+              <RevButtons
+                variant="ghost"
+                onClick={toggleFullscreen}
+                size={"icon"}
+              >
+                {isFullscreen ? (
+                  <Minimize className="h-5 w-5" />
+                ) : (
+                  <Maximize className="h-5 w-5" />
+                )}
+              </RevButtons>
+            </div>
           </div>
         </div>
       </div>

@@ -11,7 +11,7 @@ import React, {
 } from "react";
 import { PinTool } from "./PinTool";
 import { DrawTool } from "./DrawingTool";
-
+import { ClickAnimation } from "../lib/ClickAnimation";
 interface MediaDisplayProps {
   media: any;
   videoRef?: React.RefObject<HTMLVideoElement>;
@@ -56,7 +56,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mediaElementRef = useRef<HTMLVideoElement | HTMLImageElement>(null);
-
+  const [showClickAnimation, setShowClickAnimation] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   // ✅ PREVENT RIGHT-CLICK CONTEXT MENU IF DOWNLOADS DISABLED
   const handleContextMenu = (e: React.MouseEvent) => {
     if (!allowDownload) {
@@ -65,6 +66,23 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
   };
 
+  const handleVideoClick = useCallback(() => {
+    const video = videoRef?.current;
+    if (video && media.file_type === "video") {
+      if (video.paused) {
+        video.play().catch(console.error);
+        setShowClickAnimation(true);
+      } else {
+        video.pause();
+        setShowClickAnimation(true);
+      }
+    }
+  }, [media.file_type, videoRef]);
+
+  // Add animation complete handler
+  const handleAnimationComplete = useCallback(() => {
+    setShowClickAnimation(false);
+  }, []);
   // ✅ PREVENT DRAG IF DOWNLOADS DISABLED
   const handleDragStart = (e: React.DragEvent) => {
     if (!allowDownload) {
@@ -131,6 +149,22 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       setDisplayPosition(newDisplayPosition);
     }
   }, []);
+
+  useEffect(() => {
+    const video = videoRef?.current;
+    if (!video || media.file_type !== "video") return;
+
+    const handlePlay = () => setVideoPlaying(true);
+    const handlePause = () => setVideoPlaying(false);
+
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+
+    return () => {
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+    };
+  }, [media.file_type, videoRef]);
 
   // Load media dimensions
   useEffect(() => {
@@ -361,6 +395,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
               mediaElementRef.current = el;
             }}
             src={media.r2_url}
+            onClick={handleVideoClick} // ✅ ADD THIS LINE
             style={{
               width: "100%",
               height: "100%",
@@ -381,6 +416,12 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
                 ? "nodownload nofullscreen noremoteplayback"
                 : undefined
             }
+          />
+          {/* ✅ ADD CLICK ANIMATION */}
+          <ClickAnimation
+            show={showClickAnimation}
+            isPlaying={videoPlaying}
+            onAnimationComplete={handleAnimationComplete}
           />
         </div>
 

@@ -381,6 +381,7 @@ export function CreateReviewLinkDialog({
                 />
                 <Button
                   variant="outline"
+                  size={"icon"}
                   onClick={() =>
                     handleCopyReviewLink(
                       createLinkDialog.createdUrl?.split("/").pop() || ""
@@ -391,6 +392,7 @@ export function CreateReviewLinkDialog({
                 </Button>
                 <Button
                   variant="outline"
+                  size={"icon"}
                   onClick={() => {
                     const linkToken = createLinkDialog.createdUrl
                       ?.split("/")
