@@ -25,8 +25,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowUpOnSquareStackIcon,
+  CodeBracketIcon,
+  DocumentIcon,
   EyeIcon,
   LinkIcon,
+  MusicalNoteIcon,
   PhotoIcon,
   TrashIcon,
   VideoCameraIcon,
@@ -88,7 +91,17 @@ export const formatFileSize = (bytes: number) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
-
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg"; // ✅ Keep SVG as separate category
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (mimeType === "application/pdf" || 
+      mimeType.includes("document") || 
+      mimeType.includes("presentation") ||
+      mimeType === "text/plain") return "document";
+  return "unknown";
+};
 // ✅ MEMOIZED MediaCard component with proper download functionality
 export const MediaCard = React.memo(
   function MediaCard({
@@ -261,47 +274,66 @@ export const MediaCard = React.memo(
       [onDragLeave]
     );
 
-    const handleDrop = React.useCallback(
-      (e: React.DragEvent) => {
-        e.preventDefault();
+   const handleDrop = React.useCallback(
+  (e: React.DragEvent) => {
+    e.preventDefault();
 
-        if (e.dataTransfer.files.length > 0) {
-          const files = Array.from(e.dataTransfer.files);
-          const allowedTypes = [
-            "video/mp4",
-            "video/mov",
-            "video/avi",
-            "video/mkv",
-            "video/webm",
-            "image/jpeg",
-            "image/jpg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-          ];
+    if (e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const allowedTypes = [
+        // Video types
+        "video/mp4",
+        "video/mov", 
+        "video/avi",
+        "video/mkv",
+        "video/webm",
+        // Image types
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+        // Audio types
+        "audio/mpeg", // MP3
+        "audio/wav",
+        "audio/ogg",
+        "audio/flac",
+        "audio/aac",
+        "audio/mp4", // M4A
+        "audio/x-wav", // Alternative WAV
+        "audio/vorbis", // OGG Vorbis
+        // Document types
+        "application/pdf",
+        "application/msword", // DOC
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
+        "application/vnd.ms-powerpoint", // PPT
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation", // PPTX
+        "text/plain", // TXT
+      ];
 
-          const validFiles = files.filter((file) =>
-            allowedTypes.includes(file.type)
-          );
+      const validFiles = files.filter((file) =>
+        allowedTypes.includes(file.type)
+      );
 
-          if (validFiles.length > 0) {
-            onDrop(media.id, validFiles);
-          }
-          return;
-        }
+      if (validFiles.length > 0) {
+        onDrop(media.id, validFiles);
+      }
+      return;
+    }
 
-        if (draggedMedia) {
-          if (
-            draggedMedia.id === media.id ||
-            draggedMedia.parent_media_id === media.id
-          ) {
-            return; // Invalid drop
-          }
-          onDrop(media.id, []);
-        }
-      },
-      [onDrop, media.id, draggedMedia]
-    );
+    if (draggedMedia) {
+      if (
+        draggedMedia.id === media.id ||
+        draggedMedia.parent_media_id === media.id
+      ) {
+        return; // Invalid drop
+      }
+      onDrop(media.id, []);
+    }
+  },
+  [onDrop, media.id, draggedMedia]
+);
     const handleStatusChange = React.useCallback(
       async (newStatus: string) => {
         const originalStatus = localStatus;
@@ -370,13 +402,14 @@ export const MediaCard = React.memo(
       [onOpenVersionManager, media]
     );
 
-    const handleDeleteMedia = React.useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onDeleteMedia(stableMediaObject);
-      },
-      [onDeleteMedia, stableMediaObject]
-    );
+const handleDeleteMedia = React.useCallback(
+  (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Pass the current version, not the parent media
+    onDeleteMedia(media.currentVersion); // Changed from stableMediaObject
+  },
+  [onDeleteMedia, media.currentVersion]
+);
 
     return (
       <div className="space-y-2">
@@ -395,134 +428,229 @@ export const MediaCard = React.memo(
           onDrop={handleDrop}
           draggable
         >
-          <div className="relative aspect-video bg-black overflow-hidden flex items-center justify-center">
-            {media.currentVersion.file_type === "image" ? (
-              <img
-                src={media.currentVersion.r2_url}
-                alt={media.currentVersion.original_filename}
-                className="max-w-full max-h-full object-contain"
-              />
-            ) : (
-              <video
-                src={media.currentVersion.r2_url}
-                className="max-w-full max-h-full object-contain"
-                muted
-                preload="metadata"
-              />
-            )}
-
-            {/* Type badge */}
-            <div className="absolute top-2 left-2">
-              <Badge variant="outline">
-                {media.currentVersion.file_type === "video" ? (
-                  <>
-                    <VideoCameraIcon className="h-3 w-3 mr-1" />
-                    Video
-                  </>
-                ) : (
-                  <>
-                    <PhotoIcon className="h-3 w-3 mr-1" />
-                    Image
-                  </>
-                )}
-              </Badge>
-            </div>
-
-            {/* Version badge */}
-            <div className="absolute top-2 right-2">
-              <Badge variant="outline" className="text-xs">
-                v{media.currentVersion.version_number}
-              </Badge>
-            </div>
-
-            {/* Drop overlay */}
-            {isDropTarget && (
-              <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
-                <div className="bg-primary border-2 border-black/20 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2">
-                  <span>Drop To Another Media</span>
-                </div>
-              </div>
-            )}
-
-            {/* Actions overlay */}
-            <div className="absolute bottom-2 right-2">
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {/* View Media - Everyone can view */}
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(
-                        `/media/full-size/${media.currentVersion.id}`,
-                        "_blank"
-                      );
-                    }}
-                  >
-                    <VideoCameraIcon className="h-4 w-4 mr-2" />
-                    View Media
-                  </DropdownMenuItem>
-
-                  {/* Download - Everyone can download */}
-                  <DropdownMenuItem onClick={handleDownload}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </DropdownMenuItem>
-
-                  {/* Review Link Actions - Only collaborators */}
-                  {userPermissions.canCreateReviewLinks && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleCreateReviewLink}>
-                        <LinkIcon className="h-4 w-4 mr-2" />
-                        Create Review Link
-                      </DropdownMenuItem>
-
-                      {media.hasReviewLinks && (
-                        <DropdownMenuItem onClick={handleViewReviewLinks}>
-                          <EyeIcon className="h-4 w-4 mr-2" />
-                          View & Manage Review Links
-                        </DropdownMenuItem>
-                      )}
-                    </>
-                  )}
-
-                  {/* Version Management - Only collaborators */}
-                  {hasVersions && userPermissions.canUpload && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleOpenVersionManager}>
-                        <ArrowUpOnSquareStackIcon className="h-4 w-4 mr-2" />
-                        Manage Versions
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  {/* Delete - Only collaborators */}
-                  {userPermissions.canDelete && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-red-400 focus:bg-red-600 focus:text-white"
-                        onClick={handleDeleteMedia}
-                      >
-                        <TrashIcon className="h-4 w-4 mr-2" />
-                        Delete Media
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+ <div className="relative aspect-video bg-black overflow-hidden flex items-center justify-center">
+  {(() => {
+    const category = getFileCategory(media.currentVersion.file_type, media.currentVersion.mime_type);
+    
+    switch (category) {
+      case "image":
+        return (
+          <img
+            src={media.currentVersion.r2_url}
+            alt={media.currentVersion.original_filename}
+            className="max-w-full max-h-full object-contain"
+          />
+        );
+      
+    case "video":
+  return media.currentVersion.thumbnail_r2_url ? (
+    <img
+      src={media.currentVersion.thumbnail_r2_url}
+      alt={`${media.currentVersion.original_filename} thumbnail`}
+      className="max-w-full max-h-full object-contain"
+    />
+  ) : (
+    // ✅ Video fallback with gradient and icon (NO actual video)
+    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
+      <VideoCameraIcon className="h-16 w-16 text-white/80 mb-2" />
+      <span className="text-white/60 text-sm text-center px-4">
+        {media.currentVersion.original_filename}
+      </span>
+    </div>
+  );
+      
+      case "audio":
+        return (
+          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-purple-500 to-blue-800">
+            <MusicalNoteIcon className="h-16 w-16 text-white/80 mb-2" />
+            <span className="text-white/60 text-sm text-center px-4">
+              {media.currentVersion.original_filename}
+            </span>
           </div>
+        );
+  
+      case "svg": // ✅ New SVG category with special styling
+        return (
+          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-green-600 to-teal-800">
+            <CodeBracketIcon className="h-16 w-16 text-white/80 mb-2" />
+            <span className="text-white/60 text-sm text-center px-4">
+              {media.currentVersion.original_filename}
+            </span>
+          </div>
+        );
+
+      case "document":
+        return (
+          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
+            <DocumentIcon className="h-16 w-16 text-white/80 mb-2" />
+            <span className="text-white/60 text-sm text-center px-4">
+              {media.currentVersion.original_filename}
+            </span>
+          </div>
+        );
+      
+      default:
+        return (
+          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
+            <DocumentIcon className="h-16 w-16 text-white/80 mb-2" />
+            <span className="text-white/60 text-sm text-center px-4">
+              {media.currentVersion.original_filename}
+            </span>
+          </div>
+        );
+    }
+  })()}
+
+  {/* Type badge - Update to show SVG category */}
+  <div className="absolute top-2 left-2">
+    <Badge variant="outline">
+      {(() => {
+        const category = getFileCategory(media.currentVersion.file_type, media.currentVersion.mime_type);
+        switch (category) {
+          case "video":
+            return (
+              <>
+                <VideoCameraIcon className="h-3 w-3 mr-1" />
+                Video
+              </>
+            );
+          case "image":
+            return (
+              <>
+                <PhotoIcon className="h-3 w-3 mr-1" />
+                Image
+              </>
+            );
+          case "svg": // ✅ New SVG badge
+            return (
+              <>
+                <CodeBracketIcon className="h-3 w-3 mr-1" />
+                SVG
+              </>
+            );
+          case "audio":
+            return (
+              <>
+                <MusicalNoteIcon className="h-3 w-3 mr-1" />
+                Audio
+              </>
+            );
+          case "document":
+            return (
+              <>
+                <DocumentIcon className="h-3 w-3 mr-1" />
+                Document
+              </>
+            );
+          default:
+            return (
+              <>
+                <DocumentIcon className="h-3 w-3 mr-1" />
+                File
+              </>
+            );
+        }
+      })()}
+    </Badge>
+  </div>
+  
+  {/* Rest of the component... */}
+
+ {/* Version badge */}
+ <div className="absolute top-2 right-2">
+   <Badge variant="outline" className="text-xs">
+     v{media.currentVersion.version_number}
+   </Badge>
+ </div>
+
+ {/* Drop overlay */}
+ {isDropTarget && (
+   <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
+     <div className="bg-primary border-2 border-black/20 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2">
+       <span>Drop To Another Media</span>
+     </div>
+   </div>
+ )}
+
+ {/* Actions overlay */}
+ <div className="absolute bottom-2 right-2">
+   <DropdownMenu modal={false}>
+     <DropdownMenuTrigger asChild>
+       <Button
+         variant="outline"
+         size="icon"
+         onClick={(e) => e.stopPropagation()}
+       >
+         <MoreVertical className="h-3 w-3" />
+       </Button>
+     </DropdownMenuTrigger>
+     <DropdownMenuContent align="end">
+       {/* View Media - Everyone can view */}
+       <DropdownMenuItem
+         onClick={(e) => {
+           e.stopPropagation();
+           window.open(
+             `/media/full-size/${media.currentVersion.id}`,
+             "_blank"
+           );
+         }}
+       >
+         <VideoCameraIcon className="h-4 w-4 mr-2" />
+         View Media
+       </DropdownMenuItem>
+
+       {/* Download - Everyone can download */}
+       <DropdownMenuItem onClick={handleDownload}>
+         <Download className="h-4 w-4 mr-2" />
+         Download
+       </DropdownMenuItem>
+
+       {/* Review Link Actions - Only collaborators */}
+       {userPermissions.canCreateReviewLinks && (
+         <>
+           <DropdownMenuSeparator />
+           <DropdownMenuItem onClick={handleCreateReviewLink}>
+             <LinkIcon className="h-4 w-4 mr-2" />
+             Create Review Link
+           </DropdownMenuItem>
+
+           {media.hasReviewLinks && (
+             <DropdownMenuItem onClick={handleViewReviewLinks}>
+               <EyeIcon className="h-4 w-4 mr-2" />
+               View & Manage Review Links
+             </DropdownMenuItem>
+           )}
+         </>
+       )}
+
+       {/* Version Management - Only collaborators */}
+       {hasVersions && userPermissions.canUpload && (
+         <>
+           <DropdownMenuSeparator />
+           <DropdownMenuItem onClick={handleOpenVersionManager}>
+             <ArrowUpOnSquareStackIcon className="h-4 w-4 mr-2" />
+             Manage Versions
+           </DropdownMenuItem>
+         </>
+       )}
+
+       {/* Delete - Only collaborators */}
+       {userPermissions.canDelete && (
+         <>
+           <DropdownMenuSeparator />
+           <DropdownMenuItem
+             className="text-red-400 focus:bg-red-600 focus:text-white"
+             onClick={handleDeleteMedia}
+           >
+             <TrashIcon className="h-4 w-4 mr-2" />
+             Delete Media
+           </DropdownMenuItem>
+         </>
+       )}
+     </DropdownMenuContent>
+   </DropdownMenu>
+ </div>
+</div>
 
           {/* Content */}
           <div className="p-3 border-t-2">

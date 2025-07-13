@@ -38,6 +38,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+// ✅ ADD FILE CATEGORY HELPER
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("document") ||
+    mimeType.includes("presentation") ||
+    mimeType === "text/plain"
+  )
+    return "document";
+  return "unknown";
+};
+
 interface MediaComment {
   id: string;
   media_id: string;
@@ -88,7 +104,8 @@ interface MediaComment {
 
 interface ReviewCommentsProps {
   mediaId: string;
-  mediaType: "video" | "image";
+  mediaType: "video" | "image" | "audio" | "document" | "svg"; // ✅ EXPAND TYPES
+  media?: any; // ✅ ADD MEDIA OBJECT TO GET MIME TYPE
   currentTime?: number;
   onSeekToTimestamp?: (timestamp: number) => void;
   className?: string;
@@ -113,13 +130,12 @@ interface ReviewCommentsProps {
     canEditStatus?: boolean;
   };
   userProjectRelationship?: {
-    // ✅ ADD USER RELATIONSHIP
     role: string;
     isOwner: boolean;
     isMember?: boolean;
     isOutsider?: boolean;
   } | null;
-  reviewToken?: string; // ✅ ADD REVIEW TOKEN
+  reviewToken?: string;
   reviewLinkData?: any;
 }
 
@@ -175,6 +191,7 @@ const nestComments = (comments: MediaComment[]): MediaComment[] => {
 export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   mediaId,
   mediaType,
+  media, // ✅ ADD MEDIA PROP
   currentTime = 0,
   onSeekToTimestamp,
   className = "",
@@ -215,6 +232,13 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   >("freehand");
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [currentDrawingStrokes, setCurrentDrawingStrokes] = useState(0);
+
+  // ✅ DETERMINE FILE CATEGORY - SUPPORTS ANNOTATIONS ONLY FOR IMAGE/VIDEO
+  const fileCategory = media
+    ? getFileCategory(media.file_type, media.mime_type)
+    : mediaType;
+  const supportsAnnotations =
+    fileCategory === "image" || fileCategory === "video";
 
   const getSessionId = () => {
     if (typeof window === "undefined") return null;
@@ -273,16 +297,18 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   // FIXED: Memoize the annotation request function to prevent infinite loops
   const requestAnnotation = useCallback(
     (type: "pin" | "drawing", config: any) => {
-      if (onAnnotationRequest) {
+      if (onAnnotationRequest && supportsAnnotations) {
+        // ✅ ONLY IF ANNOTATIONS SUPPORTED
         onAnnotationRequest(type, config);
       }
     },
-    [onAnnotationRequest]
+    [onAnnotationRequest, supportsAnnotations]
   );
 
   // FIXED: Update annotation config when settings change - now with proper dependencies
   useEffect(() => {
-    if (annotationMode !== "none") {
+    if (annotationMode !== "none" && supportsAnnotations) {
+      // ✅ ONLY IF ANNOTATIONS SUPPORTED
       const config =
         annotationMode === "pin"
           ? { color: pinColor }
@@ -301,7 +327,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     drawingThickness,
     drawingShape,
     annotationMode,
-    requestAnnotation, // Now using the memoized function
+    requestAnnotation,
+    supportsAnnotations, // ✅ ADD DEPENDENCY
   ]);
 
   const loadComments = async () => {
@@ -321,6 +348,11 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   };
 
   const startAnnotation = (type: "pin" | "drawing") => {
+    // ✅ EARLY RETURN IF ANNOTATIONS NOT SUPPORTED
+    if (!supportsAnnotations) {
+      return;
+    }
+
     if (!authenticatedUser && !userName.trim()) {
       setShowUserForm(true);
       alert("Please enter your name first");
@@ -381,8 +413,10 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       onClearActiveComments();
     }
 
-    // Notify annotation tools to cancel
-    requestAnnotation("none" as any, {});
+    // Notify annotation tools to cancel - ✅ ONLY IF ANNOTATIONS SUPPORTED
+    if (supportsAnnotations) {
+      requestAnnotation("none" as any, {});
+    }
   };
 
   const saveAnnotation = () => {
@@ -437,7 +471,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       let annotationData = null;
       let drawingData = null;
 
-      if (pendingAnnotation) {
+      // ✅ ONLY PROCESS ANNOTATION DATA IF ANNOTATIONS ARE SUPPORTED
+      if (pendingAnnotation && supportsAnnotations) {
         if (pendingAnnotation.type === "pin") {
           annotationData = {
             id: pendingAnnotation.data.id,
@@ -467,7 +502,10 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         result = await createCommentOverride({
           mediaId,
           content: newComment.trim(),
-          timestampSeconds: mediaType === "video" ? currentTime : undefined,
+          timestampSeconds:
+            fileCategory === "video" || fileCategory === "audio"
+              ? currentTime
+              : undefined, // ✅ TIMESTAMPS FOR VIDEO/AUDIO
           parentCommentId: replyingTo?.id,
           annotationData,
           drawingData,
@@ -491,8 +529,11 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             : userEmail.trim() || undefined,
           userId: authenticatedUser?.id,
           content: newComment.trim(),
-          timestampSeconds: mediaType === "video" ? currentTime : undefined,
-          parentCommentId: replyingTo?.id, // ✅ THIS SHOULD WORK NOW
+          timestampSeconds:
+            fileCategory === "video" || fileCategory === "audio"
+              ? currentTime
+              : undefined, // ✅ TIMESTAMPS FOR VIDEO/AUDIO
+          parentCommentId: replyingTo?.id,
           ipAddress: undefined,
           userAgent: navigator.userAgent,
           annotationData,
@@ -515,7 +556,10 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         setCurrentDrawingStrokes(0);
         setReplyingTo(null);
 
-        requestAnnotation("none" as any, {});
+        // ✅ ONLY CLEAR ANNOTATION MODE IF ANNOTATIONS SUPPORTED
+        if (supportsAnnotations) {
+          requestAnnotation("none" as any, {});
+        }
       } else {
         console.error("Failed to add comment:", result.error);
         alert("Failed to add comment: " + result.error);
@@ -649,6 +693,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       throw error;
     }
   };
+
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Comments List */}
@@ -668,21 +713,22 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 key={comment.id}
                 comment={comment}
                 mediaType={mediaType}
+                media={media} // ✅ ADD THIS LINE
                 currentTime={currentTime}
                 onSeekToTimestamp={onSeekToTimestamp}
                 onDelete={deleteComment}
                 onPinClick={onCommentPinClick}
                 onDrawingClick={onCommentDrawingClick}
-                onReplyClick={handleReplyClick} // Changed to onReplyClick
+                onReplyClick={handleReplyClick}
                 formatTime={formatTime}
                 formatDate={formatDate}
                 canDelete={canDeleteComment(comment)}
                 onEdit={handleEditComment}
-                canEdit={canDeleteComment(comment)} // Use same permission logic as delete
+                canEdit={canDeleteComment(comment)}
                 isActivePinComment={activeCommentPin === comment.id}
                 isActiveDrawingComment={activeCommentDrawing === comment.id}
                 authenticatedUser={authenticatedUser}
-                replyingTo={replyingTo?.id} // Pass the ID of comment being replied to
+                replyingTo={replyingTo?.id}
               />
             ))}
           </div>
@@ -690,7 +736,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       </div>
 
       {/* Comment Input */}
-      <div className="border-t  p-4">
+      <div className="border-t p-4">
         <div className="space-y-2">
           {/* User Info Form - only show for non-authenticated users */}
           {!authenticatedUser && showUserForm && (
@@ -735,11 +781,13 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 Commenting as:{" "}
                 {authenticatedUser.name || authenticatedUser.email}
               </div>
-              {mediaType === "video" && annotationMode === "none" && (
-                <span className="text-xs text-blue-400 cursor-pointer hover:text-blue-300 font-mono flex items-center gap-1 hover:bg-blue-400/10 px-2 py-1 rounded transition-colors duration-200">
-                  At {formatTime(currentTime)}
-                </span>
-              )}{" "}
+              {/* ✅ SHOW TIMESTAMP FOR VIDEO AND AUDIO */}
+              {(fileCategory === "video" || fileCategory === "audio") &&
+                annotationMode === "none" && (
+                  <span className="text-xs text-blue-400 cursor-pointer hover:text-blue-300 font-mono flex items-center gap-1 hover:bg-blue-400/10 px-2 py-1 rounded transition-colors duration-200">
+                    At {formatTime(currentTime)}
+                  </span>
+                )}
             </div>
           ) : null}
 
@@ -756,154 +804,163 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             disabled={isSubmitting}
           />
 
-          {/* Compact Annotation Controls - Only show when in annotation mode */}
-          {annotationMode === "pin" && (
-            <div className="flex items-center gap-3 text-sm">
-              <Select
-                value={pinColor}
-                onValueChange={(value) => setPinColor(value)}
-              >
-                <SelectTrigger className="">
-                  <div className="flex justify-center items-center">
-                    <div
-                      className="size-5 rounded-[5px] border-2 border-white"
-                      style={{ backgroundColor: pinColor }}
-                    />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {colors.map((color) => (
-                    <SelectItem key={color.value} value={color.value}>
-                      <div className="flex items-center gap-2">
+          {/* ✅ ANNOTATION CONTROLS - ONLY SHOW FOR IMAGE/VIDEO */}
+          {supportsAnnotations && (
+            <>
+              {/* Compact Annotation Controls - Only show when in annotation mode */}
+              {annotationMode === "pin" && (
+                <div className="flex items-center gap-3 text-sm">
+                  <Select
+                    value={pinColor}
+                    onValueChange={(value) => setPinColor(value)}
+                  >
+                    <SelectTrigger className="">
+                      <div className="flex justify-center items-center">
                         <div
-                          className="w-3 h-3 rounded-full border border-gray-400"
-                          style={{ backgroundColor: color.value }}
+                          className="size-5 rounded-[5px] border-2 border-white"
+                          style={{ backgroundColor: pinColor }}
                         />
-                        <span>{color.name}</span>
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {annotationMode === "drawing" && (
-            <div className="flex text-sm items-center flex-wrap gap-1">
-              <div className="flex items-center gap-2">
-                {/* Color Selector */}
-                <Select
-                  value={drawingColor}
-                  onValueChange={(value) => setDrawingColor(value)}
-                >
-                  <SelectTrigger className="">
-                    <div className="flex justify-center items-center">
-                      <div
-                        className="size-5 rounded-[5px] border-2 border-white"
-                        style={{ backgroundColor: drawingColor }}
-                      />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {colors.map((color) => (
-                      <SelectItem key={color.value} value={color.value}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full border border-gray-400"
-                            style={{ backgroundColor: color.value }}
-                          />
-                          <span>{color.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Thickness Selector */}
-                <Select
-                  value={drawingThickness.toString()}
-                  onValueChange={(value) => setDrawingThickness(Number(value))}
-                >
-                  <SelectTrigger className="">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {thicknessOptions.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value.toString()}
-                      >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Shape Selector */}
-                <Select
-                  value={drawingShape}
-                  onValueChange={(value) => setDrawingShape(value as any)}
-                >
-                  <SelectTrigger className="">
-                    <div className="flex items-center justify-center">
-                      {React.createElement(
-                        shapeOptions.find((s) => s.value === drawingShape)
-                          ?.icon || Pencil,
-                        { className: "w-3 h-3" }
-                      )}
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shapeOptions.map((shape) => (
-                      <SelectItem key={shape.value} value={shape.value}>
-                        <div className="flex items-center gap-2">
-                          {React.createElement(shape.icon, {
-                            className: "w-3 h-3",
-                          })}
-                          <span>{shape.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Undo button */}
-              {currentDrawingStrokes > 0 && (
-                <Button
-                  onClick={undoDrawing}
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-2"
-                >
-                  <Undo className="w-3 h-3" />
-                </Button>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colors.map((color) => (
+                        <SelectItem key={color.value} value={color.value}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full border border-gray-400"
+                              style={{ backgroundColor: color.value }}
+                            />
+                            <span>{color.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-            </div>
-          )}
 
-          {/* Annotation Tools - Only show when NOT in annotation mode */}
-          {annotationMode === "none" && (
-            <div className="flex gap-2">
-              <Button
-                onClick={() => startAnnotation("pin")}
-                disabled={isSubmitting}
-                size="icon"
-                variant="ghost"
-                className="h-8 px-2 hover:text-purple-400 transition-all"
-              >
-                <MapPinIcon className="w-4 h-4 " />
-              </Button>
+              {annotationMode === "drawing" && (
+                <div className="flex text-sm items-center flex-wrap gap-1">
+                  <div className="flex items-center gap-2">
+                    {/* Color Selector */}
+                    <Select
+                      value={drawingColor}
+                      onValueChange={(value) => setDrawingColor(value)}
+                    >
+                      <SelectTrigger className="">
+                        <div className="flex justify-center items-center">
+                          <div
+                            className="size-5 rounded-[5px] border-2 border-white"
+                            style={{ backgroundColor: drawingColor }}
+                          />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colors.map((color) => (
+                          <SelectItem key={color.value} value={color.value}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full border border-gray-400"
+                                style={{ backgroundColor: color.value }}
+                              />
+                              <span>{color.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-              <Button
-                onClick={() => startAnnotation("drawing")}
-                disabled={isSubmitting}
-                size="icon"
-                variant="ghost"
-                className="h-8 px-2 hover:text-teal-400 transition-all"
-              >
-                <PencilIcon className="w-4 h-4" />
-              </Button>
-            </div>
+                    {/* Thickness Selector */}
+                    <Select
+                      value={drawingThickness.toString()}
+                      onValueChange={(value) =>
+                        setDrawingThickness(Number(value))
+                      }
+                    >
+                      <SelectTrigger className="">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {thicknessOptions.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value.toString()}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Shape Selector */}
+                    <Select
+                      value={drawingShape}
+                      onValueChange={(value) => setDrawingShape(value as any)}
+                    >
+                      <SelectTrigger className="">
+                        <div className="flex items-center justify-center">
+                          {React.createElement(
+                            shapeOptions.find((s) => s.value === drawingShape)
+                              ?.icon || Pencil,
+                            { className: "w-3 h-3" }
+                          )}
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {shapeOptions.map((shape) => (
+                          <SelectItem key={shape.value} value={shape.value}>
+                            <div className="flex items-center gap-2">
+                              {React.createElement(shape.icon, {
+                                className: "w-3 h-3",
+                              })}
+                              <span>{shape.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Undo button */}
+                  {currentDrawingStrokes > 0 && (
+                    <Button
+                      onClick={undoDrawing}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                    >
+                      <Undo className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Annotation Tools - Only show when NOT in annotation mode AND annotations are supported */}
+              {annotationMode === "none" && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => startAnnotation("pin")}
+                    disabled={isSubmitting}
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 px-2 hover:text-purple-400 transition-all"
+                    title="Add pin annotation"
+                  >
+                    <MapPinIcon className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    onClick={() => startAnnotation("drawing")}
+                    disabled={isSubmitting}
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 px-2 hover:text-teal-400 transition-all"
+                    title="Add drawing annotation"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
 
           {/* Comment Actions */}
@@ -920,7 +977,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             </div>
 
             <div className="flex gap-2">
-              {annotationMode !== "none" ? (
+              {annotationMode !== "none" && supportsAnnotations ? (
                 <>
                   {pendingAnnotation && (
                     <Button

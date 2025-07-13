@@ -12,9 +12,33 @@ import React, {
 import { PinTool } from "./PinTool";
 import { DrawTool } from "./DrawingTool";
 import { ClickAnimation } from "../lib/ClickAnimation";
+import {
+  DocumentIcon,
+  MusicalNoteIcon,
+  CodeBracketIcon,
+} from "@heroicons/react/24/solid";
+import { Button } from "@/components/ui/button";
+
+// ✅ ADD FILE CATEGORY HELPER
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("document") ||
+    mimeType.includes("presentation") ||
+    mimeType === "text/plain"
+  )
+    return "document";
+  return "unknown";
+};
+
 interface MediaDisplayProps {
   media: any;
   videoRef?: React.RefObject<HTMLVideoElement>;
+  audioRef?: React.RefObject<HTMLAudioElement>; // ✅ ADD AUDIO REF
   className?: string;
   onAnnotationComplete?: (annotationData: any) => void;
   activeCommentPin?: string | null;
@@ -29,6 +53,7 @@ interface MediaDisplayProps {
 export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   media,
   videoRef,
+  audioRef, // ✅ ADD AUDIO REF
   className = "",
   onAnnotationComplete,
   activeCommentPin,
@@ -58,6 +83,10 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   const mediaElementRef = useRef<HTMLVideoElement | HTMLImageElement>(null);
   const [showClickAnimation, setShowClickAnimation] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
+
+  // ✅ GET FILE CATEGORY
+  const fileCategory = getFileCategory(media.file_type, media.mime_type);
+
   // ✅ PREVENT RIGHT-CLICK CONTEXT MENU IF DOWNLOADS DISABLED
   const handleContextMenu = (e: React.MouseEvent) => {
     if (!allowDownload) {
@@ -66,9 +95,17 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
   };
 
+  // ✅ PREVENT DRAG IF DOWNLOADS DISABLED
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!allowDownload) {
+      e.preventDefault();
+      return false;
+    }
+  };
+
   const handleVideoClick = useCallback(() => {
     const video = videoRef?.current;
-    if (video && media.file_type === "video") {
+    if (video && fileCategory === "video") {
       if (video.paused) {
         video.play().catch(console.error);
         setShowClickAnimation(true);
@@ -77,19 +114,12 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         setShowClickAnimation(true);
       }
     }
-  }, [media.file_type, videoRef]);
+  }, [fileCategory, videoRef]);
 
   // Add animation complete handler
   const handleAnimationComplete = useCallback(() => {
     setShowClickAnimation(false);
   }, []);
-  // ✅ PREVENT DRAG IF DOWNLOADS DISABLED
-  const handleDragStart = (e: React.DragEvent) => {
-    if (!allowDownload) {
-      e.preventDefault();
-      return false;
-    }
-  };
 
   // ✅ CALCULATE ACTUAL VIDEO SIZE - NOW AS USEMEMO FOR INSTANT UPDATES
   const actualVideoSize = useMemo(() => {
@@ -152,7 +182,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
   useEffect(() => {
     const video = videoRef?.current;
-    if (!video || media.file_type !== "video") return;
+    if (!video || fileCategory !== "video") return;
 
     const handlePlay = () => setVideoPlaying(true);
     const handlePause = () => setVideoPlaying(false);
@@ -164,11 +194,11 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
     };
-  }, [media.file_type, videoRef]);
+  }, [fileCategory, videoRef]);
 
   // Load media dimensions
   useEffect(() => {
-    if (media.file_type === "video") {
+    if (fileCategory === "video") {
       const video = videoRef?.current;
       if (video) {
         const handleLoadedMetadata = () => {
@@ -196,7 +226,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
             video.removeEventListener("loadedmetadata", handleLoadedMetadata);
         }
       }
-    } else {
+    } else if (fileCategory === "image") {
       const img = new Image();
       img.onload = () => {
         const width = img.naturalWidth;
@@ -216,7 +246,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       };
       img.src = media.r2_url;
     }
-  }, [media.r2_url, media.file_type, videoRef, updateDisplayMetrics]);
+    // ✅ For other file types (audio, documents, svg), don't set dimensions
+  }, [media.r2_url, fileCategory, videoRef, updateDisplayMetrics]);
 
   // ✅ SIMPLIFIED RESIZE OBSERVER - NO DELAYS
   useEffect(() => {
@@ -235,7 +266,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
 
     // ✅ Observe BOTH the media element AND the container
     resizeObserver.observe(element);
-    resizeObserver.observe(container); // This was missing!
+    resizeObserver.observe(container);
 
     const handleResize = () => {
       requestAnimationFrame(() => {
@@ -252,6 +283,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
       window.removeEventListener("resize", handleResize);
     };
   }, [updateDisplayMetrics]);
+
   // ✅ DISABLE BROWSER SHORTCUTS THAT ALLOW SAVING IF DOWNLOADS DISABLED
   useEffect(() => {
     if (!allowDownload) {
@@ -283,9 +315,14 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
   }, [allowDownload]);
 
-  // Memoized active comment pins - FIX for infinite loop
+  // Memoized active comment pins - FIX for infinite loop - ✅ ONLY FOR IMAGE/VIDEO
   const activeCommentPins = useMemo(() => {
-    if (!activeCommentPin || !comments.length) return [];
+    if (
+      !activeCommentPin ||
+      !comments.length ||
+      (fileCategory !== "image" && fileCategory !== "video")
+    )
+      return [];
 
     const comment = comments.find((c) => c.id === activeCommentPin);
     if (!comment || !comment.annotation_data) return [];
@@ -306,11 +343,22 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         color: comment.annotation_data.color || "#ff0000",
       },
     ];
-  }, [activeCommentPin, comments, currentTime, videoRef?.current?.paused]);
+  }, [
+    activeCommentPin,
+    comments,
+    currentTime,
+    videoRef?.current?.paused,
+    fileCategory,
+  ]);
 
-  // Memoized active comment drawings - FIX for infinite loop
+  // Memoized active comment drawings - FIX for infinite loop - ✅ ONLY FOR IMAGE/VIDEO
   const activeCommentDrawings = useMemo(() => {
-    if (!activeCommentDrawing || !comments.length) return [];
+    if (
+      !activeCommentDrawing ||
+      !comments.length ||
+      (fileCategory !== "image" && fileCategory !== "video")
+    )
+      return [];
 
     const comment = comments.find((c) => c.id === activeCommentDrawing);
     if (!comment || !comment.drawing_data) return [];
@@ -325,7 +373,13 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
 
     return [comment.drawing_data];
-  }, [activeCommentDrawing, comments, currentTime, videoRef?.current?.paused]);
+  }, [
+    activeCommentDrawing,
+    comments,
+    currentTime,
+    videoRef?.current?.paused,
+    fileCategory,
+  ]);
 
   // Handle drawing completion
   const handleDrawComplete = (drawing: any) => {
@@ -355,36 +409,11 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
     }
   }, [annotationMode]);
 
-  if (media.file_type === "video") {
-    return (
-      <div ref={containerRef} className={`relative bg-black ${className}`}>
-        {/* ✅ DOWNLOAD RESTRICTION OVERLAY */}
-        {!allowDownload && (
-          <div
-            className="absolute inset-0 z-40 pointer-events-none"
-            style={{
-              background: "transparent",
-              userSelect: "none",
-            }}
-          />
-        )}
-
-        {/* Media Container - FULL SIZE */}
-        <div className="relative w-full h-full flex items-center justify-center">
-          {/* ✅ DYNAMIC BORDER WRAPPER - ONLY RENDER WHEN READY */}
-          {actualVideoSize && displaySize && displayPosition && (
-            <div
-              className="absolute border-2 border-blue-600 rounded-none shadow-2xl pointer-events-none z-20"
-              style={{
-                left: `${actualVideoSize.offsetX}px`,
-                top: `${actualVideoSize.offsetY}px`,
-                width: `${actualVideoSize.width}px`,
-                height: `${actualVideoSize.height}px`,
-              }}
-            />
-          )}
-
-          {/* Video Element - NO BORDER, FULL SIZE */}
+  // ✅ RENDER BASED ON FILE CATEGORY
+  const renderMediaContent = () => {
+    switch (fileCategory) {
+      case "video":
+        return (
           <video
             ref={(el) => {
               if (videoRef) {
@@ -395,7 +424,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
               mediaElementRef.current = el;
             }}
             src={media.r2_url}
-            onClick={handleVideoClick} // ✅ ADD THIS LINE
+            onClick={handleVideoClick}
             style={{
               width: "100%",
               height: "100%",
@@ -417,78 +446,133 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
                 : undefined
             }
           />
-          {/* ✅ ADD CLICK ANIMATION */}
-          <ClickAnimation
-            show={showClickAnimation}
-            isPlaying={videoPlaying}
-            onAnimationComplete={handleAnimationComplete}
+        );
+
+      case "image":
+        return (
+          <img
+            ref={(el) => {
+              mediaElementRef.current = el;
+            }}
+            src={media.r2_url}
+            alt={media.original_filename}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain" as const,
+              objectPosition: "center center",
+              userSelect: allowDownload ? ("auto" as const) : ("none" as const),
+              pointerEvents: "auto" as const,
+              display: "block",
+            }}
+            className="block"
+            onContextMenu={handleContextMenu}
+            onDragStart={handleDragStart}
+            draggable={allowDownload}
           />
-        </div>
+        );
 
-        {/* ✅ ONLY RENDER TOOLS WHEN ALL DATA IS READY */}
-        {displaySize &&
-          displayPosition &&
-          mediaDimensions &&
-          actualVideoSize && (
-            <>
-              {/* Pin Tool Overlay */}
-              <PinTool
-                isActive={annotationMode === "pin"}
-                displaySize={displaySize}
-                displayPosition={displayPosition}
-                mediaDimensions={{
-                  width: mediaDimensions.width,
-                  height: mediaDimensions.height,
-                }}
-                currentTime={videoRef?.current?.currentTime || 0}
-                currentScale={currentScale}
-                onCancel={() => {}}
-                existingPins={activeCommentPins}
-                mediaElementRef={mediaElementRef}
-                color={annotationConfig.color}
-                actualVideoSize={actualVideoSize}
-              />
+      case "audio":
+        return (
+          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-purple-600 to-blue-800 p-8">
+            <MusicalNoteIcon className="h-24 w-24 text-white/80 mb-6" />
 
-              {/* Draw Tool Overlay */}
-              <DrawTool
-                isActive={annotationMode === "drawing"}
-                displaySize={displaySize}
-                displayPosition={displayPosition}
-                mediaDimensions={{
-                  width: mediaDimensions.width,
-                  height: mediaDimensions.height,
-                }}
-                currentTime={videoRef?.current?.currentTime || 0}
-                currentScale={currentScale}
-                onDrawingComplete={handleDrawComplete}
-                onCancel={() => {}}
-                existingDrawings={activeCommentDrawings}
-                mediaElementRef={mediaElementRef}
-                color={annotationConfig.color}
-                thickness={annotationConfig.thickness}
-                shape={annotationConfig.shape}
-                actualVideoSize={actualVideoSize}
-              />
-            </>
-          )}
+            {/* ✅ HIDDEN AUDIO ELEMENT - PlayerControls will handle this */}
+            <audio
+              ref={audioRef}
+              src={media.r2_url}
+              preload="metadata"
+              onContextMenu={handleContextMenu}
+              controlsList={!allowDownload ? "nodownload" : undefined}
+              style={{ display: "none" }} // ✅ HIDE THE ELEMENT
+            />
 
-        {/* Loading state */}
-        {!mediaDimensions && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-gray-500 text-sm">Loading media...</div>
+            {/* ✅ SIMPLE DISPLAY - NO CUSTOM CONTROLS */}
+            <div className="text-center">
+              <h3 className="text-white/90 text-lg font-medium mb-2">
+                {media.original_filename}
+              </h3>
+              <p className="text-white/60 text-sm">Audio File</p>
+            </div>
           </div>
-        )}
-      </div>
-    );
-  }
+        );
 
-  // Image display
+      case "svg":
+        return (
+          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-green-600 to-teal-800 p-8">
+            <CodeBracketIcon className="h-24 w-24 text-white/80 mb-6" />
+            <div className="text-center">
+              <h3 className="text-white/90 text-lg font-medium mb-2">
+                SVG Vector File
+              </h3>
+              <p className="text-white/60 text-sm mb-4">
+                {media.original_filename}
+              </p>{" "}
+              <Button
+                onClick={() => window.open(media.r2_url, "_blank")}
+                className="bg-white/20 hover:bg-white/30 text-white"
+              >
+                View SVG
+              </Button>
+            </div>
+          </div>
+        );
+
+      case "document":
+        if (media.mime_type === "application/pdf") {
+          return (
+            <div className="w-full h-full">
+              <iframe
+                src={`${media.r2_url}#toolbar=0&navpanes=0&scrollbar=0`}
+                className="w-full h-full border-0"
+                title={media.original_filename}
+                onContextMenu={handleContextMenu}
+              />
+            </div>
+          );
+        } else {
+          return (
+            <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800 p-8">
+              <DocumentIcon className="h-24 w-24 text-white/80 mb-6" />
+              <div className="text-center">
+                <h3 className="text-white/90 text-lg font-medium mb-2">
+                  Document File
+                </h3>
+                <p className="text-white/60 text-sm mb-4">
+                  {media.original_filename}
+                </p>
+                <Button
+                  onClick={() => window.open(media.r2_url, "_blank")}
+                  className="bg-white/20 hover:bg-white/30 text-white"
+                >
+                  Open Document
+                </Button>
+              </div>
+            </div>
+          );
+        }
+
+      default:
+        return (
+          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800 p-8">
+            <DocumentIcon className="h-24 w-24 text-white/80 mb-6" />
+            <div className="text-center">
+              <h3 className="text-white/90 text-lg font-medium mb-2">
+                Unsupported File Type
+              </h3>
+              <p className="text-white/60 text-sm">{media.original_filename}</p>
+            </div>
+          </div>
+        );
+    }
+  };
+
   return (
     <div ref={containerRef} className={`relative bg-black ${className}`}>
       {/* ✅ DOWNLOAD RESTRICTION OVERLAY */}
       {!allowDownload && (
         <div
-          className="absolute inset-0 z-40 pointer-events-none select-none"
+          className="absolute inset-0 z-40 pointer-events-none"
           style={{
             background: "transparent",
             userSelect: "none",
@@ -496,91 +580,92 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
         />
       )}
 
-      {/* Media Container */}
+      {/* Media Container - FULL SIZE */}
       <div className="relative w-full h-full flex items-center justify-center">
-        {/* ✅ DYNAMIC BORDER WRAPPER - ONLY RENDER WHEN READY */}
-        {actualVideoSize && displaySize && displayPosition && (
-          <div
-            className="absolute border-2 border-blue-600 rounded-none shadow-2xl pointer-events-none z-20"
-            style={{
-              left: `${actualVideoSize.offsetX}px`,
-              top: `${actualVideoSize.offsetY}px`,
-              width: `${actualVideoSize.width}px`,
-              height: `${actualVideoSize.height}px`,
-            }}
+        {/* ✅ DYNAMIC BORDER WRAPPER - ONLY FOR IMAGE/VIDEO */}
+        {(fileCategory === "image" || fileCategory === "video") &&
+          actualVideoSize &&
+          displaySize &&
+          displayPosition && (
+            <div
+              className="absolute border-2 border-blue-600 rounded-none shadow-2xl pointer-events-none z-20"
+              style={{
+                left: `${actualVideoSize.offsetX}px`,
+                top: `${actualVideoSize.offsetY}px`,
+                width: `${actualVideoSize.width}px`,
+                height: `${actualVideoSize.height}px`,
+              }}
+            />
+          )}
+
+        {/* Render Media Content */}
+        {renderMediaContent()}
+
+        {/* ✅ ADD CLICK ANIMATION FOR VIDEO */}
+        {fileCategory === "video" && (
+          <ClickAnimation
+            show={showClickAnimation}
+            isPlaying={videoPlaying}
+            onAnimationComplete={handleAnimationComplete}
           />
         )}
-
-        <img
-          ref={(el) => {
-            mediaElementRef.current = el;
-          }}
-          src={media.r2_url}
-          alt={media.original_filename}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain" as const,
-            objectPosition: "center center",
-            userSelect: allowDownload ? ("auto" as const) : ("none" as const),
-            pointerEvents: "auto" as const,
-            display: "block",
-          }}
-          className="block"
-          onContextMenu={handleContextMenu}
-          onDragStart={handleDragStart}
-          draggable={allowDownload}
-        />
       </div>
 
-      {/* ✅ ONLY RENDER TOOLS WHEN ALL DATA IS READY */}
-      {displaySize && displayPosition && mediaDimensions && actualVideoSize && (
-        <>
-          {/* Pin Tool Overlay */}
-          <PinTool
-            isActive={annotationMode === "pin"}
-            displaySize={displaySize}
-            displayPosition={displayPosition}
-            mediaDimensions={{
-              width: mediaDimensions.width,
-              height: mediaDimensions.height,
-            }}
-            currentScale={currentScale}
-            onCancel={() => {}}
-            existingPins={activeCommentPins}
-            mediaElementRef={mediaElementRef}
-            color={annotationConfig.color}
-            actualVideoSize={actualVideoSize}
-          />
+      {/* ✅ ONLY RENDER ANNOTATION TOOLS FOR IMAGE/VIDEO */}
+      {(fileCategory === "image" || fileCategory === "video") &&
+        displaySize &&
+        displayPosition &&
+        mediaDimensions &&
+        actualVideoSize && (
+          <>
+            {/* Pin Tool Overlay */}
+            <PinTool
+              isActive={annotationMode === "pin"}
+              displaySize={displaySize}
+              displayPosition={displayPosition}
+              mediaDimensions={{
+                width: mediaDimensions.width,
+                height: mediaDimensions.height,
+              }}
+              currentTime={videoRef?.current?.currentTime || 0}
+              currentScale={currentScale}
+              onCancel={() => {}}
+              existingPins={activeCommentPins}
+              mediaElementRef={mediaElementRef}
+              color={annotationConfig.color}
+              actualVideoSize={actualVideoSize}
+            />
 
-          {/* Draw Tool Overlay */}
-          <DrawTool
-            isActive={annotationMode === "drawing"}
-            displaySize={displaySize}
-            displayPosition={displayPosition}
-            mediaDimensions={{
-              width: mediaDimensions.width,
-              height: mediaDimensions.height,
-            }}
-            currentScale={currentScale}
-            onDrawingComplete={handleDrawComplete}
-            onCancel={() => {}}
-            existingDrawings={activeCommentDrawings}
-            mediaElementRef={mediaElementRef}
-            color={annotationConfig.color}
-            thickness={annotationConfig.thickness}
-            shape={annotationConfig.shape}
-            actualVideoSize={actualVideoSize}
-          />
-        </>
-      )}
+            {/* Draw Tool Overlay */}
+            <DrawTool
+              isActive={annotationMode === "drawing"}
+              displaySize={displaySize}
+              displayPosition={displayPosition}
+              mediaDimensions={{
+                width: mediaDimensions.width,
+                height: mediaDimensions.height,
+              }}
+              currentTime={videoRef?.current?.currentTime || 0}
+              currentScale={currentScale}
+              onDrawingComplete={handleDrawComplete}
+              onCancel={() => {}}
+              existingDrawings={activeCommentDrawings}
+              mediaElementRef={mediaElementRef}
+              color={annotationConfig.color}
+              thickness={annotationConfig.thickness}
+              shape={annotationConfig.shape}
+              actualVideoSize={actualVideoSize}
+            />
+          </>
+        )}
 
-      {/* Loading state */}
-      {!mediaDimensions && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-500 text-sm">Loading media...</div>
-        </div>
-      )}
+      {/* Loading state - ONLY FOR IMAGE/VIDEO */}
+      {(fileCategory === "image" || fileCategory === "video") &&
+        !mediaDimensions && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-gray-500 text-sm">Loading media...</div>
+          </div>
+        )}
     </div>
   );
 };

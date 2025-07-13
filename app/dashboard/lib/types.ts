@@ -12,6 +12,10 @@ export interface MediaFile {
   is_current_version: boolean;
   version_name?: string;
   status?: string;
+  thumbnail_r2_key?: string; // New
+  thumbnail_r2_url?: string; // New
+  thumbnail_generated_at?: string; // New
+  display_order?: number;
 }
 
 export interface OrganizedMedia {

@@ -56,3 +56,14 @@ export async function generateDownloadUrl(
 export function getPublicUrl(key: string) {
   return `https://cdn.raivcoo.com/${key}`;
 }
+export async function deleteThumbnailIfExists(mediaItem: any) {
+  if (mediaItem.thumbnail_r2_key) {
+    try {
+      await deleteFileFromR2(mediaItem.thumbnail_r2_key);
+      console.log(`✅ Deleted thumbnail: ${mediaItem.thumbnail_r2_key}`);
+    } catch (r2Error) {
+      console.error("❌ Error deleting thumbnail:", r2Error);
+      // Don't fail the whole operation if thumbnail deletion fails
+    }
+  }
+}

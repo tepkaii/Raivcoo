@@ -38,6 +38,7 @@ export default async function ProjectsPage() {
   // Get subscription info
   const { data: subscription } = await supabase
     .from("subscriptions")
+    // app/dashboard/page.tsx (continued)
     .select("*")
     .eq("user_id", user.id)
     .single();
@@ -55,70 +56,76 @@ export default async function ProjectsPage() {
     hasActiveSubscription
   );
 
-  // Get projects where user is owner OR accepted member
+  // Get projects where user is owner OR accepted member - ✅ INCLUDE THUMBNAIL FIELDS
   const { data: ownedProjects, error: ownedError } = await supabase
     .from("projects")
     .select(
       `
-     id,
-     name,
-     description,
-     created_at,
-     updated_at,
-     editor_id,
-     notifications_enabled,
-     project_media (
-       id,
-       filename,
-       original_filename,
-       file_type,
-       mime_type,
-       file_size,
-       r2_url,
-       uploaded_at,
-       parent_media_id,
-       version_number,
-       is_current_version,
-       version_name
-     )
-   `
+    id,
+    name,
+    description,
+    created_at,
+    updated_at,
+    editor_id,
+    notifications_enabled,
+    project_media (
+      id,
+      filename,
+      original_filename,
+      file_type,
+      mime_type,
+      file_size,
+      r2_url,
+      uploaded_at,
+      parent_media_id,
+      version_number,
+      is_current_version,
+      version_name,
+      thumbnail_r2_url,
+      thumbnail_r2_key,
+      thumbnail_generated_at
+    )
+  `
     )
     .eq("editor_id", editorProfile.id)
     .order("updated_at", { ascending: false });
 
-  // Get projects where user is an accepted member
+  // Get projects where user is an accepted member - ✅ INCLUDE THUMBNAIL FIELDS
   const { data: memberProjects, error: memberError } = await supabase
     .from("projects")
     .select(
       `
-     id,
-     name,
-     description,
-     created_at,
-     updated_at,
-     editor_id,
-     notifications_enabled,
-     project_media (
-       id,
-       filename,
-       original_filename,
-       file_type,
-       mime_type,
-       file_size,
-       r2_url,
-       uploaded_at,
-       parent_media_id,
-       version_number,
-       is_current_version,
-       version_name
-     ),
-     project_members!inner (
-       user_id,
-       role,
-       status,
-       notifications_enabled
-     )
-   `
+    id,
+    name,
+    description,
+    created_at,
+    updated_at,
+    editor_id,
+    notifications_enabled,
+    project_media (
+      id,
+      filename,
+      original_filename,
+      file_type,
+      mime_type,
+      file_size,
+      r2_url,
+      uploaded_at,
+      parent_media_id,
+      version_number,
+      is_current_version,
+      version_name,
+      thumbnail_r2_url,
+      thumbnail_r2_key,
+      thumbnail_generated_at
+    ),
+    project_members!inner (
+      user_id,
+      role,
+      status,
+      notifications_enabled
+    )
+  `
     )
     .eq("project_members.user_id", user.id)
     .eq("project_members.status", "accepted")

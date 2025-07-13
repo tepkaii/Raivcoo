@@ -1,10 +1,9 @@
 // app/dashboard/projects/[id]/lib/DeleteMediaActions.ts
 // @ts-nocheck
-// @ts-ignore
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { deleteFileFromR2 } from "@/lib/r2";
+import { deleteFileFromR2, deleteThumbnailIfExists } from "@/lib/r2";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
@@ -301,6 +300,8 @@ async function sendDeleteNotifications(
 
 export async function deleteMediaAction(projectId: string, mediaId: string) {
   try {
+   
+    
     const { supabase, user, editorProfile, accessCheck } =
       await getAuthenticatedEditorWithProjectAccess(projectId);
 
@@ -309,118 +310,164 @@ export async function deleteMediaAction(projectId: string, mediaId: string) {
       throw new Error("You don't have permission to delete media");
     }
 
-    // Get media file info including versions for notifications
+    // Get the media to delete WITH full context
     const { data: mediaToDelete, error: mediaError } = await supabase
       .from("project_media")
       .select(
-        "id, r2_key, parent_media_id, is_current_version, original_filename, mime_type, file_size"
+        "id, r2_key, thumbnail_r2_key, parent_media_id, is_current_version, original_filename, mime_type, file_size, version_number"
       )
       .eq("id", mediaId)
       .eq("project_id", projectId)
       .single();
 
     if (mediaError || !mediaToDelete) {
+      console.log(`❌ Media not found: ${mediaId}`);
       throw new Error("Media not found");
     }
 
-    // Collect all files that will be deleted (for notifications)
-    const deletedFiles = [];
-
-    // Add the main file
-    deletedFiles.push({
+    // Prepare deleted file data for notifications
+    const deletedFiles = [{
       id: mediaToDelete.id,
       name: mediaToDelete.original_filename,
       type: mediaToDelete.mime_type,
       size: `${(mediaToDelete.file_size / 1024 / 1024).toFixed(2)} MB`,
       user_id: user.id,
-    });
+    }];
 
-    // Store parent ID for potential renumbering
-    let parentIdForRenumbering = mediaToDelete.parent_media_id;
+    // Determine the parent ID (either this media's parent or itself if it's a parent)
+    const parentId = mediaToDelete.parent_media_id || mediaToDelete.id;
+   
+    // Get ALL media in this group (parent + all versions)
+    const { data: allGroupMedia, error: groupError } = await supabase
+      .from("project_media")
+      .select("id, r2_key, thumbnail_r2_key, original_filename, version_number, is_current_version, parent_media_id, uploaded_at")
+      .or(`id.eq.${parentId},parent_media_id.eq.${parentId}`)
+      .order("version_number", { ascending: false }); // ✅ Sort by version number (highest first)
 
-    // If this is a parent media, we need to handle its versions
-    if (!mediaToDelete.parent_media_id) {
-      // Get all versions of this media
-      const { data: versions } = await supabase
-        .from("project_media")
-        .select("id, r2_key, original_filename, mime_type, file_size")
-        .eq("parent_media_id", mediaId);
+    if (groupError) {
+     
+      throw new Error("Failed to get media group");
+    }
+    // Filter out the media we're deleting
+    const remainingMedia = allGroupMedia.filter(m => m.id !== mediaId);
 
-      // Add versions to deleted files list
-      if (versions) {
-        versions.forEach((version) => {
-          deletedFiles.push({
-            id: version.id,
-            name: version.original_filename,
-            type: version.mime_type,
-            size: `${(version.file_size / 1024 / 1024).toFixed(2)} MB`,
-            user_id: user.id,
-          });
+    // Prepare all database updates
+    const updates = [];
+
+    if (remainingMedia.length === 0) {
+      
+    } else {
+    
+      // There are other versions remaining - we need to reorganize
+      
+      // Check if we're deleting the parent
+      const deletingParent = !mediaToDelete.parent_media_id;
+
+      if (deletingParent) {
+        // ✅ We're deleting the parent - promote the HIGHEST VERSION to new parent
+        const sortedRemaining = remainingMedia
+          .sort((a, b) => b.version_number - a.version_number); // Highest version first
+        
+        const newParent = sortedRemaining[0]; // Highest version becomes parent
+        
+        // ✅ Promote new parent - Keep its version number, just remove parent_media_id and make it current
+        updates.push(
+          supabase
+            .from("project_media")
+            .update({
+              parent_media_id: null,
+              is_current_version: true
+              // ✅ Keep original version_number - don't change it to 1!
+            })
+            .eq("id", newParent.id)
+        );
+
+        // ✅ Update all other remaining media to reference the new parent
+        const otherVersions = sortedRemaining.slice(1);
+        
+        otherVersions.forEach((version) => {
+          updates.push(
+            supabase
+              .from("project_media")
+              .update({
+                parent_media_id: newParent.id,
+                is_current_version: false
+                // ✅ Keep original version_number - don't renumber!
+              })
+              .eq("id", version.id)
+          );
         });
 
-        // Delete all versions from R2 and database
-        for (const version of versions) {
-          try {
-            await deleteFileFromR2(version.r2_key);
-          } catch (r2Error) {
-            console.error("R2 deletion error for version:", r2Error);
+        // Update review links to point to new parent
+        updates.push(
+          supabase
+            .from("review_links")
+            .update({ media_id: newParent.id })
+            .eq("media_id", parentId)
+        );
+      } else {
+        
+        // Check if we need to set a new current version
+        if (mediaToDelete.is_current_version) {
+          // ✅ Find the HIGHEST version number among remaining media
+          const newCurrentVersion = remainingMedia
+            .sort((a, b) => b.version_number - a.version_number)[0]; // Highest version
+
+          if (newCurrentVersion) {
+            updates.push(
+              supabase
+                .from("project_media")
+                .update({ is_current_version: true })
+                .eq("id", newCurrentVersion.id)
+            );
           }
-
-          await supabase.from("project_media").delete().eq("id", version.id);
         }
-      }
-
-      // Delete all review links for this parent media
-      await supabase.from("review_links").delete().eq("media_id", mediaId);
-    } else {
-      // This is a version, check if we need to update current version
-      if (mediaToDelete.is_current_version) {
-        const { data: otherVersions } = await supabase
-          .from("project_media")
-          .select("id, version_number")
-          .or(
-            `id.eq.${mediaToDelete.parent_media_id},parent_media_id.eq.${mediaToDelete.parent_media_id}`
-          )
-          .neq("id", mediaId)
-          .order("version_number", { ascending: false })
-          .limit(1);
-
-        if (otherVersions && otherVersions.length > 0) {
-          await supabase
-            .from("project_media")
-            .update({ is_current_version: true })
-            .eq("id", otherVersions[0].id);
-        }
+        // ✅ NO RENUMBERING - Keep original version numbers intact
       }
     }
 
-    // Delete from R2
+    // Execute all database updates in parallel
+    if (updates.length > 0) {
+      const results = await Promise.allSettled(updates);
+      
+      // Check for failures
+      const failures = results.filter(result => result.status === "rejected");
+      if (failures.length > 0) {
+        console.error("❌ Some database updates failed:", failures);
+        // Continue anyway - the main deletion should still work
+      } else {
+
+      }
+    }
+
+    // ✅ DELETE ONLY THE SPECIFIC MEDIA'S R2 FILES
     try {
       await deleteFileFromR2(mediaToDelete.r2_key);
+     
+      
+      if (mediaToDelete.thumbnail_r2_key) {
+        await deleteThumbnailIfExists(mediaToDelete);
+       
+      }
     } catch (r2Error) {
-      console.error("R2 deletion error:", r2Error);
+      console.error("❌ R2 deletion error:", r2Error);
+      // Continue with database deletion even if R2 fails
     }
 
-    // Delete media from database
+    // Delete the actual media record from database
+   
     const { error: deleteError } = await supabase
       .from("project_media")
       .delete()
       .eq("id", mediaId);
 
     if (deleteError) {
+      console.error(`❌ Database deletion failed:`, deleteError);
       throw deleteError;
     }
-
-    // If we deleted a version, renumber the remaining versions
-    if (parentIdForRenumbering) {
-      await renumberVersions(parentIdForRenumbering, supabase);
-    }
-
-    // ✅ DELETE COMPLETED SUCCESSFULLY - NOW REVALIDATE
+    // Revalidate and send notifications
     revalidatePath(`/dashboard/projects/${projectId}`);
 
-    // SEND NOTIFICATIONS ASYNCHRONOUSLY - DON'T WAIT FOR THEM
-    // This runs in the background and won't affect the delete response
     setImmediate(() => {
       sendDeleteNotifications(
         projectId,
@@ -433,18 +480,17 @@ export async function deleteMediaAction(projectId: string, mediaId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Delete media error:", error);
+    console.error("❌ Delete media error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete media",
     };
   }
 }
-
 // Helper function to renumber versions
 async function renumberVersions(parentMediaId: string, supabase: any) {
   try {
-    // Get all versions sorted by upload date
+    // Get all versions sorted by upload date (oldest first)
     const { data: versions } = await supabase
       .from("project_media")
       .select("id, uploaded_at")
@@ -455,20 +501,25 @@ async function renumberVersions(parentMediaId: string, supabase: any) {
       return;
     }
 
-    // Renumber versions starting from 2 (parent is always 1)
+    // Get the parent's current version number
+    const { data: parent } = await supabase
+      .from("project_media")
+      .select("version_number")
+      .eq("id", parentMediaId)
+      .single();
+
+    const parentVersionNumber = parent?.version_number || 1;
+
+    // ✅ CORRECT: Renumber versions starting from parent_version + 1
     for (let i = 0; i < versions.length; i++) {
-      const newVersionNumber = i + 2;
+      const newVersionNumber = parentVersionNumber + i + 1;
       const { error: updateError } = await supabase
         .from("project_media")
         .update({ version_number: newVersionNumber })
         .eq("id", versions[i].id);
 
       if (updateError) {
-        console.error(
-          `Error renumbering version ${versions[i].id}:`,
-          updateError
-        );
-      } else {
+        console.error(`Error renumbering version ${versions[i].id}:`, updateError);
       }
     }
   } catch (error) {
@@ -482,14 +533,16 @@ export async function deleteVersionAction(versionId: string) {
     const supabase = await createClient();
     const { data: mediaData } = await supabase
       .from("project_media")
-      .select(
-        "project_id, r2_key, parent_media_id, is_current_version, original_filename, mime_type, file_size"
-      )
+     .select(
+    "project_id, r2_key, thumbnail_r2_key, parent_media_id, is_current_version, original_filename, mime_type, file_size"
+  )
       .eq("id", versionId)
       .single();
 
-    if (!mediaData) throw new Error("Media not found");
-
+    if (!mediaData) {
+     
+      throw new Error("Media not found");
+    }
     const {
       supabase: authSupabase,
       user,
@@ -503,6 +556,7 @@ export async function deleteVersionAction(versionId: string) {
     }
 
     if (!mediaData.parent_media_id) {
+   
       throw new Error("Cannot delete parent media using this action");
     }
 
@@ -519,6 +573,7 @@ export async function deleteVersionAction(versionId: string) {
 
     // If this is the current version, set another version as current
     if (mediaData.is_current_version) {
+      
       const { data: otherVersions } = await authSupabase
         .from("project_media")
         .select("id, version_number")
@@ -530,6 +585,7 @@ export async function deleteVersionAction(versionId: string) {
         .limit(1);
 
       if (otherVersions && otherVersions.length > 0) {
+      
         await authSupabase
           .from("project_media")
           .update({ is_current_version: true })
@@ -537,11 +593,17 @@ export async function deleteVersionAction(versionId: string) {
       }
     }
 
-    // Delete from R2
+    // ✅ DELETE ONLY THIS VERSION'S R2 FILES
     try {
       await deleteFileFromR2(mediaData.r2_key);
+    
+      
+      if (mediaData.thumbnail_r2_key) {
+        await deleteThumbnailIfExists(mediaData);
+      
+      }
     } catch (r2Error) {
-      console.error("R2 deletion error:", r2Error);
+      console.error("❌ R2 deletion error:", r2Error);
     }
 
     // Delete from database
@@ -550,7 +612,10 @@ export async function deleteVersionAction(versionId: string) {
       .delete()
       .eq("id", versionId);
 
-    if (deleteError) throw deleteError;
+    if (deleteError) {
+      console.error(`❌ Database deletion failed:`, deleteError);
+      throw deleteError;
+    }
 
     // Renumber remaining versions
     await renumberVersions(mediaData.parent_media_id, authSupabase);
@@ -571,7 +636,7 @@ export async function deleteVersionAction(versionId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Delete version error:", error);
+    console.error("❌ Delete version error:", error);
     return {
       success: false,
       error:

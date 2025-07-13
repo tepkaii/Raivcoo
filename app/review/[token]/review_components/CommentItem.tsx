@@ -35,6 +35,19 @@ import {
 } from "@heroicons/react/24/solid";
 import { createClient } from "@/utils/supabase/client";
 
+// ✅ ADD FILE CATEGORY HELPER
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (mimeType === "application/pdf" || 
+      mimeType.includes("document") || 
+      mimeType.includes("presentation") ||
+      mimeType === "text/plain") return "document";
+  return "unknown";
+};
+
 interface MediaComment {
   id: string;
   media_id: string;
@@ -86,7 +99,8 @@ interface MediaComment {
 
 interface CommentItemProps {
   comment: MediaComment;
-  mediaType: "video" | "image";
+  mediaType: "video" | "image" | "audio" | "document" | "svg"; // ✅ EXPAND TYPES
+  media?: any; // ✅ ADD MEDIA OBJECT TO GET MIME TYPE
   currentTime?: number;
   onSeekToTimestamp?: (timestamp: number) => void;
   onDelete: (id: string) => void;
@@ -130,6 +144,10 @@ const SingleComment: React.FC<{
   const supabase = createClient();
   const isCurrentUser = props.authenticatedUser?.id === comment.user_id;
 
+  // ✅ DETERMINE FILE CATEGORY - SUPPORTS TIMESTAMPS FOR VIDEO/AUDIO
+  const fileCategory = props.media ? getFileCategory(props.media.file_type, props.media.mime_type) : props.mediaType;
+  const supportsTimestamps = fileCategory === "video" || fileCategory === "audio";
+
   const getSessionId = () => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("reviewSessionId");
@@ -139,12 +157,10 @@ const SingleComment: React.FC<{
   const canModify = (() => {
     if (props.authenticatedUser) {
       const result = comment.user_id === props.authenticatedUser.id;
-
       return result;
     } else {
       const sessionId = getSessionId();
       const result = sessionId && comment.session_id === sessionId;
-
       return result;
     }
   })();
@@ -592,8 +608,8 @@ const SingleComment: React.FC<{
           {/* Comment Meta */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{props.formatDate(comment.created_at)}</span>
-            {/* Timestamp for video comments */}
-            {props.mediaType === "video" &&
+            {/* ✅ TIMESTAMP FOR VIDEO AND AUDIO COMMENTS */}
+            {supportsTimestamps &&
               comment.timestamp_seconds !== undefined &&
               comment.timestamp_seconds !== null && (
                 <button

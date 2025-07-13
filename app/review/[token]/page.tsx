@@ -7,7 +7,23 @@ import { PasswordProtectedReview } from "./review_components/PasswordProtectedRe
 import { Metadata } from "next";
 import { MediaInterface } from "./MediaInterface";
 
-// Dynamic metadata - keep existing code...
+// ✅ ADD FILE CATEGORY HELPER
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("document") ||
+    mimeType.includes("presentation") ||
+    mimeType === "text/plain"
+  )
+    return "document";
+  return "unknown";
+};
+
+// Dynamic metadata generation
 export async function generateMetadata({
   params,
 }: {
@@ -16,7 +32,7 @@ export async function generateMetadata({
   const supabase = await createClient();
   const { token } = await params;
 
-  // Get review link with media filename
+  // Get review link with media filename - ✅ INCLUDE THUMBNAIL FIELDS
   const { data: reviewLink, error: linkError } = await supabase
     .from("review_links")
     .select(
@@ -27,7 +43,11 @@ export async function generateMetadata({
       expires_at,
       media:project_media (
         original_filename,
-        file_type
+        file_type,
+        mime_type,
+        r2_url,
+        thumbnail_r2_url,
+        thumbnail_r2_key
       )
     `
     )
@@ -55,24 +75,117 @@ export async function generateMetadata({
   const title = reviewLink.title || `${mediaName} - Review`;
   const description = `Review and provide feedback on ${mediaName}`;
 
-  return {
+  // ✅ GET IMAGE URL FOR SOCIAL MEDIA - ONLY FOR IMAGES AND VIDEOS WITH THUMBNAILS
+  const getImageUrl = () => {
+    if (!reviewLink.media) return null;
+
+    const fileCategory = getFileCategory(
+      reviewLink.media.file_type,
+      reviewLink.media.mime_type
+    );
+
+    // For images: use thumbnail if available, fallback to original image
+    if (fileCategory === "image") {
+      if (
+        reviewLink.media.thumbnail_r2_url &&
+        reviewLink.media.thumbnail_r2_url.trim() !== ""
+      ) {
+        return reviewLink.media.thumbnail_r2_url;
+      }
+      return reviewLink.media.r2_url; // Original image
+    }
+
+    // For videos: ONLY use thumbnail if available, no fallback
+    if (fileCategory === "video") {
+      if (
+        reviewLink.media.thumbnail_r2_url &&
+        reviewLink.media.thumbnail_r2_url.trim() !== ""
+      ) {
+        return reviewLink.media.thumbnail_r2_url;
+      }
+      return null; // No image for videos without thumbnails
+    }
+
+    // For all other file types: no image
+    return null;
+  };
+
+  const imageUrl = getImageUrl();
+  const fileCategory = reviewLink.media
+    ? getFileCategory(reviewLink.media.file_type, reviewLink.media.mime_type)
+    : null;
+
+  // ✅ BASE METADATA - ALWAYS PRESENT
+  const baseMetadata = {
     title: title,
     description: description,
     openGraph: {
       title: title,
       description: description,
-      type: "website",
+      type: fileCategory === "video" ? "video.other" : "website",
+      // ✅ ADD VIDEO METADATA FOR ALL VIDEOS
+      ...(fileCategory === "video" &&
+        reviewLink.media && {
+          videos: [
+            {
+              url: reviewLink.media.r2_url || "",
+              type: reviewLink.media.mime_type,
+            },
+          ],
+        }),
     },
     twitter: {
-      card: "summary",
+      card: imageUrl ? "summary_large_image" : "summary",
       title: title,
       description: description,
+      // ✅ ADD VIDEO PLAYER FOR ALL VIDEOS
+      ...(fileCategory === "video" &&
+        reviewLink.media && {
+          player: {
+            url: reviewLink.media.r2_url || "",
+            width: 1280,
+            height: 720,
+          },
+        }),
     },
     robots: {
       index: false, // Don't index review links for privacy
       follow: false,
     },
   };
+
+  // ✅ ADD IMAGES ONLY IF WE HAVE A VALID IMAGE URL
+  if (imageUrl) {
+    const mediaType = (() => {
+      switch (fileCategory) {
+        case "video":
+          return "Video";
+        case "audio":
+          return "Audio";
+        case "image":
+          return "Image";
+        case "document":
+          return "Document";
+        case "svg":
+          return "SVG";
+        default:
+          return "Media";
+      }
+    })();
+
+    baseMetadata.openGraph.images = [
+      {
+        url: imageUrl,
+        width: 1200,
+        height: 630,
+        alt:
+          fileCategory === "image" ? mediaName : `${mediaName} - ${mediaType}`,
+      },
+    ];
+    baseMetadata.twitter.images = [imageUrl];
+  }
+
+  return baseMetadata;
 }
 
 // Review page
@@ -104,7 +217,7 @@ export default async function Page({
     userProfile = profile;
   }
 
-  // ✅ Get review link with project info
+  // ✅ Get review link with project info - INCLUDE THUMBNAIL FIELDS
   const { data: reviewLink, error: linkError } = await supabase
     .from("review_links")
     .select(
@@ -137,7 +250,10 @@ export default async function Page({
           version_number,
           is_current_version,
           version_name,
-          status
+          status,
+          thumbnail_r2_url,
+          thumbnail_r2_key,
+          thumbnail_generated_at
         )
       `
     )
@@ -239,7 +355,7 @@ export default async function Page({
     }
   }
 
-  // Get all versions if this media has versions and determine current media to show
+  // Get all versions if this media has versions and determine current media to show - ✅ INCLUDE THUMBNAIL FIELDS
   let allVersions: any[] = [];
   let currentMediaToShow = reviewLink.media;
 
@@ -262,7 +378,10 @@ export default async function Page({
           version_number,
           is_current_version,
           version_name,
-          status
+          status,
+          thumbnail_r2_url,
+          thumbnail_r2_key,
+          thumbnail_generated_at
         `
       )
       .or(`id.eq.${mediaId},parent_media_id.eq.${mediaId}`)
@@ -279,9 +398,6 @@ export default async function Page({
       currentMediaToShow = allVersions[0] || reviewLink.media;
     }
   }
-
-
-
 
   return (
     <MediaInterface

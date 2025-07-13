@@ -1,4 +1,3 @@
-// app/api/projects/[projectId]/media/route.ts
 // @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { uploadFileToR2, getPublicUrl } from "@/lib/r2";
@@ -65,30 +64,33 @@ export async function POST(
     // Get user's subscription
     const { data: subscription } = await supabase
       .from("subscriptions")
-      .select("plan_id, status, current_period_end, storage_gb, max_upload_size_mb")
+      .select(
+        "plan_id, status, current_period_end, storage_gb, max_upload_size_mb"
+      )
       .eq("user_id", user.id)
       .single();
 
     // Determine upload limits based on subscription
-    const isActive = subscription && 
-      subscription.status === 'active' && 
-      subscription.current_period_end && 
+    const isActive =
+      subscription &&
+      subscription.status === "active" &&
+      subscription.current_period_end &&
       new Date(subscription.current_period_end) > new Date();
 
     let maxUploadSize = PLAN_LIMITS.free.maxUploadSize;
     let maxStorage = PLAN_LIMITS.free.maxStorage;
 
-    if (isActive && subscription.plan_id !== 'free') {
+    if (isActive && subscription.plan_id !== "free") {
       const planId = subscription.plan_id as keyof typeof PLAN_LIMITS;
-      
-      if (planId === 'lite' || planId === 'pro') {
+
+      if (planId === "lite" || planId === "pro") {
         // Use subscription-specific limits
-        maxUploadSize = subscription.max_upload_size_mb 
-          ? subscription.max_upload_size_mb * 1024 * 1024 
+        maxUploadSize = subscription.max_upload_size_mb
+          ? subscription.max_upload_size_mb * 1024 * 1024
           : PLAN_LIMITS[planId].maxUploadSize;
-        
-        maxStorage = subscription.storage_gb 
-          ? subscription.storage_gb * 1024 * 1024 * 1024 
+
+        maxStorage = subscription.storage_gb
+          ? subscription.storage_gb * 1024 * 1024 * 1024
           : PLAN_LIMITS.free.maxStorage;
       }
     }
@@ -125,11 +127,21 @@ export async function POST(
     // Parse form data
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
+    const thumbnails = formData.getAll("thumbnails") as File[];
+    const thumbnailFor = formData.getAll("thumbnailFor") as string[];
     const parentMediaId = formData.get("parentMediaId") as string | null;
 
     if (!files.length) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
+
+    // Create thumbnail mapping
+    const thumbnailMap = new Map<string, File>();
+    thumbnails.forEach((thumbnail, index) => {
+      if (thumbnailFor[index]) {
+        thumbnailMap.set(thumbnailFor[index], thumbnail);
+      }
+    });
 
     // Validate individual file sizes against plan limits
     for (const file of files) {
@@ -139,15 +151,20 @@ export async function POST(
           const k = 1024;
           const sizes = ["Bytes", "KB", "MB", "GB"];
           const i = Math.floor(Math.log(bytes) / Math.log(k));
-          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+          return (
+            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+          );
         };
 
-        const planName = !isActive || subscription.plan_id === 'free' ? 'Free' : 
-          subscription.plan_id.charAt(0).toUpperCase() + subscription.plan_id.slice(1);
+        const planName =
+          !isActive || subscription.plan_id === "free"
+            ? "Free"
+            : subscription.plan_id.charAt(0).toUpperCase() +
+              subscription.plan_id.slice(1);
 
         return NextResponse.json(
           {
-            error: `File "${file.name}" (${formatBytes(file.size)}) exceeds the ${planName} plan limit of ${formatBytes(maxUploadSize)} per file. ${!isActive || subscription.plan_id === 'free' ? 'Upgrade to Lite or Pro for larger files.' : 'Check your subscription settings.'}`,
+            error: `File "${file.name}" (${formatBytes(file.size)}) exceeds the ${planName} plan limit of ${formatBytes(maxUploadSize)} per file. ${!isActive || subscription.plan_id === "free" ? "Upgrade to Lite or Pro for larger files." : "Check your subscription settings."}`,
           },
           { status: 413 }
         );
@@ -186,35 +203,57 @@ export async function POST(
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
       };
 
-      const planName = !isActive || subscription.plan_id === 'free' ? 'Free' : 
-        subscription.plan_id.charAt(0).toUpperCase() + subscription.plan_id.slice(1);
+      const planName =
+        !isActive || subscription.plan_id === "free"
+          ? "Free"
+          : subscription.plan_id.charAt(0).toUpperCase() +
+            subscription.plan_id.slice(1);
 
       return NextResponse.json(
         {
-          error: `Upload would exceed ${planName} plan storage limit. Current size: ${formatBytes(currentTotalSize)}, Upload size: ${formatBytes(totalUploadSize)}, Available space: ${formatBytes(remainingSpace)}. ${!isActive || subscription.plan_id === 'free' ? 'Upgrade to Lite or Pro for more storage.' : 'Increase your storage allocation.'}`,
+          error: `Upload would exceed ${planName} plan storage limit. Current size: ${formatBytes(currentTotalSize)}, Upload size: ${formatBytes(totalUploadSize)}, Available space: ${formatBytes(remainingSpace)}. ${!isActive || subscription.plan_id === "free" ? "Upgrade to Lite or Pro for more storage." : "Increase your storage allocation."}`,
         },
         { status: 413 }
       );
     }
 
-    const uploadedFiles = [];
+    const uploadedFiles: any[] = [];
 
     for (const file of files) {
       try {
         // Validate file type
         const allowedTypes = [
+          // Video types
           "video/mp4",
           "video/mov",
           "video/avi",
           "video/mkv",
           "video/webm",
+          // Image types
           "image/jpeg",
           "image/jpg",
           "image/png",
           "image/gif",
           "image/webp",
-        ];
+          "image/svg+xml",
 
+          // Audio types
+          "audio/mpeg", // MP3
+          "audio/wav",
+          "audio/ogg",
+          "audio/flac",
+          "audio/aac",
+          "audio/mp4", // M4A
+          "audio/x-wav", // Alternative WAV
+          "audio/vorbis", // OGG Vorbis
+          // Document types
+          "application/pdf",
+          "application/msword", // DOC
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
+          "application/vnd.ms-powerpoint", // PPT
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation", // PPTX
+          "text/plain", // TXT
+        ];
         if (!allowedTypes.includes(file.type)) {
           throw new Error(`File type ${file.type} is not supported`);
         }
@@ -232,7 +271,50 @@ export async function POST(
         const publicUrl = getPublicUrl(r2Key);
 
         // Determine file type
-        const fileType = file.type.startsWith("video/") ? "video" : "image";
+        const fileType = (() => {
+          if (file.type.startsWith("video/")) return "video";
+          if (file.type.startsWith("image/")) return "image";
+          if (file.type.startsWith("audio/")) return "audio";
+          if (
+            file.type === "application/pdf" ||
+            file.type.includes("document") ||
+            file.type.includes("presentation") ||
+            file.type === "text/plain"
+          )
+            return "document";
+          return "file";
+        })();
+
+        // Handle thumbnail upload for videos
+        let thumbnailData: {
+          thumbnail_r2_key?: string;
+          thumbnail_r2_url?: string;
+          thumbnail_generated_at?: string;
+        } = {};
+
+        if (fileType === "video" && thumbnailMap.has(file.name)) {
+          try {
+            const thumbnailFile = thumbnailMap.get(file.name)!;
+            const thumbnailBuffer = Buffer.from(
+              await thumbnailFile.arrayBuffer()
+            );
+            const thumbnailR2Key = `projects/${projectId}/thumbnails/${uniqueFilename}_thumbnail.jpg`;
+
+            await uploadFileToR2(thumbnailR2Key, thumbnailBuffer, "image/jpeg");
+
+            thumbnailData = {
+              thumbnail_r2_key: thumbnailR2Key,
+              thumbnail_r2_url: getPublicUrl(thumbnailR2Key),
+              thumbnail_generated_at: new Date().toISOString(),
+            };
+          } catch (thumbnailError) {
+            console.error(
+              `Thumbnail upload error for ${file.name}:`,
+              thumbnailError
+            );
+            // Continue without thumbnail
+          }
+        }
 
         // Prepare media file data
         let mediaData: any = {
@@ -246,6 +328,7 @@ export async function POST(
           r2_url: publicUrl,
           version_number: 1,
           is_current_version: true,
+          ...thumbnailData, // Add thumbnail data if available
         };
 
         // If adding as a version to existing media

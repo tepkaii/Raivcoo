@@ -11,7 +11,6 @@ import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Define types
-// 
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
 
 interface ProjectMember {
@@ -85,55 +84,60 @@ export default async function ProjectWorkspacePage({
 
   // User has access - now get full project data
   const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select(
-      `
-      id,
-      name,
-      description,
-      created_at,
-      editor_id,
-      project_references,
-      project_media (
-        id,
-        filename,
-        original_filename,
-        file_type,
-        mime_type,
-        file_size,
-        r2_url,
-        uploaded_at,
-        parent_media_id,
-        version_number,
-        is_current_version,
-        version_name,
-        status
-      ),
-      review_links (
-        id,
-        link_token,
-        title,
-        is_active,
-        created_at,
-        expires_at,
-        media_id,
-        requires_password,
-        allow_download
-      ),
-      project_members (
-        id,
-        user_id,
-        role,
-        status,
-        invited_at,
-        joined_at
-      )
+  .from("projects")
+  .select(
     `
+    id,
+    name,
+    description,
+    created_at,
+    editor_id,
+    project_references,
+    project_media (
+      id,
+      filename,
+      original_filename,
+      file_type,
+      mime_type,
+      file_size,
+      r2_url,
+      uploaded_at,
+      parent_media_id,
+      version_number,
+      is_current_version,
+      version_name,
+      status,
+      display_order,
+      thumbnail_r2_url,
+      thumbnail_r2_key,
+      thumbnail_generated_at
+    ),
+    review_links (
+      id,
+      link_token,
+      title,
+      is_active,
+      created_at,
+      expires_at,
+      media_id,
+      requires_password,
+      allow_download
+    ),
+    project_members (
+      id,
+      user_id,
+      role,
+      status,
+      invited_at,
+      joined_at
     )
-    .eq("id", id)
-    .single();
+  `
+  )
+  .eq("id", id)
+  .single();
 
   if (projectError || !project) {
+    console.error("Project error:", projectError);
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md">
@@ -153,6 +157,11 @@ export default async function ProjectWorkspacePage({
               <p className="text-muted-foreground leading-relaxed">
                 There was an error loading the project data. Please try again.
               </p>
+              {projectError && (
+                <p className="text-xs text-red-500 font-mono">
+                  {projectError.message}
+                </p>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -177,6 +186,12 @@ export default async function ProjectWorkspacePage({
       </div>
     );
   }
+
+  // ✅ Ensure display_order is set for all media (fallback to version_number)
+  const projectMediaWithDisplayOrder = (project.project_media || []).map((media) => ({
+    ...media,
+    display_order: media.display_order ?? media.version_number,
+  }));
 
   // Create authenticated user object
   const authenticatedUser = {
@@ -214,9 +229,10 @@ export default async function ProjectWorkspacePage({
       };
     }) || [];
 
-  // Add members and user role to project
+  // Add members and user role to project with corrected media
   const projectWithMembers = {
     ...project,
+    project_media: projectMediaWithDisplayOrder,
     project_members: membersWithProfiles,
     user_role: accessCheck.role,
   };

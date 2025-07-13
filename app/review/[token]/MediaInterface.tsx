@@ -22,6 +22,22 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 
+// ✅ ADD FILE CATEGORY HELPER
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("document") ||
+    mimeType.includes("presentation") ||
+    mimeType === "text/plain"
+  )
+    return "document";
+  return "unknown";
+};
+
 // Status configuration - matches the project workspace
 export const MEDIA_STATUS_OPTIONS = [
   { value: "on_hold", label: "On Hold", color: "bg-gray-500" },
@@ -103,7 +119,7 @@ interface MediaInterface {
     isMember?: boolean;
     isOutsider?: boolean;
   } | null;
-  projectId?: string; // ADD THIS
+  projectId?: string;
   reviewToken?: string;
 }
 
@@ -138,7 +154,14 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   const [annotationConfig, setAnnotationConfig] = useState<any>({});
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null); // ✅ ADD AUDIO REF
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+  // ✅ GET FILE CATEGORY
+  const fileCategory = getFileCategory(
+    currentMedia.file_type,
+    currentMedia.mime_type
+  );
 
   // ✅ DOWNLOAD HANDLER
   const handleDownload = useCallback(
@@ -325,13 +348,14 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   }, []);
 
   useEffect(() => {
-    if (activeCommentDrawing && videoRef.current) {
+    if (activeCommentDrawing && (videoRef.current || audioRef.current)) {
       const activeComment = comments.find((c) => c.id === activeCommentDrawing);
       if (activeComment && activeComment.timestamp_seconds !== undefined) {
         const timeDiff = Math.abs(
           currentTime - activeComment.timestamp_seconds
         );
-        if (timeDiff > 2 && !videoRef.current.paused) {
+        const mediaElement = videoRef.current || audioRef.current;
+        if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
           setActiveCommentDrawing(null);
         }
       }
@@ -360,13 +384,14 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   );
 
   useEffect(() => {
-    if (activeCommentPin && videoRef.current) {
+    if (activeCommentPin && (videoRef.current || audioRef.current)) {
       const activeComment = comments.find((c) => c.id === activeCommentPin);
       if (activeComment && activeComment.timestamp_seconds !== undefined) {
         const timeDiff = Math.abs(
           currentTime - activeComment.timestamp_seconds
         );
-        if (timeDiff > 2 && !videoRef.current.paused) {
+        const mediaElement = videoRef.current || audioRef.current;
+        if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
           setActiveCommentPin(null);
         }
       }
@@ -379,16 +404,22 @@ export const MediaInterface: React.FC<MediaInterface> = ({
 
   const handleSeekToTimestamp = useCallback(
     (timestamp: number) => {
-      if (videoRef.current && currentMedia.file_type === "video") {
+      if (fileCategory === "video" && videoRef.current) {
         videoRef.current.currentTime = timestamp;
+      } else if (fileCategory === "audio" && audioRef.current) {
+        audioRef.current.currentTime = timestamp;
       }
     },
-    [currentMedia.file_type]
+    [fileCategory]
   );
 
   const handleCommentDeleted = useCallback((deletedCommentId: string) => {
     setComments((prev) => prev.filter((c) => c.id !== deletedCommentId));
   }, []);
+
+  // ✅ DETERMINE IF PLAYER CONTROLS SHOULD SHOW
+  const showPlayerControls =
+    fileCategory === "video" || fileCategory === "audio";
 
   // Create the main media content - THIS STAYS MOUNTED
   const mediaContent = (
@@ -402,6 +433,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
         <MediaDisplay
           media={currentMedia}
           videoRef={videoRef}
+          audioRef={audioRef} // ✅ ADD AUDIO REF
           className="h-full"
           onAnnotationComplete={handleAnnotationComplete}
           activeCommentPin={activeCommentPin}
@@ -410,20 +442,27 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           currentTime={currentTime}
           annotationMode={annotationMode}
           annotationConfig={annotationConfig}
-          allowDownload={allowDownload} // ✅ PASS DOWNLOAD PERMISSION
+          allowDownload={allowDownload}
         />
       </div>
 
-      <PlayerControls
-        videoRef={videoRef}
-        authenticatedUser={authenticatedUser} // ✅ ADD THIS LINE
-        mediaType={currentMedia.file_type}
-        comments={comments}
-        onSeekToTimestamp={handleSeekToTimestamp}
-        onTimeUpdate={setCurrentTime}
-        fullscreenContainerRef={fullscreenContainerRef}
-        className={isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""}
-      />
+      {/* ✅ ONLY SHOW PLAYER CONTROLS FOR VIDEO AND AUDIO */}
+      {showPlayerControls && (
+        <PlayerControls
+          videoRef={videoRef}
+          audioRef={audioRef} // ✅ ADD AUDIO REF
+          mediaType={currentMedia.file_type}
+          media={currentMedia} // ✅ ADD THIS LINE
+          comments={comments}
+          onSeekToTimestamp={handleSeekToTimestamp}
+          onTimeUpdate={setCurrentTime}
+          fullscreenContainerRef={fullscreenContainerRef}
+          className={
+            isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""
+          }
+          authenticatedUser={authenticatedUser}
+        />
+      )}
     </div>
   );
 
@@ -431,6 +470,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     <ReviewComments
       mediaId={currentMedia.id}
       mediaType={currentMedia.file_type}
+      media={currentMedia} // ✅ ADD THIS LINE
       currentTime={currentTime}
       onSeekToTimestamp={handleSeekToTimestamp}
       className="h-full "
@@ -445,7 +485,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
       activeCommentDrawing={activeCommentDrawing}
       projectMode={false}
       projectId={projectId}
-      reviewToken={reviewToken} // ✅ PASS REVIEW TOKEN
+      reviewToken={reviewToken}
       userProjectRelationship={userProjectRelationship}
       createCommentOverride={undefined}
       userPermissions={{
@@ -532,11 +572,10 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           <div className="flex flex-col h-full">
             {/* Mobile Media Area */}
             <div className="h-[40svh] flex-shrink-0 bg-black">
-              {" "}
-              {/* Fixed height instead of flex-1 */}
               <MediaDisplay
                 media={currentMedia}
                 videoRef={videoRef}
+                audioRef={audioRef} // ✅ ADD AUDIO REF
                 className="h-full w-full"
                 onAnnotationComplete={handleAnnotationComplete}
                 activeCommentPin={activeCommentPin}
@@ -549,18 +588,22 @@ export const MediaInterface: React.FC<MediaInterface> = ({
               />
             </div>
 
-            {/* Player controls - NORMAL FLOW, NO ABSOLUTE POSITIONING */}
-            <div className="flex-shrink-0">
-              <PlayerControls
-                videoRef={videoRef}
-                mediaType={currentMedia.file_type}
-                comments={comments}
-                onSeekToTimestamp={handleSeekToTimestamp}
-                onTimeUpdate={setCurrentTime}
-                fullscreenContainerRef={null}
-                className=""
-              />
-            </div>
+            {/* ✅ PLAYER CONTROLS - ONLY FOR VIDEO/AUDIO */}
+            {showPlayerControls && (
+              <div className="flex-shrink-0">
+                <PlayerControls
+                  videoRef={videoRef}
+                  audioRef={audioRef} // ✅ ADD AUDIO REF
+                  mediaType={currentMedia.file_type}
+                  media={currentMedia}
+                  comments={comments}
+                  onSeekToTimestamp={handleSeekToTimestamp}
+                  onTimeUpdate={setCurrentTime}
+                  fullscreenContainerRef={null}
+                  className=""
+                />
+              </div>
+            )}
 
             {/* Mobile Controls Row */}
             <div className="border-t border-b px-4 py-2 gap-2 flex-shrink-0 flex items-center justify-between">
@@ -625,7 +668,6 @@ export const MediaInterface: React.FC<MediaInterface> = ({
           </div>
         ) : (
           // DESKTOP LAYOUT
-
           <SplitPanel
             mode="review"
             leftPanel={mediaContent}

@@ -5,6 +5,19 @@ import { notFound } from "next/navigation";
 import { FullsizeVideoViewer } from "./FullsizeVideoViewer";
 import { Metadata } from "next";
 
+// ✅ ADD FILE CATEGORY HELPER
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (mimeType === "application/pdf" || 
+      mimeType.includes("document") || 
+      mimeType.includes("presentation") ||
+      mimeType === "text/plain") return "document";
+  return "unknown";
+};
+
 // Dynamic metadata generation
 export async function generateMetadata({
   params,
@@ -14,7 +27,7 @@ export async function generateMetadata({
   const supabase = await createClient();
   const { id } = await params;
 
-  // Get the media file by ID for metadata
+  // Get the media file by ID for metadata - ✅ INCLUDE THUMBNAIL FIELDS
   const { data: mediaFile, error } = await supabase
     .from("project_media")
     .select(
@@ -23,7 +36,10 @@ export async function generateMetadata({
       original_filename,
       file_type,
       mime_type,
-      project_id
+      r2_url,
+      project_id,
+      thumbnail_r2_url,
+      thumbnail_r2_key
     `
     )
     .eq("id", id)
@@ -36,17 +52,53 @@ export async function generateMetadata({
     };
   }
 
-  const isVideo = mediaFile.file_type === "video";
-  const mediaType = isVideo ? "Video" : "Image";
+  // ✅ DETERMINE FILE CATEGORY AND MEDIA TYPE
+  const fileCategory = getFileCategory(mediaFile.file_type, mediaFile.mime_type);
+  const mediaType = (() => {
+    switch (fileCategory) {
+      case "video": return "Video";
+      case "audio": return "Audio";
+      case "image": return "Image";
+      case "document": return "Document";
+      case "svg": return "SVG";
+      default: return "Media";
+    }
+  })();
 
-  return {
+  // ✅ GET IMAGE URL - ONLY FOR IMAGES AND VIDEOS WITH THUMBNAILS
+  const getImageUrl = () => {
+    // For images: use thumbnail if available, fallback to original image
+    if (fileCategory === "image") {
+      if (mediaFile.thumbnail_r2_url && mediaFile.thumbnail_r2_url.trim() !== '') {
+        return mediaFile.thumbnail_r2_url;
+      }
+      return mediaFile.r2_url; // Original image
+    }
+    
+    // For videos: ONLY use thumbnail if available, no fallback
+    if (fileCategory === "video") {
+      if (mediaFile.thumbnail_r2_url && mediaFile.thumbnail_r2_url.trim() !== '') {
+        return mediaFile.thumbnail_r2_url;
+      }
+      return null; // No image for videos without thumbnails
+    }
+
+    // For all other file types: no image
+    return null;
+  };
+
+  const imageUrl = getImageUrl();
+
+  // ✅ BASE METADATA - ALWAYS PRESENT
+  const baseMetadata = {
     title: `${mediaFile.original_filename} - ${mediaType} Viewer`,
     description: `View ${mediaFile.original_filename} in fullsize ${mediaType.toLowerCase()} viewer`,
     openGraph: {
       title: `${mediaFile.original_filename} - ${mediaType} Viewer`,
       description: `View ${mediaFile.original_filename} in fullsize ${mediaType.toLowerCase()} viewer`,
-      type: isVideo ? "video.other" : "website",
-      ...(isVideo && {
+      type: fileCategory === "video" ? "video.other" : "website",
+      // ✅ ADD VIDEO METADATA FOR ALL VIDEOS
+      ...(fileCategory === "video" && {
         videos: [
           {
             url: mediaFile.r2_url || "",
@@ -54,34 +106,41 @@ export async function generateMetadata({
           },
         ],
       }),
-      ...(mediaFile.file_type === "image" && {
-        images: [
-          {
-            url: mediaFile.r2_url || "",
-            alt: mediaFile.original_filename,
-          },
-        ],
-      }),
     },
     twitter: {
-      card: isVideo ? "player" : "summary_large_image",
+      card: imageUrl ? "summary_large_image" : "summary",
       title: `${mediaFile.original_filename} - ${mediaType} Viewer`,
       description: `View ${mediaFile.original_filename} in fullsize ${mediaType.toLowerCase()} viewer`,
-      ...(isVideo && {
+      // ✅ ADD VIDEO PLAYER FOR ALL VIDEOS
+      ...(fileCategory === "video" && {
         player: {
           url: mediaFile.r2_url || "",
           width: 1280,
           height: 720,
         },
       }),
-      ...(mediaFile.file_type === "image" && {
-        images: [mediaFile.r2_url || ""],
-      }),
     },
   };
+
+  // ✅ ADD IMAGES ONLY IF WE HAVE A VALID IMAGE URL
+  if (imageUrl) {
+    baseMetadata.openGraph.images = [
+      {
+        url: imageUrl,
+        width: 1200,
+        height: 630,
+        alt: fileCategory === "image" 
+          ? mediaFile.original_filename 
+          : `${mediaFile.original_filename} - ${mediaType}`,
+      },
+    ];
+    baseMetadata.twitter.images = [imageUrl];
+  }
+
+  return baseMetadata;
 }
 
-export default async function FullsizeVideoPage({
+export default async function FullsizeMediaPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -89,7 +148,7 @@ export default async function FullsizeVideoPage({
   const supabase = await createClient();
   const { id } = await params;
 
-  // Get the media file by ID
+  // Get the media file by ID - ✅ INCLUDE THUMBNAIL FIELDS
   const { data: mediaFile, error } = await supabase
     .from("project_media")
     .select(
@@ -106,7 +165,10 @@ export default async function FullsizeVideoPage({
       version_number,
       is_current_version,
       version_name,
-      project_id
+      project_id,
+      thumbnail_r2_url,
+      thumbnail_r2_key,
+      thumbnail_generated_at
     `
     )
     .eq("id", id)

@@ -48,6 +48,10 @@ import {
   TrashIcon,
   UserGroupIcon,
   BellIcon,
+  MusicalNoteIcon,
+  DocumentIcon,
+  CodeBracketIcon,
+  VideoCameraIcon,
 } from "@heroicons/react/24/solid";
 
 interface ProjectStats {
@@ -289,25 +293,163 @@ export function MainProjectsList({
   );
 }
 
-// Media Gallery Thumbnail Component
+// ✅ FIXED MediaThumbnail Component with proper fallbacks
 function MediaThumbnail({ media }: { media: MediaFile }) {
+  // Get file category for proper fallback
+  const getFileCategory = (fileType: string, mimeType: string) => {
+    if (fileType === "video") return "video";
+    if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+    if (mimeType === "image/svg+xml") return "svg";
+    if (mimeType.startsWith("audio/")) return "audio";
+    if (
+      mimeType === "application/pdf" ||
+      mimeType.includes("document") ||
+      mimeType.includes("presentation") ||
+      mimeType === "text/plain"
+    )
+      return "document";
+    return "unknown";
+  };
+
+  const fileCategory = getFileCategory(media.file_type, media.mime_type);
+
+  // ✅ FIX: Only use thumbnail_r2_url, don't fallback to r2_url for videos
+  const getThumbnailUrl = () => {
+    if (media.thumbnail_r2_url && media.thumbnail_r2_url.trim() !== "") {
+      return media.thumbnail_r2_url;
+    }
+    return null;
+  };
+
+  const thumbnailUrl = getThumbnailUrl();
+
+  // Render based on file type and thumbnail availability
+  const renderContent = () => {
+    switch (fileCategory) {
+      case "image":
+        // ✅ FIX: For images - FIXED SIZE with object-cover
+        const imageUrl = thumbnailUrl || media.r2_url;
+        return (
+          <img
+            src={imageUrl}
+            alt={media.original_filename}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        );
+
+      case "video":
+        if (thumbnailUrl) {
+          // ✅ FIX: Use video thumbnail - FIXED SIZE with object-cover
+          return (
+            <img
+              src={thumbnailUrl}
+              alt={`${media.original_filename} thumbnail`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          );
+        } else {
+          // ✅ FIX: Video fallback with gradient and icon - FIXED SIZE
+          return (
+            <div
+              className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center"
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: "100%",
+              }}
+            >
+              <VideoCameraIcon className="h-6 w-6 text-white/80" />
+            </div>
+          );
+        }
+
+      case "audio":
+        // ✅ FIX: Audio fallback - FIXED SIZE
+        return (
+          <div
+            className="w-full h-full bg-gradient-to-br from-purple-600 to-blue-800 flex items-center justify-center"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            <MusicalNoteIcon className="h-6 w-6 text-white/80" />
+          </div>
+        );
+
+      case "svg":
+        // ✅ FIX: SVG fallback - FIXED SIZE
+        return (
+          <div
+            className="w-full h-full bg-gradient-to-br from-green-600 to-teal-800 flex items-center justify-center"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            <CodeBracketIcon className="h-6 w-6 text-white/80" />
+          </div>
+        );
+
+      case "document":
+        // ✅ FIX: Document fallback - FIXED SIZE
+        return (
+          <div
+            className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            <DocumentIcon className="h-6 w-6 text-white/80" />
+          </div>
+        );
+
+      default:
+        // ✅ FIX: Unknown file type fallback - FIXED SIZE
+        return (
+          <div
+            className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            <DocumentIcon className="h-6 w-6 text-white/80" />
+          </div>
+        );
+    }
+  };
+
   return (
-    <div className="w-full h-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
-      {media.file_type === "image" ? (
-        <img
-          src={media.r2_url}
-          alt={media.original_filename}
-          className="max-w-full max-h-full object-contain"
-          loading="lazy"
-        />
-      ) : (
-        <video
-          src={media.r2_url}
-          className="max-w-full max-h-full object-contain"
-          muted
-          preload="metadata"
-        />
-      )}
+    <div
+      className="w-full h-full bg-black rounded-lg overflow-hidden"
+      style={{
+        width: "100%",
+        height: "100%",
+        minHeight: "100%",
+        position: "relative",
+      }}
+    >
+      {renderContent()}
     </div>
   );
 }
@@ -315,16 +457,16 @@ function MediaThumbnail({ media }: { media: MediaFile }) {
 // Empty Gallery Placeholder
 function EmptyGallery() {
   return (
-    <div className="aspect-video bg-black flex items-center justify-center">
-      <div className="text-center">
-        <FolderIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+    <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+      <div className="text-center text-white/60">
+        <FolderIcon className="h-8 w-8 mx-auto mb-2" />
         <p className="text-xs">No media</p>
       </div>
     </div>
   );
 }
 
-// Media Gallery Component
+// ✅ FIXED MediaGallery Component with proper aspect ratio control
 function MediaGallery({ project }: { project: Project }) {
   // Get first 4 media files for thumbnail display
   const displayMedia = project.project_media?.slice(0, 4) || [];
@@ -334,36 +476,157 @@ function MediaGallery({ project }: { project: Project }) {
     return <EmptyGallery />;
   }
 
-  // Multiple media items - create grid
-  const getGridLayout = (count: number) => {
-    switch (count) {
+  const mediaCount = displayMedia.length;
+
+  // Dynamic layout based on media count
+  const renderGallery = () => {
+    switch (mediaCount) {
       case 1:
-        return "grid-cols-1";
+        // ✅ FIX: Single media - ENFORCED aspect ratio
+        return (
+          <div
+            className="w-full h-full"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            <MediaThumbnail media={displayMedia[0]} />
+          </div>
+        );
+
       case 2:
-        return "grid-cols-2";
+        // ✅ FIX: Two media - ENFORCED grid sizes
+        return (
+          <div
+            className="grid grid-cols-2 gap-1 w-full h-full"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            {displayMedia.map((media) => (
+              <div
+                key={media.id}
+                className="w-full h-full"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  minHeight: "100%",
+                }}
+              >
+                <MediaThumbnail media={media} />
+              </div>
+            ))}
+          </div>
+        );
+
       case 3:
-        return "grid-cols-2 grid-rows-2";
+        // ✅ FIX: Three media - ENFORCED grid sizes
+        return (
+          <div
+            className="grid grid-cols-2 gap-1 w-full h-full"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            {/* First media takes full height on left */}
+            <div
+              className="w-full h-full"
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: "100%",
+              }}
+            >
+              <MediaThumbnail media={displayMedia[0]} />
+            </div>
+            {/* Two media stacked on right */}
+            <div
+              className="grid grid-rows-2 gap-1 h-full"
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: "100%",
+              }}
+            >
+              <div
+                className="w-full h-full"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  minHeight: "100%",
+                }}
+              >
+                <MediaThumbnail media={displayMedia[1]} />
+              </div>
+              <div
+                className="w-full h-full"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  minHeight: "100%",
+                }}
+              >
+                <MediaThumbnail media={displayMedia[2]} />
+              </div>
+            </div>
+          </div>
+        );
+
       case 4:
       default:
-        return "grid-cols-2 grid-rows-2";
+        // ✅ FIX: Four or more media - ENFORCED 2x2 grid
+        return (
+          <div
+            className="grid grid-cols-2 grid-rows-2 gap-1 w-full h-full"
+            style={{
+              width: "100%",
+              height: "100%",
+              minHeight: "100%",
+            }}
+          >
+            {displayMedia.slice(0, 4).map((media) => (
+              <div
+                key={media.id}
+                className="w-full h-full"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  minHeight: "100%",
+                }}
+              >
+                <MediaThumbnail media={media} />
+              </div>
+            ))}
+          </div>
+        );
     }
   };
 
   return (
     <div
-      className={`grid gap-1 aspect-video px-2 py-3 ${getGridLayout(displayMedia.length)} relative place-items-center`}
+      className="px-2 py-3 relative"
+      style={{
+        aspectRatio: "16/9",
+        width: "100%",
+        minHeight: "0",
+      }}
     >
-      {displayMedia.map((media, index) => {
-        // For 3 items, make first item span 2 rows
-        const className =
-          displayMedia.length === 3 && index === 0 ? "row-span-2" : "";
-
-        return (
-          <div key={media.id} className={`${className} w-full h-full`}>
-            <MediaThumbnail media={media} />
-          </div>
-        );
-      })}
+      <div
+        className="w-full h-full"
+        style={{
+          width: "100%",
+          height: "100%",
+          minHeight: "100%",
+        }}
+      >
+        {renderGallery()}
+      </div>
 
       {/* Show remaining count if more than 4 items */}
       {project.stats.totalFiles > 4 && (

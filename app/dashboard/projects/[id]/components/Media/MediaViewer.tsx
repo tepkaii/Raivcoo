@@ -16,6 +16,19 @@ import { VersionSelector } from "@/app/review/[token]/review_components/VersionS
 import { getCommentsAction } from "@/app/review/[token]/lib/actions";
 import { MediaFile } from "@/app/dashboard/lib/types";
 
+// ✅ ADD FILE CATEGORY HELPER
+const getFileCategory = (fileType: string, mimeType: string) => {
+  if (fileType === "video") return "video";
+  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
+  if (mimeType === "image/svg+xml") return "svg";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (mimeType === "application/pdf" || 
+      mimeType.includes("document") || 
+      mimeType.includes("presentation") ||
+      mimeType === "text/plain") return "document";
+  return "unknown";
+};
+
 interface MediaComment {
   id: string;
   media_id: string;
@@ -71,14 +84,17 @@ interface MediaViewerProps {
   onAnnotationCreate?: (annotation: any) => void;
   onCommentPinClick?: (comment: MediaComment) => void;
   onCommentDrawingClick?: (comment: MediaComment) => void;
-  allowDownload?: boolean; // ✅ Add this
+  allowDownload?: boolean;
   authenticatedUser?: {
-    // ✅ ADD THIS
     id: string;
     email: string;
     name?: string;
     avatar_url?: string;
   } | null;
+  userPermissions?: {
+    canComment?: boolean;
+    canEditStatus?: boolean;
+  };
 }
 
 export interface MediaViewerRef {
@@ -87,7 +103,6 @@ export interface MediaViewerRef {
   handleSeekToTimestamp: (timestamp: number) => void;
   comments: MediaComment[];
   loadComments: () => void;
-  // ✅ THESE ARE FOR EXTERNAL CALLS FROM PARENT
   handleAnnotationRequest: (
     type: "pin" | "drawing" | "none",
     config: any
@@ -109,8 +124,9 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       onAnnotationCreate,
       onCommentPinClick,
       onCommentDrawingClick,
-      allowDownload = true, // ✅ Add this with default true
-      authenticatedUser, // ✅ ADD THIS
+      allowDownload = true,
+      authenticatedUser,
+      userPermissions,
     },
     ref
   ) => {
@@ -132,7 +148,12 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     const [annotationConfig, setAnnotationConfig] = useState<any>({});
 
     const videoRef = useRef<HTMLVideoElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null); // ✅ ADD AUDIO REF
     const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+    // ✅ GET FILE CATEGORY
+    const fileCategory = getFileCategory(currentMedia.file_type, currentMedia.mime_type);
+    const showPlayerControls = fileCategory === "video" || fileCategory === "audio";
 
     // Update current media when prop changes
     useEffect(() => {
@@ -175,43 +196,33 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     // ✅ FIXED: Annotation request handler - NO circular calls
     const handleAnnotationRequest = useCallback(
       (type: "pin" | "drawing" | "none", config: any) => {
-        
-
         // Clear any active comment pins/drawings when starting new annotation OR canceling
         if (type !== "none") {
-         
           setActiveCommentPin(null);
           setActiveCommentDrawing(null);
         }
 
         if (type === "none") {
-         
           setAnnotationMode("none");
           setAnnotationConfig({});
           setActiveCommentPin(null);
           setActiveCommentDrawing(null);
         } else {
-         
           setAnnotationMode(type);
           setAnnotationConfig(config);
         }
-
-        // ❌ DON'T call any parent functions here - this IS the handler
       },
       []
     );
 
     // ✅ FIXED: Clear active comments - NO circular calls
     const clearActiveComments = useCallback(() => {
-     
       setActiveCommentPin(null);
       setActiveCommentDrawing(null);
-      // ❌ DON'T call onClearActiveComments - this IS the clear function
     }, []);
 
     // ✅ Handle annotation completion
     const handleAnnotationComplete = (annotationData: any) => {
-    
       // Reset annotation mode
       setAnnotationMode("none");
       setAnnotationConfig({});
@@ -230,8 +241,6 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
         handleSeekToTimestamp(comment.timestamp_seconds);
         setActiveCommentPin(comment.id);
       }
-      // ❌ REMOVE THIS LINE:
-      // onCommentPinClick?.(comment);
     };
 
     // Handle comment drawing click
@@ -245,19 +254,18 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
         handleSeekToTimestamp(comment.timestamp_seconds);
         setActiveCommentDrawing(comment.id);
       }
-      // ❌ REMOVE THIS LINE:
-      // onCommentDrawingClick?.(comment);
     };
 
-    // Clear active pin/drawing when time changes
+    // ✅ CLEAR ACTIVE PIN/DRAWING WHEN TIME CHANGES - FOR BOTH VIDEO AND AUDIO
     useEffect(() => {
-      if (activeCommentPin && videoRef.current) {
+      if (activeCommentPin && (videoRef.current || audioRef.current)) {
         const activeComment = comments.find((c) => c.id === activeCommentPin);
         if (activeComment && activeComment.timestamp_seconds !== undefined) {
           const timeDiff = Math.abs(
             internalCurrentTime - activeComment.timestamp_seconds
           );
-          if (timeDiff > 2 && !videoRef.current.paused) {
+          const mediaElement = videoRef.current || audioRef.current;
+          if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
             setActiveCommentPin(null);
           }
         }
@@ -265,7 +273,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     }, [internalCurrentTime, activeCommentPin, comments]);
 
     useEffect(() => {
-      if (activeCommentDrawing && videoRef.current) {
+      if (activeCommentDrawing && (videoRef.current || audioRef.current)) {
         const activeComment = comments.find(
           (c) => c.id === activeCommentDrawing
         );
@@ -273,7 +281,8 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
           const timeDiff = Math.abs(
             internalCurrentTime - activeComment.timestamp_seconds
           );
-          if (timeDiff > 2 && !videoRef.current.paused) {
+          const mediaElement = videoRef.current || audioRef.current;
+          if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
             setActiveCommentDrawing(null);
           }
         }
@@ -291,9 +300,13 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       onTimeUpdate?.(time);
     };
 
+    // ✅ HANDLE SEEKING FOR BOTH VIDEO AND AUDIO
     const handleSeekToTimestamp = (timestamp: number) => {
-      if (videoRef.current && currentMedia.file_type === "video") {
+      if (fileCategory === "video" && videoRef.current) {
         videoRef.current.currentTime = timestamp;
+        handleTimeUpdate(timestamp);
+      } else if (fileCategory === "audio" && audioRef.current) {
+        audioRef.current.currentTime = timestamp;
         handleTimeUpdate(timestamp);
       }
     };
@@ -305,8 +318,8 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       handleSeekToTimestamp,
       comments,
       loadComments,
-      handleAnnotationRequest, // ✅ For external calls FROM parent
-      clearActiveComments, // ✅ For external calls FROM parent
+      handleAnnotationRequest,
+      clearActiveComments,
     }));
 
     // Create the media content
@@ -321,6 +334,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
           <MediaDisplay
             media={currentMedia}
             videoRef={videoRef}
+            audioRef={audioRef} // ✅ ADD AUDIO REF
             className="h-full"
             onAnnotationComplete={handleAnnotationComplete}
             activeCommentPin={activeCommentPin}
@@ -329,23 +343,27 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
             currentTime={currentTime || internalCurrentTime}
             annotationMode={annotationMode}
             annotationConfig={annotationConfig}
-            allowDownload={allowDownload} // ✅ Pass it through
+            allowDownload={allowDownload}
           />
         </div>
 
-        {/* Player Controls */}
-        <PlayerControls
-          videoRef={videoRef}
-          mediaType={currentMedia.file_type}
-          comments={comments}
-          onSeekToTimestamp={handleSeekToTimestamp}
-          onTimeUpdate={handleTimeUpdate}
-          authenticatedUser={authenticatedUser}
-          fullscreenContainerRef={fullscreenContainerRef}
-          className={
-            isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""
-          }
-        />
+        {/* ✅ ONLY SHOW PLAYER CONTROLS FOR VIDEO AND AUDIO */}
+        {showPlayerControls && (
+          <PlayerControls
+            videoRef={videoRef}
+            audioRef={audioRef} // ✅ ADD AUDIO REF
+            mediaType={currentMedia.file_type}
+            media={currentMedia} // ✅ ADD MEDIA OBJECT
+            comments={comments}
+            onSeekToTimestamp={handleSeekToTimestamp}
+            onTimeUpdate={handleTimeUpdate}
+            authenticatedUser={authenticatedUser}
+            fullscreenContainerRef={fullscreenContainerRef}
+            className={
+              isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""
+            }
+          />
+        )}
       </div>
     );
 
