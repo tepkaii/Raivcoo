@@ -1,8 +1,8 @@
-// app/media/full-size/[id]/page.tsx
+// app/media/[id]/page.tsx
 // @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
-import { FullsizeVideoViewer } from "./FullsizeVideoViewer";
+import { MediaViewer } from "./MediaViewer";
 import { Metadata } from "next";
 
 // ✅ ADD FILE CATEGORY HELPER
@@ -11,10 +11,13 @@ const getFileCategory = (fileType: string, mimeType: string) => {
   if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
   if (mimeType === "image/svg+xml") return "svg";
   if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType === "application/pdf" || 
-      mimeType.includes("document") || 
-      mimeType.includes("presentation") ||
-      mimeType === "text/plain") return "document";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("document") ||
+    mimeType.includes("presentation") ||
+    mimeType === "text/plain"
+  )
+    return "document";
   return "unknown";
 };
 
@@ -53,15 +56,24 @@ export async function generateMetadata({
   }
 
   // ✅ DETERMINE FILE CATEGORY AND MEDIA TYPE
-  const fileCategory = getFileCategory(mediaFile.file_type, mediaFile.mime_type);
+  const fileCategory = getFileCategory(
+    mediaFile.file_type,
+    mediaFile.mime_type
+  );
   const mediaType = (() => {
     switch (fileCategory) {
-      case "video": return "Video";
-      case "audio": return "Audio";
-      case "image": return "Image";
-      case "document": return "Document";
-      case "svg": return "SVG";
-      default: return "Media";
+      case "video":
+        return "Video";
+      case "audio":
+        return "Audio";
+      case "image":
+        return "Image";
+      case "document":
+        return "Document";
+      case "svg":
+        return "SVG";
+      default:
+        return "Media";
     }
   })();
 
@@ -69,15 +81,21 @@ export async function generateMetadata({
   const getImageUrl = () => {
     // For images: use thumbnail if available, fallback to original image
     if (fileCategory === "image") {
-      if (mediaFile.thumbnail_r2_url && mediaFile.thumbnail_r2_url.trim() !== '') {
+      if (
+        mediaFile.thumbnail_r2_url &&
+        mediaFile.thumbnail_r2_url.trim() !== ""
+      ) {
         return mediaFile.thumbnail_r2_url;
       }
       return mediaFile.r2_url; // Original image
     }
-    
+
     // For videos: ONLY use thumbnail if available, no fallback
     if (fileCategory === "video") {
-      if (mediaFile.thumbnail_r2_url && mediaFile.thumbnail_r2_url.trim() !== '') {
+      if (
+        mediaFile.thumbnail_r2_url &&
+        mediaFile.thumbnail_r2_url.trim() !== ""
+      ) {
         return mediaFile.thumbnail_r2_url;
       }
       return null; // No image for videos without thumbnails
@@ -129,9 +147,10 @@ export async function generateMetadata({
         url: imageUrl,
         width: 1200,
         height: 630,
-        alt: fileCategory === "image" 
-          ? mediaFile.original_filename 
-          : `${mediaFile.original_filename} - ${mediaType}`,
+        alt:
+          fileCategory === "image"
+            ? mediaFile.original_filename
+            : `${mediaFile.original_filename} - ${mediaType}`,
       },
     ];
     baseMetadata.twitter.images = [imageUrl];
@@ -181,5 +200,5 @@ export default async function FullsizeMediaPage({
   // Optional: Add access control here if needed
   // You could check if the user has access to this project
 
-  return <FullsizeVideoViewer mediaFile={mediaFile} />;
+  return <MediaViewer mediaFile={mediaFile} />;
 }

@@ -10,7 +10,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 
-
 async function getAuthenticatedEditorWithProjectAccess(projectId: string) {
   const supabase = await createClient();
 
@@ -989,7 +988,6 @@ export async function checkProjectAccess(
   return data;
 }
 
-
 export async function updateMemberRole(
   projectId: string,
   memberId: string,
@@ -1025,7 +1023,6 @@ export async function updateMemberRole(
   }
 }
 
-
 export async function leaveProject(projectId: string) {
   try {
     const { supabase, user } = await getAuthenticatedEditor();
@@ -1054,7 +1051,7 @@ export async function leaveProject(projectId: string) {
 
 export async function canUserUploadToProject(projectId: string) {
   try {
-    const {  accessCheck } =
+    const { accessCheck } =
       await getAuthenticatedEditorWithProjectAccess(projectId);
 
     return {
@@ -1079,7 +1076,7 @@ export async function canUserUploadToProject(projectId: string) {
 
 export async function getUserProjectPermissions(projectId: string) {
   try {
-    const {  accessCheck } =
+    const { accessCheck } =
       await getAuthenticatedEditorWithProjectAccess(projectId);
 
     return {
@@ -1134,3 +1131,58 @@ export async function getUserProjectPermissions(projectId: string) {
   }
 }
 
+export async function updateProjectReferencesAction(
+  projectId: string,
+  references: Array<{
+    id: string;
+    url: string;
+    title?: string;
+    customName?: string;
+    favicon?: string;
+    addedAt: string;
+  }>
+) {
+  try {
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    // Basic access check (the RPC will do more detailed permission checking)
+    if (!accessCheck.has_access) {
+      throw new Error("Access denied");
+    }
+
+    // Call the RPC function to update project references
+    const { data, error } = await supabase
+      .rpc("update_project_references", {
+        project_uuid: projectId,
+        new_references: references,
+      })
+      .single();
+
+    if (error) {
+      console.error("RPC error:", error);
+      throw new Error(error.message || "Failed to update project references");
+    }
+
+    // Check if the RPC function returned an error
+    if (data && !data.success) {
+      throw new Error(data.error || "Failed to update project references");
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+
+    return {
+      success: true,
+      message: data?.message || "Project references updated successfully",
+    };
+  } catch (error) {
+    console.error("Update project references error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update project references",
+    };
+  }
+}

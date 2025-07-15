@@ -3,10 +3,10 @@
 "use client";
 
 import React from "react";
-import { CreateReviewLinkDialog } from "../ReviewDialogs/CreateReviewLinkDialog";
-import { ManageReviewLinksDialog } from "../ReviewDialogs/ManageReviewLinksDialog";
-import { VersionManagerDialog } from "../ReviewDialogs/VersionManagerDialog";
-import { DeleteMediaDialog } from "../ReviewDialogs/DeleteMediaDialog";
+import { CreateReviewLinkDialog } from "../Dialogs/CreateReviewLinkDialog";
+import { ManageReviewLinksDialog } from "../Dialogs/ManageReviewLinksDialog";
+import { VersionManagerDialog } from "../Dialogs/VersionManagerDialog";
+import { DeleteMediaDialog } from "../Dialogs/DeleteMediaDialog";
 import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
 
 interface ReviewLink {

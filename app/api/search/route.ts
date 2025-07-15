@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
               fileSize: item.file_size,
               projectName: projectMap.get(item.project_id),
               projectId: item.project_id,
-              mediaUrl: `/media/full-size/${item.id}`,
+              mediaUrl: `/media/${item.id}`,
               thumbnailUrl: item.r2_url,
               uploadedAt: item.uploaded_at,
               created_at: item.uploaded_at,

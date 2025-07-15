@@ -184,7 +184,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
       >
         <div className=" bg-primary-foreground/35 border rounded-2xl flex flex-col transition-all duration-200 min-h-full">
           {/* Right Panel Header */}
-          <div className="flex items-center  justify-between px-4 py-3 border-b border-[#262626]">
+          <div className="flex items-center  justify-between px-4 py-1 border-b border-[#262626]">
             <h3 className="text-sm font-medium text-white flex items-center gap-2">
               <ChatBubbleOvalLeftIcon className="h-4 w-4" />
               {rightPanelTitle}

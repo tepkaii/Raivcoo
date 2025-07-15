@@ -10,9 +10,9 @@ import React, {
   useImperativeHandle,
   useCallback,
 } from "react";
-import { MediaDisplay } from "@/app/review/[token]/review_components/MediaDisplay";
-import { PlayerControls } from "@/app/review/[token]/review_components/PlayerControls";
-import { VersionSelector } from "@/app/review/[token]/review_components/VersionSelector";
+import { MediaDisplay } from "@/app/review/[token]/components/MediaDisplay";
+import { PlayerControls } from "@/app/review/[token]/components/PlayerControls";
+import { VersionSelector } from "@/app/review/[token]/components/VersionSelector";
 import { getCommentsAction } from "@/app/review/[token]/lib/actions";
 import { MediaFile } from "@/app/dashboard/lib/types";
 

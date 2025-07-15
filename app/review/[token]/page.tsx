@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
-import { PasswordProtectedReview } from "./review_components/PasswordProtectedReview";
+import { PasswordProtectedReview } from "./components/PasswordProtectedReview";
 import { Metadata } from "next";
 import { MediaInterface } from "./MediaInterface";
 

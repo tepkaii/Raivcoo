@@ -249,6 +249,8 @@ export default async function ProjectsPage() {
 function getPlanLimits(planId: string | null, hasActiveSubscription: boolean) {
   // If no active subscription or free plan, apply free limits
   if (!hasActiveSubscription || !planId || planId === "free") {
+
+    
     return {
       maxProjects: 2,
       planName: "Free",

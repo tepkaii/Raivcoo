@@ -11,7 +11,7 @@ import React, {
 } from "react";
 import { MediaGrid } from "./components/Media/MediaGrid";
 import { MediaViewer } from "./components/Media/MediaViewer";
-import { ReviewComments } from "@/app/review/[token]/review_components/ReviewComments";
+import { ReviewComments } from "@/app/review/[token]/components/ReviewComments";
 import { TeamManagement } from "./components/TeamManagement/TeamManagement";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,9 +34,9 @@ import {
   UsersIcon,
 } from "@heroicons/react/24/solid";
 import { createCommentAction } from "./lib/CommentActions";
+import { Badge } from "@/components/ui/badge";
 
 // Define types
-// 
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
 
 interface ProjectMember {
@@ -211,574 +211,579 @@ export function ProjectWorkspace({
     return allVersions.sort((a, b) => b.version_number - a.version_number);
   };
 
-const handleMediaSelect = (media: MediaFile) => {
-  // ✅ ONLY set selected media for desktop
-  if (!isMobile) {
-    setSelectedMedia(media);
-    setCurrentTime(0);
-  }
-  // ✅ For mobile, maybe navigate to a different page or do nothing
-};
-
-const handleMediaUpdated = (newFiles: MediaFile[]) => {
-  setMediaFiles(newFiles);
-  if (selectedMedia) {
-    const updatedSelected = newFiles.find((f) => f.id === selectedMedia.id);
-    if (updatedSelected) {
-      setSelectedMedia(updatedSelected);
-    } else {
-      setSelectedMedia(null);
+  const handleMediaSelect = (media: MediaFile) => {
+    // ✅ ONLY set selected media for desktop
+    if (!isMobile) {
+      setSelectedMedia(media);
+      setCurrentTime(0);
     }
-  }
-};
+    // ✅ For mobile, maybe navigate to a different page or do nothing
+  };
 
-const handleReviewLinksUpdated = (newLinks: ReviewLink[]) => {
-  setReviewLinks(newLinks);
-};
-
-const handleMembersUpdate = (newMembers: ProjectMember[]) => {
-  setMembers(newMembers);
-  // No more window.location.reload()!
-};
-// Handle comments update from MediaViewer
-const handleCommentsUpdate = (newComments: any[]) => {
-  setComments(newComments);
-};
-
-// Handle annotation creation from MediaViewer
-const handleAnnotationCreate = (annotation: any) => {
-  if (!showCommentsPanel && !isMobile && canComment) {
-    setShowCommentsPanel(true);
-  }
-};
-
-// BACK TO ORIGINAL PANEL LOGIC - Count open panels (only for desktop)
-const openPanelsCount = !isMobile
-  ? [showMediaLibrary, showMediaPlayer, showCommentsPanel].filter(Boolean)
-      .length
-  : 1;
-
-// BACK TO ORIGINAL PANEL TOGGLE LOGIC
-const canToggleMediaLibrary = (() => {
-  if (isMobile) return false; // Disable on mobile
-  if (!showMediaLibrary) return true;
-  if (openPanelsCount === 1) return false;
-  if (openPanelsCount === 2) return false;
-  if (openPanelsCount === 3) return true;
-  return false;
-})();
-
-const playerLocked = !showMediaLibrary && showMediaPlayer;
-const commentsLocked = !showMediaLibrary && showCommentsPanel;
-
-const handleMediaLibraryToggle = () => {
-  if (isMobile) return; // Disable on mobile
-
-  if (!showMediaLibrary) {
-    setShowMediaLibrary(true);
-  } else if (canToggleMediaLibrary) {
-    setShowMediaLibrary(false);
-  }
-};
-
-const handleMediaPlayerToggle = () => {
-  if (isMobile || playerLocked) return; // Disable on mobile
-
-  if (!showMediaPlayer) {
-    if (showMediaLibrary) {
-      setShowMediaPlayer(true);
+  const handleMediaUpdated = (newFiles: MediaFile[]) => {
+    setMediaFiles(newFiles);
+    if (selectedMedia) {
+      const updatedSelected = newFiles.find((f) => f.id === selectedMedia.id);
+      if (updatedSelected) {
+        setSelectedMedia(updatedSelected);
+      } else {
+        setSelectedMedia(null);
+      }
     }
-  } else {
-    if (openPanelsCount > 1) {
-      setShowMediaPlayer(false);
-    }
-  }
-};
+  };
 
-const handleCommentsToggle = () => {
-  if (isMobile || commentsLocked || !canComment) return; // Disable on mobile and for users without comment permission
+  const handleReviewLinksUpdated = (newLinks: ReviewLink[]) => {
+    setReviewLinks(newLinks);
+  };
 
-  if (!showCommentsPanel) {
-    if (showMediaLibrary) {
+  const handleMembersUpdate = (newMembers: ProjectMember[]) => {
+    setMembers(newMembers);
+    // No more window.location.reload()!
+  };
+  // Handle comments update from MediaViewer
+  const handleCommentsUpdate = (newComments: any[]) => {
+    setComments(newComments);
+  };
+
+  // Handle annotation creation from MediaViewer
+  const handleAnnotationCreate = (annotation: any) => {
+    if (!showCommentsPanel && !isMobile && canComment) {
       setShowCommentsPanel(true);
     }
-  } else {
-    if (openPanelsCount > 1) {
-      setShowCommentsPanel(false);
-    }
-  }
-};
+  };
 
-// BACK TO ORIGINAL WIDTH CALCULATION
-const widths = useMemo(() => {
-  // On mobile, always full width for media library
-  if (isMobile) {
-    return { library: 100, player: 0, comments: 0 };
-  }
+  // BACK TO ORIGINAL PANEL LOGIC - Count open panels (only for desktop)
+  const openPanelsCount = !isMobile
+    ? [showMediaLibrary, showMediaPlayer, showCommentsPanel].filter(Boolean)
+        .length
+    : 1;
 
-  if (openPanelsCount === 1) {
-    if (showMediaLibrary) return { library: 100, player: 0, comments: 0 };
-    if (showMediaPlayer) return { library: 0, player: 100, comments: 0 };
-    if (showCommentsPanel) return { library: 0, player: 0, comments: 100 };
-  } else if (openPanelsCount === 2) {
-    if (showMediaLibrary && showMediaPlayer) {
-      return {
-        library: libraryWidth,
-        player: 100 - libraryWidth,
-        comments: 0,
-      };
-    } else if (showMediaLibrary && showCommentsPanel) {
-      return {
-        library: libraryWidth,
-        player: 0,
-        comments: 100 - libraryWidth,
-      };
-    } else if (showMediaPlayer && showCommentsPanel) {
-      return { library: 0, player: playerWidth, comments: 100 - playerWidth };
-    }
-  } else if (openPanelsCount === 3) {
-    return {
-      library: libraryWidth,
-      player: playerWidth,
-      comments: commentsWidth,
-    };
-  }
+  // BACK TO ORIGINAL PANEL TOGGLE LOGIC
+  const canToggleMediaLibrary = (() => {
+    if (isMobile) return false; // Disable on mobile
+    if (!showMediaLibrary) return true;
+    if (openPanelsCount === 1) return false;
+    if (openPanelsCount === 2) return false;
+    if (openPanelsCount === 3) return true;
+    return false;
+  })();
 
-  return { library: showMediaLibrary ? 100 : 0, player: 0, comments: 0 };
-}, [
-  isMobile,
-  openPanelsCount,
-  showMediaLibrary,
-  showMediaPlayer,
-  showCommentsPanel,
-  libraryWidth,
-  playerWidth,
-  commentsWidth,
-]);
+  const playerLocked = !showMediaLibrary && showMediaPlayer;
+  const commentsLocked = !showMediaLibrary && showCommentsPanel;
 
-// BACK TO ORIGINAL RESIZING HANDLERS
-const handleResizeStart = useCallback(
-  (
-    type: "library-player" | "player-comments" | "library-comments",
-    e: React.MouseEvent
-  ) => {
+  const handleMediaLibraryToggle = () => {
     if (isMobile) return; // Disable on mobile
 
-    setIsResizing(type);
-    e.preventDefault();
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  },
-  [isMobile]
-);
-
-const handleMouseMove = useCallback(
-  (e: MouseEvent) => {
-    if (!isResizing || !containerRef.current || isMobile) return;
-
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const containerWidth = containerRect.width;
-    const mouseX = e.clientX - containerRect.left;
-    const mousePercent = (mouseX / containerWidth) * 100;
-
-    if (isResizing === "library-player") {
-      const newLibraryWidth = Math.max(20, Math.min(60, mousePercent));
-      setLibraryWidth(newLibraryWidth);
-      if (showCommentsPanel) {
-        const remaining = 100 - newLibraryWidth;
-        setPlayerWidth(remaining * 0.7);
-        setCommentsWidth(remaining * 0.3);
-      }
-    } else if (isResizing === "player-comments") {
-      const libraryTaken = showMediaLibrary ? libraryWidth : 0;
-      const availableSpace = 100 - libraryTaken;
-      const relativeMousePercent =
-        (((mouseX / containerWidth) * 100 - libraryTaken) / availableSpace) *
-        100;
-      const newPlayerPercent = Math.max(30, Math.min(70, relativeMousePercent));
-      setPlayerWidth((availableSpace * newPlayerPercent) / 100);
-      setCommentsWidth((availableSpace * (100 - newPlayerPercent)) / 100);
-    } else if (isResizing === "library-comments") {
-      const newLibraryWidth = Math.max(20, Math.min(80, mousePercent));
-      setLibraryWidth(newLibraryWidth);
+    if (!showMediaLibrary) {
+      setShowMediaLibrary(true);
+    } else if (canToggleMediaLibrary) {
+      setShowMediaLibrary(false);
     }
-  },
-  [isResizing, libraryWidth, showMediaLibrary, showCommentsPanel, isMobile]
-);
+  };
 
-const handleMouseUp = useCallback(() => {
-  setIsResizing(null);
-  document.body.style.cursor = "";
-  document.body.style.userSelect = "";
-}, []);
+  const handleMediaPlayerToggle = () => {
+    if (isMobile || playerLocked) return; // Disable on mobile
 
-React.useEffect(() => {
-  if (isResizing && !isMobile) {
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }
-}, [isResizing, handleMouseMove, handleMouseUp, isMobile]);
-useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const mediaId = urlParams.get("media");
-
-  if (mediaId) {
-    const media = mediaFiles.find((m) => m.id === mediaId);
-    if (media) {
-      setSelectedMedia(media);
-      // Show media player if not visible
-      if (!showMediaPlayer && !isMobile) {
+    if (!showMediaPlayer) {
+      if (showMediaLibrary) {
         setShowMediaPlayer(true);
       }
+    } else {
+      if (openPanelsCount > 1) {
+        setShowMediaPlayer(false);
+      }
     }
-    // Clean up URL
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-}, [mediaFiles, showMediaPlayer, isMobile]);
-return (
-  <div className="h-screen flex flex-col overflow-hidden">
-    {/* Header */}
-    <header className="bg-background border-b h-[50px] flex justify-between items-center sticky top-0 ">
-      <div className="flex items-center h-full">
-        <div className="flex items-center justify-center border-l border-r h-full mr-3">
-          <div className="flex items-center mr-2 ml-2 h-full">
-            <SidebarTrigger />
+  };
+
+  const handleCommentsToggle = () => {
+    if (isMobile || commentsLocked || !canComment) return; // Disable on mobile and for users without comment permission
+
+    if (!showCommentsPanel) {
+      if (showMediaLibrary) {
+        setShowCommentsPanel(true);
+      }
+    } else {
+      if (openPanelsCount > 1) {
+        setShowCommentsPanel(false);
+      }
+    }
+  };
+
+  // BACK TO ORIGINAL WIDTH CALCULATION
+  const widths = useMemo(() => {
+    // On mobile, always full width for media library
+    if (isMobile) {
+      return { library: 100, player: 0, comments: 0 };
+    }
+
+    if (openPanelsCount === 1) {
+      if (showMediaLibrary) return { library: 100, player: 0, comments: 0 };
+      if (showMediaPlayer) return { library: 0, player: 100, comments: 0 };
+      if (showCommentsPanel) return { library: 0, player: 0, comments: 100 };
+    } else if (openPanelsCount === 2) {
+      if (showMediaLibrary && showMediaPlayer) {
+        return {
+          library: libraryWidth,
+          player: 100 - libraryWidth,
+          comments: 0,
+        };
+      } else if (showMediaLibrary && showCommentsPanel) {
+        return {
+          library: libraryWidth,
+          player: 0,
+          comments: 100 - libraryWidth,
+        };
+      } else if (showMediaPlayer && showCommentsPanel) {
+        return { library: 0, player: playerWidth, comments: 100 - playerWidth };
+      }
+    } else if (openPanelsCount === 3) {
+      return {
+        library: libraryWidth,
+        player: playerWidth,
+        comments: commentsWidth,
+      };
+    }
+
+    return { library: showMediaLibrary ? 100 : 0, player: 0, comments: 0 };
+  }, [
+    isMobile,
+    openPanelsCount,
+    showMediaLibrary,
+    showMediaPlayer,
+    showCommentsPanel,
+    libraryWidth,
+    playerWidth,
+    commentsWidth,
+  ]);
+
+  // BACK TO ORIGINAL RESIZING HANDLERS
+  const handleResizeStart = useCallback(
+    (
+      type: "library-player" | "player-comments" | "library-comments",
+      e: React.MouseEvent
+    ) => {
+      if (isMobile) return; // Disable on mobile
+
+      setIsResizing(type);
+      e.preventDefault();
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [isMobile]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current || isMobile) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const mouseX = e.clientX - containerRect.left;
+      const mousePercent = (mouseX / containerWidth) * 100;
+
+      if (isResizing === "library-player") {
+        const newLibraryWidth = Math.max(20, Math.min(60, mousePercent));
+        setLibraryWidth(newLibraryWidth);
+        if (showCommentsPanel) {
+          const remaining = 100 - newLibraryWidth;
+          setPlayerWidth(remaining * 0.7);
+          setCommentsWidth(remaining * 0.3);
+        }
+      } else if (isResizing === "player-comments") {
+        const libraryTaken = showMediaLibrary ? libraryWidth : 0;
+        const availableSpace = 100 - libraryTaken;
+        const relativeMousePercent =
+          (((mouseX / containerWidth) * 100 - libraryTaken) / availableSpace) *
+          100;
+        const newPlayerPercent = Math.max(
+          30,
+          Math.min(70, relativeMousePercent)
+        );
+        setPlayerWidth((availableSpace * newPlayerPercent) / 100);
+        setCommentsWidth((availableSpace * (100 - newPlayerPercent)) / 100);
+      } else if (isResizing === "library-comments") {
+        const newLibraryWidth = Math.max(20, Math.min(80, mousePercent));
+        setLibraryWidth(newLibraryWidth);
+      }
+    },
+    [isResizing, libraryWidth, showMediaLibrary, showCommentsPanel, isMobile]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(null);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  React.useEffect(() => {
+    if (isResizing && !isMobile) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp, isMobile]);
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mediaId = urlParams.get("media");
+
+    if (mediaId) {
+      const media = mediaFiles.find((m) => m.id === mediaId);
+      if (media) {
+        setSelectedMedia(media);
+        // Show media player if not visible
+        if (!showMediaPlayer && !isMobile) {
+          setShowMediaPlayer(true);
+        }
+      }
+      // Clean up URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [mediaFiles, showMediaPlayer, isMobile]);
+  return (
+    <div className="h-screen flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="bg-background border-b h-[50px] flex justify-between items-center sticky top-0 ">
+        <div className="flex items-center h-full">
+          <div className="flex items-center justify-center border-l border-r h-full mr-3">
+            <div className="flex items-center mr-2 ml-2 h-full">
+              <SidebarTrigger />
+            </div>
           </div>
-        </div>
-        <div className="border-r flex items-center h-full">
-          <div className="mr-3">
-            <span className="text-sm md:text-base">
-              {project.name} - Project
-            </span>
-            {!isOwner && userRole && (
-              <span className="ml-2 text-xs bg-muted px-2 py-1 rounded capitalize">
-                {userRole}
+          <div className="border-r flex items-center h-full">
+            <div className="mr-3 flex items-center gap-2">
+              <span className="text-sm md:text-base">
+                {project.name} - Project
               </span>
-            )}
+              {!isOwner && userRole && (
+                <Badge variant={"outline"} className="text-sm">
+                  {userRole}
+                </Badge>
+              )}
+            </div>
           </div>
+          {/* Team Management Dialog Button - Only for owners */}
+          {canManageMembers && (
+            <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
+              <DialogTrigger asChild>
+                <div className="border-r flex items-center border-border h-full">
+                  <Button
+                    variant="ghost"
+                    className="border-none bg-none ml-1 mr-1 "
+                    size="sm"
+                    title="Manage Team Members "
+                  >
+                    <UsersIcon className="size-5 " />
+                  </Button>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Team Management</DialogTitle>
+                </DialogHeader>
+                <TeamManagement
+                  projectId={project.id}
+                  members={members}
+                  isOwner={isOwner}
+                  onMembersUpdate={handleMembersUpdate} // Pass the smooth update function
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
-        {/* Team Management Dialog Button - Only for owners */}
-        {canManageMembers && (
-          <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
-            <DialogTrigger asChild>
-              <div className="border-r flex items-center border-border h-full">
-                <Button
-                  variant="ghost"
-                  className="border-none bg-none ml-1 mr-1 "
-                  size="sm"
-                  title="Manage Team Members "
-                >
-                  <UsersIcon className="size-5 " />
-                </Button>
-              </div>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Team Management</DialogTitle>
-              </DialogHeader>
-              <TeamManagement
-                projectId={project.id}
-                members={members}
-                isOwner={isOwner}
-                onMembersUpdate={handleMembersUpdate} // Pass the smooth update function
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
 
-      {/* Panel Toggle Buttons + Team Dialog Button - Only show on desktop (md and up) */}
-      {!isMobile && (
-        <div className="flex items-center gap-1">
-          <Button
-            onClick={handleMediaLibraryToggle}
-            variant="ghost"
-            className="border-none bg-none"
-            size="sm"
-            disabled={showMediaLibrary && !canToggleMediaLibrary}
-            title={
-              showMediaLibrary && !canToggleMediaLibrary
-                ? openPanelsCount === 1
-                  ? "Cannot hide Media Library when it's the only panel open"
-                  : openPanelsCount === 2
-                    ? "Cannot hide Media Library - other panels cannot be alone"
-                    : undefined
-                : undefined
-            }
-          >
-            <MediaCardsPanel
-              className={`size-5 ${
+        {/* Panel Toggle Buttons + Team Dialog Button - Only show on desktop (md and up) */}
+        {!isMobile && (
+          <div className="flex items-center gap-1">
+            <Button
+              onClick={handleMediaLibraryToggle}
+              variant="ghost"
+              className="border-none bg-none"
+              size="sm"
+              disabled={showMediaLibrary && !canToggleMediaLibrary}
+              title={
                 showMediaLibrary && !canToggleMediaLibrary
-                  ? "opacity-50"
-                  : showMediaLibrary
-                    ? "text-blue-500"
-                    : ""
-              }`}
-            />
-          </Button>
+                  ? openPanelsCount === 1
+                    ? "Cannot hide Media Library when it's the only panel open"
+                    : openPanelsCount === 2
+                      ? "Cannot hide Media Library - other panels cannot be alone"
+                      : undefined
+                  : undefined
+              }
+            >
+              <MediaCardsPanel
+                className={`size-5 ${
+                  showMediaLibrary && !canToggleMediaLibrary
+                    ? "opacity-50"
+                    : showMediaLibrary
+                      ? "text-blue-500"
+                      : ""
+                }`}
+              />
+            </Button>
 
-          <Button
-            onClick={handleMediaPlayerToggle}
-            variant="ghost"
-            className="border-none bg-none"
-            size="sm"
-            disabled={
-              playerLocked ||
-              (!showMediaPlayer && !showMediaLibrary) ||
-              (showMediaPlayer && openPanelsCount === 1)
-            }
-            title={
-              playerLocked
-                ? "Enable Media Library to toggle Media Player"
-                : !showMediaPlayer && !showMediaLibrary
-                  ? "Enable Media Library first to use Media Player"
-                  : showMediaPlayer && openPanelsCount === 1
-                    ? "Cannot hide the only remaining panel"
-                    : undefined
-            }
-          >
-            <MediaPlayerPanel
-              className={`size-5 ${
+            <Button
+              onClick={handleMediaPlayerToggle}
+              variant="ghost"
+              className="border-none bg-none"
+              size="sm"
+              disabled={
                 playerLocked ||
                 (!showMediaPlayer && !showMediaLibrary) ||
                 (showMediaPlayer && openPanelsCount === 1)
-                  ? "opacity-50"
-                  : showMediaPlayer
-                    ? "text-blue-500"
-                    : ""
-              }`}
-            />
-          </Button>
-
-          <Button
-            onClick={handleCommentsToggle}
-            variant="ghost"
-            className="border-none bg-none mr-2"
-            size="sm"
-            disabled={
-              !canComment ||
-              commentsLocked ||
-              (!showCommentsPanel && !showMediaLibrary) ||
-              (showCommentsPanel && openPanelsCount === 1)
-            }
-            title={
-              !canComment
-                ? "You don't have permission to view comments"
-                : commentsLocked
-                  ? "Enable Media Library to toggle Comments"
-                  : !showCommentsPanel && !showMediaLibrary
-                    ? "Enable Media Library first to use Comments"
-                    : showCommentsPanel && openPanelsCount === 1
+              }
+              title={
+                playerLocked
+                  ? "Enable Media Library to toggle Media Player"
+                  : !showMediaPlayer && !showMediaLibrary
+                    ? "Enable Media Library first to use Media Player"
+                    : showMediaPlayer && openPanelsCount === 1
                       ? "Cannot hide the only remaining panel"
                       : undefined
-            }
-          >
-            <CommentsPanel
-              className={`size-5 ${
+              }
+            >
+              <MediaPlayerPanel
+                className={`size-5 ${
+                  playerLocked ||
+                  (!showMediaPlayer && !showMediaLibrary) ||
+                  (showMediaPlayer && openPanelsCount === 1)
+                    ? "opacity-50"
+                    : showMediaPlayer
+                      ? "text-blue-500"
+                      : ""
+                }`}
+              />
+            </Button>
+
+            <Button
+              onClick={handleCommentsToggle}
+              variant="ghost"
+              className="border-none bg-none mr-2"
+              size="sm"
+              disabled={
                 !canComment ||
                 commentsLocked ||
                 (!showCommentsPanel && !showMediaLibrary) ||
                 (showCommentsPanel && openPanelsCount === 1)
-                  ? "opacity-50"
-                  : showCommentsPanel
-                    ? "text-blue-500"
-                    : ""
-              }`}
-            />
-          </Button>
-        </div>
-      )}
-    </header>
-
-    {/* Main Content Area - BACK TO ORIGINAL 3-PANEL SYSTEM */}
-    <div ref={containerRef} className="flex-1 flex overflow-hidden min-h-0">
-      {/* Media Library Panel */}
-      {(showMediaLibrary || isMobile) && (
-        <div
-          className="border-r flex flex-col flex-shrink-0 min-w-0"
-          style={{ width: isMobile ? "100%" : `${widths.library}%` }}
-        >
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="w-full h-full">
-              <MediaGrid
-                mediaFiles={mediaFiles}
-                reviewLinks={reviewLinks}
-                selectedMedia={!isMobile ? selectedMedia : null} // ✅ NO SELECTION ON MOBILE
-                onMediaSelect={handleMediaSelect}
-                onMediaUpdated={handleMediaUpdated}
-                onReviewLinksUpdated={handleReviewLinksUpdated}
-                projectId={project.id}
-                project={project}
-                userPermissions={{
-                  canUpload,
-                  canDelete,
-                  canEditStatus,
-                  canCreateReviewLinks,
-                }}
+              }
+              title={
+                !canComment
+                  ? "You don't have permission to view comments"
+                  : commentsLocked
+                    ? "Enable Media Library to toggle Comments"
+                    : !showCommentsPanel && !showMediaLibrary
+                      ? "Enable Media Library first to use Comments"
+                      : showCommentsPanel && openPanelsCount === 1
+                        ? "Cannot hide the only remaining panel"
+                        : undefined
+              }
+            >
+              <CommentsPanel
+                className={`size-5 ${
+                  !canComment ||
+                  commentsLocked ||
+                  (!showCommentsPanel && !showMediaLibrary) ||
+                  (showCommentsPanel && openPanelsCount === 1)
+                    ? "opacity-50"
+                    : showCommentsPanel
+                      ? "text-blue-500"
+                      : ""
+                }`}
               />
+            </Button>
+          </div>
+        )}
+      </header>
+
+      {/* Main Content Area - BACK TO ORIGINAL 3-PANEL SYSTEM */}
+      <div ref={containerRef} className="flex-1 flex overflow-hidden min-h-0">
+        {/* Media Library Panel */}
+        {(showMediaLibrary || isMobile) && (
+          <div
+            className="border-r flex flex-col flex-shrink-0 min-w-0"
+            style={{ width: isMobile ? "100%" : `${widths.library}%` }}
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="w-full h-full">
+                <MediaGrid
+                  mediaFiles={mediaFiles}
+                  reviewLinks={reviewLinks}
+                  selectedMedia={!isMobile ? selectedMedia : null} // ✅ NO SELECTION ON MOBILE
+                  onMediaSelect={handleMediaSelect}
+                  onMediaUpdated={handleMediaUpdated}
+                  onReviewLinksUpdated={handleReviewLinksUpdated}
+                  projectId={project.id}
+                  project={project}
+                  userPermissions={{
+                    canUpload,
+                    canDelete,
+                    canEditStatus,
+                    canCreateReviewLinks,
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Resize Handle between Library and Player - Desktop only */}
-      {!isMobile && showMediaLibrary && showMediaPlayer && (
-        <div
-          className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
-          onMouseDown={(e) => handleResizeStart("library-player", e)}
-        >
-          <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-      )}
-
-      {/* Resize Handle between Library and Comments - Desktop only */}
-      {!isMobile &&
-        showMediaLibrary &&
-        showCommentsPanel &&
-        !showMediaPlayer && (
+        {/* Resize Handle between Library and Player - Desktop only */}
+        {!isMobile && showMediaLibrary && showMediaPlayer && (
           <div
             className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
-            onMouseDown={(e) => handleResizeStart("library-comments", e)}
+            onMouseDown={(e) => handleResizeStart("library-player", e)}
           >
             <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         )}
 
-      {/* Media Player Panel - Desktop only */}
-      {!isMobile && showMediaPlayer && (
-        <div
-          className="bg-black flex flex-col min-w-0 flex-shrink-0"
-          style={{ width: `${widths.player}%` }}
-        >
-          {selectedMedia ? (
-            <MediaViewer
-              ref={mediaViewerRef}
-              media={selectedMedia}
-              allVersions={getAllVersionsForMedia(selectedMedia)}
-              onMediaChange={setSelectedMedia}
-              onTimeUpdate={setCurrentTime}
-              currentTime={currentTime}
-              showHeaderControls={false}
-              onCommentsUpdate={handleCommentsUpdate}
-              onAnnotationCreate={handleAnnotationCreate}
-              authenticatedUser={authenticatedUser}
-              allowDownload={true}
-              userPermissions={{
-                canComment,
-                canEditStatus,
-              }}
-              onCommentPinClick={(comment) => {
-                if (mediaViewerRef.current) {
-                  mediaViewerRef.current.handleCommentPinClick(comment);
-                }
-              }}
-              onCommentDrawingClick={(comment) => {
-                if (mediaViewerRef.current) {
-                  mediaViewerRef.current.handleCommentDrawingClick(comment);
-                }
-              }}
-            />
-          ) : (
-            <div className="flex-1 min-h-screen flex items-center justify-center">
-              <div className="text-center">
-                <EyeIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Select Media</h3>
-                <p className="text-sm">Choose a video or image to view</p>
-              </div>
+        {/* Resize Handle between Library and Comments - Desktop only */}
+        {!isMobile &&
+          showMediaLibrary &&
+          showCommentsPanel &&
+          !showMediaPlayer && (
+            <div
+              className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
+              onMouseDown={(e) => handleResizeStart("library-comments", e)}
+            >
+              <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           )}
-        </div>
-      )}
 
-      {/* Resize Handle between Player and Comments - Desktop only */}
-      {!isMobile && showMediaPlayer && showCommentsPanel && (
-        <div
-          className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
-          onMouseDown={(e) => handleResizeStart("player-comments", e)}
-        >
-          <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-      )}
-
-      {/* Comments Panel - Desktop only */}
-      {!isMobile && showCommentsPanel && canComment && (
-        <div
-          className="border-l rounded-md p-4 flex flex-col flex-shrink-0 min-w-0"
-          style={{ width: `${widths.comments}%` }}
-        >
-          <div className="flex-1 min-h-0 overflow-hidden bg-primary-foreground/35 border rounded-2xl">
+        {/* Media Player Panel - Desktop only */}
+        {!isMobile && showMediaPlayer && (
+          <div
+            className="bg-black flex flex-col min-w-0 flex-shrink-0"
+            style={{ width: `${widths.player}%` }}
+          >
             {selectedMedia ? (
-              <ReviewComments
-                mediaId={selectedMedia.id}
-                mediaType={selectedMedia.file_type}
-                media={selectedMedia} // ✅ ADD THIS LINE
+              <MediaViewer
+                ref={mediaViewerRef}
+                media={selectedMedia}
+                allVersions={getAllVersionsForMedia(selectedMedia)}
+                onMediaChange={setSelectedMedia}
+                onTimeUpdate={setCurrentTime}
                 currentTime={currentTime}
-                onSeekToTimestamp={(timestamp) => {
-                  mediaViewerRef.current?.handleSeekToTimestamp?.(timestamp);
-                }}
-                className="h-full"
-                onCommentPinClick={(comment) => {
-                  mediaViewerRef.current?.handleCommentPinClick?.(comment);
-                }}
-                onCommentDrawingClick={(comment) => {
-                  mediaViewerRef.current?.handleCommentDrawingClick?.(comment);
-                }}
-                onCommentDeleted={(deletedCommentId) => {
-                  setComments(
-                    comments.filter((c) => c.id !== deletedCommentId)
-                  );
-                  if (mediaViewerRef.current?.loadComments) {
-                    mediaViewerRef.current.loadComments();
-                  }
-                }}
-                onCommentAdded={(newComment) => {
-                  setComments([...comments, newComment]);
-                  if (mediaViewerRef.current?.loadComments) {
-                    mediaViewerRef.current.loadComments();
-                  }
-                }}
-                onAnnotationRequest={(type, config) => {
-                  if (mediaViewerRef.current) {
-                    mediaViewerRef.current.handleAnnotationRequest(
-                      type,
-                      config
-                    );
-                  }
-                }}
-                onClearActiveComments={() => {
-                  if (mediaViewerRef.current) {
-                    mediaViewerRef.current.clearActiveComments();
-                  }
-                }}
+                showHeaderControls={false}
+                onCommentsUpdate={handleCommentsUpdate}
+                onAnnotationCreate={handleAnnotationCreate}
                 authenticatedUser={authenticatedUser}
+                allowDownload={true}
                 userPermissions={{
                   canComment,
                   canEditStatus,
                 }}
-                projectMode={true}
-                projectId={project.id}
-                createCommentOverride={handleCreateComment}
+                onCommentPinClick={(comment) => {
+                  if (mediaViewerRef.current) {
+                    mediaViewerRef.current.handleCommentPinClick(comment);
+                  }
+                }}
+                onCommentDrawingClick={(comment) => {
+                  if (mediaViewerRef.current) {
+                    mediaViewerRef.current.handleCommentDrawingClick(comment);
+                  }
+                }}
               />
             ) : (
-              <div className="flex-1 min-h-screen flex items-center justify-center p-8">
+              <div className="flex-1 min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                  <ChatBubbleBottomCenterTextIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <EyeIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">Select Media</h3>
-                  <p className="text-sm">Choose media to view comments</p>
+                  <p className="text-sm">Choose a video or image to view</p>
                 </div>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Resize Handle between Player and Comments - Desktop only */}
+        {!isMobile && showMediaPlayer && showCommentsPanel && (
+          <div
+            className="w-1 bg-border hover:bg-muted-foreground/25 cursor-col-resize relative group flex-shrink-0"
+            onMouseDown={(e) => handleResizeStart("player-comments", e)}
+          >
+            <div className="absolute inset-y-0 -left-2 -right-2 w-5" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-muted-foreground/60 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        )}
+
+        {/* Comments Panel - Desktop only */}
+        {!isMobile && showCommentsPanel && canComment && (
+          <div
+            className="border-l rounded-md p-4 flex flex-col flex-shrink-0 min-w-0"
+            style={{ width: `${widths.comments}%` }}
+          >
+            <div className="flex-1 min-h-0 overflow-hidden bg-primary-foreground/35 border rounded-2xl">
+              {selectedMedia ? (
+                <ReviewComments
+                  mediaId={selectedMedia.id}
+                  mediaType={selectedMedia.file_type}
+                  media={selectedMedia} // ✅ ADD THIS LINE
+                  currentTime={currentTime}
+                  onSeekToTimestamp={(timestamp) => {
+                    mediaViewerRef.current?.handleSeekToTimestamp?.(timestamp);
+                  }}
+                  className="h-full"
+                  onCommentPinClick={(comment) => {
+                    mediaViewerRef.current?.handleCommentPinClick?.(comment);
+                  }}
+                  onCommentDrawingClick={(comment) => {
+                    mediaViewerRef.current?.handleCommentDrawingClick?.(
+                      comment
+                    );
+                  }}
+                  onCommentDeleted={(deletedCommentId) => {
+                    setComments(
+                      comments.filter((c) => c.id !== deletedCommentId)
+                    );
+                    if (mediaViewerRef.current?.loadComments) {
+                      mediaViewerRef.current.loadComments();
+                    }
+                  }}
+                  onCommentAdded={(newComment) => {
+                    setComments([...comments, newComment]);
+                    if (mediaViewerRef.current?.loadComments) {
+                      mediaViewerRef.current.loadComments();
+                    }
+                  }}
+                  onAnnotationRequest={(type, config) => {
+                    if (mediaViewerRef.current) {
+                      mediaViewerRef.current.handleAnnotationRequest(
+                        type,
+                        config
+                      );
+                    }
+                  }}
+                  onClearActiveComments={() => {
+                    if (mediaViewerRef.current) {
+                      mediaViewerRef.current.clearActiveComments();
+                    }
+                  }}
+                  authenticatedUser={authenticatedUser}
+                  userPermissions={{
+                    canComment,
+                    canEditStatus,
+                  }}
+                  projectMode={true}
+                  projectId={project.id}
+                  createCommentOverride={handleCreateComment}
+                />
+              ) : (
+                <div className="flex-1 min-h-screen flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <ChatBubbleBottomCenterTextIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-medium mb-2">Select Media</h3>
+                    <p className="text-sm">Choose media to view comments</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
 }

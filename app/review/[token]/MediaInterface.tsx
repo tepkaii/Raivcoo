@@ -3,14 +3,14 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ReviewComments } from "./review_components/ReviewComments";
-import { VersionSelector } from "./review_components/VersionSelector";
-import { MediaDisplay } from "./review_components/MediaDisplay";
-import { PlayerControls } from "./review_components/PlayerControls";
+import { ReviewComments } from "./components/ReviewComments";
+import { VersionSelector } from "./components/VersionSelector";
+import { MediaDisplay } from "./components/MediaDisplay";
+import { PlayerControls } from "./components/PlayerControls";
 import { SplitPanel } from "@/app/components/SplitPanel";
 import { getCommentsAction, updateMediaStatusAction } from "./lib/actions";
 import { MediaFile } from "@/app/dashboard/lib/types";
-import { ChatBubbleOvalLeftIcon } from "@heroicons/react/24/solid";
+
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
 // ✅ ADD FILE CATEGORY HELPER
 const getFileCategory = (fileType: string, mimeType: string) => {
   if (fileType === "video") return "video";
@@ -499,6 +506,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header - adapts for mobile/desktop */}
+      {/* ✅ STREAMLINED HEADER WITH DROPDOWN */}
       <header className="bg-background border-b px-3 md:px-4 h-[50px] flex justify-between items-center md:sticky md:top-0 z-50">
         <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
           <h1
@@ -516,9 +524,9 @@ export const MediaInterface: React.FC<MediaInterface> = ({
               onVersionChange={handleVersionChange}
             />
 
-            {/* ✅ DOWNLOAD BUTTON - Desktop */}
+            {/* ✅ DOWNLOAD BUTTON - Desktop Only */}
             {!isMobile && (
-              <div className="border-l mr-l flex items-center">
+              <div className="border-l ml-2 flex items-center">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -531,15 +539,58 @@ export const MediaInterface: React.FC<MediaInterface> = ({
                       : "Downloads are disabled for this review"
                   }
                 >
-                  <Download className="h-4 w-4 " />
+                  <Download className="h-4 w-4" />
                 </Button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Status Selector - Desktop Only */}
-        <div className="hidden md:block">
+        {/* ✅ MOBILE ACTIONS DROPDOWN */}
+        {isMobile ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <EllipsisVerticalIcon className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={() => handleDownload(currentMedia)}
+                disabled={!allowDownload}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {allowDownload ? "Download" : "Download Disabled"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5">
+                <div className="text-xs text-muted-foreground mb-1">Status</div>
+                <Select
+                  value={currentMedia.status || "in_progress"}
+                  onValueChange={handleStatusChange}
+                  disabled={isUpdatingStatus}
+                >
+                  <SelectTrigger className="w-full text-xs rounded-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEDIA_STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${option.color}`}
+                          />
+                          {option.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          /* ✅ DESKTOP STATUS SELECTOR */
           <div className="flex justify-end items-center gap-2">
             <p className="text-xs text-muted-foreground">Status:</p>
             <Select
@@ -547,7 +598,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
               onValueChange={handleStatusChange}
               disabled={isUpdatingStatus}
             >
-              <SelectTrigger className="text-xs">
+              <SelectTrigger className="text-xs rounded-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -562,7 +613,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Main Content Area */}
@@ -604,65 +655,8 @@ export const MediaInterface: React.FC<MediaInterface> = ({
                 />
               </div>
             )}
-
-            {/* Mobile Controls Row */}
-            <div className="border-t border-b px-4 py-2 gap-2 flex-shrink-0 flex items-center justify-between">
-              {/* Status Selector */}
-              <div className="flex items-center gap-2 flex-1">
-                <h3 className="text-xs text-muted-foreground">Status:</h3>
-                <Select
-                  value={currentMedia.status || "in_progress"}
-                  onValueChange={handleStatusChange}
-                  disabled={isUpdatingStatus}
-                >
-                  <SelectTrigger className="h-8 text-xs flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MEDIA_STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${option.color}`}
-                          />
-                          {option.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* ✅ DOWNLOAD BUTTON - Mobile */}
-              <div className="border-l mr-l flex items-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDownload(currentMedia)}
-                  disabled={!allowDownload}
-                  className="ml-2"
-                  title={
-                    allowDownload
-                      ? "Download this file"
-                      : "Downloads are disabled for this review"
-                  }
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
             {/* Mobile Comments Area */}
             <div className="flex-1 min-h-0 flex flex-col ">
-              {/* Mobile Comments Header */}
-              <div className="border-b px-4 py-3 flex-shrink-0">
-                <h3 className="text-sm font-medium flex items-center gap-2">
-                  <ChatBubbleOvalLeftIcon className="h-4 w-4" />
-                  Comments
-                </h3>
-              </div>
-
-              {/* Mobile Comments Content */}
               <div className="flex-1 min-h-0">{commentsContent}</div>
             </div>
           </div>

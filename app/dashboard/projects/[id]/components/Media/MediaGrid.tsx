@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import { Upload, Loader2, Link2, Crown } from "lucide-react";
+import { Upload, Loader2, Crown } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { MediaCard } from "./MediaCard";
@@ -17,16 +17,17 @@ import {
   reorderVersionsAction,
   updateVersionNameAction,
   updateMediaStatusAction,
+  updateProjectReferencesAction,
 } from "../../lib/GeneralActions";
 import {
   MediaFile,
   OrganizedMedia,
   ReviewLink,
 } from "@/app/dashboard/lib/types";
-import { DocumentDuplicateIcon } from "@heroicons/react/24/solid";
+import { DocumentDuplicateIcon, LinkIcon } from "@heroicons/react/24/solid";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ProjectReferencesDialog } from "./ProjectReferencesDialog";
+import { ProjectReferencesDialog } from "../Dialogs/ReferencesDialog";
 import {
   deleteMediaAction,
   deleteVersionAction,
@@ -1209,7 +1210,7 @@ const handleDeleteVersion = async (versionId: string) => {
             size="sm"
             className="flex items-center gap-2 flex-shrink-0"
           >
-            <Link2 className="h-4 w-4" />
+            <LinkIcon className="h-4 w-4" />
             References
           </Button>
 
@@ -1337,12 +1338,33 @@ const handleDeleteVersion = async (versionId: string) => {
       </div>
 
       {/* Project References Dialog */}
-      <ProjectReferencesDialog
-        open={referencesDialog.open}
-        onOpenChange={(open) => setReferencesDialog({ open })}
-        projectReferences={project.project_references || []}
-        projectName={project.name}
-      />
+    <ProjectReferencesDialog
+  open={referencesDialog.open}
+  onOpenChange={(open) => setReferencesDialog({ open })}
+  projectReferences={project.project_references || []}
+  projectName={project.name}
+  onReferencesUpdate={async (updatedReferences) => {
+    const result = await updateProjectReferencesAction(projectId, updatedReferences);
+    
+    if (result.success) {
+      toast({
+        title: "References Updated",
+        description: "Project references have been updated successfully",
+        variant: "green",
+      });
+      
+      // Optionally trigger a refresh or update local state
+      // Since we're using revalidatePath in the action, the page will be fresh on next navigation
+    } else {
+      toast({
+        title: "Update Failed",
+        description: result.error || "Failed to update project references",
+        variant: "destructive",
+      });
+    }
+  }}
+  readOnly={!userPermissions.canUpload} // Use existing permission system
+/>
 
       {/* Media Dialogs */}
       <MediaDialogs

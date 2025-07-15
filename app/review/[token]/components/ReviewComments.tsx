@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
   Pencil,
@@ -736,8 +736,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       </div>
 
       {/* Comment Input */}
-      <div className="border-t p-4">
-        <div className="space-y-2">
+      <div className="border-t">
+        <div className="p-3 space-y-2">
           {/* User Info Form - only show for non-authenticated users */}
           {!authenticatedUser && showUserForm && (
             <div className="space-y-2 p-3 bg-primary-foreground rounded-lg border">
@@ -748,21 +748,21 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 required
-                className="bg-background"
+                className="bg-background h-8"
               />
               <Input
                 type="email"
                 placeholder="Your email (optional)"
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
-                className="bg-background"
+                className="bg-background h-8"
               />
             </div>
           )}
 
-          {/* Show Reply Context OR authenticated user info */}
-          {replyingTo ? (
-            <div className="flex gap-1 items-center bg-blue-500/10 border border-blue-500/30 rounded-xl p-2">
+          {/* Reply Context */}
+          {replyingTo && (
+            <div className="flex gap-1 items-center bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
               <div className="text-xs text-blue-400">
                 Replying to{" "}
                 <span className="font-medium">{replyingTo.user_name}</span>
@@ -775,261 +775,275 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 <X className="h-3 w-3" />
               </button>
             </div>
-          ) : authenticatedUser ? (
-            <div className="flex gap-1 items-center ">
-              <div className="text-xs text-muted-foreground">
-                Commenting as:{" "}
-                {authenticatedUser.name || authenticatedUser.email}
-              </div>
-              {/* ✅ SHOW TIMESTAMP FOR VIDEO AND AUDIO */}
-              {(fileCategory === "video" || fileCategory === "audio") &&
-                annotationMode === "none" && (
-                  <span className="text-xs text-blue-400 cursor-pointer hover:text-blue-300 font-mono flex items-center gap-1 hover:bg-blue-400/10 px-2 py-1 rounded transition-colors duration-200">
-                    At {formatTime(currentTime)}
-                  </span>
-                )}
-            </div>
-          ) : null}
-
-          {/* Comment Text Area */}
-          <Textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder={
-              replyingTo
-                ? `Reply to ${replyingTo.user_name}...`
-                : "Add a comment..."
-            }
-            rows={1}
-            disabled={isSubmitting}
-          />
-
-          {/* ✅ ANNOTATION CONTROLS - ONLY SHOW FOR IMAGE/VIDEO */}
-          {supportsAnnotations && (
-            <>
-              {/* Compact Annotation Controls - Only show when in annotation mode */}
-              {annotationMode === "pin" && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Select
-                    value={pinColor}
-                    onValueChange={(value) => setPinColor(value)}
-                  >
-                    <SelectTrigger className="">
-                      <div className="flex justify-center items-center">
-                        <div
-                          className="size-5 rounded-[5px] border-2 border-white"
-                          style={{ backgroundColor: pinColor }}
-                        />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colors.map((color) => (
-                        <SelectItem key={color.value} value={color.value}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full border border-gray-400"
-                              style={{ backgroundColor: color.value }}
-                            />
-                            <span>{color.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {annotationMode === "drawing" && (
-                <div className="flex text-sm items-center flex-wrap gap-1">
-                  <div className="flex items-center gap-2">
-                    {/* Color Selector */}
-                    <Select
-                      value={drawingColor}
-                      onValueChange={(value) => setDrawingColor(value)}
-                    >
-                      <SelectTrigger className="">
-                        <div className="flex justify-center items-center">
-                          <div
-                            className="size-5 rounded-[5px] border-2 border-white"
-                            style={{ backgroundColor: drawingColor }}
-                          />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {colors.map((color) => (
-                          <SelectItem key={color.value} value={color.value}>
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-3 h-3 rounded-full border border-gray-400"
-                                style={{ backgroundColor: color.value }}
-                              />
-                              <span>{color.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {/* Thickness Selector */}
-                    <Select
-                      value={drawingThickness.toString()}
-                      onValueChange={(value) =>
-                        setDrawingThickness(Number(value))
-                      }
-                    >
-                      <SelectTrigger className="">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {thicknessOptions.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value.toString()}
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {/* Shape Selector */}
-                    <Select
-                      value={drawingShape}
-                      onValueChange={(value) => setDrawingShape(value as any)}
-                    >
-                      <SelectTrigger className="">
-                        <div className="flex items-center justify-center">
-                          {React.createElement(
-                            shapeOptions.find((s) => s.value === drawingShape)
-                              ?.icon || Pencil,
-                            { className: "w-3 h-3" }
-                          )}
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {shapeOptions.map((shape) => (
-                          <SelectItem key={shape.value} value={shape.value}>
-                            <div className="flex items-center gap-2">
-                              {React.createElement(shape.icon, {
-                                className: "w-3 h-3",
-                              })}
-                              <span>{shape.label}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {/* Undo button */}
-                  {currentDrawingStrokes > 0 && (
-                    <Button
-                      onClick={undoDrawing}
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2"
-                    >
-                      <Undo className="w-3 h-3" />
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {/* Annotation Tools - Only show when NOT in annotation mode AND annotations are supported */}
-              {annotationMode === "none" && (
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => startAnnotation("pin")}
-                    disabled={isSubmitting}
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 px-2 hover:text-purple-400 transition-all"
-                    title="Add pin annotation"
-                  >
-                    <MapPinIcon className="w-4 h-4" />
-                  </Button>
-
-                  <Button
-                    onClick={() => startAnnotation("drawing")}
-                    disabled={isSubmitting}
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 px-2 hover:text-teal-400 transition-all"
-                    title="Add drawing annotation"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </>
           )}
 
-          {/* Comment Actions */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              {!authenticatedUser && !showUserForm && userName && (
-                <button
-                  onClick={() => setShowUserForm(true)}
-                  className="text-xs text-blue-400 hover:text-blue-300"
-                >
-                  Change name ({userName})
-                </button>
-              )}
-            </div>
+          {/* ✅ FULL WIDTH TEXTAREA WITH POST BUTTON */}
+          <div className="flex items-center gap-2">
+            <Textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder={
+                replyingTo
+                  ? `Reply to ${replyingTo.user_name}...`
+                  : "Add a comment..."
+              }
+              className="flex-1 min-h-[36px] max-h-[120px] resize-none bg-background border-0 focus:ring-0"
+              disabled={isSubmitting}
+              rows={1}
+            />
 
-            <div className="flex gap-2">
-              {annotationMode !== "none" && supportsAnnotations ? (
-                <>
-                  {pendingAnnotation && (
-                    <Button
-                      onClick={saveAnnotation}
-                      disabled={!newComment.trim() || isSubmitting}
-                      size="sm"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <PaperAirplaneIcon className="h-4 w-4 mr-1" />
-                          Save
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  <Button
-                    onClick={cancelAnnotation}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Cancel
-                  </Button>
-                </>
+            {/* ✅ POST BUTTON */}
+            <Button
+              size="icon"
+              onClick={
+                annotationMode !== "none" && pendingAnnotation
+                  ? saveAnnotation
+                  : addComment
+              }
+              className="h-8 w-8 p-0"
+              disabled={
+                !newComment.trim() ||
+                isSubmitting ||
+                (!authenticatedUser && !userName.trim())
+              }
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Button
-                  onClick={addComment}
-                  disabled={
-                    !newComment.trim() ||
-                    isSubmitting ||
-                    (!authenticatedUser && !userName.trim())
-                  }
-                  size="sm"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      {replyingTo ? "Replying..." : "Posting..."}
-                    </>
-                  ) : (
-                    <>
-                      <PaperAirplaneIcon className="h-4 w-4 mr-1" />
-                      {replyingTo ? "Reply" : "Post"}
-                    </>
-                  )}
-                </Button>
+                <PaperAirplaneIcon className="h-3 w-3" />
               )}
-            </div>
+            </Button>
+          </div>
+
+          {/* ✅ SECOND LINE - SMOOTH HEIGHT-BASED TRANSITIONS */}
+          <div className="relative">
+            <AnimatePresence mode="wait">
+              {annotationMode === "none" && (
+                <motion.div
+                  key="annotation-buttons"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{
+                    duration: 0.2,
+                    ease: "easeInOut",
+                  }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-center justify-between py-2">
+                    {/* Left side: Annotation tools */}
+                    <div className="flex items-center gap-2">
+                      {/* ✅ ANNOTATION TOOLS - ONLY FOR IMAGE/VIDEO */}
+                      {supportsAnnotations && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            onClick={() => startAnnotation("pin")}
+                            disabled={isSubmitting}
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            title="Add pin annotation"
+                          >
+                            <MapPinIcon className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            onClick={() => startAnnotation("drawing")}
+                            disabled={isSubmitting}
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            title="Add drawing annotation"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Guest user name change option */}
+                      {!authenticatedUser && !showUserForm && userName && (
+                        <button
+                          onClick={() => setShowUserForm(true)}
+                          className="text-xs text-blue-400 hover:text-blue-300"
+                        >
+                          Change name ({userName})
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Right side: Timestamp */}
+                    <div className="flex items-center gap-2">
+                      {/* ✅ TIMESTAMP FOR VIDEO/AUDIO */}
+                      {(fileCategory === "video" ||
+                        fileCategory === "audio") && (
+                        <span className="text-xs text-blue-400 font-mono">
+                          At {formatTime(currentTime)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {annotationMode !== "none" && supportsAnnotations && (
+                <motion.div
+                  key="annotation-settings"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{
+                    duration: 0.2,
+                    ease: "easeInOut",
+                  }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-center justify-between py-2">
+                    {/* Left side: Annotation options */}
+                    <div className="flex items-center gap-2">
+                      {annotationMode === "pin" && (
+                        <div className="flex items-center gap-2">
+                          <Select value={pinColor} onValueChange={setPinColor}>
+                            <SelectTrigger className="h-8 w-16 rounded-full">
+                              <div
+                                className="w-4 h-4 rounded-full border border-gray-400"
+                                style={{ backgroundColor: pinColor }}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {colors.map((color) => (
+                                <SelectItem
+                                  key={color.value}
+                                  value={color.value}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-3 h-3 rounded-full border border-gray-400"
+                                      style={{ backgroundColor: color.value }}
+                                    />
+                                    <span>{color.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {annotationMode === "drawing" && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Select
+                            value={drawingColor}
+                            onValueChange={setDrawingColor}
+                          >
+                            <SelectTrigger className="h-8 w-16 rounded-full">
+                              <div
+                                className="w-4 h-4 rounded-full border border-gray-400"
+                                style={{ backgroundColor: drawingColor }}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {colors.map((color) => (
+                                <SelectItem
+                                  key={color.value}
+                                  value={color.value}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-3 h-3 rounded-full border border-gray-400"
+                                      style={{ backgroundColor: color.value }}
+                                    />
+                                    <span>{color.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Select
+                            value={drawingThickness.toString()}
+                            onValueChange={(value) =>
+                              setDrawingThickness(Number(value))
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-16 rounded-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {thicknessOptions.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value.toString()}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Select
+                            value={drawingShape}
+                            onValueChange={(value) =>
+                              setDrawingShape(value as any)
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-16 rounded-full">
+                              <div className="flex items-center justify-center">
+                                {React.createElement(
+                                  shapeOptions.find(
+                                    (s) => s.value === drawingShape
+                                  )?.icon || Pencil,
+                                  { className: "w-3 h-3" }
+                                )}
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {shapeOptions.map((shape) => (
+                                <SelectItem
+                                  key={shape.value}
+                                  value={shape.value}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {React.createElement(shape.icon, {
+                                      className: "w-3 h-3",
+                                    })}
+                                    <span>{shape.label}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {currentDrawingStrokes > 0 && (
+                            <Button
+                              onClick={undoDrawing}
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                              title="Undo last stroke"
+                            >
+                              <Undo className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right side: Cancel button */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={cancelAnnotation}
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8 p-0"
+                        title="Cancel annotation"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

@@ -222,7 +222,7 @@ export function ReferenceInput({
           type="button"
           onClick={addSingleReference}
           disabled={disabled || isLoading || !singleUrl.trim()}
-          size="sm"
+          size="icon"
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -326,7 +326,7 @@ function ReferenceItem({ reference, onRemove, disabled }: ReferenceItemProps) {
           }}
         />
       )}
-      <Link2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+
       <div className="flex-1 min-w-0">
         <div
           className="text-sm font-medium truncate"

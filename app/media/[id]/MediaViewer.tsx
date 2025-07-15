@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { PlayerControls } from "@/app/review/[token]/review_components/PlayerControls";
+import { PlayerControls } from "@/app/review/[token]/components/PlayerControls";
 import { ClickAnimation } from "@/app/review/[token]/lib/ClickAnimation";
 import {
   MusicalNoteIcon,
@@ -44,15 +44,15 @@ interface MediaFile {
   project_id: string;
 }
 
-interface FullsizeVideoViewerProps {
+interface MediaViewerProps {
   mediaFile: MediaFile;
   allowDownload?: boolean;
 }
 
-export function FullsizeVideoViewer({
+export function MediaViewer({
   mediaFile,
   allowDownload = false,
-}: FullsizeVideoViewerProps) {
+}: MediaViewerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isMediaReady, setIsMediaReady] = useState(false);
@@ -427,7 +427,7 @@ export function FullsizeVideoViewer({
   return (
     <div
       ref={fullscreenContainerRef}
-      className="min-h-screen bg-black relative overflow-hidden"
+      className="min-h-dvh bg-black relative overflow-hidden"
       onMouseMove={handleMouseMove}
     >
       {/* ✅ DOWNLOAD RESTRICTION OVERLAY */}

@@ -1,8 +1,8 @@
+// app/dashboard/settings/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import SettingsClient from "./settings-client";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export const metadata: Metadata = {
   title: "Settings - Raivcoo",
@@ -46,7 +46,7 @@ export default async function SettingsPage() {
     .from("subscriptions")
     .select("*")
     .eq("user_id", user.id)
-    .order("updated_at", { ascending: false }) // Get most recent
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -65,23 +65,13 @@ export default async function SettingsPage() {
     .single();
 
   return (
-    <div>
-      <header className="bg-background border-b px-3 h-[50px] flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center h-full">
-          <SidebarTrigger />
-          <div className="border-r ml-2 border-l flex items-center h-full gap-3">
-            <h1 className="text-xl ml-4 mr-4">Settings</h1>
-          </div>
-        </div>
-      </header>
-      <SettingsClient
-        user={user}
-        profile={profile}
-        hasPasswordAuth={!!hasPasswordAuth}
-        subscription={subscription}
-        orders={orders || []}
-        notificationPrefs={notificationPrefs}
-      />
-    </div>
+    <SettingsClient
+      user={user}
+      profile={profile}
+      hasPasswordAuth={!!hasPasswordAuth}
+      subscription={subscription}
+      orders={orders || []}
+      notificationPrefs={notificationPrefs}
+    />
   );
 }

@@ -1,4 +1,3 @@
-
 // app/dashboard/projects/[id]/components/reviews_Dialogs/DeleteMediaDialog.tsx
 "use client";
 
@@ -43,7 +42,7 @@ export function DeleteMediaDialog({
         })
       }
     >
-      <AlertDialogContent >
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Media File</AlertDialogTitle>
           <AlertDialogDescription className="text-muted-foreground">
@@ -53,9 +52,7 @@ export function DeleteMediaDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel >
-            Cancel
-          </AlertDialogCancel>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={() =>
               deleteDialog.mediaFile && onDeleteMedia(deleteDialog.mediaFile)

@@ -457,7 +457,7 @@ function MediaThumbnail({ media }: { media: MediaFile }) {
 // Empty Gallery Placeholder
 function EmptyGallery() {
   return (
-    <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+    <div className="aspect-video bg-black  flex items-center justify-center">
       <div className="text-center text-white/60">
         <FolderIcon className="h-8 w-8 mx-auto mb-2" />
         <p className="text-xs">No media</p>
@@ -642,23 +642,10 @@ function MediaGallery({ project }: { project: Project }) {
 function RoleBadge({ role, isOwner }: { role: string; isOwner: boolean }) {
   if (isOwner) return null;
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "viewer":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "reviewer":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "collaborator":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
   return (
     <div className="flex items-center gap-1">
-      <UserGroupIcon className="h-3 w-3" />
-      <Badge variant="secondary" className={`text-xs ${getRoleColor(role)}`}>
+      <Badge variant="outline" className={`text-xs flex items-center gap-2`}>
+        <UserGroupIcon className="h-3 w-3" />
         {role}
       </Badge>
     </div>
@@ -679,7 +666,7 @@ function ProjectCard({ project }: { project: Project }) {
           <MediaGallery project={project} />
           {/* Role indicator for team projects */}
           {!project.isOwner && (
-            <div className="absolute top-2 left-2">
+            <div className="absolute top-3 left-2">
               <RoleBadge role={project.userRole} isOwner={project.isOwner} />
             </div>
           )}

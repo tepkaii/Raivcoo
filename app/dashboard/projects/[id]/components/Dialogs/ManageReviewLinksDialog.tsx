@@ -1,6 +1,4 @@
 // app/dashboard/projects/[id]/components/reviews_Dialogs/ManageReviewLinksDialog.tsx
-// @ts-nocheck
-// @ts-ignore
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -284,7 +282,7 @@ export function ManageReviewLinksDialog({
                             />
                             <Button
                               variant="destructive"
-                              size="sm"
+                              size="icon"
                               onClick={() => onDeleteReviewLink(link.id)}
                               title="Delete this review link"
                             >
@@ -363,12 +361,12 @@ export function ManageReviewLinksDialog({
                       {/* URL and Action Buttons */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <code className="text-xs bg-primary-foreground border px-2 py-1 rounded flex-1 truncate text-gray-300">
+                          <code className="text-xs bg-primary-foreground border p-2 rounded flex-1 truncate text-gray-300">
                             {getReviewUrl(link.link_token)}
                           </code>
                           <Button
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             onClick={() =>
                               handleCopyReviewLink(link.link_token)
                             }
@@ -378,7 +376,7 @@ export function ManageReviewLinksDialog({
                           </Button>
                           <Button
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             onClick={() =>
                               window.open(
                                 getReviewUrl(link.link_token),

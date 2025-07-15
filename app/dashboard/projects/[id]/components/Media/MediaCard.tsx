@@ -590,7 +590,7 @@ const handleDeleteMedia = React.useCallback(
          onClick={(e) => {
            e.stopPropagation();
            window.open(
-             `/media/full-size/${media.currentVersion.id}`,
+             `/media/${media.currentVersion.id}`,
              "_blank"
            );
          }}
@@ -676,7 +676,7 @@ const handleDeleteMedia = React.useCallback(
                     onValueChange={handleStatusChange}
                   >
                     <SelectTrigger
-                      className="w-full text-xs bg-transparent"
+                      className="w-full text-xs bg-transparent rounded-full"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <SelectValue />

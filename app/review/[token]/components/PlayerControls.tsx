@@ -23,8 +23,8 @@ import {
   PlayIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
+  PauseIcon,
 } from "@heroicons/react/24/solid";
-import { PauseIcon } from "@radix-ui/react-icons";
 
 // ✅ ADD FILE CATEGORY HELPER
 const getFileCategory = (fileType: string, mimeType: string) => {
@@ -32,10 +32,13 @@ const getFileCategory = (fileType: string, mimeType: string) => {
   if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
   if (mimeType === "image/svg+xml") return "svg";
   if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType === "application/pdf" || 
-      mimeType.includes("document") || 
-      mimeType.includes("presentation") ||
-      mimeType === "text/plain") return "document";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("document") ||
+    mimeType.includes("presentation") ||
+    mimeType === "text/plain"
+  )
+    return "document";
   return "unknown";
 };
 
@@ -88,7 +91,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   authenticatedUser,
 }) => {
   // ✅ DETERMINE FILE CATEGORY
-  const fileCategory = media ? getFileCategory(media.file_type, media.mime_type) : mediaType;
+  const fileCategory = media
+    ? getFileCategory(media.file_type, media.mime_type)
+    : mediaType;
 
   // All hooks must be declared first, regardless of fileCategory
   const [isPlaying, setIsPlaying] = useState(false);
@@ -262,7 +267,12 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   // ✅ MEDIA EVENT HANDLERS - HANDLE BOTH VIDEO AND AUDIO
   useEffect(() => {
     const mediaElement = getMediaElement();
-    if (!mediaElement || (fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+    if (
+      !mediaElement ||
+      (fileCategory !== "video" && fileCategory !== "audio") ||
+      !isMediaReady
+    )
+      return;
 
     const handleTimeUpdate = () => {
       if (!isDragging) {
@@ -290,12 +300,23 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       mediaElement.removeEventListener("ended", handleEnded);
       mediaElement.removeEventListener("durationchange", handleDurationChange);
     };
-  }, [isDragging, onTimeUpdate, fileCategory, videoRef, audioRef, isMediaReady]);
+  }, [
+    isDragging,
+    onTimeUpdate,
+    fileCategory,
+    videoRef,
+    audioRef,
+    isMediaReady,
+  ]);
 
   // ✅ PLAYBACK SPEED - HANDLE BOTH VIDEO AND AUDIO
   useEffect(() => {
     const mediaElement = getMediaElement();
-    if (mediaElement && (fileCategory === "video" || fileCategory === "audio") && isMediaReady) {
+    if (
+      mediaElement &&
+      (fileCategory === "video" || fileCategory === "audio") &&
+      isMediaReady
+    ) {
       mediaElement.playbackRate = playbackSpeed;
     }
   }, [playbackSpeed, fileCategory, videoRef, audioRef, isMediaReady]);
@@ -304,7 +325,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     (speed: number) => {
       setPlaybackSpeed(speed);
       const mediaElement = getMediaElement();
-      if (mediaElement && (fileCategory === "video" || fileCategory === "audio") && isMediaReady) {
+      if (
+        mediaElement &&
+        (fileCategory === "video" || fileCategory === "audio") &&
+        isMediaReady
+      ) {
         mediaElement.playbackRate = speed;
       }
     },
@@ -314,7 +339,12 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   // ✅ CONTROL HANDLERS - HANDLE BOTH VIDEO AND AUDIO
   const handlePlayClick = useCallback(async () => {
     const mediaElement = getMediaElement();
-    if (!mediaElement || (fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+    if (
+      !mediaElement ||
+      (fileCategory !== "video" && fileCategory !== "audio") ||
+      !isMediaReady
+    )
+      return;
 
     try {
       if (isPlaying) {
@@ -325,7 +355,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     } catch (error) {
       console.error("Playback failed:", error);
       // Fallback for mobile: briefly show native controls
-      if (isMobile && 'controls' in mediaElement) {
+      if (isMobile && "controls" in mediaElement) {
         (mediaElement as any).controls = true;
         setTimeout(() => {
           (mediaElement as any).controls = false;
@@ -337,14 +367,27 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   const skipTime = useCallback(
     (seconds: number) => {
       const mediaElement = getMediaElement();
-      if (!mediaElement || (fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        !mediaElement ||
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
 
       const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
       mediaElement.currentTime = newTime;
       setCurrentTime(newTime);
       onTimeUpdate?.(newTime);
     },
-    [currentTime, duration, fileCategory, videoRef, audioRef, isMediaReady, onTimeUpdate]
+    [
+      currentTime,
+      duration,
+      fileCategory,
+      videoRef,
+      audioRef,
+      isMediaReady,
+      onTimeUpdate,
+    ]
   );
 
   // Fullscreen change listener
@@ -378,7 +421,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   // ✅ PROGRESS BAR HANDLERS - HANDLE BOTH VIDEO AND AUDIO
   const handleProgressInteraction = useCallback(
     (clientX: number) => {
-      if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
 
       const mediaElement = getMediaElement();
       const progressElement = progressRef.current;
@@ -413,7 +460,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   const handleProgressMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(true);
@@ -425,7 +476,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   // Touch handlers for progress bar
   const handleProgressTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(true);
@@ -438,7 +493,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   const handleProgressHover = useCallback(
     (e: React.MouseEvent) => {
-      if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
 
       const progressElement = progressRef.current;
       if (!progressElement || duration === 0) return;
@@ -457,7 +516,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   const handleVolumeInteraction = useCallback(
     (clientX: number) => {
-      if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
 
       const volumeElement = volumeRef.current;
       if (!volumeElement) return;
@@ -478,7 +541,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   );
 
   useEffect(() => {
-    if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+    if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady)
+      return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isVolumeDragging) {
@@ -519,7 +583,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   // Mouse and touch drag handlers
   useEffect(() => {
-    if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+    if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady)
+      return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
@@ -567,7 +632,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   // Volume handlers
   const toggleMute = useCallback(() => {
-    if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+    if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady)
+      return;
 
     setIsMuted(!isMuted);
     const mediaElement = getMediaElement();
@@ -585,7 +651,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   const handleVolumeTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
       e.preventDefault();
 
       const touch = e.touches[0];
@@ -596,7 +666,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   const handleVolumeMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if ((fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+      if (
+        (fileCategory !== "video" && fileCategory !== "audio") ||
+        !isMediaReady
+      )
+        return;
       e.preventDefault();
       e.stopPropagation();
       setIsVolumeDragging(true);
@@ -607,7 +681,12 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   const handleTimelineCommentClick = (timestamp: number) => {
     const mediaElement = getMediaElement();
-    if (!mediaElement || (fileCategory !== "video" && fileCategory !== "audio") || !isMediaReady) return;
+    if (
+      !mediaElement ||
+      (fileCategory !== "video" && fileCategory !== "audio") ||
+      !isMediaReady
+    )
+      return;
 
     mediaElement.currentTime = timestamp;
     setCurrentTime(timestamp);
@@ -819,173 +898,171 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/90"></div>
                         </div>
                       </div>
-                      );
-                 })}
-             </div>
-             <div className="min-w-12"></div>
-           </div>
-         )}
+                    );
+                  })}
+              </div>
+              <div className="min-w-12"></div>
+            </div>
+          )}
 
-       {/* Control Buttons */}
-       <div className="flex items-center justify-center gap-4">
-         {/* Skip Back */}
-         <RevButtons
-           variant="ghost"
-           onClick={() => skipTime(-10)}
-           size={"icon"}
-         >
-           <BackwardIcon className="h-5 w-5" />
-         </RevButtons>
+        {/* Control Buttons */}
+        <div className="flex items-center justify-center gap-4">
+          {/* Skip Back */}
+          <RevButtons
+            variant="ghost"
+            onClick={() => skipTime(-10)}
+            size={"icon"}
+          >
+            <BackwardIcon className="h-5 w-5" />
+          </RevButtons>
 
-         {/* Play/Pause */}
-         <RevButtons variant="ghost" onClick={handlePlayClick} size={"icon"}>
-           {isPlaying ? <PauseIcon /> : <PlayIcon className="h-5 w-5" />}
-         </RevButtons>
+          {/* Play/Pause */}
+          <RevButtons variant="ghost" onClick={handlePlayClick} size={"icon"}>
+            {isPlaying ? <PauseIcon /> : <PlayIcon className="h-5 w-5" />}
+          </RevButtons>
 
-         {/* Skip Forward */}
-         <RevButtons
-           variant="ghost"
-           onClick={() => skipTime(10)}
-           size={"icon"}
-         >
-           <ForwardIcon className="h-5 w-5" />
-         </RevButtons>
+          {/* Skip Forward */}
+          <RevButtons
+            variant="ghost"
+            onClick={() => skipTime(10)}
+            size={"icon"}
+          >
+            <ForwardIcon className="h-5 w-5" />
+          </RevButtons>
 
-         {/* ✅ SPEED CONTROL - FOR BOTH VIDEO AND AUDIO */}
-         <DropdownMenu>
-           <DropdownMenuTrigger asChild>
-             <RevButtons variant="ghost" size="icon">
-               <span className="text-xs font-mono text-white/70 hover:text-white transition-colors">
-                 {playbackSpeed}×
-               </span>
-             </RevButtons>
-           </DropdownMenuTrigger>
-           <DropdownMenuContent align="end" className="w-28 ">
-             <div className="p-1">
-               <div className="text-xs text-muted-foreground mb-1">Speed</div>
-               {SPEED_OPTIONS.map((speed) => (
-                 <DropdownMenuItem
-                   key={speed}
-                   onClick={() => handleSpeedChange(speed)}
-                   className={`
+          {/* ✅ SPEED CONTROL - FOR BOTH VIDEO AND AUDIO */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <RevButtons variant="ghost" size="icon">
+                <span className="text-xs font-mono text-white/70 hover:text-white transition-colors">
+                  {playbackSpeed}×
+                </span>
+              </RevButtons>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-28 ">
+              <div className="p-1">
+                <div className="text-xs text-muted-foreground mb-1">Speed</div>
+                {SPEED_OPTIONS.map((speed) => (
+                  <DropdownMenuItem
+                    key={speed}
+                    onClick={() => handleSpeedChange(speed)}
+                    className={`
              text-sm cursor-pointer px-2 py-1
              ${playbackSpeed === speed ? "bg-blue-500 text-white" : ""}
            `}
-                 >
-                   {speed}×
-                 </DropdownMenuItem>
-               ))}
-             </div>
-           </DropdownMenuContent>
-         </DropdownMenu>
+                  >
+                    {speed}×
+                  </DropdownMenuItem>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-         {/* Volume Controls */}
-         <div className="flex items-center gap-2 ">
-           {/* Mute Toggle Button */}
-           <RevButtons variant="ghost" onClick={toggleMute} size={"icon"}>
-             {isMuted ? (
-               <SpeakerXMarkIcon className="h-5 w-5" />
-             ) : (
-               <SpeakerWaveIcon className="h-5 w-5" />
-             )}
-           </RevButtons>
+          {/* Volume Controls */}
+          <div className="flex items-center gap-2 ">
+            {/* Mute Toggle Button */}
+            <RevButtons variant="ghost" onClick={toggleMute} size={"icon"}>
+              {isMuted ? (
+                <SpeakerXMarkIcon className="h-5 w-5" />
+              ) : (
+                <SpeakerWaveIcon className="h-5 w-5" />
+              )}
+            </RevButtons>
 
-           {/* Custom Volume Slider */}
-           <div
-             ref={volumeRef}
-             className={`relative ${isMobile ? "w-16 h-3" : "w-20 h-2"} bg-white/20 rounded-full cursor-pointer hover:bg-white/30 transition-colors volume-slider`}
-             onClick={handleVolumeClick}
-             onMouseDown={handleVolumeMouseDown}
-             onTouchStart={handleVolumeTouchStart}
-           >
-             {/* Volume fill */}
-             <div
-               className="h-full bg-blue-500 rounded-full transition-all duration-150 "
-               style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
-             />
+            {/* Custom Volume Slider */}
+            <div
+              ref={volumeRef}
+              className={`relative ${isMobile ? "w-16 h-3" : "w-20 h-2"} bg-white/20 rounded-full cursor-pointer hover:bg-white/30 transition-colors volume-slider`}
+              onClick={handleVolumeClick}
+              onMouseDown={handleVolumeMouseDown}
+              onTouchStart={handleVolumeTouchStart}
+            >
+              {/* Volume fill */}
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-150 "
+                style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
+              />
 
-             {/* Volume handle */}
-             <div
-               className={`absolute top-1/2 ${isMobile ? "w-3 h-5" : "w-2 h-4"} bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110  `}
-               style={{
-                 left: `${(isMuted ? 0 : volume) * 100}%`,
-                 transform: "translateX(-50%) translateY(-50%)",
-                 zIndex: 20,
-               }}
-             />
-           </div>
+              {/* Volume handle */}
+              <div
+                className={`absolute top-1/2 ${isMobile ? "w-3 h-5" : "w-2 h-4"} bg-white shadow-lg border border-blue-500 transition-transform hover:scale-110  `}
+                style={{
+                  left: `${(isMuted ? 0 : volume) * 100}%`,
+                  transform: "translateX(-50%) translateY(-50%)",
+                  zIndex: 20,
+                }}
+              />
+            </div>
 
-           {/* Settings & Fullscreen */}
-           <div className="flex items-center gap-2 ml-2">
-             {/* Settings Dropdown */}
-             <DropdownMenu>
-               <DropdownMenuTrigger asChild>
-                 <RevButtons variant="ghost" size={"icon"}>
-                   <InformationCircleIcon className="h-5 w-5" />
-                 </RevButtons>
-               </DropdownMenuTrigger>
-               <DropdownMenuContent align="end" className="w-48">
-                 {(() => {
-                   const mediaInfo = getMediaInfo();
-                   return mediaInfo ? (
-                     <>
-                       <DropdownMenuItem
-                         disabled
-                         className="flex justify-between"
-                       >
-                         <span className="text-muted-foreground">
-                           Type:
-                         </span>
-                         <span>{mediaInfo.type}</span>
-                       </DropdownMenuItem>
-                       {fileCategory === "video" && (
-                         <DropdownMenuItem
-                           disabled
-                           className="flex justify-between"
-                         >
-                           <span className="text-muted-foreground">
-                             Quality:
-                           </span>
-                           <span>{mediaInfo.resolution}</span>
-                         </DropdownMenuItem>
-                       )}
-                       <DropdownMenuItem
-                         disabled
-                         className="flex justify-between"
-                       >
-                         <span className="text-muted-foreground">
-                           File Size:
-                         </span>
-                         <span>{mediaInfo.fileSize}</span>
-                       </DropdownMenuItem>
-                     </>
-                   ) : (
-                     <DropdownMenuItem disabled>
-                       No media information available
-                     </DropdownMenuItem>
-                   );
-                 })()}
-               </DropdownMenuContent>
-             </DropdownMenu>
+            {/* Settings & Fullscreen */}
+            <div className="flex items-center gap-2 ml-2">
+              {/* Settings Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <RevButtons variant="ghost" size={"icon"}>
+                    <InformationCircleIcon className="h-5 w-5" />
+                  </RevButtons>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {(() => {
+                    const mediaInfo = getMediaInfo();
+                    return mediaInfo ? (
+                      <>
+                        <DropdownMenuItem
+                          disabled
+                          className="flex justify-between"
+                        >
+                          <span className="text-muted-foreground">Type:</span>
+                          <span>{mediaInfo.type}</span>
+                        </DropdownMenuItem>
+                        {fileCategory === "video" && (
+                          <DropdownMenuItem
+                            disabled
+                            className="flex justify-between"
+                          >
+                            <span className="text-muted-foreground">
+                              Quality:
+                            </span>
+                            <span>{mediaInfo.resolution}</span>
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          disabled
+                          className="flex justify-between"
+                        >
+                          <span className="text-muted-foreground">
+                            File Size:
+                          </span>
+                          <span>{mediaInfo.fileSize}</span>
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        No media information available
+                      </DropdownMenuItem>
+                    );
+                  })()}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-             {/* ✅ FULLSCREEN - ONLY FOR VIDEO */}
-             {fileCategory === "video" && (
-               <RevButtons
-                 variant="ghost"
-                 onClick={toggleFullscreen}
-                 size={"icon"}
-               >
-                 {isFullscreen ? (
-                   <Minimize className="h-5 w-5" />
-                 ) : (
-                   <Maximize className="h-5 w-5" />
-                 )}
-               </RevButtons>
-             )}
-           </div>
-         </div>
-       </div>
-     </div>
-   </div>
- );
+              {/* ✅ FULLSCREEN - ONLY FOR VIDEO */}
+              {fileCategory === "video" && (
+                <RevButtons
+                  variant="ghost"
+                  onClick={toggleFullscreen}
+                  size={"icon"}
+                >
+                  {isFullscreen ? (
+                    <Minimize className="h-5 w-5" />
+                  ) : (
+                    <Maximize className="h-5 w-5" />
+                  )}
+                </RevButtons>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
