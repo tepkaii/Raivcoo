@@ -480,7 +480,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
       media={currentMedia} // ✅ ADD THIS LINE
       currentTime={currentTime}
       onSeekToTimestamp={handleSeekToTimestamp}
-      className="h-full "
+      className="h-full"
       onCommentPinClick={handleCommentPinClick}
       onCommentDrawingClick={handleCommentDrawingClick}
       onCommentDeleted={handleCommentDeleted}
@@ -504,7 +504,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
 
   // SINGLE LAYOUT that adapts with CSS and conditional rendering
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-dvh flex flex-col bg-background">
       {/* Header - adapts for mobile/desktop */}
       {/* ✅ STREAMLINED HEADER WITH DROPDOWN */}
       <header className="bg-background border-b px-3 md:px-4 h-[50px] flex justify-between items-center md:sticky md:top-0 z-50">
