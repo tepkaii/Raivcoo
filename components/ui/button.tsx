@@ -28,12 +28,16 @@ const buttonVariants = cva(
         green: "bg-[#46A758] text-white shadow-xs hover:bg-[#46A758]/80",
         purple: "bg-[#8E4EC6] text-white shadow-xs hover:bg-[#8E4EC6]/80",
         Pink: "bg-[#E93D82] text-white shadow-xs hover:bg-[#E93D82]/80",
+        not: "text-white  border-none",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
         sm: "h-8 rounded-full gap-1.5 px-3 has-[>svg]:px-2.5",
         lg: "h-10 rounded-full px-6 has-[>svg]:px-4",
         icon: "size-9",
+        "icon-sm": "size-9 md:h-8 md:w-auto md:px-3 md:gap-1.5",
+        "icon-default": "size-9 md:h-9 md:w-auto md:px-4 md:py-2",
+        "icon-lg": "size-9 md:h-10 md:w-auto md:px-6",
       },
     },
     defaultVariants: {

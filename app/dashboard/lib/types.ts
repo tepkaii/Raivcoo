@@ -1,3 +1,29 @@
+export interface ProjectFolder {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  parent_folder_id?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  color: string;
+  is_root: boolean;
+  display_order: number;
+  subfolders?: ProjectFolder[];
+  media_count?: number;
+}
+
+export interface OrganizedMediaWithFolders extends OrganizedMedia {
+  folder_id?: string;
+}
+
+export interface FolderUploadData {
+  path: string;
+  file: File;
+  relativePath: string;
+}
+
 export interface MediaFile {
   id: string;
   filename: string;

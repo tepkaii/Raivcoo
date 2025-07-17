@@ -762,7 +762,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
           {/* Reply Context */}
           {replyingTo && (
-            <div className="flex gap-1 items-center bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
+            <div className="flex gap-1 items-center bg-blue-500/10 border border-blue-500/30 rounded-full p-2">
               <div className="text-xs text-blue-400">
                 Replying to{" "}
                 <span className="font-medium">{replyingTo.user_name}</span>
@@ -778,7 +778,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
           )}
 
           {/* ✅ FULL WIDTH TEXTAREA WITH POST BUTTON */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ">
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
@@ -787,20 +787,20 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   ? `Reply to ${replyingTo.user_name}...`
                   : "Add a comment..."
               }
-              className="flex-1 min-h-[36px] max-h-[120px] resize-none bg-background border-0 focus:ring-0"
+              className="flex-1 min-h-[36px]  rounded-full max-h-[120px] resize-none bg-background border-none focus:ring-0"
               disabled={isSubmitting}
               rows={1}
             />
 
             {/* ✅ POST BUTTON */}
             <Button
-              size="icon"
+              size="sm"
               onClick={
                 annotationMode !== "none" && pendingAnnotation
                   ? saveAnnotation
                   : addComment
               }
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 "
               disabled={
                 !newComment.trim() ||
                 isSubmitting ||
@@ -876,7 +876,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                       {/* ✅ TIMESTAMP FOR VIDEO/AUDIO */}
                       {(fileCategory === "video" ||
                         fileCategory === "audio") && (
-                        <span className="text-xs text-blue-400 font-mono">
+                        <span className="text-xs text-blue-400 ">
                           At {formatTime(currentTime)}
                         </span>
                       )}

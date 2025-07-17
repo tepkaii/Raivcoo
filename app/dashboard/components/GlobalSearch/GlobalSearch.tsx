@@ -21,59 +21,27 @@ import { Label } from "@/components/ui/label";
 import debounce from "lodash.debounce";
 import { motion } from "framer-motion";
 import {
-  DocumentTextIcon,
-  FolderIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
-  PhotoIcon,
   PlayIcon,
-  VideoCameraIcon,
+  EyeIcon,
 } from "@heroicons/react/24/solid";
 
-// Updated search filters for actual data structure
-interface EnhancedSearchFilters {
-  status:
-    | "all"
-    | "active"
-    | "pending"
-    | "completed"
-    | "on_hold"
-    | "cancelled"
-    | "in_progress"
-    | "needs_review"
-    | "rejected"
-    | "approved";
-  sortBy: "updated_at" | "created_at" | "name" | "file_size";
-  sortOrder: "asc" | "desc";
-  type: "all" | "projects" | "media";
-  mediaType?: "all" | "video" | "image";
-}
-
-// Enhanced search result
-interface EnhancedSearchResult {
-  id: string;
-  type: "project" | "media";
-  title: string;
-  subtitle: string;
-  url: string;
-  status?: string;
-  mediaType?: "video" | "image";
-  fileSize?: number;
-  projectName?: string;
-  projectId?: string;
-  mediaUrl?: string;
-  thumbnailUrl?: string;
-  uploadedAt?: string;
-}
-
-interface GlobalSearchProps {
-  onMediaSelect?: (media: EnhancedSearchResult) => void;
-  currentProjectId?: string;
-  compact?: boolean;
-}
+// Import our types and utilities
+import {
+  EnhancedSearchFilters,
+  EnhancedSearchResult,
+  GlobalSearchProps,
+  MediaTypeIcon,
+  MediaPreview,
+  getStatusVariant,
+  formatFileSize,
+  performDirectSearch,
+} from "./types";
 
 export function GlobalSearch({
   onMediaSelect,
+  onFolderSelect,
   currentProjectId,
   compact = false,
 }: GlobalSearchProps) {
@@ -104,7 +72,7 @@ export function GlobalSearch({
     filters.type !== "all" ||
     filters.mediaType !== "all";
 
-  // Animation variants for cards only
+  // Animation variants for cards
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -133,31 +101,17 @@ export function GlobalSearch({
     },
   };
 
-  // Enhanced search function
+  // Enhanced search function using direct Supabase calls
   const performSearch = useCallback(
     async (term: string, searchFilters: EnhancedSearchFilters) => {
       setIsSearching(true);
       try {
-        const response = await fetch("/api/search", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: term,
-            filters: searchFilters,
-            currentProjectId,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Search failed:", response.status, errorText);
-          throw new Error(`Search failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setResults(data.results || []);
+        const searchResults = await performDirectSearch(
+          term,
+          searchFilters,
+          currentProjectId
+        );
+        setResults(searchResults);
       } catch (error) {
         console.error("Search error:", error);
         setResults([]);
@@ -278,40 +232,13 @@ export function GlobalSearch({
     }
   }, []);
 
-  const getStatusVariant = (status?: string) => {
-    switch (status?.toLowerCase()) {
-      case "completed":
-      case "approved":
-        return "green";
-      case "active":
-      case "in_progress":
-        return "default";
-      case "needs_review":
-        return "warning";
-      case "cancelled":
-      case "rejected":
-        return "destructive";
-      default:
-        return "outline";
-    }
-  };
-
-  const getTypeIcon = (result: EnhancedSearchResult) => {
-    if (result.type === "project") {
-      return <FolderIcon className="h-4 w-4 text-muted-foreground" />;
-    } else if (result.type === "media") {
-      if (result.mediaType === "video") {
-        return <VideoCameraIcon className="h-4 w-4 text-muted-foreground" />;
-      } else {
-        return <PhotoIcon className="h-4 w-4 text-muted-foreground" />;
-      }
-    }
-    return <DocumentTextIcon className="h-4 w-4 text-muted-foreground" />;
-  };
-
   const handleResultClick = (result: EnhancedSearchResult) => {
     if (result.type === "media" && onMediaSelect) {
       onMediaSelect(result);
+    } else if (result.type === "folder" && onFolderSelect) {
+      onFolderSelect(result);
+    } else {
+      window.location.href = result.url;
     }
     setIsOpen(false);
   };
@@ -326,14 +253,6 @@ export function GlobalSearch({
     });
   };
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return "";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
   const isMac =
     typeof window !== "undefined" &&
     navigator.platform.toUpperCase().indexOf("MAC") >= 0;
@@ -342,7 +261,10 @@ export function GlobalSearch({
     <div className="relative">
       {/* Search Button */}
       {compact ? (
-        <div onClick={() => setIsOpen(true)} title="Search projects and media">
+        <div
+          onClick={() => setIsOpen(true)}
+          title="Search projects, folders, and media"
+        >
           <MagnifyingGlassIcon className="size-6" strokeWidth={1.5} />
         </div>
       ) : (
@@ -354,7 +276,7 @@ export function GlobalSearch({
         >
           <MagnifyingGlassIcon className="md:mr-2 h-4 w-4" />
           <span className="hidden md:inline-flex">
-            Search projects and media...
+            Search projects, folders, and media...
           </span>
           <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-card px-1.5 font-mono text-[10px] font-medium opacity-100 md:flex">
             <span className="text-xs">{isMac ? "⌘" : "Ctrl+"}</span>K
@@ -375,11 +297,11 @@ export function GlobalSearch({
           {/* Search Panel */}
           <div className="fixed left-1/2 top-[20%] z-50 w-full max-w-2xl -translate-x-1/2 p-4">
             <Card ref={searchRef} className="w-full bg-background/90">
-              <div className="flex items-center border-b px-3">
+              <div className="flex items-center border-b px-3 py-2">
                 <MagnifyingGlassIcon className="ml-2 mr-2 h-4 w-4 shrink-0" />
                 <Input
                   ref={inputRef}
-                  placeholder="Search projects and media..."
+                  placeholder="Search projects, folders, and media..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="border-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -391,7 +313,7 @@ export function GlobalSearch({
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     className={cn("ml-2", hasActiveFilters && "text-primary")}
                     onClick={() => setShowFilters(!showFilters)}
                   >
@@ -402,7 +324,7 @@ export function GlobalSearch({
                   </Button>
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => setIsOpen(false)}
                   >
                     <X className="h-4 w-4" />
@@ -428,6 +350,7 @@ export function GlobalSearch({
                         <SelectContent className="z-[100]">
                           <SelectItem value="all">All Types</SelectItem>
                           <SelectItem value="projects">Projects</SelectItem>
+                          <SelectItem value="folders">Folders</SelectItem>
                           <SelectItem value="media">Media</SelectItem>
                         </SelectContent>
                       </Select>
@@ -454,6 +377,9 @@ export function GlobalSearch({
                             <SelectItem value="all">All Media</SelectItem>
                             <SelectItem value="video">Videos</SelectItem>
                             <SelectItem value="image">Images</SelectItem>
+                            <SelectItem value="svg">SVG</SelectItem>
+                            <SelectItem value="audio">Audio</SelectItem>
+                            <SelectItem value="document">Documents</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -527,6 +453,7 @@ export function GlobalSearch({
                   </div>
                 </div>
               )}
+
               {/* Search Results */}
               <div className="max-h-[400px] overflow-y-auto p-2">
                 {isSearching ? (
@@ -555,14 +482,17 @@ export function GlobalSearch({
                         )}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          {getTypeIcon(result)}
+                          {/* Enhanced Media/Folder Preview */}
+                          <MediaPreview result={result} />
+
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
+                              <MediaTypeIcon result={result} />
                               <p className="text-sm font-medium truncate">
                                 {result.title}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="flex items-center mt-1 gap-2 text-xs text-muted-foreground">
                               <span className="truncate">
                                 {result.subtitle}
                               </span>
@@ -579,14 +509,6 @@ export function GlobalSearch({
                         </div>
 
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          {result.status && (
-                            <Badge
-                              variant={getStatusVariant(result.status)}
-                              className="text-xs rounded-full"
-                            >
-                              {result.status.replace("_", " ")}
-                            </Badge>
-                          )}
                           {result.type === "media" && (
                             <Button
                               variant="ghost"
@@ -599,8 +521,16 @@ export function GlobalSearch({
                               }}
                               title="View full media"
                             >
-                              <PlayIcon className="h-3 w-3" />
+                              <EyeIcon className="h-3 w-3" />
                             </Button>
+                          )}
+                          {result.status && (
+                            <Badge
+                              variant={getStatusVariant(result.status)}
+                              className="text-xs rounded-full"
+                            >
+                              {result.status.replace("_", " ")}
+                            </Badge>
                           )}
                         </div>
                       </motion.div>

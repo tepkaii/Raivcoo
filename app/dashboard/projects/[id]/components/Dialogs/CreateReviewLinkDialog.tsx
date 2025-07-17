@@ -36,7 +36,8 @@ import { MediaFile } from "@/app/dashboard/lib/types";
 import { LockClosedIcon } from "@heroicons/react/24/solid";
 import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
 import { createClient } from "@/utils/supabase/client";
-
+import Lottie from "lottie-react";
+import animationData from "../../../../../../public/assets/lottie/check-icon.json";
 interface CreateLinkDialogState {
   open: boolean;
   mediaFile?: MediaFile;
@@ -353,10 +354,13 @@ export function CreateReviewLinkDialog({
         {createLinkDialog.showSuccess ? (
           <div className="space-y-4">
             <div className="flex items-center justify-center py-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-green-700 p-2 rounded-[10px] border-2 border-black/20">
-                  <Check className="h-5 w-5 text-green-200" />
-                </div>
+              <div className="flex items-center gap-5">
+                <Lottie
+                  animationData={animationData}
+                  autoplay
+                  loop={false}
+                  style={{ height: 50 }}
+                />
                 <div>
                   <p className="font-medium">Link created successfully!</p>
                   <p className="text-sm text-muted-foreground">
@@ -370,6 +374,7 @@ export function CreateReviewLinkDialog({
               <Label className="text-muted-foreground">Review Link</Label>
               <div className="flex items-center gap-2">
                 <Input
+                  className="rounded-full"
                   value={
                     createLinkDialog.createdUrl
                       ? `${process.env.NEXT_PUBLIC_BASE_URL}/review/${createLinkDialog.createdUrl

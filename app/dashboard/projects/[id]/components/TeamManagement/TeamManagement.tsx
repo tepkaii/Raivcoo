@@ -24,6 +24,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { createClient } from "@/utils/supabase/client";
 import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
+import { Label } from "@/components/ui/label";
 
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
 
@@ -324,7 +325,7 @@ function RoleSelector({
   return (
     <div className="space-y-2">
       <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -350,8 +351,8 @@ function RoleSelector({
       </Select>
 
       {showDescription && (
-        <div className="text-muted-foreground py-2">
-          {roleDescriptions[value]}
+        <div className="text-muted-foreground  py-2 text-center">
+          " {roleDescriptions[value]} "
         </div>
       )}
     </div>
@@ -814,8 +815,6 @@ export function TeamManagement({
       {/* Invite Form */}
       {showInviteForm && isOwner && permissions?.canInvite && (
         <div className="p-4 border rounded-lg bg-muted/35 space-y-4">
-          <h4 className="font-medium">Invite Team Member</h4>
-
           <div>
             <label className="text-sm font-medium block mb-2">
               Search for team member
@@ -877,8 +876,10 @@ export function TeamManagement({
             )}
           </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-2">Role</label>
+          <div className="w-full">
+            <label className="text-sm font-medium block mb-2">
+              Member Role
+            </label>
             <RoleSelector
               value={inviteRole}
               onValueChange={setInviteRole}
@@ -910,7 +911,7 @@ export function TeamManagement({
         {localMembers.map((member) => (
           <div
             key={member.id}
-            className="flex items-center justify-between p-3 border bg-primary-foreground rounded-[5px]"
+            className="flex items-center justify-between p-3 border bg-muted/35 rounded-[5px]"
           >
             <div className="flex items-center gap-3">
               <div>
@@ -931,7 +932,7 @@ export function TeamManagement({
                   {member.user_profile?.name || "Unknown"}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {member.user_profile?.email}
+                  {"team@example.com"}
                 </div>
                 {member.status === "pending" && (
                   <div className="text-xs text-amber-600">

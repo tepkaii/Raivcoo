@@ -1,5 +1,5 @@
 // aa/app/dashboard/projects/[id]/components/reviews_Dialogs/VersionManagerDialog.tsx
-// @ts-nocheck
+
 "use client";
 
 import React from "react";
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { VersionDragList } from "./VersionDragList";
 import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
-
 
 interface VersionManagerDialogState {
   open: boolean;

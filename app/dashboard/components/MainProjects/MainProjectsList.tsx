@@ -174,18 +174,7 @@ export function MainProjectsList({
       {/* Filters and Controls */}
       <Card className="bg-transparent border-transparent">
         <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search projects..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
+          <div className="flex justify-end flex-col lg:flex-row gap-4">
             {/* Filters */}
             <div className="flex flex-wrap gap-2">
               <Select
@@ -673,7 +662,7 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
 
         {/* Content */}
-        <div className="p-4 bg-primary-foreground">
+        <div className="p-4 ">
           <div className="space-y-3">
             {/* Header */}
             <div className="flex items-start justify-between">
@@ -681,11 +670,6 @@ function ProjectCard({ project }: { project: Project }) {
                 <h3 className="font-medium text-white text-sm truncate group-hover:text-primary transition-colors">
                   {project.name}
                 </h3>
-                {!project.isOwner && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Team project
-                  </p>
-                )}
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 ml-2" />
             </div>

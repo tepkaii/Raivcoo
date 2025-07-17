@@ -12,18 +12,17 @@ export default async function InviteAcceptPage({ params }: InvitePageProps) {
   const { token } = await params;
   const supabase = await createClient();
 
-  // Check authentication FIRST - before any database queries
+  // Check authentication FIRST
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If no user is logged in, redirect to login with return URL
   if (!user) {
     const returnUrl = encodeURIComponent(`/invite/accept/${token}`);
     redirect(`/login?returnTo=${returnUrl}`);
   }
 
-  // NOW query the database (user is authenticated so RLS policies will work)
+  // Get invitation
   const { data: invitation, error } = await supabase
     .from("project_invitations")
     .select(
@@ -45,12 +44,10 @@ export default async function InviteAcceptPage({ params }: InvitePageProps) {
     return notFound();
   }
 
-  // Check if invitation has expired
+  // Check if invitation has expired or been used
   const now = new Date();
   const expiresAt = new Date(invitation.expires_at);
   const isExpired = now > expiresAt;
-
-  // Check if invitation has already been used
   const isUsed = !!invitation.used_at;
 
   if (isExpired || isUsed) {
@@ -81,19 +78,18 @@ export default async function InviteAcceptPage({ params }: InvitePageProps) {
     );
   }
 
-  // Get the logged-in user's editor profile
+  // Get current user's profile
   const { data: userProfile } = await supabase
     .from("editor_profiles")
-    .select("email")
+    .select("email, avatar_url, full_name, display_name") // Add avatar_url, full_name, display_name
     .eq("user_id", user.id)
     .single();
 
-  // Check if the logged-in user's email matches the invitation email
+  // Email validation
   const userEmail = userProfile?.email || user.email;
   const invitationEmail = invitation.email.toLowerCase().trim();
   const currentUserEmail = userEmail?.toLowerCase().trim();
 
-  // If emails don't match, redirect to login (they need to sign in with the correct account)
   if (currentUserEmail !== invitationEmail) {
     const returnUrl = encodeURIComponent(`/invite/accept/${token}`);
     redirect(
@@ -102,24 +98,25 @@ export default async function InviteAcceptPage({ params }: InvitePageProps) {
   }
 
   // Get inviter info
-const { data: inviterProfile } = await supabase
-  .from("editor_profiles")
-  .select("full_name, display_name, email, avatar_url") // Add avatar_url here
-  .eq("id", invitation.invited_by)
-  .single();
+  const { data: inviterProfile } = await supabase
+    .from("editor_profiles")
+    .select("full_name, display_name, email, avatar_url")
+    .eq("id", invitation.invited_by)
+    .single();
 
-const inviterName =
-  inviterProfile?.display_name ||
-  inviterProfile?.full_name ||
-  inviterProfile?.email ||
-  "Someone";
+  const inviterName =
+    inviterProfile?.display_name ||
+    inviterProfile?.full_name ||
+    inviterProfile?.email ||
+    "Someone";
 
-return (
-  <InvitationAcceptance
-    invitation={invitation}
-    inviterName={inviterName}
-    inviterAvatarUrl={inviterProfile?.avatar_url} // Add this prop
-    currentUser={user}
-  />
-);
+  return (
+    <InvitationAcceptance
+      invitation={invitation}
+      inviterName={inviterName}
+      inviterAvatarUrl={inviterProfile?.avatar_url}
+      currentUser={user}
+      currentUserAvatarUrl={userProfile?.avatar_url} // Add this prop
+    />
+  );
 }

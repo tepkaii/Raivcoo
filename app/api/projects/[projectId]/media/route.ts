@@ -1,3 +1,4 @@
+// app/api/projects/[projectId]/media/route.ts
 // @ts-nocheck
 import { createClient } from "@/utils/supabase/server";
 import { uploadFileToR2, getPublicUrl } from "@/lib/r2";
@@ -130,9 +131,28 @@ export async function POST(
     const thumbnails = formData.getAll("thumbnails") as File[];
     const thumbnailFor = formData.getAll("thumbnailFor") as string[];
     const parentMediaId = formData.get("parentMediaId") as string | null;
+    const folderId = formData.get("folderId") as string | null;
 
     if (!files.length) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
+    }
+
+    // Validate folderId if provided
+    if (folderId) {
+      const { data: folderExists, error: folderError } = await supabase
+        .from("project_folders")
+        .select("id")
+        .eq("id", folderId)
+        .eq("project_id", projectId)
+        .single();
+
+      if (folderError || !folderExists) {
+        console.error("Folder validation error:", folderError);
+        return NextResponse.json(
+          { error: "Invalid folder ID" },
+          { status: 400 }
+        );
+      }
     }
 
     // Create thumbnail mapping
@@ -236,7 +256,6 @@ export async function POST(
           "image/gif",
           "image/webp",
           "image/svg+xml",
-
           // Audio types
           "audio/mpeg", // MP3
           "audio/wav",
@@ -308,10 +327,6 @@ export async function POST(
               thumbnail_generated_at: new Date().toISOString(),
             };
           } catch (thumbnailError) {
-            console.error(
-              `Thumbnail upload error for ${file.name}:`,
-              thumbnailError
-            );
             // Continue without thumbnail
           }
         }
@@ -326,6 +341,7 @@ export async function POST(
           file_size: file.size,
           r2_key: r2Key,
           r2_url: publicUrl,
+          folder_id: folderId, // Add folder ID here
           version_number: 1,
           is_current_version: true,
           ...thumbnailData, // Add thumbnail data if available
@@ -336,7 +352,7 @@ export async function POST(
           // Verify the parent media exists and belongs to this project
           const { data: parentMedia, error: parentError } = await supabase
             .from("project_media")
-            .select("id, version_number")
+            .select("id, version_number, folder_id")
             .eq("id", parentMediaId)
             .eq("project_id", projectId)
             .single();
@@ -367,6 +383,11 @@ export async function POST(
           mediaData.parent_media_id = parentMediaId;
           mediaData.version_number = nextVersionNumber;
           mediaData.is_current_version = true; // New version becomes current
+
+          // If no folder specified, inherit from parent
+          if (!folderId) {
+            mediaData.folder_id = parentMedia.folder_id;
+          }
         }
 
         // Save to database
@@ -376,7 +397,10 @@ export async function POST(
           .select()
           .single();
 
-        if (mediaError) throw mediaError;
+        if (mediaError) {
+          console.error("Database error:", mediaError);
+          throw mediaError;
+        }
 
         uploadedFiles.push(mediaFile);
       } catch (error) {

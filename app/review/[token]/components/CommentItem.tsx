@@ -596,7 +596,7 @@ const SingleComment: React.FC<{
 
           {/* Comment Content with Linkified URLs */}
           <div
-            className={`text-sm leading-relaxed mb-2 break-words ${
+            className={`text-sm leading-relaxed mb-2 break-all ${
               isResolved ? "line-through text-gray-400" : ""
             }`}
           >

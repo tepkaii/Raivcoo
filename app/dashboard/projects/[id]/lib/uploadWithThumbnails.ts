@@ -5,7 +5,8 @@ export async function uploadFilesWithThumbnails(
   files: File[],
   projectId: string,
   parentMediaId?: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  folderId?: string | null
 ) {
   const formData = new FormData();
 
@@ -42,6 +43,11 @@ export async function uploadFilesWithThumbnails(
 
   if (parentMediaId) {
     formData.append("parentMediaId", parentMediaId);
+  }
+
+  // Add folder ID if provided
+  if (folderId) {
+    formData.append("folderId", folderId);
   }
 
   // Upload to server

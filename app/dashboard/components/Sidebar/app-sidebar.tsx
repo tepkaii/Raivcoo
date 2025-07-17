@@ -25,7 +25,7 @@ import {
   UserIcon,
 } from "@heroicons/react/24/solid";
 import { ActivityDropdown } from "./ActivityDropdown";
-import { GlobalSearch } from "./GlobalSearch";
+import { GlobalSearch } from "../GlobalSearch/GlobalSearch";
 
 interface Portfolio {
   id: string;

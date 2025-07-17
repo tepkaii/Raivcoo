@@ -22,6 +22,7 @@ import {
   ArrowTopRightOnSquareIcon,
   CalendarIcon,
   ClipboardDocumentIcon,
+  LinkIcon,
   LockClosedIcon,
   TrashIcon,
 } from "@heroicons/react/24/solid";
@@ -220,7 +221,7 @@ export function ManageReviewLinksDialog({
             </div>
           ) : manageLinksDialog.links.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Settings className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <LinkIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>No review links to manage</p>
             </div>
           ) : (
@@ -278,7 +279,7 @@ export function ManageReviewLinksDialog({
                                 }
                               }}
                               placeholder="Link title"
-                              className="flex-1"
+                              className="flex-1 "
                             />
                             <Button
                               variant="destructive"
@@ -361,7 +362,7 @@ export function ManageReviewLinksDialog({
                       {/* URL and Action Buttons */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <code className="text-xs bg-primary-foreground border p-2 rounded flex-1 truncate text-gray-300">
+                          <code className="text-xs bg-primary-foreground border p-2 rounded-full flex-1 truncate text-gray-300">
                             {getReviewUrl(link.link_token)}
                           </code>
                           <Button

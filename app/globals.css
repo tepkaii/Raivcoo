@@ -9,18 +9,7 @@
   border-radius: 10px;
 }
 
-.loader div {
-  width: 8%;
-  height: 24%;
-  background: rgb(128, 128, 128);
-  position: absolute;
-  left: 50%;
-  top: 30%;
-  opacity: 0;
-  border-radius: 50px;
-  box-shadow: 0 0 3px rgba(0,0,0,0.2);
-  animation: fade458 1s linear infinite;
-}
+
 [data-dragging="true"] {
   opacity: 0.4 !important;
   position: relative !important; 
@@ -40,69 +29,6 @@
   to {
     opacity: 0.25;
   }
-}
-
-.loader .bar1 {
-  transform: rotate(0deg) translate(0, -130%);
-  animation-delay: 0s;
-}
-
-.loader .bar2 {
-  transform: rotate(30deg) translate(0, -130%);
-  animation-delay: -1.1s;
-}
-
-.loader .bar3 {
-  transform: rotate(60deg) translate(0, -130%);
-  animation-delay: -1s;
-}
-
-.loader .bar4 {
-  transform: rotate(90deg) translate(0, -130%);
-  animation-delay: -0.9s;
-}
-
-.loader .bar5 {
-  transform: rotate(120deg) translate(0, -130%);
-  animation-delay: -0.8s;
-}
-
-.loader .bar6 {
-  transform: rotate(150deg) translate(0, -130%);
-  animation-delay: -0.7s;
-}
-
-.loader .bar7 {
-  transform: rotate(180deg) translate(0, -130%);
-  animation-delay: -0.6s;
-}
-
-.loader .bar8 {
-  transform: rotate(210deg) translate(0, -130%);
-  animation-delay: -0.5s;
-}
-
-.loader .bar9 {
-  transform: rotate(240deg) translate(0, -130%);
-  animation-delay: -0.4s;
-}
-
-.loader .bar10 {
-  transform: rotate(270deg) translate(0, -130%);
-  animation-delay: -0.3s;
-}
-
-.loader .bar11 {
-  transform: rotate(300deg) translate(0, -130%);
-  animation-delay: -0.2s;
-}
-
-.loader .bar12 {
-  transform: rotate(330deg) translate(0, -130%);
-  animation-delay: -0.1s;
-}
-.calendar-wrapper {
-  --cell-size: 2rem;
 }
 
 @layer utilities {
@@ -305,4 +231,121 @@
 
 .animate-progress {
   animation: progress 1.5s ease-in-out;
+}
+
+
+
+/* MediaGrid.css */
+
+/* Container setup */
+.media-grid-container {
+  container-type: inline-size;
+  container-name: media-grid;
+}
+
+/* Default grid layout */
+.media-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, 1fr);
+}
+
+.media-grid.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Single media item breakpoints */
+.media-grid.single-item {
+  grid-template-columns: repeat(1, 1fr);
+}
+
+@container media-grid (min-width: 448px) {
+  .media-grid.single-item {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@container media-grid (min-width: 512px) {
+  .media-grid.single-item {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@container media-grid (min-width: 576px) {
+  .media-grid.single-item {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Multiple media items breakpoints */
+.media-grid.multi-items {
+  grid-template-columns: repeat(1, 1fr);
+}
+
+@container media-grid (min-width: 384px) {
+  .media-grid.multi-items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@container media-grid (min-width: 448px) {
+  .media-grid.multi-items {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@container media-grid (min-width: 512px) {
+  .media-grid.multi-items {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@container media-grid (min-width: 672px) {
+  .media-grid.multi-items {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Folders grid */
+.folders-grid-container {
+  container-type: inline-size;
+  container-name: folders-grid;
+}
+
+.folders-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, 1fr);
+}
+
+.folders-grid.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@container folders-grid (min-width: 384px) {
+  .folders-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@container folders-grid (min-width: 512px) {
+  .folders-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@container folders-grid (min-width: 576px) {
+  .folders-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@container folders-grid (min-width: 672px) {
+  .folders-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
 }

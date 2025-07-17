@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { RevButtons } from "@/components/ui/RevButtons";
+
 import {
   Volume2,
   SkipBack,
@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Gauge } from "lucide-react"; // For speed icon
+
 import {
   BackwardIcon,
   ForwardIcon,
@@ -25,6 +25,7 @@ import {
   SpeakerXMarkIcon,
   PauseIcon,
 } from "@heroicons/react/24/solid";
+import { Button } from "@/components/ui/button";
 
 // ✅ ADD FILE CATEGORY HELPER
 const getFileCategory = (fileType: string, mimeType: string) => {
@@ -716,19 +717,19 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             <span className="text-white font-mono text-sm min-w-12">0:00</span>
           </div>
           <div className="flex items-center justify-center gap-4">
-            <RevButtons variant="ghost" disabled size={"icon"}>
+            <Button variant="ghost" disabled size={"icon"}>
               <SkipBack className="h-5 w-5" />
-            </RevButtons>
-            <RevButtons variant="ghost" size={"icon"}>
+            </Button>
+            <Button variant="ghost" size={"icon"}>
               <PlayIcon className="h-6 w-6" />
-            </RevButtons>
-            <RevButtons variant="ghost" disabled size={"icon"}>
+            </Button>
+            <Button variant="ghost" disabled size={"icon"}>
               <SkipForward className="h-5 w-5" />
-            </RevButtons>
+            </Button>
             <div className="flex items-center gap-2 ml-4">
-              <RevButtons variant="ghost" disabled size={"icon"}>
+              <Button variant="ghost" disabled size={"icon"}>
                 <Volume2 className="h-5 w-5" />
-              </RevButtons>
+              </Button>
               <input
                 type="range"
                 disabled
@@ -787,7 +788,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             {/* Time tooltip */}
             {hoverTime !== null && hoverPosition !== null && !isMobile && (
               <div
-                className="absolute -top-8 bg-black/80 text-white text-xs px-2 py-1 rounded pointer-events-none z-50"
+                className="border-2 border-black/20 absolute -top-8 bg-[#0070F3] text-white text-xs px-2 py-1 rounded-full pointer-events-none z-50"
                 style={{
                   left: `${hoverPosition}px`,
                   transform: "translateX(-50%)",
@@ -868,7 +869,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                       >
                         {/* Avatar container */}
                         <div
-                          className={`size-6 rounded-[5px] flex items-center justify-center text-xs text-white font-medium border border-white shadow-lg overflow-hidden ${
+                          className={`size-6 rounded-full flex items-center justify-center text-xs text-white font-medium border border-[#0070F3] shadow-lg overflow-hidden ${
                             hasValidAvatar
                               ? "p-0"
                               : "bg-gradient-to-br from-blue-600 to-cyan-400"
@@ -885,9 +886,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                             getInitials(comment.user_name)
                           )}
                         </div>
-
                         {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        <div className="border-2 border-black/20 absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-[#0070F3] text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                           <div className="font-medium">{comment.user_name}</div>
                           <div className="text-gray-300">
                             {formatTime(comment.timestamp_seconds!)}
@@ -908,36 +908,47 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
         {/* Control Buttons */}
         <div className="flex items-center justify-center gap-4">
           {/* Skip Back */}
-          <RevButtons
-            variant="ghost"
+          <Button
+            variant="not"
+            className="bg-none hover:bg-none hover:text-[#0070F3]"
             onClick={() => skipTime(-10)}
             size={"icon"}
           >
-            <BackwardIcon className="h-5 w-5" />
-          </RevButtons>
+            <BackwardIcon className="h-5 w-5 " />
+          </Button>
 
           {/* Play/Pause */}
-          <RevButtons variant="ghost" onClick={handlePlayClick} size={"icon"}>
+          <Button
+            variant="not"
+            className="bg-none hover:bg-none hover:text-[#0070F3]"
+            onClick={handlePlayClick}
+            size={"icon"}
+          >
             {isPlaying ? <PauseIcon /> : <PlayIcon className="h-5 w-5" />}
-          </RevButtons>
+          </Button>
 
           {/* Skip Forward */}
-          <RevButtons
-            variant="ghost"
+          <Button
+            variant="not"
+            className="bg-none hover:bg-none hover:text-[#0070F3]"
             onClick={() => skipTime(10)}
             size={"icon"}
           >
             <ForwardIcon className="h-5 w-5" />
-          </RevButtons>
+          </Button>
 
           {/* ✅ SPEED CONTROL - FOR BOTH VIDEO AND AUDIO */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <RevButtons variant="ghost" size="icon">
+              <Button
+                variant="not"
+                className="bg-none hover:bg-none hover:text-[#0070F3]"
+                size="icon"
+              >
                 <span className="text-xs font-mono text-white/70 hover:text-white transition-colors">
                   {playbackSpeed}×
                 </span>
-              </RevButtons>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-28 ">
               <div className="p-1">
@@ -961,13 +972,18 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           {/* Volume Controls */}
           <div className="flex items-center gap-2 ">
             {/* Mute Toggle Button */}
-            <RevButtons variant="ghost" onClick={toggleMute} size={"icon"}>
+            <Button
+              variant="not"
+              className="bg-none hover:bg-none hover:text-[#0070F3]"
+              onClick={toggleMute}
+              size={"icon"}
+            >
               {isMuted ? (
                 <SpeakerXMarkIcon className="h-5 w-5" />
               ) : (
                 <SpeakerWaveIcon className="h-5 w-5" />
               )}
-            </RevButtons>
+            </Button>
 
             {/* Custom Volume Slider */}
             <div
@@ -999,9 +1015,13 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               {/* Settings Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <RevButtons variant="ghost" size={"icon"}>
+                  <Button
+                    variant="not"
+                    className="bg-none hover:bg-none hover:text-[#0070F3]"
+                    size={"icon"}
+                  >
                     <InformationCircleIcon className="h-5 w-5" />
-                  </RevButtons>
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   {(() => {
@@ -1047,8 +1067,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
               {/* ✅ FULLSCREEN - ONLY FOR VIDEO */}
               {fileCategory === "video" && (
-                <RevButtons
-                  variant="ghost"
+                <Button
+                  variant="not"
+                  className="bg-none hover:bg-none hover:text-[#0070F3]"
                   onClick={toggleFullscreen}
                   size={"icon"}
                 >
@@ -1057,7 +1078,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                   ) : (
                     <Maximize className="h-5 w-5" />
                   )}
-                </RevButtons>
+                </Button>
               )}
             </div>
           </div>

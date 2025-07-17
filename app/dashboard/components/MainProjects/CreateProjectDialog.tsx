@@ -19,7 +19,8 @@ import { type ProjectReference } from "@/app/review/[token]/lib/reference-links"
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { LockClosedIcon } from "@heroicons/react/24/solid";
-
+import Lottie from "lottie-react";
+import animationData from "../../../../public/assets/lottie/check-icon.json";
 interface PlanLimits {
   maxProjects: number;
   planName: string;
@@ -181,25 +182,15 @@ export function CreateProjectDialog({
 
         {isSuccess ? (
           <div className="space-y-4 text-center py-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <svg
-                className="w-8 h-8 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
+            <Lottie
+              animationData={animationData}
+              autoplay
+              loop={false}
+              style={{ height: 50 }}
+            />
+
             <div>
-              <h3 className="text-lg font-semibold text-green-800">
-                Project Created!
-              </h3>
+              <h3 className="text-lg font-semibold ">Project Created!</h3>
               <p className="text-sm text-muted-foreground mt-1">
                 Your project "{createdProject?.name}" has been created
                 successfully.

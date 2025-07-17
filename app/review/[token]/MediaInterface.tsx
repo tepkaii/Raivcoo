@@ -529,7 +529,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
               <div className="border-l ml-2 flex items-center">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => handleDownload(currentMedia)}
                   disabled={!allowDownload}
                   className="ml-2"
