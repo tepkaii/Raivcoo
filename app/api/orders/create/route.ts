@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Creating order for session:", session);
     // Check if session is expired
     if (new Date() > new Date(session.expires_at)) {
       return NextResponse.json({ error: "Session expired" }, { status: 400 });

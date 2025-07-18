@@ -13,7 +13,12 @@ import type { User } from "@supabase/supabase-js";
 import { formatDate } from "../dashboard/lib/formats";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 import { motion, useInView } from "framer-motion";
-import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
+import {
+  GridBackground,
+  GridBackground2,
+  Spotlight,
+} from "@/components/ui/spotlight-new";
+import PricingFeaturesTable from "./utils/PricingFeaturesTable";
 
 interface Subscription {
   id: string;
@@ -286,8 +291,6 @@ function PricingCard({
     // CREATE SESSION HERE - this is where we prevent parameter manipulation
     setIsCreatingSession(true);
     try {
-     
-
       const response = await fetch("/api/checkout/create-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -301,13 +304,11 @@ function PricingCard({
       });
 
       const data = await response.json();
-    
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to create checkout session");
       }
 
-   
       // Navigate to checkout with session ID only ss
       router.push(`/checkout/ok/${data.sessionId}`);
     } catch (error) {
@@ -413,7 +414,7 @@ function PricingCard({
       transition={{ duration: 0.5, delay: tier.level * 0.1 }}
       className={`relative rounded-xl p-8 h-full flex-1 flex flex-col ${
         tier.popular
-          ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
+          ? "border-2 backdrop-blur-lg ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
           : "border bg-muted/35 backdrop-blur-lg"
       }`}
     >
@@ -567,10 +568,10 @@ export default function PricingClient({
 
   return (
     <div className="min-h-screen bg-background overflow-hidden text-foreground">
-      <GridBackground />
-      <Spotlight />
-      <div className="relative z-40">
-        <AnimatedSection className="container pt-32 mx-auto px-4 py-20">
+      <div className="relative z-20">
+        <GridBackground2 />
+        <Spotlight />
+        <AnimatedSection className="container pt-32 mx-auto px-4 py-20 relative z-40">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -668,6 +669,9 @@ export default function PricingClient({
             ))}
           </motion.div>
         </AnimatedSection>
+        <div className="container mx-auto px-4 py-10 pb-10 relative z-40">
+          <PricingFeaturesTable />
+        </div>
       </div>
     </div>
   );

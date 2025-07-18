@@ -1,7 +1,6 @@
-// aa/app/dashboard/loading.tsx
 "use client";
 import Lottie from "lottie-react";
-import animationData from "../../public/assets/lottie/logo-loading.json";
+import animationData from "../../../../public/assets/lottie/logo-loading.json";
 
 export default function Loading() {
   return (

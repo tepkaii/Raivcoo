@@ -4,50 +4,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
-import {
-  ArrowRight,
-  Check,
-  MessageCircle,
-  Users,
-  Play,
-  Upload,
-  Search,
-  Bell,
-  Crown,
-  Zap,
-  Shield,
-  Clock,
-  Palette,
-  MousePointer,
-  Download,
-  Eye,
-  Globe,
-  Layers,
-  BarChart3,
-  Settings,
-} from "lucide-react";
-
+import { ArrowRight } from "lucide-react";
 import { BorderTrail } from "@/components/ui/border-trail";
 import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
-
 import { Badge } from "@/components/ui/badge";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import {
-  ChatBubbleOvalLeftIcon,
-  PlayIcon,
-  UsersIcon,
-  PencilIcon,
-  MagnifyingGlassIcon,
-  BellIcon,
-  MapPinIcon,
-  FolderIcon,
-  ShieldCheckIcon,
-} from "@heroicons/react/24/solid";
 import { Switch } from "@/components/ui/switch";
 import { TextAnimate } from "@/components/ui/text-animate";
-import { Card, CardContent } from "@/components/ui/card";
+import Lottie from "lottie-react";
+import Shield from "../../../public/assets/lottie/shield.json";
+import Pin from "../../../public/assets/lottie/pin.json";
+import Upload from "../../../public/assets/lottie/upload.json";
+import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -71,60 +41,59 @@ const pricingTiers = [
     id: "free" as const,
     name: "Free",
     price: 0,
-    baseStorage: 0.5,
-    maxUploadSize: 200,
+    baseStorage: 0.5, // 500MB
+    maxUploadSize: 200, // 200MB
     level: 0,
     features: [
-      "Upload videos, images, audio, docs",
+      "Upload videos, images",
       "200MB max upload size",
       "2 Active projects",
       "2 Members per project",
       "Timestamped comments",
-      "Pin & draw annotations",
-      "Review links",
-      "Real-time notifications",
-    ],
-  },
-  {
-    id: "lite" as const,
-    name: "Lite",
-    basePrice: 2.99,
-    baseStorage: 50,
-    additionalStoragePrice: 1.0,
-    additionalStorageUnit: 25,
-    maxStorage: 150,
-    maxUploadSize: 2048,
-    level: 1,
-    features: [
-      "Everything in Free",
-      "2GB max upload size",
-      "Flexible storage up to 150GB",
-      "Unlimited projects & members",
-      "Password protected links",
-      "Custom expiration dates",
-      "Advanced search",
-      "Priority support",
+      "Accurate Pin/Draw Annotation",
+      "Email/App notifications",
     ],
   },
   {
     id: "pro" as const,
     name: "Pro",
     basePrice: 5.99,
-    baseStorage: 250,
-    additionalStoragePrice: 1.5,
-    additionalStorageUnit: 50,
-    maxStorage: 2048,
-    maxUploadSize: 5120,
+    baseStorage: 250, // 250GB base
+    additionalStoragePrice: 1.5, // $1.5 per 50GB
+    additionalStorageUnit: 50, // 50GB increments
+    maxStorage: 2048, // 2TB max
+    maxUploadSize: 5120, // 5GB
     level: 2,
     popular: true,
     features: [
-      "Everything in Lite",
+      "Everything in Free plan",
       "5GB max upload size",
-      "Flexible storage up to 2TB",
-      "Version control",
-      "Advanced analytics",
-      "Download controls",
-      "Premium support",
+      "flexible storage up to 2TB",
+      "Unlimited projects",
+      "Unlimited members",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Priority support",
+    ],
+  },
+  {
+    id: "lite" as const,
+    name: "Lite",
+    basePrice: 2.99,
+    baseStorage: 50, // 50GB base
+    additionalStoragePrice: 1.0, // $1.0 per 25GB
+    additionalStorageUnit: 25, // 25GB increments
+    maxStorage: 150, // 150GB max
+    maxUploadSize: 2048, // 2GB
+    level: 1,
+    features: [
+      "Everything in Free plan",
+      "2GB max upload size",
+      "flexible storage up to 150GB",
+      "Unlimited projects",
+      "Unlimited members",
+      "Password protection for links",
+      "Custom expiration dates",
     ],
   },
 ];
@@ -137,9 +106,7 @@ function PricingCard({
   isYearly: boolean;
 }) {
   const [storageSlider, setStorageSlider] = useState([0]);
-
   const isFreePlan = tier.id === "free";
-
   const totalStorage = isFreePlan
     ? tier.baseStorage
     : tier.baseStorage + storageSlider[0] * tier.additionalStorageUnit;
@@ -178,7 +145,7 @@ function PricingCard({
     >
       {tier.popular && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-          <Badge className="bg-[#0070F3] text-white">Most Popular</Badge>
+          <Badge className="bg-[#0070F3] text-white">Best Value</Badge>
         </div>
       )}
 
@@ -248,7 +215,7 @@ function PricingCard({
         <ul className="space-y-3 mb-8 text-left flex-grow">
           {tier.features.map((feature: string, index: number) => (
             <li key={index} className="flex items-start">
-              <Check className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
+              <CheckBadgeIcon className="h-5 w-5 text-[#0070F3] mr-2 mt-0.5 flex-shrink-0" />
               <span className="text-sm">{feature}</span>
             </li>
           ))}
@@ -276,13 +243,24 @@ export default function HomePage() {
   const pricingRef = useRef<HTMLDivElement>(null);
   const [isYearly, setIsYearly] = useState(false);
 
+  // Create separate refs for each Lottie animation
+  const uploadRef = useRef(null);
+  const pinRef = useRef(null);
+  const shieldRef = useRef(null);
+
+  // Create separate useInView hooks for each animation
+  const uploadInView = useInView(uploadRef, { once: true, margin: "-20% 0px" });
+  const pinInView = useInView(pinRef, { once: true, margin: "-20% 0px" });
+  const shieldInView = useInView(shieldRef, { once: true, margin: "-20% 0px" });
+
   return (
     <div className="min-h-screen bg-background overflow-hidden text-foreground">
-      <GridBackground />
-      <Spotlight />
-      <div className="relative z-40">
+      <div className="relative z-10 ">
+        {" "}
+        <GridBackground />
+        <Spotlight />
         {/* Hero Section */}
-        <section className="pt-32 pb-10 px-4 text-center container mx-auto">
+        <section className="pt-32 pb-10 px-4 text-center container mx-auto relative z-40">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -296,7 +274,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-5xl md:text-7xl mt-3 font-bold tracking-tight"
+            className="text-5xl md:text-7xl mt-3 font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
           >
             <TextAnimate
               animation="slideUp"
@@ -337,7 +315,6 @@ export default function HomePage() {
             </Link>
           </motion.div>
         </section>
-
         {/* Hero Demo */}
         <AnimatedSection className="">
           <div className="container mx-auto px-4">
@@ -355,12 +332,11 @@ export default function HomePage() {
             </div>
           </div>
         </AnimatedSection>
-
         {/* Why Solo Editors Choose Us */}
         <AnimatedSection className="py-16">
           <div ref={featuresRef} className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
                 Built for Simple Media Review
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -370,9 +346,24 @@ export default function HomePage() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              <div className="p-6 rounded-xl border bg-muted/35">
-                <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
-                  <Upload className="h-6 w-6 text-[#0070F3]" />
+              {/* Upload Animation */}
+              <div className="p-6 rounded-xl border bg-muted/10 backdrop-blur-sm">
+                <div className="size-20 flex items-center justify-center mb-4">
+                  <motion.div
+                    ref={uploadRef}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={uploadInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                  >
+                    {uploadInView && (
+                      <Lottie
+                        animationData={Upload}
+                        loop={false}
+                        autoplay
+                        style={{ height: 70 }}
+                      />
+                    )}
+                  </motion.div>
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Upload Anything</h3>
                 <p className="text-muted-foreground">
@@ -381,9 +372,24 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 rounded-xl border bg-muted/35">
-                <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
-                  <MapPinIcon className="h-6 w-6 text-[#0070F3]" />
+              {/* Pin Animation */}
+              <div className="p-6 rounded-xl border bg-muted/10 backdrop-blur-sm">
+                <div className="size-20 flex items-center justify-center mb-4">
+                  <motion.div
+                    ref={pinRef}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={pinInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                  >
+                    {pinInView && (
+                      <Lottie
+                        animationData={Pin}
+                        loop={false}
+                        autoplay
+                        style={{ height: 70 }}
+                      />
+                    )}
+                  </motion.div>
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Precise Feedback</h3>
                 <p className="text-muted-foreground">
@@ -392,9 +398,24 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 rounded-xl border bg-muted/35">
-                <div className="w-12 h-12 bg-[#0070F3]/20 rounded-lg flex items-center justify-center mb-4">
-                  <ShieldCheckIcon className="h-6 w-6 text-[#0070F3]" />
+              {/* Shield Animation */}
+              <div className="p-6 rounded-xl border bg-muted/10 backdrop-blur-sm">
+                <div className="size-20 flex items-center justify-center mb-4">
+                  <motion.div
+                    ref={shieldRef}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={shieldInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                  >
+                    {shieldInView && (
+                      <Lottie
+                        animationData={Shield}
+                        loop={false}
+                        autoplay
+                        style={{ height: 70 }}
+                      />
+                    )}
+                  </motion.div>
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Share Securely</h3>
                 <p className="text-muted-foreground">
@@ -405,23 +426,34 @@ export default function HomePage() {
             </div>
           </div>
         </AnimatedSection>
-
         {/* Workflow Examples */}
-        <AnimatedSection className="py-16">
+        <section className="py-16">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <motion.div
+              className="text-center mb-12"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
                 See How It Works
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Real features that help you work faster and get better feedback.
               </p>
-            </div>
+            </motion.div>
 
             <div className="space-y-24 max-w-6xl mx-auto">
               {/* Multi-Panel Workspace */}
-              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
-                <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8">
+              <motion.div
+                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1">
                     <h3 className="text-2xl font-semibold mb-4">
                       Simple Multi-Panel Interface
@@ -437,23 +469,29 @@ export default function HomePage() {
                       alt="Multi-panel workspace interface"
                       width={600}
                       height={400}
-                      className="rounded-xl shadow-lg"
+                      className="rounded-xl shadow-lg border"
                       loading="lazy"
                     />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </motion.div>
 
               {/* Smart Organization */}
-              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
-                <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8">
+              <motion.div
+                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1 order-2 md:order-1">
                     <Image
                       src="/folder-organization.png"
                       alt="Folder organization with nested structure"
                       width={600}
                       height={400}
-                      className="rounded-xl shadow-lg"
+                      className="rounded-xl shadow-lg border"
                       loading="lazy"
                     />
                   </div>
@@ -466,12 +504,18 @@ export default function HomePage() {
                       organized.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </motion.div>
 
               {/* Precise Annotations */}
-              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
-                <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8">
+              <motion.div
+                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1">
                     <h3 className="text-2xl font-semibold mb-4">
                       Pin & Draw Feedback
@@ -488,23 +532,29 @@ export default function HomePage() {
                       alt="Pin and draw annotations on video"
                       width={600}
                       height={400}
-                      className="rounded-xl shadow-lg"
+                      className="rounded-xl shadow-lg border"
                       loading="lazy"
                     />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </motion.div>
 
               {/* Global Search */}
-              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
-                <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8">
+              <motion.div
+                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1 order-2 md:order-1">
                     <Image
                       src="/search-demo.png"
                       alt="Global search interface with filters"
                       width={600}
                       height={400}
-                      className="rounded-xl shadow-lg"
+                      className="rounded-xl shadow-lg border"
                       loading="lazy"
                     />
                   </div>
@@ -518,12 +568,18 @@ export default function HomePage() {
                       your work.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </motion.div>
 
               {/* Simple Collaboration */}
-              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
-                <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8">
+              <motion.div
+                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1">
                     <h3 className="text-2xl font-semibold mb-4">
                       Simple Collaboration
@@ -540,15 +596,22 @@ export default function HomePage() {
                       alt="Simple team collaboration interface"
                       width={600}
                       height={400}
-                      className="rounded-xl shadow-lg"
+                      className="rounded-xl shadow-lg border"
                       loading="lazy"
                     />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </motion.div>
+
               {/* Adobe Integration */}
-              <Card className="flex flex-col md:flex-row items-center gap-12 bg-muted/35">
-                <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8">
+              <motion.div
+                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1 order-2 md:order-1">
                     <div className="relative">
                       <Image
@@ -556,7 +619,7 @@ export default function HomePage() {
                         alt="Adobe After Effects and Premiere Pro integration"
                         width={600}
                         height={400}
-                        className="rounded-xl shadow-lg"
+                        className="rounded-xl shadow-lg border"
                         loading="lazy"
                       />
                       <div className="absolute -top-2 -right-2 bg-orange-500 text-white px-3 py-1 rounded-full text-sm">
@@ -577,32 +640,44 @@ export default function HomePage() {
                       exact frame in both the app and your editor.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </motion.div>
             </div>
           </div>
-        </AnimatedSection>
-
+        </section>
         {/* Pricing Section */}
-        <AnimatedSection className="py-20">
+        <section className="py-20">
           <div ref={pricingRef} className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+            <motion.div
+              className="text-center mb-16"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
                 Flexible Pricing for Solo Editors
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Start free and scale up as you grow. Pay only for the storage
                 you actually use.
               </p>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-center gap-4 mb-12">
+            <motion.div
+              className="flex items-center justify-center gap-4 mb-12"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
               <span
                 className={`text-sm ${!isYearly ? "font-medium" : "text-muted-foreground"}`}
               >
                 Monthly
               </span>
               <Switch
+                name="isYearly switch"
                 checked={isYearly}
                 onCheckedChange={setIsYearly}
                 className="data-[state=checked]:bg-[#0070F3]"
@@ -615,27 +690,45 @@ export default function HomePage() {
               <Badge variant="secondary" className="text-xs">
                 Save 30%
               </Badge>
-            </div>
+            </motion.div>
 
-            <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {pricingTiers.map((tier) => (
-                <div key={tier.id} className="flex">
+            <motion.div
+              className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              {pricingTiers.map((tier, index) => (
+                <motion.div
+                  key={tier.id}
+                  className="flex"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                >
                   <PricingCard tier={tier} isYearly={isYearly} />
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
 
-            <div className="text-center mt-12">
+            <motion.div
+              className="text-center mt-12"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+            >
               <p className="text-sm text-muted-foreground">
                 All plans include unlimited projects on paid tiers. No hidden
                 fees.
               </p>
-            </div>
+            </motion.div>
           </div>
-        </AnimatedSection>
-
+        </section>
         {/* CTA Section */}
-        <AnimatedSection className="py-20">
+        <AnimatedSection className="pt-10 pb-10">
           <div className="container mx-auto px-4 text-center">
             <div className="bg-muted/35 border-2 rounded-xl p-12 max-w-3xl mx-auto relative overflow-hidden">
               <BorderTrail />
@@ -663,15 +756,15 @@ export default function HomePage() {
 
               <div className="mt-8 flex justify-center gap-8 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-500" />
+                  <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
                   No credit card required
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-500" />
+                  <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
                   500MB free storage
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-500" />
+                  <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
                   Cancel anytime
                 </div>
               </div>

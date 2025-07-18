@@ -1,40 +1,14 @@
 // app/home/page.tsx
 "use client";
 
-import Link from "next/link";
+
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { useState } from "react";
-import {
-  ArrowRight,
-  Upload,
-  MessageCircle,
-  Shield,
-  Users,
-  Mail,
-  Clock,
-  Star,
-} from "lucide-react";
-import { RevButtons } from "@/components/ui/RevButtons";
-import { BorderTrail } from "@/components/ui/border-trail";
 import { GridBackground, Spotlight } from "@/components/ui/spotlight-new";
 import { Badge } from "@/components/ui/badge";
 import { TextShimmer } from "@/components/ui/text-shimmer";
-import { Input } from "@/components/ui/input";
 
 export default function HomePage2() {
-  const [email, setEmail] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-
-    // Add your email signup logic here
-    setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 3000);
-  };
-
   return (
     <div className="min-h-screen bg-background overflow-hidden text-foreground">
       <GridBackground />
@@ -71,36 +45,6 @@ export default function HomePage2() {
             files directly to our secure servers. Share links with clients and
             get timestamped feedback without any logins required.
           </motion.p>
-
-          {/* Countdown or Launch Date */}
-
-          {/* Email Signup */}
-          {/* <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="max-w-md mx-auto"
-          >
-            {!isSubmitted ? (
-              <form onSubmit={handleSubmit} className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="Enter your email for early access"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-background"
-                  required
-                />
-                <RevButtons type="submit" variant="default">
-                  <Mail className="h-4 w-4" />
-                </RevButtons>
-              </form>
-            ) : (
-              <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4 text-green-400">
-                ✅ Thanks! We'll notify you when we launch.
-              </div>
-            )}
-          </motion.div> */}
         </section>
 
         {/* Preview Image */}
@@ -120,8 +64,6 @@ export default function HomePage2() {
               height={700}
               className="w-full h-auto opacity-80"
             />
-            {/* <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
-            <div className="absolute inset-0 bg-black/20"></div> */}
           </div>
         </motion.section>
       </div>

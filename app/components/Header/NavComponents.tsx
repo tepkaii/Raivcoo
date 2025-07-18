@@ -5,10 +5,8 @@ import { usePathname } from "next/navigation";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/pricing", label: "Pricing" },
-
   { href: "/tools", label: "Free Tools" },
 ];
 

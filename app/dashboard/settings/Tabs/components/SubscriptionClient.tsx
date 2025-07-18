@@ -135,6 +135,11 @@ export default function SubscriptionClient({
 }: SubscriptionClientProps) {
   const [isLoading, setIsLoading] = useState(false);
 
+  // Filter orders to only show completed ones
+  const completedOrders = orders.filter(
+    (order) => order.status === "completed"
+  );
+
   // Check subscription status
   const isFreePlan = !subscription || subscription.plan_id === "free";
   const isExpired = isSubscriptionExpired(subscription);
@@ -206,9 +211,7 @@ export default function SubscriptionClient({
   };
 
   const getTotalSpent = () => {
-    return orders
-      .filter((order) => order.status === "completed")
-      .reduce((sum, order) => sum + order.amount, 0);
+    return completedOrders.reduce((sum, order) => sum + order.amount, 0);
   };
 
   const getUploadSizeForPlan = (planId: string) => {
@@ -400,10 +403,10 @@ export default function SubscriptionClient({
 
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">
-                Total orders
+                Completed orders
               </span>
               <span className="text-sm font-medium text-foreground">
-                {formatNumber(orders.length)}
+                {formatNumber(completedOrders.length)}
               </span>
             </div>
 
@@ -424,9 +427,9 @@ export default function SubscriptionClient({
           Billing History
         </h2>
 
-        {orders.length > 0 ? (
+        {completedOrders.length > 0 ? (
           <div className="space-y-4">
-            {orders.map((order) => (
+            {completedOrders.map((order) => (
               <div
                 key={order.id}
                 className="flex items-center justify-between p-4 border border-border rounded-lg"
@@ -437,16 +440,10 @@ export default function SubscriptionClient({
                       {order.plan_name} Plan
                     </h4>
                     <Badge
-                      variant={
-                        order.status === "completed" ? "default" : "outline"
-                      }
-                      className={
-                        order.status === "completed"
-                          ? "bg-green-600 text-white"
-                          : ""
-                      }
+                      variant="default"
+                      className="bg-green-600 text-white"
                     >
-                      {formatStatus(order.status)}
+                      Completed
                     </Badge>
                     {order.metadata?.billing_period === "yearly" && (
                       <Badge
@@ -490,7 +487,7 @@ export default function SubscriptionClient({
               <p className="text-sm text-muted-foreground">
                 {isFreePlan
                   ? "Upgrade to see your billing history here."
-                  : "Your payment history will appear here."}
+                  : "Your completed payments will appear here."}
               </p>
             </div>
           </div>

@@ -52,9 +52,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    console.log(`Order ${orderId} cancelled by user ${user.id}`);
-
     return NextResponse.json({
       success: true,
       message: "Order cancelled successfully",

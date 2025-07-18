@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight } from "lucide-react";
@@ -7,6 +8,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { CheckBadgeIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
+import Lottie from "lottie-react";
+import animationData from "../../../public/assets/lottie/check-icon.json";
 
 interface Plan {
   id: string;
@@ -50,6 +53,19 @@ export default function SuccessClient({
   billingPeriod = "monthly",
 }: SuccessClientProps) {
   const router = useRouter();
+  const [isVisible, setIsVisible] = useState(false);
+  const [showContent, setShowContent] = useState(false);
+
+  useEffect(() => {
+    // Trigger animations after component mounts
+    const timer1 = setTimeout(() => setIsVisible(true), 100);
+    const timer2 = setTimeout(() => setShowContent(true), 600);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -111,13 +127,22 @@ export default function SuccessClient({
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Success header */}
-        <div className="text-center mb-12">
-          <div className="flex justify-center mb-6">
-            <div className="rounded-full bg-green-100 p-4">
-              <CheckCircleIcon className="h-16 w-16 text-green-600" />
+        <div
+          className={`text-center mb-12 transition-all duration-1000 transform ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
+          <div className="flex justify-center">
+            <div className="rounded-full p-4">
+              <Lottie
+                animationData={animationData}
+                autoplay
+                loop={false}
+                style={{ height: 70 }}
+              />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-foreground mb-4">
+          <h1 className="text-4xl font-bold text-foreground mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             {getSuccessMessage()}
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -126,136 +151,176 @@ export default function SuccessClient({
         </div>
 
         <div
-          className={`grid ${showPaymentDetails ? "lg:grid-cols-2" : "lg:grid-cols-1 max-w-2xl mx-auto"} gap-8 mb-12`}
+          className={`grid ${showPaymentDetails ? "lg:grid-cols-2" : "lg:grid-cols-1 max-w-2xl mx-auto"} gap-8 mb-12 transition-all duration-1000 transform ${
+            showContent
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8"
+          }`}
         >
           {/* Payment Details - Only for paid plans */}
           {showPaymentDetails && (
-            <div className="bg-card rounded-lg border border-border p-6">
+            <div className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-shadow duration-300">
               <h2 className="text-xl font-semibold mb-6 text-foreground">
                 Payment Details
               </h2>
 
               <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Plan</span>
-                  <span className="font-medium text-foreground">
-                    {selectedPlan.name}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Billing</span>
-                  <div className="text-right">
-                    <span className="font-medium text-foreground">
-                      {billingPeriod === "yearly" ? "Annual" : "Monthly"}
-                    </span>
-                    {billingPeriod === "yearly" && (
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        30% OFF
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {subscription?.storage_gb && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Storage</span>
-                    <span className="font-medium text-foreground">
-                      {formatStorage(subscription.storage_gb)}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount Paid</span>
-                  <span className="font-medium text-foreground">
-                    $
-                    {subscription?.orders?.amount?.toFixed(2) ||
-                      selectedPlan.price}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Next Billing</span>
-                  <span className="font-medium text-foreground">
-                    {subscription?.current_period_end
+                {[
+                  { label: "Plan", value: selectedPlan.name },
+                  {
+                    label: "Billing",
+                    value: (
+                      <div className="text-right">
+                        <span className="font-medium text-foreground">
+                          {billingPeriod === "yearly" ? "Annual" : "Monthly"}
+                        </span>
+                        {billingPeriod === "yearly" && (
+                          <Badge variant="secondary" className="ml-2 text-xs">
+                            30% OFF
+                          </Badge>
+                        )}
+                      </div>
+                    ),
+                  },
+                  ...(subscription?.storage_gb
+                    ? [
+                        {
+                          label: "Storage",
+                          value: formatStorage(subscription.storage_gb),
+                        },
+                      ]
+                    : []),
+                  {
+                    label: "Amount Paid",
+                    value: `$${subscription?.orders?.amount?.toFixed(2) || selectedPlan.price}`,
+                  },
+                  {
+                    label: "Next Billing",
+                    value: subscription?.current_period_end
                       ? formatDate(subscription.current_period_end)
-                      : "Calculating..."}
-                  </span>
-                </div>
-
-                {subscription?.orders?.transaction_id && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Transaction</span>
-                    <span className="font-mono text-muted-foreground">
-                      {subscription.orders.transaction_id.slice(-8)}
+                      : "Calculating...",
+                  },
+                  ...(subscription?.orders?.transaction_id
+                    ? [
+                        {
+                          label: "Transaction",
+                          value: subscription.orders.transaction_id.slice(-8),
+                          isTransaction: true,
+                        },
+                      ]
+                    : []),
+                ].map((item, index) => (
+                  <div
+                    key={item.label}
+                    className={`flex justify-between transition-all duration-500 transform ${
+                      showContent
+                        ? "opacity-100 translate-x-0"
+                        : "opacity-0 translate-x-4"
+                    }`}
+                    style={{ transitionDelay: `${800 + index * 100}ms` }}
+                  >
+                    <span
+                      className={`text-muted-foreground ${item.isTransaction ? "text-sm" : ""}`}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      className={`font-medium text-foreground ${item.isTransaction ? "font-mono text-muted-foreground text-sm" : ""}`}
+                    >
+                      {typeof item.value === "string" ? item.value : item.value}
                     </span>
                   </div>
-                )}
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground">
-                  Cheap pricing with flexible storage options
-                </p>
+                ))}
               </div>
             </div>
           )}
 
           {/* Plan Features */}
-          <div className="bg-card rounded-lg border border-border p-6">
+          <div className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-shadow duration-300">
             <h2 className="text-xl font-semibold mb-6 text-foreground">
               What's Included
             </h2>
 
             <div className="space-y-3">
-              <div className="flex items-center">
-                <CheckCircleIcon className="size-5 text-primary mr-3 flex-shrink-0" />
-                <span className="text-foreground">
-                  {subscription?.storage_gb
+              {[
+                {
+                  icon: CheckCircleIcon,
+                  text: subscription?.storage_gb
                     ? `${formatStorage(subscription.storage_gb)} storage`
-                    : selectedPlan.storage}
-                </span>
-              </div>
-
-              <div className="flex items-center">
-                <CheckCircleIcon className="size-5 text-primary mr-3 flex-shrink-0" />
-                <span className="text-foreground">
-                  {formatUploadSize(selectedPlan.id)} max upload size
-                </span>
-              </div>
-
-              {(selectedPlan.id === "lite" || selectedPlan.id === "pro") && (
-                <div className="flex items-center">
-                  <CheckCircleIcon className="size-5 text-primary mr-3 flex-shrink-0" />
-                  <span className="text-foreground">
-                    Flexible storage - pay only for what you need
-                  </span>
-                </div>
-              )}
-
-              {selectedPlan.features.slice(0, 4).map((feature, index) => (
-                <div key={index} className="flex items-center">
-                  <CheckBadgeIcon className="size-5 text-primary mr-3 flex-shrink-0" />
-                  <span className="text-muted-foreground">{feature}</span>
-                </div>
-              ))}
-
-              {selectedPlan.features.length > 4 && (
-                <div className="flex items-center">
-                  <CheckBadgeIcon className="size-5 text-primary mr-3 flex-shrink-0" />
-                  <span className="text-muted-foreground">
-                    +{selectedPlan.features.length - 4} more features
-                  </span>
-                </div>
-              )}
+                    : selectedPlan.storage,
+                  primary: true,
+                },
+                {
+                  icon: CheckCircleIcon,
+                  text: `${formatUploadSize(selectedPlan.id)} max upload size`,
+                  primary: true,
+                },
+                ...(selectedPlan.id === "lite" || selectedPlan.id === "pro"
+                  ? [
+                      {
+                        icon: CheckCircleIcon,
+                        text: "Flexible storage - pay only for what you need",
+                        primary: true,
+                      },
+                    ]
+                  : []),
+                ...selectedPlan.features.slice(0, 4).map((feature) => ({
+                  icon: CheckBadgeIcon,
+                  text: feature,
+                  primary: false,
+                })),
+                ...(selectedPlan.features.length > 4
+                  ? [
+                      {
+                        icon: CheckBadgeIcon,
+                        text: `+${selectedPlan.features.length - 4} more features`,
+                        primary: false,
+                      },
+                    ]
+                  : []),
+              ].map((feature, index) => {
+                const IconComponent = feature.icon;
+                return (
+                  <div
+                    key={index}
+                    className={`flex items-center transition-all duration-500 transform ${
+                      showContent
+                        ? "opacity-100 translate-x-0"
+                        : "opacity-0 translate-x-4"
+                    }`}
+                    style={{ transitionDelay: `${800 + index * 100}ms` }}
+                  >
+                    <IconComponent className="size-5 text-primary mr-3 flex-shrink-0" />
+                    <span
+                      className={
+                        feature.primary
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {feature.text}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="text-center space-x-4">
-          <Button onClick={() => router.push("/dashboard")} size="lg">
+        <div
+          className={`text-center space-x-4 transition-all duration-1000 transform ${
+            showContent
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8"
+          }`}
+          style={{ transitionDelay: "1400ms" }}
+        >
+          <Button
+            onClick={() => router.push("/dashboard")}
+            size="lg"
+            className="hover:scale-105 transition-transform duration-200"
+          >
             Go to Dashboard
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -263,28 +328,42 @@ export default function SuccessClient({
             variant="outline"
             onClick={() => window.open("mailto:support@raivcoo.com")}
             size="lg"
+            className="hover:scale-105 transition-transform duration-200"
           >
             Contact Support
           </Button>
         </div>
 
         {/* Simple footer */}
-        <div className="mt-12 text-center">
+        <div
+          className={`mt-12 text-center transition-all duration-1000 transform ${
+            showContent
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8"
+          }`}
+          style={{ transitionDelay: "1600ms" }}
+        >
           <p className="text-sm text-muted-foreground mb-4">
             Questions? Contact{" "}
             <Link
               href="mailto:support@raivcoo.com"
-              className="text-primary hover:underline"
+              className="text-primary hover:underline transition-colors duration-200"
             >
               support@raivcoo.com
             </Link>
           </p>
           <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
-            <Link href="legal/TermsOfService" className="hover:underline">
+            <Link
+              href="legal/TermsOfService"
+              className="hover:underline transition-colors duration-200"
+            >
               Terms
             </Link>
             <span>•</span>
-            <Link href="legal/PrivacyPolicy" className="hover:underline">
+            <Link
+              href="legal/PrivacyPolicy"
+              className="hover:underline transition-colors duration-200"
+            >
               Privacy
             </Link>
           </div>

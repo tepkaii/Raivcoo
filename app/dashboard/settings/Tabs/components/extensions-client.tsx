@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import {
@@ -9,13 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  ShieldCheck,
-  ArrowRight,
-  Download,
-  AlertTriangle,
-  Monitor,
-} from "lucide-react";
+import { ArrowRight, Download, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { EditorProfile } from "@/app/types/editorProfile";
 import {
