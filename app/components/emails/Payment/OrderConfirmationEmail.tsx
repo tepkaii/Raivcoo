@@ -72,7 +72,7 @@ export const OrderConfirmationEmail = ({
       case "renew":
         return "Your plan has been renewed successfully!";
       default:
-        return "Welcome to Raicoo! Your subscription is now active.";
+        return "Welcome to Raivcoo! Your subscription is now active.";
     }
   };
 
@@ -88,7 +88,7 @@ export const OrderConfirmationEmail = ({
                 src="https://i.ibb.co/nN3yWjtR/sfe-Comp-1-2025-06-26-01-33-39.png"
                 width="40"
                 height="40"
-                alt="Raicoo Logo"
+                alt="Raivcoo Logo"
                 className="my-0 mx-auto"
               />
             </Section>
@@ -204,12 +204,12 @@ export const OrderConfirmationEmail = ({
 
             <Text className="text-[#666666] text-[12px] leading-[24px]">
               This email was sent to {customerEmail}. If you have any questions
-              about this order, please contact us at support@raicoo.com with
+              about this order, please contact us at support@raivcoo.com with
               your order number #{orderNumber}.
             </Text>
 
             <Text className="text-[#666666] text-[12px] leading-[24px]">
-              © 2025 Raicoo. All rights reserved.
+              © 2025 raivcoo. All rights reserved.
             </Text>
           </Container>
         </Body>

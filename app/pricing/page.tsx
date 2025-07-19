@@ -1,6 +1,29 @@
 import { createClient } from "@/utils/supabase/server";
 import PricingClient from "./PricingClient";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+  title: "Pricing ",
+  description:
+    "Explore Raivcoo pricing plans for solo editors. Flexible, fair pricing for video review and collaboration tools.",
+  openGraph: {
+    title: "Pricing ",
+    description:
+      "Explore Raivcoo pricing plans for solo editors. Flexible, fair pricing for video review and collaboration tools.",
+    url: "https://www.raivcoo.com/pricing",
+    siteName: "Raivcoo",
+  },
+  twitter: {
+    title: "Pricing ",
+    description:
+      "Explore Raivcoo pricing plans for solo editors. Flexible, fair pricing for video review and collaboration tools.",
+    card: "summary_large_image",
+    creator: "@raivcoo",
+  },
+  alternates: {
+    canonical: "https://www.raivcoo.com/pricing",
+  },
+};
 export default async function PricingPage() {
   const supabase = await createClient();
 

@@ -13,11 +13,10 @@ export interface PricingFeature {
 
 export const featureCategories = {
   storage: "Storage & Upload",
-  projects: "Projects & Organization",
+  projects: "Projects",
   collaboration: "Collaboration",
-  review: "Review & Feedback",
   security: "Security & Sharing",
-  notifications: "Notifications",
+  review: "Review & Feedback",
   support: "Support",
 } as const;
 
@@ -42,15 +41,6 @@ export const pricingFeatures: PricingFeature[] = [
     highlight: true,
   },
   {
-    id: "media_formats",
-    category: featureCategories.storage,
-    feature: "Supported Media",
-    description: "Videos, images, audio, documents, SVG files",
-    free: true,
-    lite: true,
-    pro: true,
-  },
-  {
     id: "flexible_storage",
     category: featureCategories.storage,
     feature: "Pay-as-you-Scale Storage",
@@ -66,27 +56,9 @@ export const pricingFeatures: PricingFeature[] = [
     category: featureCategories.projects,
     feature: "Active Projects",
     free: 2,
-    lite: "Unlimited",
+    lite: 5, // Change from "Unlimited" to 5
     pro: "Unlimited",
     highlight: true,
-  },
-  {
-    id: "folders",
-    category: featureCategories.projects,
-    feature: "Folder Organization",
-    description: "Create nested folders, upload folder structures",
-    free: true,
-    lite: true,
-    pro: true,
-  },
-  {
-    id: "global_search",
-    category: featureCategories.projects,
-    feature: "Global Search (⌘K)",
-    description: "Search across all projects, media files, comments",
-    free: true,
-    lite: true,
-    pro: true,
   },
 
   // Collaboration
@@ -95,63 +67,16 @@ export const pricingFeatures: PricingFeature[] = [
     category: featureCategories.collaboration,
     feature: "Members per Project",
     free: 2,
-    lite: "Unlimited",
+    lite: 5, // Change from "Unlimited" to 5
     pro: "Unlimited",
     highlight: true,
   },
-  {
-    id: "role_permissions",
-    category: featureCategories.collaboration,
-    feature: "User Roles & Permissions",
-    description:
-      "Viewer, Reviewer, Collaborator roles with specific permissions",
-    free: true,
-    lite: true,
-    pro: true,
-  },
-  {
-    id: "guest_access",
-    category: featureCategories.collaboration,
-    feature: "Guest Access (No Signup)",
-    description: "Clients can view and comment without creating accounts",
-    free: true,
-    lite: true,
-    pro: true,
-  },
 
-  // Review & Feedback
   {
     id: "annotations",
     category: featureCategories.review,
     feature: "Pin & Draw Annotations",
     description: "Pin comments to exact frames, draw directly on media",
-    free: true,
-    lite: true,
-    pro: true,
-  },
-  {
-    id: "timestamped_comments",
-    category: featureCategories.review,
-    feature: "Timestamped Comments",
-    description: "Frame-accurate video comments with timeline sync",
-    free: true,
-    lite: true,
-    pro: true,
-  },
-  {
-    id: "version_control",
-    category: featureCategories.review,
-    feature: "Version Control",
-    description: "Drag & drop versions, track revisions, compare changes",
-    free: true,
-    lite: true,
-    pro: true,
-  },
-  {
-    id: "review_links",
-    category: featureCategories.review,
-    feature: "Review Links",
-    description: "Share media for feedback without client signup",
     free: true,
     lite: true,
     pro: true,
@@ -182,27 +107,6 @@ export const pricingFeatures: PricingFeature[] = [
     feature: "Download Controls",
     description: "Control who can download original files",
     free: false,
-    lite: false,
-    pro: true,
-  },
-
-  // Notifications
-  {
-    id: "notification_system",
-    category: featureCategories.notifications,
-    feature: "Smart Notifications",
-    description:
-      "In-app + email notifications for comments, uploads, status changes",
-    free: true,
-    lite: true,
-    pro: true,
-  },
-  {
-    id: "notification_controls",
-    category: featureCategories.notifications,
-    feature: "Notification Controls",
-    description: "Disable notifications per project or per account",
-    free: true,
     lite: true,
     pro: true,
   },

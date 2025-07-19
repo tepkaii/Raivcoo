@@ -24,7 +24,6 @@ import {
 } from "@heroicons/react/24/solid";
 import { createClient } from "@/utils/supabase/client";
 import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
-import { Label } from "@/components/ui/label";
 
 type ProjectRole = "viewer" | "reviewer" | "collaborator";
 
@@ -425,16 +424,7 @@ export function TeamManagement({
 
       let perms: MemberPermissions;
 
-      if (hasActiveSubscription) {
-        perms = {
-          canInvite: true,
-          maxMembers: Infinity,
-          planName: subscriptionInfo.planName,
-          isActive: true,
-          currentCount,
-          suggestions: {},
-        };
-      } else {
+      if (!hasActiveSubscription) {
         // Free plan: 2 members per project
         perms = {
           canInvite: currentCount < 2,
@@ -443,9 +433,39 @@ export function TeamManagement({
           isActive: false,
           currentCount,
           suggestions: {
-            invite: "Upgrade to Lite or Pro for unlimited team members",
+            invite: "Upgrade to Lite or Pro for more team members",
           },
         };
+      } else {
+        // Check specific paid plan
+        const planName = subscriptionInfo.planName?.toLowerCase();
+
+        if (planName === "lite") {
+          // Lite plan: 5 members per project
+          perms = {
+            canInvite: currentCount < 5,
+            maxMembers: 5,
+            planName: subscriptionInfo.planName,
+            isActive: true,
+            currentCount,
+            suggestions:
+              currentCount >= 5
+                ? {
+                    invite: "Upgrade to Pro for unlimited team members",
+                  }
+                : {},
+          };
+        } else {
+          // Pro plan: unlimited members
+          perms = {
+            canInvite: true,
+            maxMembers: Infinity,
+            planName: subscriptionInfo.planName,
+            isActive: true,
+            currentCount,
+            suggestions: {},
+          };
+        }
       }
 
       setPermissions(perms);
@@ -458,7 +478,7 @@ export function TeamManagement({
         planName: "Free",
         isActive: false,
         currentCount: localMembers.filter((m) => m.status !== "declined")
-          .length, // NO +1 here either
+          .length,
         suggestions: {
           invite:
             "Could not verify subscription. Team member limits apply on Free plan.",
@@ -776,7 +796,7 @@ export function TeamManagement({
               {permissions.planName}
             </Badge>
           )}
-          {permissions && !permissions.isActive && (
+          {permissions && permissions.maxMembers !== Infinity && (
             <div className="text-xs text-muted-foreground">
               {permissions.currentCount}/{permissions.maxMembers} members
             </div>
@@ -932,7 +952,7 @@ export function TeamManagement({
                   {member.user_profile?.name || "Unknown"}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {"team@example.com"}
+                  {member.user_profile?.email}
                 </div>
                 {member.status === "pending" && (
                   <div className="text-xs text-amber-600">

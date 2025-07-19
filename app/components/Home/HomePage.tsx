@@ -12,12 +12,12 @@ import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { TextAnimate } from "@/components/ui/text-animate";
 import Lottie from "lottie-react";
 import Shield from "../../../public/assets/lottie/shield.json";
 import Pin from "../../../public/assets/lottie/pin.json";
 import Upload from "../../../public/assets/lottie/upload.json";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
+import { pricingTiers } from "@/app/pricing/PricingClient";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -35,68 +35,6 @@ function AnimatedSection({ children, className }: any) {
     </section>
   );
 }
-
-const pricingTiers = [
-  {
-    id: "free" as const,
-    name: "Free",
-    price: 0,
-    baseStorage: 0.5, // 500MB
-    maxUploadSize: 200, // 200MB
-    level: 0,
-    features: [
-      "Upload videos, images",
-      "200MB max upload size",
-      "2 Active projects",
-      "2 Members per project",
-      "Timestamped comments",
-      "Accurate Pin/Draw Annotation",
-      "Email/App notifications",
-    ],
-  },
-  {
-    id: "pro" as const,
-    name: "Pro",
-    basePrice: 5.99,
-    baseStorage: 250, // 250GB base
-    additionalStoragePrice: 1.5, // $1.5 per 50GB
-    additionalStorageUnit: 50, // 50GB increments
-    maxStorage: 2048, // 2TB max
-    maxUploadSize: 5120, // 5GB
-    level: 2,
-    popular: true,
-    features: [
-      "Everything in Free plan",
-      "5GB max upload size",
-      "flexible storage up to 2TB",
-      "Unlimited projects",
-      "Unlimited members",
-      "Password protection for links",
-      "Custom expiration dates",
-      "Priority support",
-    ],
-  },
-  {
-    id: "lite" as const,
-    name: "Lite",
-    basePrice: 2.99,
-    baseStorage: 50, // 50GB base
-    additionalStoragePrice: 1.0, // $1.0 per 25GB
-    additionalStorageUnit: 25, // 25GB increments
-    maxStorage: 150, // 150GB max
-    maxUploadSize: 2048, // 2GB
-    level: 1,
-    features: [
-      "Everything in Free plan",
-      "2GB max upload size",
-      "flexible storage up to 150GB",
-      "Unlimited projects",
-      "Unlimited members",
-      "Password protection for links",
-      "Custom expiration dates",
-    ],
-  },
-];
 
 function PricingCard({
   tier,
@@ -137,7 +75,7 @@ function PricingCard({
 
   return (
     <div
-      className={`relative rounded-xl p-8 h-full flex-1 flex flex-col ${
+      className={`relative  rounded-xl p-8 h-full flex-1 flex flex-col ${
         tier.popular
           ? "border-2 ring-4 ring-[#0070F3]/40 border-[#0070F3]/90 bg-gradient-to-b from-[#0070F3]/10 to-transparent"
           : "border bg-muted/35"
@@ -276,15 +214,7 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="text-5xl md:text-7xl mt-3 font-bold tracking-tight text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]"
           >
-            <TextAnimate
-              animation="slideUp"
-              startOnView={true}
-              once={false}
-              delay={2}
-              by="word"
-            >
-              Media Review Made Simple
-            </TextAnimate>
+            Media Review Made Simple
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -318,7 +248,7 @@ export default function HomePage() {
         {/* Hero Demo */}
         <AnimatedSection className="">
           <div className="container mx-auto px-4">
-            <div className="relative rounded-xl overflow-hidden border-4 border-muted-foreground/15 max-w-5xl mx-auto">
+            <div className="relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-2 max-w-5xl mx-auto shadow-2xl">
               <Image
                 quality={100}
                 priority
@@ -326,7 +256,7 @@ export default function HomePage() {
                 alt="Media Review Interface"
                 width={1200}
                 height={700}
-                className="w-full h-auto"
+                className="w-full h-auto rounded-lg"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-20"></div>
             </div>
@@ -447,7 +377,6 @@ export default function HomePage() {
             <div className="space-y-24 max-w-6xl mx-auto">
               {/* Multi-Panel Workspace */}
               <motion.div
-                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
@@ -463,7 +392,7 @@ export default function HomePage() {
                       Resize panels to fit your workflow.
                     </p>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <Image
                       src="/workspace-demo.png"
                       alt="Multi-panel workspace interface"
@@ -478,14 +407,13 @@ export default function HomePage() {
 
               {/* Smart Organization */}
               <motion.div
-                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1 order-2 md:order-1">
+                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <Image
                       src="/folder-organization.png"
                       alt="Folder organization with nested structure"
@@ -509,7 +437,6 @@ export default function HomePage() {
 
               {/* Precise Annotations */}
               <motion.div
-                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
@@ -526,7 +453,7 @@ export default function HomePage() {
                       video timestamps and frame positions.
                     </p>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <Image
                       src="/annotation-demo.png"
                       alt="Pin and draw annotations on video"
@@ -541,14 +468,13 @@ export default function HomePage() {
 
               {/* Global Search */}
               <motion.div
-                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1 order-2 md:order-1">
+                  <div className="flex-1 order-2 md:order-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <Image
                       src="/search-demo.png"
                       alt="Global search interface with filters"
@@ -573,7 +499,6 @@ export default function HomePage() {
 
               {/* Simple Collaboration */}
               <motion.div
-                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
@@ -590,7 +515,7 @@ export default function HomePage() {
                       small projects.
                     </p>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <Image
                       src="/team.png"
                       alt="Simple team collaboration interface"
@@ -605,7 +530,6 @@ export default function HomePage() {
 
               {/* Adobe Integration */}
               <motion.div
-                className="rounded-xl border bg-muted/10 backdrop-blur-sm p-4 md:p-8"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
@@ -613,7 +537,7 @@ export default function HomePage() {
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1 order-2 md:order-1">
-                    <div className="relative">
+                    <div className="relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                       <Image
                         src="/extension version.png"
                         alt="Adobe After Effects and Premiere Pro integration"
@@ -622,9 +546,6 @@ export default function HomePage() {
                         className="rounded-xl shadow-lg border"
                         loading="lazy"
                       />
-                      <div className="absolute -top-2 -right-2 bg-orange-500 text-white px-3 py-1 rounded-full text-sm">
-                        Coming Soon
-                      </div>
                     </div>
                   </div>
                   <div className="flex-1 order-1 md:order-2">
@@ -665,7 +586,7 @@ export default function HomePage() {
             </motion.div>
 
             <motion.div
-              className="flex items-center justify-center gap-4 mb-12"
+              className="flex items-center justify-center gap-4 mb-12 relative z-40"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}

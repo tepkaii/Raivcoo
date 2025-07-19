@@ -3,7 +3,16 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Upload, Loader2, Crown, Plus, Grid, List, LinkIcon, MoreHorizontal } from "lucide-react";
+import {
+  Upload,
+  Loader2,
+  Crown,
+  Plus,
+  Grid,
+  List,
+  LinkIcon,
+  MoreHorizontal,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -21,10 +30,7 @@ import {
   ProjectFolder,
 } from "@/app/dashboard/lib/types";
 import { updateProjectReferencesAction } from "../../lib/GeneralActions";
-import {
-  UploadValidator,
-  getUploadValidatorData,
-} from "../../lib/UploadLogic";
+import { UploadValidator, getUploadValidatorData } from "../../lib/UploadLogic";
 import { DocumentDuplicateIcon, FolderIcon } from "@heroicons/react/24/solid";
 
 // Import all handlers
@@ -35,7 +41,12 @@ import {
   createVersionHandlers,
   createFolderHandlers,
 } from "../../handlers";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Define enhanced folder interface here
 interface FolderStats {
@@ -86,7 +97,7 @@ const useContainerWidth = () => {
 
     // Create ResizeObserver to watch container size changes
     const resizeObserver = new ResizeObserver(updateWidth);
-    
+
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
@@ -113,45 +124,54 @@ export function MediaGrid({
   onFoldersUpdate: passedOnFoldersUpdate, // Receive folder update handler
 }: MediaGridProps) {
   const router = useRouter();
-  
+
   // Upload states
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadValidator, setUploadValidator] = useState<UploadValidator | null>(null);
+  const [uploadValidator, setUploadValidator] =
+    useState<UploadValidator | null>(null);
   const [isLoadingLimits, setIsLoadingLimits] = useState(true);
-const { containerRef, containerWidth } = useContainerWidth();
+  const { containerRef, containerWidth } = useContainerWidth();
 
-const getGridClasses = (mediaCount: number, width: number) => {
-  if (viewMode === "list") return "space-y-2";
-  
-  const isSingleItem = mediaCount === 1;
-  let columns = 1;
-  
-  if (isSingleItem) {
-    // Single item: more conservative breakpoints (matches md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4)
-    if (width >= 1280) columns = 4;      // xl breakpoint
-    else if (width >= 1024) columns = 3; // lg breakpoint  
-    else if (width >= 768) columns = 2;  // md breakpoint
-    else columns = 1;
-  } else {
-    // Multiple items: same breakpoints as single item (they were identical in original)
-    if (width >= 1280) columns = 4;      // xl breakpoint
-    else if (width >= 1024) columns = 3; // lg breakpoint
-    else if (width >= 768) columns = 2;  // md breakpoint
-    else columns = 1;
-  }
+  const getGridClasses = (mediaCount: number, width: number) => {
+    if (viewMode === "list") return "space-y-2";
 
-  const gridColsClass = {
-    1: "grid-cols-1",
-    2: "grid-cols-2", 
-    3: "grid-cols-3",
-    4: "grid-cols-4"
-  }[columns];
+    const isSingleItem = mediaCount === 1;
+    let columns = 1;
 
-  return `grid gap-4 ${gridColsClass}`;
-};
+    if (isSingleItem) {
+      // Single item: more conservative breakpoints (matches md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4)
+      if (width >= 1280)
+        columns = 4; // xl breakpoint
+      else if (width >= 1024)
+        columns = 3; // lg breakpoint
+      else if (width >= 768)
+        columns = 2; // md breakpoint
+      else columns = 1;
+    } else {
+      // Multiple items: same breakpoints as single item (they were identical in original)
+      if (width >= 1280)
+        columns = 4; // xl breakpoint
+      else if (width >= 1024)
+        columns = 3; // lg breakpoint
+      else if (width >= 768)
+        columns = 2; // md breakpoint
+      else columns = 1;
+    }
+
+    const gridColsClass = {
+      1: "grid-cols-1",
+      2: "grid-cols-2",
+      3: "grid-cols-3",
+      4: "grid-cols-4",
+    }[columns];
+
+    return `grid gap-4 ${gridColsClass}`;
+  };
   // Use passed folders if available, otherwise load them
-  const [folders, setFolders] = useState<EnhancedProjectFolder[]>(passedFolders || []);
+  const [folders, setFolders] = useState<EnhancedProjectFolder[]>(
+    passedFolders || []
+  );
   const [isLoadingFolders, setIsLoadingFolders] = useState(!passedFolders);
 
   // UI states
@@ -163,7 +183,11 @@ const getGridClasses = (mediaCount: number, width: number) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
-
+  const [editNameDialog, setEditNameDialog] = useState<{
+    open: boolean;
+    mediaFile?: MediaFile;
+    isUpdating: boolean;
+  }>({ open: false, isUpdating: false });
   // Dialog states - keeping existing dialog states...
   const [createLinkDialog, setCreateLinkDialog] = useState<{
     open: boolean;
@@ -202,7 +226,14 @@ const getGridClasses = (mediaCount: number, width: number) => {
   const [referencesDialog, setReferencesDialog] = useState<{
     open: boolean;
   }>({ open: false });
-
+  // Add this handler
+  const handleRenameMedia = (mediaFile: MediaFile) => {
+    setEditNameDialog({
+      open: true,
+      mediaFile,
+      isUpdating: false,
+    });
+  };
   // Update local folders when passed folders change
   useEffect(() => {
     if (passedFolders) {
@@ -255,12 +286,24 @@ const getGridClasses = (mediaCount: number, width: number) => {
   // Create folder handlers with proper update logic
   const folderHandlers = createFolderHandlers(
     projectId,
-    folders.map(f => ({ ...f, media_files: undefined, stats: undefined })), // Convert to base ProjectFolder for handler
+    folders.map((f) => ({ ...f, media_files: undefined, stats: undefined })), // Convert to base ProjectFolder for handler
     (newFolders) => {
       // Convert back to enhanced folders when updating
-      const enhancedFolders = newFolders.map(folder => {
-        const existingFolder = folders.find(f => f.id === folder.id);
-        return existingFolder || { ...folder, media_files: [], stats: { totalFiles: 0, totalSize: 0, videoCount: 0, imageCount: 0, lastUpload: null } };
+      const enhancedFolders = newFolders.map((folder) => {
+        const existingFolder = folders.find((f) => f.id === folder.id);
+        return (
+          existingFolder || {
+            ...folder,
+            media_files: [],
+            stats: {
+              totalFiles: 0,
+              totalSize: 0,
+              videoCount: 0,
+              imageCount: 0,
+              lastUpload: null,
+            },
+          }
+        );
       });
       setFolders(enhancedFolders);
       // If parent provides update handler, use it
@@ -279,8 +322,6 @@ const getGridClasses = (mediaCount: number, width: number) => {
     }
   }, [projectId, passedFolders]);
 
-
-
   // Initialize upload validator
   useEffect(() => {
     const initializeValidator = async () => {
@@ -296,7 +337,8 @@ const getGridClasses = (mediaCount: number, width: number) => {
         console.error("Failed to initialize upload validator:", error);
         toast({
           title: "Warning",
-          description: "Could not load upload limits. Upload may be restricted.",
+          description:
+            "Could not load upload limits. Upload may be restricted.",
           variant: "destructive",
         });
       } finally {
@@ -344,11 +386,11 @@ const getGridClasses = (mediaCount: number, width: number) => {
 
     const updatedFolders = [...folders, enhancedNewFolder];
     setFolders(updatedFolders);
-    
+
     if (passedOnFoldersUpdate) {
       passedOnFoldersUpdate(updatedFolders);
     }
-    
+
     setCreateFolderOpen(false);
   };
 
@@ -358,14 +400,14 @@ const getGridClasses = (mediaCount: number, width: number) => {
 
     // Filter by folder
     if (currentFolderId) {
-      filtered = filtered.filter(file => file.folder_id === currentFolderId);
+      filtered = filtered.filter((file) => file.folder_id === currentFolderId);
     } else {
-      filtered = filtered.filter(file => !file.folder_id);
+      filtered = filtered.filter((file) => !file.folder_id);
     }
 
     // Filter by search
     if (searchQuery) {
-      filtered = filtered.filter(file =>
+      filtered = filtered.filter((file) =>
         file.original_filename.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -379,16 +421,19 @@ const getGridClasses = (mediaCount: number, width: number) => {
 
     // Filter by parent folder
     if (currentFolderId) {
-      filtered = filtered.filter(folder => folder.parent_folder_id === currentFolderId);
+      filtered = filtered.filter(
+        (folder) => folder.parent_folder_id === currentFolderId
+      );
     } else {
-      filtered = filtered.filter(folder => !folder.parent_folder_id);
+      filtered = filtered.filter((folder) => !folder.parent_folder_id);
     }
 
     // Filter by search
     if (searchQuery) {
-      filtered = filtered.filter(folder =>
-        folder.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        folder.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (folder) =>
+          folder.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          folder.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -396,7 +441,7 @@ const getGridClasses = (mediaCount: number, width: number) => {
   }, [folders, currentFolderId, searchQuery]);
 
   // [Keep all the existing organized media logic, file handlers, etc.]
-  
+
   // Organize media files
   const organizedMedia = React.useMemo((): OrganizedMedia[] => {
     const parentMediaMap = new Map<string, MediaFile>();
@@ -410,8 +455,10 @@ const getGridClasses = (mediaCount: number, width: number) => {
           childVersionsMap.set(file.id, []);
         }
       } else {
-        const parentExists = filteredMediaFiles.some(m => m.id === file.parent_media_id);
-        
+        const parentExists = filteredMediaFiles.some(
+          (m) => m.id === file.parent_media_id
+        );
+
         if (parentExists) {
           if (!childVersionsMap.has(file.parent_media_id)) {
             childVersionsMap.set(file.parent_media_id, []);
@@ -422,14 +469,14 @@ const getGridClasses = (mediaCount: number, width: number) => {
             ...file,
             parent_media_id: null,
             version_number: 1,
-            is_current_version: true
+            is_current_version: true,
           });
         }
       }
     });
 
     // Handle orphaned versions
-    orphanedVersions.forEach(orphan => {
+    orphanedVersions.forEach((orphan) => {
       parentMediaMap.set(orphan.id, orphan);
       if (!childVersionsMap.has(orphan.id)) {
         childVersionsMap.set(orphan.id, []);
@@ -440,20 +487,20 @@ const getGridClasses = (mediaCount: number, width: number) => {
 
     parentMediaMap.forEach((parentMedia, parentId) => {
       const versions = childVersionsMap.get(parentId) || [];
-      
+
       const sortedVersions = versions.sort(
         (a, b) => a.version_number - b.version_number
       );
 
       let currentVersion = parentMedia;
-      
+
       if (parentMedia.is_current_version) {
         currentVersion = parentMedia;
       } else {
         const currentVersionFromChildren = sortedVersions.find(
           (v) => v.is_current_version
         );
-        
+
         if (currentVersionFromChildren) {
           currentVersion = currentVersionFromChildren;
         } else {
@@ -499,7 +546,9 @@ const getGridClasses = (mediaCount: number, width: number) => {
   }, [filteredMediaFiles, reviewLinks]);
 
   // Handle file input change
-  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     uploadHandlers.handleFileInputChange(event, uploadValidator);
   };
 
@@ -518,12 +567,52 @@ const getGridClasses = (mediaCount: number, width: number) => {
       }
 
       if (draggedOver) {
-        await uploadHandlers.uploadFilesHandler(acceptedFiles, draggedOver, uploadValidator);
+        await uploadHandlers.uploadFilesHandler(
+          acceptedFiles,
+          draggedOver,
+          uploadValidator
+        );
       } else {
-        await uploadHandlers.uploadFilesHandler(acceptedFiles, undefined, uploadValidator);
+        await uploadHandlers.uploadFilesHandler(
+          acceptedFiles,
+          undefined,
+          uploadValidator
+        );
       }
     },
     [draggedOver, uploadValidator, uploadHandlers]
+  );
+  const handleMediaUpdated = useCallback(
+    (updatedMediaFiles: MediaFile[]) => {
+      if (updatedMediaFiles.length === 1) {
+        // Single file update (like rename) - update just that file
+        const updatedFile = updatedMediaFiles[0];
+        const newMediaFiles = mediaFiles.map((existingFile) =>
+          existingFile.id === updatedFile.id ? updatedFile : existingFile
+        );
+        onMediaUpdated(newMediaFiles);
+      } else {
+        // Multiple files update - use the original logic
+        const updatedMap = new Map(
+          updatedMediaFiles.map((file) => [file.id, file])
+        );
+
+        const newMediaFiles = mediaFiles.map((existingFile) => {
+          if (updatedMap.has(existingFile.id)) {
+            return updatedMap.get(existingFile.id)!;
+          }
+          return existingFile;
+        });
+
+        const newFiles = updatedMediaFiles.filter(
+          (updated) =>
+            !mediaFiles.some((existing) => existing.id === updated.id)
+        );
+
+        onMediaUpdated([...newMediaFiles, ...newFiles]);
+      }
+    },
+    [mediaFiles, onMediaUpdated]
   );
 
   // Get upload status
@@ -533,134 +622,141 @@ const getGridClasses = (mediaCount: number, width: number) => {
     <div className="h-full flex flex-col text-white">
       {/* Header and all the existing UI remains exactly the same */}
       <div className="p-4 border-b flex-shrink-0 min-h-0 overflow-hidden">
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "files" | "folders")}>
-         <div className="flex justify-between items-center mb-4">
-  <TabsList className="grid w-[140px] sm:w-[200px] grid-cols-2">
-    <TabsTrigger value="files">Files</TabsTrigger>
-    <TabsTrigger value="folders">Folders</TabsTrigger>
-   </TabsList>
-
-  <div className="flex items-center gap-2">
-   
-
-    {/* View Mode - Hidden on mobile */}
-    {containerWidth >= 600 && (
-      <div className="flex items-center gap-1">
-        <Button
-          variant={viewMode === "grid" ? "default" : "outline"}
-          size="icon"
-          onClick={() => setViewMode("grid")}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as "files" | "folders")}
         >
-          <Grid className="h-4 w-4" />
-        </Button>
-        <Button
-          variant={viewMode === "list" ? "default" : "outline"}
-          size="icon"
-          onClick={() => setViewMode("list")}
-        >
-          <List className="h-4 w-4" />
-        </Button>
-      </div>
-    )}
+          <div className="flex justify-between items-center mb-4">
+            <TabsList className="grid w-[140px] sm:w-[200px] grid-cols-2">
+              <TabsTrigger value="files">Files</TabsTrigger>
+              <TabsTrigger value="folders">Folders</TabsTrigger>
+            </TabsList>
 
-    {/* Primary action - Always visible */}
-    <Button
-      onClick={() =>
-        userPermissions.canUpload &&
-        uploadStatus?.canUpload &&
-        document.getElementById("file-input")?.click()
-      }
-      disabled={
-        !userPermissions.canUpload ||
-        isUploading ||
-        !uploadStatus?.canUpload ||
-        isLoadingLimits
-      }
-      className="flex items-center gap-2"
-      size="icon-sm"
-    >
-      {isUploading ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {containerWidth >= 600 && <span>Uploading...</span>}
-        </>
-      ) : !uploadStatus?.canUpload ? (
-        <>
-          <Crown className="h-4 w-4" />
-          {containerWidth >= 600 && <span>Upgrade Storage</span>}
-        </>
-      ) : (
-        <>
-          <Upload className="h-4 w-4" />
-          {containerWidth >= 600 && <span>Upload</span>}
-        </>
-      )}
-    </Button>
+            <div className="flex items-center gap-2">
+              {/* View Mode - Hidden on mobile */}
+              {containerWidth >= 600 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setViewMode("grid")}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setViewMode("list")}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
 
-    {/* Overflow Menu for smaller screens */}
-   {containerWidth < 600 && (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setViewMode("grid")}>
-            <Grid className="h-4 w-4 mr-2" />
-            Grid View
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setViewMode("list")}>
-            <List className="h-4 w-4 mr-2" />
-            List View
-          </DropdownMenuItem>
-          {activeTab === "folders" && userPermissions.canUpload && (
-            <DropdownMenuItem onClick={() => setCreateFolderOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Folder
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => setReferencesDialog({ open: true })}>
-            <LinkIcon className="h-4 w-4 mr-2" />
-            References
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )}
+              {/* Primary action - Always visible */}
+              <Button
+                onClick={() =>
+                  userPermissions.canUpload &&
+                  uploadStatus?.canUpload &&
+                  document.getElementById("file-input")?.click()
+                }
+                disabled={
+                  !userPermissions.canUpload ||
+                  isUploading ||
+                  !uploadStatus?.canUpload ||
+                  isLoadingLimits
+                }
+                className="flex items-center gap-2"
+                size="icon-sm"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {containerWidth >= 600 && <span>Uploading...</span>}
+                  </>
+                ) : !uploadStatus?.canUpload ? (
+                  <>
+                    <Crown className="h-4 w-4" />
+                    {containerWidth >= 600 && <span>Upgrade Storage</span>}
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    {containerWidth >= 600 && <span>Upload</span>}
+                  </>
+                )}
+              </Button>
 
-    {/* Secondary actions - Hidden on mobile, shown in dropdown */}
-       {containerWidth >= 600 && (
-      <div className="flex items-center gap-2">
-        {activeTab === "folders" && userPermissions.canUpload && (
-          <Button
-            onClick={() => setCreateFolderOpen(true)}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            {containerWidth >= 600 && <span>New Folder</span>}
-          </Button>
-        )}
+              {/* Overflow Menu for smaller screens */}
+              {containerWidth < 600 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setViewMode("grid")}>
+                      <Grid className="h-4 w-4 mr-2" />
+                      Grid View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setViewMode("list")}>
+                      <List className="h-4 w-4 mr-2" />
+                      List View
+                    </DropdownMenuItem>
+                    {activeTab === "folders" && userPermissions.canUpload && (
+                      <DropdownMenuItem
+                        onClick={() => setCreateFolderOpen(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        New Folder
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => setReferencesDialog({ open: true })}
+                    >
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      References
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
-        <Button
-          onClick={() => setReferencesDialog({ open: true })}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          <LinkIcon className="h-4 w-4" />
-          {containerWidth >= 600 && <span>References</span>}
-        </Button>
-      </div>
-    )}
-  </div>
-</div>
+              {/* Secondary actions - Hidden on mobile, shown in dropdown */}
+              {containerWidth >= 600 && (
+                <div className="flex items-center gap-2">
+                  {activeTab === "folders" && userPermissions.canUpload && (
+                    <Button
+                      onClick={() => setCreateFolderOpen(true)}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {containerWidth >= 600 && <span>New Folder</span>}
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={() => setReferencesDialog({ open: true })}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    {containerWidth >= 600 && <span>References</span>}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
           {/* Upload Progress */}
           {isUploading && (
             <div className="mb-4 space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Uploading files...</span>
+                <span className="text-muted-foreground">
+                  Uploading files...
+                </span>
                 <span className="text-muted-foreground">{uploadProgress}%</span>
               </div>
               <Progress value={uploadProgress} className="w-full h-2" />
@@ -675,40 +771,52 @@ const getGridClasses = (mediaCount: number, width: number) => {
                   <DocumentDuplicateIcon className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
                   <p className="text-lg">No files found</p>
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "Try adjusting your search" : "Upload files to get started"}
+                    {searchQuery
+                      ? "Try adjusting your search"
+                      : "Upload files to get started"}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-6" ref={containerRef}>
                   {/* Folders Section */}
-                 {filteredFolders.length > 0 && (
-  <div>
-    <h3 className="text-lg font-semibold mb-4">Folders</h3>
-    <div className={getGridClasses(filteredFolders.length, containerWidth)}>
-      {filteredFolders.map((folder) => (
-        <FolderCard
-          key={folder.id}
-          folder={folder}
-          projectId={projectId}
-          viewMode={viewMode}
-          onFoldersUpdate={(updatedFolders) => {
-            setFolders(updatedFolders);
-            if (passedOnFoldersUpdate) {
-              passedOnFoldersUpdate(updatedFolders);
-            }
-          }}
-          allFolders={folders}
-        />
-      ))}
-    </div>
-  </div>
-)}
+                  {filteredFolders.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Folders</h3>
+                      <div
+                        className={getGridClasses(
+                          filteredFolders.length,
+                          containerWidth
+                        )}
+                      >
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            folder={folder}
+                            projectId={projectId}
+                            viewMode={viewMode}
+                            onFoldersUpdate={(updatedFolders) => {
+                              setFolders(updatedFolders);
+                              if (passedOnFoldersUpdate) {
+                                passedOnFoldersUpdate(updatedFolders);
+                              }
+                            }}
+                            allFolders={folders}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Media Files Section - keeping existing media card logic */}
                   {organizedMedia.length > 0 && (
-                    <div >
+                    <div>
                       <h3 className="text-lg font-semibold mb-4">Files</h3>
-                      <div className={getGridClasses(organizedMedia.length, containerWidth)}>
+                      <div
+                        className={getGridClasses(
+                          organizedMedia.length,
+                          containerWidth
+                        )}
+                      >
                         {organizedMedia.map((media) => (
                           <MediaCard
                             key={media.id}
@@ -737,7 +845,8 @@ const getGridClasses = (mediaCount: number, width: number) => {
                                 if (!uploadValidator) {
                                   toast({
                                     title: "Upload Error",
-                                    description: "Upload system not ready. Please try again.",
+                                    description:
+                                      "Upload system not ready. Please try again.",
                                     variant: "destructive",
                                   });
                                   return;
@@ -748,14 +857,23 @@ const getGridClasses = (mediaCount: number, width: number) => {
                                   return;
                                 }
 
-                                uploadHandlers.uploadFilesHandler(files, targetId, uploadValidator);
+                                uploadHandlers.uploadFilesHandler(
+                                  files,
+                                  targetId,
+                                  uploadValidator
+                                );
                               } else if (draggedMedia) {
-                                versionHandlers.handleCreateVersion(targetId, draggedMedia.id);
+                                versionHandlers.handleCreateVersion(
+                                  targetId,
+                                  draggedMedia.id
+                                );
                               }
                               setDraggedOver(null);
                               setDraggedMedia(null);
                             }}
-                            onVersionReorder={versionHandlers.handleVersionReorder}
+                            onVersionReorder={
+                              versionHandlers.handleVersionReorder
+                            }
                             onCreateReviewLink={(mediaFile) =>
                               setCreateLinkDialog({
                                 open: true,
@@ -764,8 +882,12 @@ const getGridClasses = (mediaCount: number, width: number) => {
                                 showSuccess: false,
                               })
                             }
-                            onViewReviewLinks={reviewLinkHandlers.handleViewReviewLinks}
-                            onManageReviewLinks={reviewLinkHandlers.handleManageReviewLinks}
+                            onViewReviewLinks={
+                              reviewLinkHandlers.handleViewReviewLinks
+                            }
+                            onManageReviewLinks={
+                              reviewLinkHandlers.handleManageReviewLinks
+                            }
                             onDeleteMedia={(mediaFile) =>
                               setDeleteDialog({
                                 open: true,
@@ -773,9 +895,14 @@ const getGridClasses = (mediaCount: number, width: number) => {
                                 isDeleting: false,
                               })
                             }
-                            onOpenVersionManager={versionHandlers.handleOpenVersionManager}
+                            onOpenVersionManager={
+                              versionHandlers.handleOpenVersionManager
+                            }
                             onStatusChange={mediaHandlers.handleStatusChange}
                             userPermissions={userPermissions}
+                            onRenameMedia={handleRenameMedia}
+                            reviewLinks={reviewLinks}
+                            onReviewLinksUpdated={onReviewLinksUpdated}
                           />
                         ))}
                       </div>
@@ -786,51 +913,58 @@ const getGridClasses = (mediaCount: number, width: number) => {
             </div>
           </TabsContent>
 
-        <TabsContent value="folders" className="mt-0 min-h-screen">
-  <div className="flex-1 overflow-y-auto" ref={containerRef}>
-    {isLoadingFolders ? (
-      <div className="text-center py-12">
-        <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin" />
-        <p>Loading folders...</p>
-      </div>
-    ) : filteredFolders.length === 0 ? (
-      <div className="text-center py-12">
-        <FolderIcon className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
-        <p className="text-lg">No folders found</p>
-        <p className="text-sm text-muted-foreground">
-          {searchQuery ? "Try adjusting your search" : "Create your first folder to organize files"}
-        </p>
-        {!searchQuery && userPermissions.canUpload && (
-          <Button
-            onClick={() => setCreateFolderOpen(true)}
-            className="mt-4"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Folder
-          </Button>
-        )}
-      </div>
-    ) : (
-      <div className={getGridClasses(filteredFolders.length, containerWidth)}>
-        {filteredFolders.map((folder) => (
-          <FolderCard
-            key={folder.id}
-            folder={folder}
-            projectId={projectId}
-            viewMode={viewMode}
-            onFoldersUpdate={(updatedFolders) => {
-              setFolders(updatedFolders);
-              if (passedOnFoldersUpdate) {
-                passedOnFoldersUpdate(updatedFolders);
-              }
-            }}
-            allFolders={folders}
-          />
-        ))}
-      </div>
-    )}
-  </div>
-</TabsContent>
+          <TabsContent value="folders" className="mt-0 min-h-screen">
+            <div className="flex-1 overflow-y-auto" ref={containerRef}>
+              {isLoadingFolders ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin" />
+                  <p>Loading folders...</p>
+                </div>
+              ) : filteredFolders.length === 0 ? (
+                <div className="text-center py-12">
+                  <FolderIcon className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
+                  <p className="text-lg">No folders found</p>
+                  <p className="text-sm text-muted-foreground">
+                    {searchQuery
+                      ? "Try adjusting your search"
+                      : "Create your first folder to organize files"}
+                  </p>
+                  {!searchQuery && userPermissions.canUpload && (
+                    <Button
+                      onClick={() => setCreateFolderOpen(true)}
+                      className="mt-4"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Folder
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={getGridClasses(
+                    filteredFolders.length,
+                    containerWidth
+                  )}
+                >
+                  {filteredFolders.map((folder) => (
+                    <FolderCard
+                      key={folder.id}
+                      folder={folder}
+                      projectId={projectId}
+                      viewMode={viewMode}
+                      onFoldersUpdate={(updatedFolders) => {
+                        setFolders(updatedFolders);
+                        if (passedOnFoldersUpdate) {
+                          passedOnFoldersUpdate(updatedFolders);
+                        }
+                      }}
+                      allFolders={folders}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -854,8 +988,11 @@ const getGridClasses = (mediaCount: number, width: number) => {
         projectReferences={project.project_references || []}
         projectName={project.name}
         onReferencesUpdate={async (updatedReferences) => {
-          const result = await updateProjectReferencesAction(projectId, updatedReferences);
-          
+          const result = await updateProjectReferencesAction(
+            projectId,
+            updatedReferences
+          );
+
           if (result.success) {
             toast({
               title: "References Updated",
@@ -865,7 +1002,8 @@ const getGridClasses = (mediaCount: number, width: number) => {
           } else {
             toast({
               title: "Update Failed",
-              description: result.error || "Failed to update project references",
+              description:
+                result.error || "Failed to update project references",
               variant: "destructive",
             });
           }
@@ -895,23 +1033,27 @@ const getGridClasses = (mediaCount: number, width: number) => {
         onVersionManagerDialogChange={setVersionManagerDialog}
         onDeleteDialogChange={setDeleteDialog}
         onCreateReviewLink={reviewLinkHandlers.handleCreateReviewLink}
-       onToggleReviewLink={reviewLinkHandlers.handleToggleReviewLink}
-       onUpdateReviewLink={reviewLinkHandlers.handleUpdateReviewLink}
-       onDeleteReviewLink={reviewLinkHandlers.handleDeleteReviewLink}
-       onVersionReorder={versionHandlers.handleVersionReorder}
-       onUpdateVersionName={versionHandlers.handleUpdateVersionName}
-       onDeleteVersion={versionHandlers.handleDeleteVersion}
-       onDeleteMedia={mediaHandlers.handleDeleteMedia}
-       projectId={projectId}
-       onMediaUpdated={onMediaUpdated}
-     />
+        onToggleReviewLink={reviewLinkHandlers.handleToggleReviewLink}
+        onUpdateReviewLink={reviewLinkHandlers.handleUpdateReviewLink}
+        onDeleteReviewLink={reviewLinkHandlers.handleDeleteReviewLink}
+        onVersionReorder={versionHandlers.handleVersionReorder}
+        onUpdateVersionName={versionHandlers.handleUpdateVersionName}
+        onDeleteVersion={versionHandlers.handleDeleteVersion}
+        onDeleteMedia={mediaHandlers.handleDeleteMedia}
+        projectId={projectId}
+        onMediaUpdated={handleMediaUpdated}
+        editNameDialog={editNameDialog}
+        onEditNameDialogChange={setEditNameDialog}
+        onRenameMedia={handleRenameMedia}
+        reviewLinks={reviewLinks}
+      />
 
-     {/* Global drag message */}
-     {draggedMedia && (
-       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg">
-         Drag to another media to create a version
-       </div>
-     )}
-   </div>
- );
+      {/* Global drag message */}
+      {draggedMedia && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg">
+          Drag to another media to create a version
+        </div>
+      )}
+    </div>
+  );
 }

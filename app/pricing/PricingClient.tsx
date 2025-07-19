@@ -13,11 +13,7 @@ import type { User } from "@supabase/supabase-js";
 import { formatDate } from "../dashboard/lib/formats";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 import { motion, useInView } from "framer-motion";
-import {
-  GridBackground,
-  GridBackground2,
-  Spotlight,
-} from "@/components/ui/spotlight-new";
+import { GridBackground2, Spotlight } from "@/components/ui/spotlight-new";
 import PricingFeaturesTable from "./utils/PricingFeaturesTable";
 
 interface Subscription {
@@ -37,7 +33,7 @@ interface PricingClientProps {
   currentSubscription: Subscription | null;
 }
 
-const pricingTiers = [
+export const pricingTiers = [
   {
     id: "free" as const,
     name: "Free",
@@ -46,12 +42,12 @@ const pricingTiers = [
     maxUploadSize: 200, // 200MB
     level: 0,
     features: [
-      "Upload videos, images",
+      "Upload videos,images",
       "200MB max upload size",
       "2 Active projects",
       "2 Members per project",
-      "Timestamped comments",
-      "Accurate Pin/Draw Annotation",
+      "Pin & Draw Annotations",
+
       "Email/App notifications",
     ],
   },
@@ -69,11 +65,12 @@ const pricingTiers = [
     features: [
       "Everything in Free plan",
       "5GB max upload size",
-      "flexible storage up to 2TB",
+      "Flexible storage up to 2TB",
       "Unlimited projects",
       "Unlimited members",
       "Password protection for links",
       "Custom expiration dates",
+      "Download controls",
       "Priority support",
     ],
   },
@@ -90,11 +87,12 @@ const pricingTiers = [
     features: [
       "Everything in Free plan",
       "2GB max upload size",
-      "flexible storage up to 150GB",
-      "Unlimited projects",
-      "Unlimited members",
+      "Flexible storage up to 150GB",
+      "5 Active projects",
+      "5 Members per project",
       "Password protection for links",
       "Custom expiration dates",
+      "Download controls", // Added back
     ],
   },
 ];

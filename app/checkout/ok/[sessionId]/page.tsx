@@ -3,6 +3,17 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import CheckoutClient from "./CheckoutClient";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Checkout ",
+  description: "Complete your purchase securely and quickly on Raivcoo.",
+
+  alternates: {
+    canonical: "https://www.raivcoo.com/checkout",
+  },
+};
+
 interface CheckoutPageProps {
   params: Promise<{ sessionId: string }>;
 }

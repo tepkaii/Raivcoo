@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import SuccessClient from "./SuccessClient";
+import { Metadata } from "next";
 
 interface SuccessPageProps {
   searchParams: Promise<{
@@ -20,33 +21,12 @@ const pricingTiers = [
     maxUploadSize: 200, // 200MB
     level: 0,
     features: [
-      "Upload videos, images",
+      "Upload videos,images",
       "200MB max upload size",
       "2 Active projects",
       "2 Members per project",
-      "Timestamped comments",
-      "Accurate Pin/Draw Annotation",
+      "Pin & Draw Annotations",
       "Email/App notifications",
-    ],
-  },
-  {
-    id: "lite" as const,
-    name: "Lite",
-    basePrice: 2.99,
-    baseStorage: 50, // 50GB base
-    additionalStoragePrice: 1.0, // $1.0 per 25GB
-    additionalStorageUnit: 25, // 25GB increments
-    maxStorage: 150, // 150GB max
-    maxUploadSize: 2048, // 2GB
-    level: 1,
-    features: [
-      "Everything in Free plan",
-      "2GB max upload size",
-      "flexible storage up to 150GB",
-      "Unlimited projects",
-      "Unlimited members",
-      "Password protection for links",
-      "Custom expiration dates",
     ],
   },
   {
@@ -63,16 +43,49 @@ const pricingTiers = [
     features: [
       "Everything in Free plan",
       "5GB max upload size",
-      "flexible storage up to 2TB",
+      "Flexible storage up to 2TB",
       "Unlimited projects",
       "Unlimited members",
       "Password protection for links",
       "Custom expiration dates",
+      "Download controls",
       "Priority support",
     ],
   },
+  {
+    id: "lite" as const,
+    name: "Lite",
+    basePrice: 2.99,
+    baseStorage: 50, // 50GB base
+    additionalStoragePrice: 1.0, // $1.0 per 25GB
+    additionalStorageUnit: 25, // 25GB increments
+    maxStorage: 150, // 150GB max
+    maxUploadSize: 2048, // 2GB
+    level: 1,
+    features: [
+      "Everything in Free plan",
+      "2GB max upload size",
+      "Flexible storage up to 150GB",
+      "5 Active projects",
+      "5 Members per project",
+      "Password protection for links",
+      "Custom expiration dates",
+      "Download controls",
+    ],
+  },
 ];
-
+export const metadata: Metadata = {
+  title: "Purchase Successful",
+  description:
+    "Thank you for your purchase! Your Raivcoo subscription is now active.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  alternates: {
+    canonical: "https://www.raivcoo.com/checkout/success",
+  },
+};
 export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const supabase = await createClient();
   const params = await searchParams;

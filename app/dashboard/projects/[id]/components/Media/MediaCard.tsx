@@ -19,23 +19,31 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
+import {
+  MediaFile,
+  OrganizedMedia,
+  ReviewLink,
+} from "@/app/dashboard/lib/types";
 import { Button } from "@/components/ui/button";
 
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowUpOnSquareStackIcon,
+  BoltIcon,
+  ClipboardIcon,
   CodeBracketIcon,
   DocumentIcon,
   EyeIcon,
   LinkIcon,
   MusicalNoteIcon,
+  PencilIcon,
   PhotoIcon,
   TrashIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/solid";
 import { changeMediaStatusAction } from "../../lib/StatusChangeActions";
-
+import { Copy } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 // Status configuration - can be easily modified
 export const MEDIA_STATUS_OPTIONS = [
   { value: "on_hold", label: "On Hold", color: "bg-gray-500" },
@@ -75,6 +83,7 @@ interface MediaCardProps {
   onDeleteMedia: (mediaFile: MediaFile) => void;
   onOpenVersionManager: (media: OrganizedMedia) => void;
   onStatusChange: (mediaFile: MediaFile, newStatus: string) => void;
+  onRenameMedia: (mediaFile: MediaFile) => void;
   userPermissions: {
     canUpload: boolean;
     canDelete: boolean;
@@ -82,6 +91,8 @@ interface MediaCardProps {
     canCreateReviewLinks: boolean;
   };
   projectId: string;
+  reviewLinks: ReviewLink[];
+  onReviewLinksUpdated: (newLinks: ReviewLink[]) => void;
 }
 
 export const formatFileSize = (bytes: number) => {
@@ -96,10 +107,13 @@ const getFileCategory = (fileType: string, mimeType: string) => {
   if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
   if (mimeType === "image/svg+xml") return "svg"; // ✅ Keep SVG as separate category
   if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType === "application/pdf" || 
-      mimeType.includes("document") || 
-      mimeType.includes("presentation") ||
-      mimeType === "text/plain") return "document";
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("document") ||
+    mimeType.includes("presentation") ||
+    mimeType === "text/plain"
+  )
+    return "document";
   return "unknown";
 };
 // ✅ MEMOIZED MediaCard component with proper download functionality
@@ -126,6 +140,9 @@ export const MediaCard = React.memo(
     onStatusChange,
     userPermissions,
     projectId,
+    onRenameMedia,
+    reviewLinks,
+    onReviewLinksUpdated,
   }: MediaCardProps) {
     // ✅ Stable media object creation (performance optimization)
     const stableMediaObject = React.useMemo(
@@ -154,7 +171,10 @@ export const MediaCard = React.memo(
     const [localStatus, setLocalStatus] = React.useState(
       media.currentVersion.status || "in_progress"
     );
-
+    const [latestLink, setLatestLink] = React.useState<{
+      link_token: string;
+      title?: string;
+    } | null>(null);
     // ✅ Memoized date formatting
     const formattedDate = React.useMemo(() => {
       return new Date(media.currentVersion.uploaded_at).toLocaleDateString(
@@ -170,6 +190,139 @@ export const MediaCard = React.memo(
       setLocalStatus(media.currentVersion.status || "in_progress");
     }, [media.currentVersion.status]);
 
+    React.useEffect(() => {
+      const fetchLatestLink = async () => {
+        try {
+          const supabase = createClient();
+          const { data: link, error } = await supabase
+            .from("review_links")
+            .select("link_token, title")
+            .eq("media_id", media.currentVersion.id)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!error && link) {
+            setLatestLink(link);
+          } else {
+            setLatestLink(null);
+          }
+        } catch (error) {
+          console.error("Error fetching latest link:", error);
+          setLatestLink(null);
+        }
+      };
+
+      fetchLatestLink();
+    }, [media.currentVersion.id, media.hasReviewLinks]);
+
+    // ✅ Create quick link directly without opening dialog
+    const createQuickLink = React.useCallback(
+      async (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        try {
+          // Show creating toast
+          toast({
+            title: "Creating Quick Link",
+            description: "Creating review link with default settings...",
+            variant: "default",
+          });
+
+          const supabase = createClient();
+
+          // Generate unique link token
+          const linkToken = crypto.randomUUID().replace(/-/g, "");
+
+          // Create the review link directly in database
+          const { data: newLink, error } = await supabase
+            .from("review_links")
+            .insert({
+              project_id: projectId,
+              media_id: media.currentVersion.id,
+              link_token: linkToken,
+              title: `Quick link for ${media.currentVersion.original_filename}`,
+              is_active: true,
+              expires_at: null, // No expiration
+              requires_password: false,
+              password_hash: null,
+              allow_download: true, // Allow download
+            })
+            .select()
+            .single();
+
+          if (error) {
+            throw error;
+          }
+
+          // Create the full URL
+          const linkUrl = `${window.location.origin}/review/${linkToken}`;
+
+          // Copy to clipboard
+          await navigator.clipboard.writeText(linkUrl);
+
+          // Update latest link state
+          setLatestLink({
+            link_token: linkToken,
+            title: newLink.title,
+          });
+
+          // Show success toast
+          toast({
+            title: "Quick Link Created!",
+            description: "Review link created and copied to clipboard",
+            variant: "green",
+          });
+
+          // ✅ Update review links state to reflect new link - ADD THIS
+          const updatedReviewLinks = [...reviewLinks, newLink];
+          onReviewLinksUpdated(updatedReviewLinks);
+        } catch (error) {
+          console.error("Failed to create quick link:", error);
+          toast({
+            title: "Failed to Create Quick Link",
+            description: "Could not create review link. Please try again.",
+            variant: "destructive",
+          });
+        }
+      },
+      [media.currentVersion, projectId, reviewLinks, onReviewLinksUpdated]
+    );
+
+    // ✅ Copy latest link handler
+    const copyLatestLink = React.useCallback(
+      async (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        if (!latestLink) {
+          toast({
+            title: "No Links Found",
+            description: "No active review links found for this media",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        try {
+          const linkUrl = `${window.location.origin}/review/${latestLink.link_token}`;
+          await navigator.clipboard.writeText(linkUrl);
+
+          toast({
+            title: "Link Copied",
+            description: `"${latestLink.title || "Latest link"}" copied to clipboard`,
+            variant: "green",
+          });
+        } catch (error) {
+          toast({
+            title: "Failed to Copy Link",
+            description: "Could not copy link to clipboard",
+            variant: "destructive",
+          });
+        }
+      },
+      [latestLink]
+    );
     // ✅ Download handler - Forces direct download
     const handleDownload = React.useCallback(
       async (e: React.MouseEvent) => {
@@ -274,66 +427,66 @@ export const MediaCard = React.memo(
       [onDragLeave]
     );
 
-   const handleDrop = React.useCallback(
-  (e: React.DragEvent) => {
-    e.preventDefault();
+    const handleDrop = React.useCallback(
+      (e: React.DragEvent) => {
+        e.preventDefault();
 
-    if (e.dataTransfer.files.length > 0) {
-      const files = Array.from(e.dataTransfer.files);
-      const allowedTypes = [
-        // Video types
-        "video/mp4",
-        "video/mov", 
-        "video/avi",
-        "video/mkv",
-        "video/webm",
-        // Image types
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "image/svg+xml",
-        // Audio types
-        "audio/mpeg", // MP3
-        "audio/wav",
-        "audio/ogg",
-        "audio/flac",
-        "audio/aac",
-        "audio/mp4", // M4A
-        "audio/x-wav", // Alternative WAV
-        "audio/vorbis", // OGG Vorbis
-        // Document types
-        "application/pdf",
-        "application/msword", // DOC
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
-        "application/vnd.ms-powerpoint", // PPT
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation", // PPTX
-        "text/plain", // TXT
-      ];
+        if (e.dataTransfer.files.length > 0) {
+          const files = Array.from(e.dataTransfer.files);
+          const allowedTypes = [
+            // Video types
+            "video/mp4",
+            "video/mov",
+            "video/avi",
+            "video/mkv",
+            "video/webm",
+            // Image types
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+            "image/svg+xml",
+            // Audio types
+            "audio/mpeg", // MP3
+            "audio/wav",
+            "audio/ogg",
+            "audio/flac",
+            "audio/aac",
+            "audio/mp4", // M4A
+            "audio/x-wav", // Alternative WAV
+            "audio/vorbis", // OGG Vorbis
+            // Document types
+            "application/pdf",
+            "application/msword", // DOC
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
+            "application/vnd.ms-powerpoint", // PPT
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation", // PPTX
+            "text/plain", // TXT
+          ];
 
-      const validFiles = files.filter((file) =>
-        allowedTypes.includes(file.type)
-      );
+          const validFiles = files.filter((file) =>
+            allowedTypes.includes(file.type)
+          );
 
-      if (validFiles.length > 0) {
-        onDrop(media.id, validFiles);
-      }
-      return;
-    }
+          if (validFiles.length > 0) {
+            onDrop(media.id, validFiles);
+          }
+          return;
+        }
 
-    if (draggedMedia) {
-      if (
-        draggedMedia.id === media.id ||
-        draggedMedia.parent_media_id === media.id
-      ) {
-        return; // Invalid drop
-      }
-      onDrop(media.id, []);
-    }
-  },
-  [onDrop, media.id, draggedMedia]
-);
+        if (draggedMedia) {
+          if (
+            draggedMedia.id === media.id ||
+            draggedMedia.parent_media_id === media.id
+          ) {
+            return; // Invalid drop
+          }
+          onDrop(media.id, []);
+        }
+      },
+      [onDrop, media.id, draggedMedia]
+    );
     const handleStatusChange = React.useCallback(
       async (newStatus: string) => {
         const originalStatus = localStatus;
@@ -402,15 +555,21 @@ export const MediaCard = React.memo(
       [onOpenVersionManager, media]
     );
 
-const handleDeleteMedia = React.useCallback(
-  (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Pass the current version, not the parent media
-    onDeleteMedia(media.currentVersion); // Changed from stableMediaObject
-  },
-  [onDeleteMedia, media.currentVersion]
-);
-
+    const handleDeleteMedia = React.useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        // Pass the current version, not the parent media
+        onDeleteMedia(media.currentVersion); // Changed from stableMediaObject
+      },
+      [onDeleteMedia, media.currentVersion]
+    );
+    const handleRenameMedia = React.useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onRenameMedia(media.currentVersion);
+      },
+      [onRenameMedia, media.currentVersion]
+    );
     return (
       <div className="space-y-2">
         {/* Main Media Card */}
@@ -428,229 +587,246 @@ const handleDeleteMedia = React.useCallback(
           onDrop={handleDrop}
           draggable
         >
- <div className="relative aspect-video bg-black overflow-hidden flex items-center justify-center">
-  {(() => {
-    const category = getFileCategory(media.currentVersion.file_type, media.currentVersion.mime_type);
-    
-    switch (category) {
-      case "image":
-        return (
-          <img
-            src={media.currentVersion.r2_url}
-            alt={media.currentVersion.original_filename}
-            className="max-w-full max-h-full object-contain"
-          />
-        );
-      
-    case "video":
-  return media.currentVersion.thumbnail_r2_url ? (
-    <img
-      src={media.currentVersion.thumbnail_r2_url}
-      alt={`${media.currentVersion.original_filename} thumbnail`}
-      className="max-w-full max-h-full object-contain"
-    />
-  ) : (
-    // ✅ Video fallback with gradient and icon (NO actual video)
-    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
-      <VideoCameraIcon className="h-16 w-16 text-white/80 mb-2" />
-      <span className="text-white/60 text-sm text-center px-4">
-        {media.currentVersion.original_filename}
-      </span>
-    </div>
-  );
-      
-      case "audio":
-        return (
-          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-purple-500 to-blue-800">
-            <MusicalNoteIcon className="h-16 w-16 text-white/80 mb-2" />
-            <span className="text-white/60 text-sm text-center px-4">
-              {media.currentVersion.original_filename}
-            </span>
+          <div className="relative aspect-video bg-black overflow-hidden flex items-center justify-center">
+            {(() => {
+              const category = getFileCategory(
+                media.currentVersion.file_type,
+                media.currentVersion.mime_type
+              );
+
+              switch (category) {
+                case "image":
+                  return (
+                    <img
+                      src={media.currentVersion.r2_url}
+                      alt={media.currentVersion.original_filename}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  );
+
+                case "video":
+                  return media.currentVersion.thumbnail_r2_url ? (
+                    <img
+                      src={media.currentVersion.thumbnail_r2_url}
+                      alt={`${media.currentVersion.original_filename} thumbnail`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    // ✅ Video fallback with gradient and icon (NO actual video)
+                    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
+                      <VideoCameraIcon className="h-16 w-16 text-white/80 mb-2" />
+                      <span className="text-white/60 text-sm text-center px-4">
+                        {media.currentVersion.original_filename}
+                      </span>
+                    </div>
+                  );
+
+                case "audio":
+                  return (
+                    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-purple-500 to-blue-800">
+                      <MusicalNoteIcon className="h-16 w-16 text-white/80 mb-2" />
+                      <span className="text-white/60 text-sm text-center px-4">
+                        {media.currentVersion.original_filename}
+                      </span>
+                    </div>
+                  );
+
+                case "svg": // ✅ New SVG category with special styling
+                  return (
+                    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-green-600 to-teal-800">
+                      <CodeBracketIcon className="h-16 w-16 text-white/80 mb-2" />
+                      <span className="text-white/60 text-sm text-center px-4">
+                        {media.currentVersion.original_filename}
+                      </span>
+                    </div>
+                  );
+
+                case "document":
+                  return (
+                    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
+                      <DocumentIcon className="h-16 w-16 text-white/80 mb-2" />
+                      <span className="text-white/60 text-sm text-center px-4">
+                        {media.currentVersion.original_filename}
+                      </span>
+                    </div>
+                  );
+
+                default:
+                  return (
+                    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
+                      <DocumentIcon className="h-16 w-16 text-white/80 mb-2" />
+                      <span className="text-white/60 text-sm text-center px-4">
+                        {media.currentVersion.original_filename}
+                      </span>
+                    </div>
+                  );
+              }
+            })()}
+
+            {/* Type badge - Update to show SVG category */}
+            <div className="absolute top-2 left-2">
+              <Badge variant="outline">
+                {(() => {
+                  const category = getFileCategory(
+                    media.currentVersion.file_type,
+                    media.currentVersion.mime_type
+                  );
+                  switch (category) {
+                    case "video":
+                      return (
+                        <>
+                          <VideoCameraIcon className="h-3 w-3 mr-1" />
+                          Video
+                        </>
+                      );
+                    case "image":
+                      return (
+                        <>
+                          <PhotoIcon className="h-3 w-3 mr-1" />
+                          Image
+                        </>
+                      );
+                    case "svg": // ✅ New SVG badge
+                      return (
+                        <>
+                          <CodeBracketIcon className="h-3 w-3 mr-1" />
+                          SVG
+                        </>
+                      );
+                    case "audio":
+                      return (
+                        <>
+                          <MusicalNoteIcon className="h-3 w-3 mr-1" />
+                          Audio
+                        </>
+                      );
+                    case "document":
+                      return (
+                        <>
+                          <DocumentIcon className="h-3 w-3 mr-1" />
+                          Document
+                        </>
+                      );
+                    default:
+                      return (
+                        <>
+                          <DocumentIcon className="h-3 w-3 mr-1" />
+                          File
+                        </>
+                      );
+                  }
+                })()}
+              </Badge>
+            </div>
+            {/* Version badge */}
+            <div className="absolute top-2 right-2">
+              <Badge variant="outline" className="text-xs">
+                v{media.currentVersion.version_number}
+              </Badge>
+            </div>
+
+            {/* Drop overlay */}
+            {isDropTarget && (
+              <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
+                <div className="bg-primary border-2 border-black/20 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2">
+                  <span>Drop To Another Media</span>
+                </div>
+              </div>
+            )}
+
+            {/* Actions overlay */}
+            <div className="absolute bottom-2 right-2">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {userPermissions.canCreateReviewLinks && (
+                    <DropdownMenuItem onClick={createQuickLink}>
+                      <BoltIcon className="h-4 w-4 mr-2" />
+                      Quick Link
+                    </DropdownMenuItem>
+                  )}
+                  {latestLink && userPermissions.canCreateReviewLinks && (
+                    <DropdownMenuItem onClick={copyLatestLink}>
+                      <ClipboardIcon className="h-4 w-4 mr-2" />
+                      Copy: "{latestLink.title || "Latest Link"}"
+                    </DropdownMenuItem>
+                  )}
+                  {/* Review Link Actions - Only collaborators */}
+                  {userPermissions.canCreateReviewLinks && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleCreateReviewLink}>
+                        <LinkIcon className="h-4 w-4 mr-2" />
+                        Create Link with Options
+                      </DropdownMenuItem>
+
+                      {media.hasReviewLinks && (
+                        <DropdownMenuItem onClick={handleViewReviewLinks}>
+                          <EyeIcon className="h-4 w-4 mr-2" />
+                          Manage All Links
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+                  {/* Version Management - Only collaborators */}
+                  {hasVersions && userPermissions.canUpload && (
+                    <>
+                      <DropdownMenuItem onClick={handleOpenVersionManager}>
+                        <ArrowUpOnSquareStackIcon className="h-4 w-4 mr-2" />
+                        Manage Versions
+                      </DropdownMenuItem>
+                    </>
+                  )}{" "}
+                  <DropdownMenuSeparator />
+                  {/* Download - Everyone can download */}
+                  <DropdownMenuItem onClick={handleDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </DropdownMenuItem>
+                  {/* View Media - Everyone can view */}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(
+                        `/media/${media.currentVersion.id}`,
+                        "_blank"
+                      );
+                    }}
+                  >
+                    <VideoCameraIcon className="h-4 w-4 mr-2" />
+                    View Media
+                  </DropdownMenuItem>{" "}
+                  <DropdownMenuSeparator />
+                  {userPermissions.canUpload && (
+                    <DropdownMenuItem onClick={handleRenameMedia}>
+                      <PencilIcon className="h-4 w-4 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                  )}
+                  {/* Delete - Only collaborators */}
+                  {userPermissions.canDelete && (
+                    <>
+                      <DropdownMenuItem
+                        className="text-red-400 focus:bg-red-600 focus:text-white"
+                        onClick={handleDeleteMedia}
+                      >
+                        <TrashIcon className="h-4 w-4 mr-2" />
+                        Delete Media
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        );
-  
-      case "svg": // ✅ New SVG category with special styling
-        return (
-          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-green-600 to-teal-800">
-            <CodeBracketIcon className="h-16 w-16 text-white/80 mb-2" />
-            <span className="text-white/60 text-sm text-center px-4">
-              {media.currentVersion.original_filename}
-            </span>
-          </div>
-        );
-
-      case "document":
-        return (
-          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
-            <DocumentIcon className="h-16 w-16 text-white/80 mb-2" />
-            <span className="text-white/60 text-sm text-center px-4">
-              {media.currentVersion.original_filename}
-            </span>
-          </div>
-        );
-      
-      default:
-        return (
-          <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-gray-600 to-gray-800">
-            <DocumentIcon className="h-16 w-16 text-white/80 mb-2" />
-            <span className="text-white/60 text-sm text-center px-4">
-              {media.currentVersion.original_filename}
-            </span>
-          </div>
-        );
-    }
-  })()}
-
-  {/* Type badge - Update to show SVG category */}
-  <div className="absolute top-2 left-2">
-    <Badge variant="outline">
-      {(() => {
-        const category = getFileCategory(media.currentVersion.file_type, media.currentVersion.mime_type);
-        switch (category) {
-          case "video":
-            return (
-              <>
-                <VideoCameraIcon className="h-3 w-3 mr-1" />
-                Video
-              </>
-            );
-          case "image":
-            return (
-              <>
-                <PhotoIcon className="h-3 w-3 mr-1" />
-                Image
-              </>
-            );
-          case "svg": // ✅ New SVG badge
-            return (
-              <>
-                <CodeBracketIcon className="h-3 w-3 mr-1" />
-                SVG
-              </>
-            );
-          case "audio":
-            return (
-              <>
-                <MusicalNoteIcon className="h-3 w-3 mr-1" />
-                Audio
-              </>
-            );
-          case "document":
-            return (
-              <>
-                <DocumentIcon className="h-3 w-3 mr-1" />
-                Document
-              </>
-            );
-          default:
-            return (
-              <>
-                <DocumentIcon className="h-3 w-3 mr-1" />
-                File
-              </>
-            );
-        }
-      })()}
-    </Badge>
-  </div>
-  
-  {/* Rest of the component... */}
-
- {/* Version badge */}
- <div className="absolute top-2 right-2">
-   <Badge variant="outline" className="text-xs">
-     v{media.currentVersion.version_number}
-   </Badge>
- </div>
-
- {/* Drop overlay */}
- {isDropTarget && (
-   <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
-     <div className="bg-primary border-2 border-black/20 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2">
-       <span>Drop To Another Media</span>
-     </div>
-   </div>
- )}
-
- {/* Actions overlay */}
- <div className="absolute bottom-2 right-2">
-   <DropdownMenu modal={false}>
-     <DropdownMenuTrigger asChild>
-       <Button
-         variant="outline"
-         size="icon"
-         onClick={(e) => e.stopPropagation()}
-       >
-         <MoreVertical className="h-3 w-3" />
-       </Button>
-     </DropdownMenuTrigger>
-     <DropdownMenuContent align="end">
-       {/* View Media - Everyone can view */}
-       <DropdownMenuItem
-         onClick={(e) => {
-           e.stopPropagation();
-           window.open(
-             `/media/${media.currentVersion.id}`,
-             "_blank"
-           );
-         }}
-       >
-         <VideoCameraIcon className="h-4 w-4 mr-2" />
-         View Media
-       </DropdownMenuItem>
-
-       {/* Download - Everyone can download */}
-       <DropdownMenuItem onClick={handleDownload}>
-         <Download className="h-4 w-4 mr-2" />
-         Download
-       </DropdownMenuItem>
-
-       {/* Review Link Actions - Only collaborators */}
-       {userPermissions.canCreateReviewLinks && (
-         <>
-           <DropdownMenuSeparator />
-           <DropdownMenuItem onClick={handleCreateReviewLink}>
-             <LinkIcon className="h-4 w-4 mr-2" />
-             Create Review Link
-           </DropdownMenuItem>
-
-           {media.hasReviewLinks && (
-             <DropdownMenuItem onClick={handleViewReviewLinks}>
-               <EyeIcon className="h-4 w-4 mr-2" />
-               View & Manage Review Links
-             </DropdownMenuItem>
-           )}
-         </>
-       )}
-
-       {/* Version Management - Only collaborators */}
-       {hasVersions && userPermissions.canUpload && (
-         <>
-           <DropdownMenuSeparator />
-           <DropdownMenuItem onClick={handleOpenVersionManager}>
-             <ArrowUpOnSquareStackIcon className="h-4 w-4 mr-2" />
-             Manage Versions
-           </DropdownMenuItem>
-         </>
-       )}
-
-       {/* Delete - Only collaborators */}
-       {userPermissions.canDelete && (
-         <>
-           <DropdownMenuSeparator />
-           <DropdownMenuItem
-             className="text-red-400 focus:bg-red-600 focus:text-white"
-             onClick={handleDeleteMedia}
-           >
-             <TrashIcon className="h-4 w-4 mr-2" />
-             Delete Media
-           </DropdownMenuItem>
-         </>
-       )}
-     </DropdownMenuContent>
-   </DropdownMenu>
- </div>
-</div>
 
           {/* Content */}
           <div className="p-3 border-t-2">
@@ -658,9 +834,10 @@ const handleDeleteMedia = React.useCallback(
               <div>
                 <h3
                   className="font-medium text-white text-sm truncate"
-                  title={media.original_filename}
+                  title={media.currentVersion.original_filename} // ✅ Use currentVersion filename
                 >
-                  {media.original_filename}
+                  {media.currentVersion.original_filename}{" "}
+                  {/* ✅ Use currentVersion filename */}
                 </h3>
                 <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
                   <span>{formatFileSize(media.currentVersion.file_size)}</span>
@@ -717,10 +894,11 @@ const handleDeleteMedia = React.useCallback(
     );
   },
   (prevProps, nextProps) => {
-    // ✅ Optimized comparison function (performance optimization only)
     return (
       prevProps.media.id === nextProps.media.id &&
       prevProps.media.currentVersion.id === nextProps.media.currentVersion.id &&
+      prevProps.media.currentVersion.original_filename ===
+        nextProps.media.currentVersion.original_filename && // ✅ Add filename comparison
       prevProps.media.currentVersion.status ===
         nextProps.media.currentVersion.status &&
       prevProps.selectedMedia?.id === nextProps.selectedMedia?.id &&
@@ -729,7 +907,6 @@ const handleDeleteMedia = React.useCallback(
       prevProps.expandedMedia.has(prevProps.media.id) ===
         nextProps.expandedMedia.has(nextProps.media.id) &&
       prevProps.media.hasReviewLinks === nextProps.media.hasReviewLinks &&
-      // Add userPermissions to comparison
       prevProps.userPermissions.canUpload ===
         nextProps.userPermissions.canUpload &&
       prevProps.userPermissions.canDelete ===

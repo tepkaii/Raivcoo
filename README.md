@@ -1,41 +1,32 @@
-# Raivcoo Project
+# Media Review Platform
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app), built for **Raivcoo**, a platform designed to help video editors create and share portfolios.
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app), built for a **media review platform** designed to make media review simple with flexible storage and affordable pricing.
 
-## Getting Started
+## About
 
-To run the development server, use one of the following commands:
+A platform that enables simple media review with precise feedback tools. Upload any media format, get timestamped feedback with pins and drawings, and share securely with clients without requiring them to sign up.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-Open http://localhost:3000 in your browser to view the project in action.
+### Key Features
 
-You can start editing the page by modifying app/page.tsx. The page will auto-update as you make changes.
+- **Upload Anything**: Videos, images, audio, documents, and SVG files up to 5GB per file
+- **Precise Feedback**: Pin comments to exact frames, draw directly on media, and get timestamped feedback
+- **Secure Sharing**: Password protection, custom expiration, and download controls
+- **Multi-Panel Interface**: Media library, video player, and comments all in one view
+- **Smart Organization**: Create folders and keep projects organized
+- **Global Search**: Find any project or media file instantly with Cmd+K
+- **Simple Collaboration**: Invite people with specific roles and get notifications
+- **Adobe Integration** (Coming Soon): Timeline integration with After Effects and Premiere Pro
 
-This project uses next/font to optimize and load Geist, a custom font family for Vercel.
+Important Notice
 
-Learn More
-To learn more about Next.js, explore the following resources:
+This project is proprietary and confidential. This repository and all its contents are provided solely for viewing and demonstration purposes.
+Restrictions
 
-Next.js Documentation - Learn about Next.js features and API.
-Learn Next.js - An interactive tutorial to get started with Next.js.
-You can also check out the Next.js GitHub repository and contribute or share your feedback!
+❌ No modification of any code or content
+❌ No distribution or sharing of any part of this project
+❌ No commercial use or selling of any components
+❌ No copying of code, designs, or concepts
+❌ No creation of derivative works
 
-Deploy on Vercel
-The easiest way to deploy your Raivcoo project is by using the Vercel Platform, built by the creators of Next.js.
-
-For more information on deploying, check out the Next.js deployment documentation.
-
-
-
-
-
-
-
-```
+This project is shared only to demonstrate development capabilities and project structure. All rights are reserved.
+For any questions about this project, please contact the repository owner.

@@ -249,8 +249,6 @@ export default async function ProjectsPage() {
 function getPlanLimits(planId: string | null, hasActiveSubscription: boolean) {
   // If no active subscription or free plan, apply free limits
   if (!hasActiveSubscription || !planId || planId === "free") {
-
-    
     return {
       maxProjects: 2,
       planName: "Free",
@@ -259,14 +257,14 @@ function getPlanLimits(planId: string | null, hasActiveSubscription: boolean) {
     };
   }
 
-  // Both lite and pro have unlimited projects
+  // Lite has 5 projects, Pro has unlimited
   switch (planId) {
     case "lite":
       return {
-        maxProjects: -1, // unlimited
+        maxProjects: 5, // Changed from -1 to 5
         planName: "Lite",
         isActive: true,
-        hasLimit: false,
+        hasLimit: true, // Changed from false to true since there's a limit
       };
     case "pro":
       return {

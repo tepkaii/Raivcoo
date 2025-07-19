@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useState } from "react";
-import img4 from "../../public/icons/4.png";
+import img1 from "../../public/icons/1.png";
 import { Button } from "@/components/ui/button";
 interface FadeInSectionProps {
   children: React.ReactNode;
@@ -152,7 +152,7 @@ const SupportOptionsSection = () => {
               placeholder="blur"
               quality={100}
               loading="lazy"
-              src={img4}
+              src={img1}
               alt="Support Features"
               width={600}
               height={400}

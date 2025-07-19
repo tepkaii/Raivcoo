@@ -81,7 +81,6 @@ export default function UsageTab({ user }: UsageTabProps) {
       if (error) {
         console.error("Error fetching subscription:", error);
       } else {
-        console.log("Fetched subscription in client:", subscriptionData);
         setSubscription(subscriptionData);
       }
     } catch (error) {
@@ -93,11 +92,8 @@ export default function UsageTab({ user }: UsageTabProps) {
 
   // Comprehensive plan detection with edge case handling
   const getPlanInfo = (): PlanInfo => {
-    console.log("getPlanInfo called with subscription:", subscription);
-
     // Handle no subscription case
     if (!subscription) {
-      console.log("No subscription found - defaulting to Free plan");
       return {
         isFreePlan: true,
         isProPlan: false,
@@ -115,14 +111,6 @@ export default function UsageTab({ user }: UsageTabProps) {
       ? new Date(subscription.current_period_end)
       : null;
 
-    console.log("Date calculations:", {
-      now: now.toISOString(),
-      periodEnd: periodEnd?.toISOString(),
-      subscription_status: subscription.status,
-      plan_id: subscription.plan_id,
-      plan_name: subscription.plan_name,
-    });
-
     const isWithinBillingPeriod = periodEnd && now < periodEnd;
     const daysUntilExpiry = periodEnd
       ? Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
@@ -137,14 +125,6 @@ export default function UsageTab({ user }: UsageTabProps) {
     const isExpired =
       subscription.status?.toLowerCase() === "expired" ||
       (periodEnd && now >= periodEnd);
-
-    console.log("Status checks:", {
-      isActiveStatus,
-      isCancelled,
-      isExpired,
-      isWithinBillingPeriod,
-      daysUntilExpiry,
-    });
 
     // Plan is considered active if:
     // 1. Status is active/trialing/past_due, OR
@@ -165,14 +145,6 @@ export default function UsageTab({ user }: UsageTabProps) {
 
     const isFreePlan =
       !isActivePlan || planId === "free" || planName === "free" || isExpired;
-
-    console.log("Plan determination:", {
-      planId,
-      planName,
-      isActivePlan,
-      isProPlan,
-      isFreePlan,
-    });
 
     // Generate display name
     let planDisplayName = "Free Plan";
@@ -198,7 +170,6 @@ export default function UsageTab({ user }: UsageTabProps) {
       daysUntilExpiry: Math.max(daysUntilExpiry, 0),
     };
 
-    console.log("Final plan info:", result);
     return result;
   };
 
@@ -303,27 +274,27 @@ export default function UsageTab({ user }: UsageTabProps) {
       // Set limits based on plan with comprehensive edge case handling
       let projectsLimit, storageLimit, membersLimit;
 
-      console.log("Setting limits based on plan:", {
-        isProPlan: planInfo.isProPlan,
-        subscription_storage_gb: subscription?.storage_gb,
-      });
+      // Determine plan type more precisely
+      const planId = subscription?.plan_id?.toLowerCase();
+      const isLitePlan =
+        planInfo.isActivePlan &&
+        (planId === "lite" ||
+          subscription?.plan_name?.toLowerCase() === "lite");
 
       if (planInfo.isProPlan) {
         projectsLimit = Infinity; // Unlimited
         storageLimit = subscription?.storage_gb || 250; // Use subscription storage or default
         membersLimit = Infinity; // Unlimited per project
+      } else if (isLitePlan) {
+        projectsLimit = 5; // Lite plan limit
+        storageLimit = subscription?.storage_gb || 50; // Use subscription storage or default to 50GB
+        membersLimit = 5; // 5 members per project
       } else {
         // Free plan or expired/cancelled plans default to free limits
         projectsLimit = 2;
         storageLimit = 0.5; // 500MB in GB
         membersLimit = 2; // Per project
       }
-
-      console.log("Final limits:", {
-        projectsLimit,
-        storageLimit,
-        membersLimit,
-      });
 
       // Find projects that are approaching or at member limits (for free plan only)
       const projectsWithMemberLimits = planInfo.isFreePlan
@@ -362,6 +333,10 @@ export default function UsageTab({ user }: UsageTabProps) {
 
   // Only calculate plan info when subscription is loaded
   const planInfo = !isSubscriptionLoading ? getPlanInfo() : null;
+  const isLitePlan =
+    planInfo?.isActivePlan &&
+    (subscription?.plan_id?.toLowerCase() === "lite" ||
+      subscription?.plan_name?.toLowerCase() === "lite");
 
   const formatStorage = (gb: number) => {
     if (gb < 1) return `${Math.round(gb * 1000)}MB`;
@@ -682,7 +657,9 @@ export default function UsageTab({ user }: UsageTabProps) {
                 <span className="text-sm font-medium">
                   {planInfo.isFreePlan
                     ? "2 projects max"
-                    : "Unlimited projects"}
+                    : isLitePlan
+                      ? "5 projects max"
+                      : "Unlimited projects"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -700,7 +677,9 @@ export default function UsageTab({ user }: UsageTabProps) {
                 <span className="text-sm font-medium">
                   {planInfo.isFreePlan
                     ? "2 members per project max"
-                    : "Unlimited members per project"}
+                    : isLitePlan
+                      ? "5 members per project max"
+                      : "Unlimited members per project"}
                 </span>
               </div>
               {subscription && (
@@ -748,12 +727,15 @@ export default function UsageTab({ user }: UsageTabProps) {
                       ).toFixed(1)}
                       % of your storage.
                       {planInfo.isFreePlan &&
-                        " Upgrade to Pro for more storage."}
+                        " Upgrade to Lite or Pro for more storage."}
+                      {isLitePlan && " Upgrade to Pro for more storage."}
                     </div>
-                    {planInfo.isFreePlan && (
+                    {(planInfo.isFreePlan || isLitePlan) && (
                       <Link href="/pricing">
                         <Button size="sm" className="ml-4 gap-1">
-                          Upgrade to Pro
+                          {planInfo.isFreePlan
+                            ? "Upgrade Plan"
+                            : "Upgrade to Pro"}
                           <ArrowRight className="h-3 w-3" />
                         </Button>
                       </Link>
@@ -776,12 +758,15 @@ export default function UsageTab({ user }: UsageTabProps) {
                       </span>{" "}
                       You've reached your maximum number of projects.
                       {planInfo.isFreePlan &&
-                        " Upgrade to Pro for unlimited projects."}
+                        " Upgrade to Lite or Pro for more projects."}
+                      {isLitePlan && " Upgrade to Pro for unlimited projects."}
                     </div>
-                    {planInfo.isFreePlan && (
+                    {(planInfo.isFreePlan || isLitePlan) && (
                       <Link href="/pricing">
                         <Button size="sm" className="ml-4 gap-1">
-                          Upgrade to Pro
+                          {planInfo.isFreePlan
+                            ? "Upgrade Plan"
+                            : "Upgrade to Pro"}
                           <ArrowRight className="h-3 w-3" />
                         </Button>
                       </Link>
@@ -806,12 +791,16 @@ export default function UsageTab({ user }: UsageTabProps) {
                       number of team members (
                       {formatNumber(usageStats.membersLimit)} per project).
                       {planInfo.isFreePlan &&
+                        " Upgrade to Lite or Pro for more team members."}
+                      {isLitePlan &&
                         " Upgrade to Pro for unlimited members per project."}
                     </div>
-                    {planInfo.isFreePlan && (
+                    {(planInfo.isFreePlan || isLitePlan) && (
                       <Link href="/pricing">
                         <Button size="sm" className="ml-4 gap-1">
-                          Upgrade to Pro
+                          {planInfo.isFreePlan
+                            ? "Upgrade Plan"
+                            : "Upgrade to Pro"}
                           <ArrowRight className="h-3 w-3" />
                         </Button>
                       </Link>
@@ -821,8 +810,8 @@ export default function UsageTab({ user }: UsageTabProps) {
               </Alert>
             )}
 
-          {/* Individual Project Member Warnings */}
-          {planInfo.isFreePlan &&
+          {/* Individual Project Member Warnings - Show for both Free and Lite plans */}
+          {(planInfo.isFreePlan || isLitePlan) &&
             usageStats.projectsWithMemberLimits.length > 0 && (
               <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
                 <UsersIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
@@ -837,7 +826,9 @@ export default function UsageTab({ user }: UsageTabProps) {
                       </div>
                       <Link href="/pricing">
                         <Button size="sm" className="ml-4 gap-1">
-                          Upgrade to Pro
+                          {planInfo.isFreePlan
+                            ? "Upgrade Plan"
+                            : "Upgrade to Pro"}
                           <ArrowRight className="h-3 w-3" />
                         </Button>
                       </Link>

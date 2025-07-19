@@ -1023,23 +1023,51 @@ export async function updateMemberRole(
   }
 }
 
+// Update the leaveProject function in lib/actions.ts
 export async function leaveProject(projectId: string) {
   try {
-    const { supabase, user } = await getAuthenticatedEditor();
+    const supabase = await createClient();
 
-    // Remove user from project
-    const { error: deleteError } = await supabase
-      .from("project_members")
-      .delete()
-      .eq("project_id", projectId)
-      .eq("user_id", user.id);
+    // Get authenticated user (just for logging/validation)
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (deleteError) throw deleteError;
+    if (authError || !user) {
+      throw new Error("Not authenticated");
+    }
 
+    // Call the RPC function to leave the project
+    const { data, error } = await supabase
+      .rpc('leave_project', {
+        project_uuid: projectId
+      })
+      .single();
+
+    if (error) {
+      console.error("RPC error:", error);
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    // Check the result from the RPC function
+    if (!data.success) {
+      throw new Error(data.error);
+    }
+
+    console.log("Successfully left project:", data);
+
+    // Revalidate paths to clear cache
     revalidatePath(`/dashboard/projects/${projectId}`);
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/projects");
 
-    return { success: true };
+    return { 
+      success: true, 
+      message: data.message,
+      deletedMembershipId: data.deleted_membership_id,
+      userRole: data.user_role
+    };
   } catch (error) {
     console.error("Leave project error:", error);
     return {
@@ -1048,7 +1076,6 @@ export async function leaveProject(projectId: string) {
     };
   }
 }
-
 export async function canUserUploadToProject(projectId: string) {
   try {
     const { accessCheck } =
@@ -1183,6 +1210,122 @@ export async function updateProjectReferencesAction(
         error instanceof Error
           ? error.message
           : "Failed to update project references",
+    };
+  }
+}
+
+export async function updateMediaNameAction(
+  projectId: string,
+  mediaId: string,
+  newName: string
+) {
+  try {
+    const { supabase, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    // Check if user has upload permission (allows renaming)
+    if (!hasPermission(accessCheck.role, accessCheck.is_owner, "upload")) {
+      throw new Error("You don't have permission to rename media files");
+    }
+
+    // Validate the new name
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      throw new Error("Media name cannot be empty");
+    }
+
+    if (trimmedName.length > 255) {
+      throw new Error("Media name is too long (maximum 255 characters)");
+    }
+
+    // Get the specific media file
+    const { data: media, error: mediaError } = await supabase
+      .from("project_media")
+      .select("id, original_filename, parent_media_id")
+      .eq("id", mediaId)
+      .eq("project_id", projectId)
+      .single();
+
+    if (mediaError || !media) {
+      throw new Error("Media not found");
+    }
+
+    // Update ONLY the specific media file that was selected
+    const { data: updatedMedia, error: updateError } = await supabase
+      .from("project_media")
+      .update({ original_filename: trimmedName })
+      .eq("id", mediaId) // ✅ Only update THIS specific media file
+      .select("*")
+      .single();
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+
+    return {
+      success: true,
+      message: "Media name updated successfully",
+      updatedMedia: [updatedMedia], // Return as array for consistency with handleMediaUpdated
+    };
+  } catch (error) {
+    console.error("Update media name error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to update media name",
+    };
+  }
+}
+
+export async function deleteAllReviewLinksAction(mediaId: string) {
+  try {
+    const supabase = await createClient();
+
+    // Get authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get count of links before deletion
+    const { data: existingLinks } = await supabase
+      .from("review_links")
+      .select("id")
+      .eq("media_id", mediaId);
+
+    const linkCount = existingLinks?.length || 0;
+
+    if (linkCount === 0) {
+      return { 
+        success: true, 
+        deletedCount: 0,
+        message: "No review links to delete"
+      };
+    }
+
+    // Delete all review links for this media
+    const { error: deleteError } = await supabase
+      .from("review_links")
+      .delete()
+      .eq("media_id", mediaId);
+
+    if (deleteError) throw deleteError;
+
+    return { 
+      success: true, 
+      deletedCount: linkCount,
+      message: `Successfully deleted all ${linkCount} review links`
+    };
+  } catch (error) {
+    console.error("Delete all review links error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to delete all review links",
     };
   }
 }

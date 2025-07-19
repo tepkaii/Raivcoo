@@ -317,7 +317,7 @@ export function CreateReviewLinkDialog({
   ) {
     return (
       <Dialog open={createLinkDialog.open} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Create Review Link</DialogTitle>
           </DialogHeader>

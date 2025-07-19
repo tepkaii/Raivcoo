@@ -46,20 +46,26 @@ export const SubscriptionWelcomeEmail = ({
       "200MB max upload",
       "2 active projects",
       "2 members per project",
+      "Pin & Draw Annotations",
+      "Email support",
     ],
     lite: [
       "Up to 150GB flexible storage",
       "2GB max upload size",
-      "Unlimited projects & members",
-      "Password protection",
+      "5 active projects",
+      "5 members per project",
+      "Password protection for links",
       "Custom expiration dates",
+      "Download controls",
     ],
     pro: [
       "Up to 2TB flexible storage",
       "5GB max upload size",
-      "Unlimited projects & members",
-      "Password protection",
+      "Unlimited projects",
+      "Unlimited members",
+      "Password protection for links",
       "Custom expiration dates",
+      "Download controls",
       "Priority support",
     ],
   };
@@ -78,13 +84,13 @@ export const SubscriptionWelcomeEmail = ({
                 src="https://i.ibb.co/nN3yWjtR/sfe-Comp-1-2025-06-26-01-33-39.png"
                 width="40"
                 height="40"
-                alt="Raicoo Logo"
+                alt="Raivcoo Logo"
                 className="my-0 mx-auto"
               />
             </Section>
 
             <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
-              {isUpgrade ? `🎉 Plan Upgraded!` : `🎉 Welcome to Raicoo!`}
+              {isUpgrade ? `🎉 Plan Upgraded!` : `🎉 Welcome to Raivcoo!`}
             </Heading>
 
             <Text className="text-black text-[16px] leading-[24px]">
@@ -94,7 +100,7 @@ export const SubscriptionWelcomeEmail = ({
             <Text className="text-black text-[14px] leading-[24px]">
               {isUpgrade
                 ? `Your account has been successfully upgraded to the ${planName} plan!`
-                : `Welcome to Raicoo! Your ${planName} plan is now active and ready to use.`}
+                : `Welcome to Raivcoo! Your ${planName} plan is now active and ready to use.`}
             </Text>
 
             {/* Plan Details */}
@@ -162,19 +168,27 @@ export const SubscriptionWelcomeEmail = ({
                 💬 <strong>Add comments</strong> - Use timestamped feedback and
                 annotations
               </Text>
-              <Text className="text-[14px] text-black m-0">
-                🔒 <strong>Share securely</strong> - Password protect and set
-                expiration dates
-              </Text>
+              {(planId === "lite" || planId === "pro") && (
+                <Text className="text-[14px] text-black m-0 mb-[8px]">
+                  🔒 <strong>Share securely</strong> - Password protect and set
+                  expiration dates
+                </Text>
+              )}
+              {planId === "pro" && (
+                <Text className="text-[14px] text-black m-0">
+                  🏆 <strong>Priority support</strong> - Get faster help when
+                  you need it
+                </Text>
+              )}
             </Section>
 
             <Text className="text-black text-[14px] leading-[24px]">
               Questions? Our team is here to help at{" "}
               <Link
-                href="mailto:support@raicoo.com"
+                href="mailto:support@raivcoo.com"
                 className="text-blue-600 no-underline"
               >
-                support@raicoo.com
+                support@raivcoo.com
               </Link>
             </Text>
 

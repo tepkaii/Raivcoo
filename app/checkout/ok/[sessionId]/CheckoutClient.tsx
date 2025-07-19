@@ -340,14 +340,6 @@ export default function CheckoutClient({
     return uploadSizes[planId as keyof typeof uploadSizes] || "Unknown";
   };
 
-  const formatStorage = (storage: string | number) => {
-    if (typeof storage === "number") {
-      if (storage < 1) return `${Math.round(storage * 1000)}MB`;
-      return `${storage}GB`;
-    }
-    return storage;
-  };
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -566,14 +558,6 @@ export default function CheckoutClient({
                     <p>• One-time payment, no recurring charges</p>
                     <p>• Cancel anytime before renewal</p>
                     <p>• Contact support@raivcoo.com for refunds</p>
-                    {billingPeriod === "yearly" && (
-                      <p className="text-green-600 font-medium">
-                        • 30% savings with yearly plan
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-3">
-                      Cheap pricing, flexible storage options
-                    </p>
                   </>
                 )}
               </div>
@@ -658,14 +642,14 @@ export default function CheckoutClient({
             >
               <div className="text-xs text-muted-foreground">
                 <Link
-                  href="legal/TermsOfService"
+                  href="/legal/TermsOfService"
                   className="text-primary hover:underline transition-colors duration-200"
                 >
                   Terms
                 </Link>
                 {" • "}
                 <Link
-                  href="legal/PrivacyPolicy"
+                  href="/legal/PrivacyPolicy"
                   className="text-primary hover:underline transition-colors duration-200"
                 >
                   Privacy

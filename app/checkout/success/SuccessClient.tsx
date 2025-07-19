@@ -142,7 +142,7 @@ export default function SuccessClient({
               />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-foreground mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+          <h1 className="text-4xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             {getSuccessMessage()}
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -354,14 +354,14 @@ export default function SuccessClient({
           </p>
           <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
             <Link
-              href="legal/TermsOfService"
+              href="/legal/TermsOfService"
               className="hover:underline transition-colors duration-200"
             >
               Terms
             </Link>
             <span>•</span>
             <Link
-              href="legal/PrivacyPolicy"
+              href="/legal/PrivacyPolicy"
               className="hover:underline transition-colors duration-200"
             >
               Privacy

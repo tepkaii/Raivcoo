@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import CompleteProfileForm from "./complete-profile-form";
 import { completeProfile } from "./actions";
+
+
 export const metadata: Metadata = {
-  title: "Complete Your Profile - Raivcoo",
+  title: "Complete Your Profile",
   description: "Set up your Raivcoo profile to get started.",
 };
 

@@ -163,7 +163,6 @@ export async function getSubscriptionInfo(userId: string) {
   };
 }
 
-// Updated helper function for the dashboard page
 export async function getPlanLimits(
   planId: string | null,
   hasActiveSubscription: boolean
@@ -178,14 +177,14 @@ export async function getPlanLimits(
     };
   }
 
-  // Both lite and pro have unlimited projects when active
+  // Different limits for each paid plan
   switch (planId) {
     case "lite":
       return {
-        maxProjects: -1, // unlimited
+        maxProjects: 5, // Changed from -1 to 5
         planName: "Lite",
         isActive: true,
-        hasLimit: false,
+        hasLimit: true, // Changed from false to true since there's a limit
       };
     case "pro":
       return {

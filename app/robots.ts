@@ -6,9 +6,15 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: "/complete-profile",
+        disallow: [
+          "/complete-profile",
+          "/forgot-password",
+          "/reset-password",
+          "/set-password",
+          "/invite",
+        ],
       },
     ],
-    sitemap: "https://www.raivcoo.com/sitemap.xml", // Update with your site's URL
+    sitemap: "https://www.raivcoo.com/sitemap.xml",
   };
 }

@@ -145,142 +145,151 @@ export function CreateProjectDialog({
     );
   };
 
-  const getTooltipText = () => {
-    if (isAtLimit) {
-      return `Free plan allows ${planLimits.maxProjects} projects. You have ${currentProjectCount}/${planLimits.maxProjects}. Upgrade to Lite or Pro for unlimited projects.`;
+const getTooltipText = () => {
+  if (isAtLimit) {
+    if (planLimits.planName === "Free") {
+      return `Free plan allows ${planLimits.maxProjects} projects. You have ${currentProjectCount}/${planLimits.maxProjects}. Upgrade to Lite or Pro for more projects.`;
+    } else if (planLimits.planName === "Lite") {
+      return `Lite plan allows ${planLimits.maxProjects} projects. You have ${currentProjectCount}/${planLimits.maxProjects}. Upgrade to Pro for unlimited projects.`;
     }
+    // Pro plan shouldn't hit this since it's unlimited, but just in case
+    return `You have reached your plan limit of ${planLimits.maxProjects} projects.`;
+  }
 
-    return "Create a new project";
-  };
+  return "Create a new project";
+};
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <div className="relative">
-          <Button
-            className="gap-2"
-            size="sm"
-            disabled={isLoading}
-            variant={isAtLimit ? "outline" : "default"}
-            title={getTooltipText()}
-          >
-            {getButtonContent()}
-          </Button>
-        </div>
-      </DialogTrigger>
+return (
+  <Dialog open={open} onOpenChange={handleOpenChange}>
+    <DialogTrigger asChild>
+      <div className="relative">
+        <Button
+          className="gap-2"
+          size="sm"
+          disabled={isLoading}
+          variant={isAtLimit ? "outline" : "default"}
+          title={getTooltipText()}
+        >
+          {getButtonContent()}
+        </Button>
+      </div>
+    </DialogTrigger>
 
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isSuccess
-              ? "Project Created Successfully!"
-              : isAtLimit
-                ? "Upgrade Required"
-                : "Create New Project"}
-          </DialogTitle>
-        </DialogHeader>
+    <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>
+          {isSuccess
+            ? "Project Created Successfully!"
+            : isAtLimit
+              ? "Upgrade Required"
+              : "Create New Project"}
+        </DialogTitle>
+      </DialogHeader>
 
-        {isSuccess ? (
-          <div className="space-y-4 text-center py-4">
-            <Lottie
-              animationData={animationData}
-              autoplay
-              loop={false}
-              style={{ height: 50 }}
-            />
+      {isSuccess ? (
+        <div className="space-y-4 text-center py-4">
+          <Lottie
+            animationData={animationData}
+            autoplay
+            loop={false}
+            style={{ height: 50 }}
+          />
 
-            <div>
-              <h3 className="text-lg font-semibold ">Project Created!</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Your project "{createdProject?.name}" has been created
-                successfully.
-              </p>
-            </div>
+          <div>
+            <h3 className="text-lg font-semibold ">Project Created!</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your project "{createdProject?.name}" has been created
+              successfully.
+            </p>
           </div>
-        ) : isAtLimit ? (
-          <Card className="">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <LockClosedIcon className="h-5 w-5 text-orange-600 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-medium text-orange-800">
-                    Project Limit Reached
-                  </h3>
-                  <p className="text-sm text-orange-700 mt-1">
-                    You've reached the {planLimits.planName} plan limit of{" "}
-                    {planLimits.maxProjects} projects. Upgrade to Lite or Pro
-                    for unlimited projects.
-                  </p>
-                  <div className="mt-4">
-                    <Link href="/pricing" className="inline-block">
-                      <Button className="gap-2" size="sm">
-                        <Crown className="h-4 w-4" />
-                        View Pricing Plans
-                      </Button>
-                    </Link>
-                  </div>
+        </div>
+      ) : isAtLimit ? (
+        <Card className="">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <LockClosedIcon className="h-5 w-5 text-orange-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-medium text-orange-800">
+                  Project Limit Reached
+                </h3>
+                <p className="text-sm text-orange-700 mt-1">
+                  You've reached the {planLimits.planName} plan limit of{" "}
+                  {planLimits.maxProjects} projects.
+                  {planLimits.planName === "Free"
+                    ? " Upgrade to Lite or Pro for more projects."
+                    : " Upgrade to Pro for unlimited projects."}
+                </p>
+                <div className="mt-4">
+                  <Link href="/pricing" className="inline-block">
+                    <Button className="gap-2" size="sm">
+                      <Crown className="h-4 w-4" />
+                      View Pricing Plans
+                    </Button>
+                  </Link>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <form action={handleSubmit} className="space-y-6">
-            <div>
-              <Label htmlFor="name">Project Name</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="Enter project name"
-                className="mt-1"
-                required
-                disabled={isLoading}
-              />
             </div>
-
-            <ReferenceInput
-              references={references}
-              onChange={setReferences}
+          </CardContent>
+        </Card>
+      ) : (
+        <form action={handleSubmit} className="space-y-6">
+          <div>
+            <Label htmlFor="name">Project Name</Label>
+            <Input
+              id="name"
+              name="name"
+              placeholder="Enter project name"
+              className="mt-1"
+              required
               disabled={isLoading}
             />
+          </div>
 
-            {planLimits.hasLimit && (
-              <div className="border  rounded-lg p-3">
-                <div className="flex items-center gap-2 ">
-                  <Crown className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {planLimits.planName} Plan: {currentProjectCount + 1}/
-                    {planLimits.maxProjects} projects
-                  </span>
-                </div>
-                <p className="text-xs text-blue-700 mt-1">
-                  Upgrade to Lite or Pro for unlimited projects.
-                </p>
+          <ReferenceInput
+            references={references}
+            onChange={setReferences}
+            disabled={isLoading}
+          />
+
+          {planLimits.hasLimit && (
+            <div className="border rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Crown className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  {planLimits.planName} Plan: {currentProjectCount + 1}/
+                  {planLimits.maxProjects} projects
+                </span>
               </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Project"
-                )}
-              </Button>
+              <p className="text-xs text-blue-700 mt-1">
+                {planLimits.planName === "Free"
+                  ? "Upgrade to Lite or Pro for more projects."
+                  : "Upgrade to Pro for unlimited projects."}
+              </p>
             </div>
-          </form>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Project"
+              )}
+            </Button>
+          </div>
+        </form>
+      )}
+    </DialogContent>
+  </Dialog>
+);
 }

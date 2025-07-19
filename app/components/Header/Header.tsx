@@ -12,18 +12,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronDown,
-  Menu,
   LogInIcon,
   UserPlus,
   AlertCircle,
-  SquareUser,
   LogOut,
 } from "lucide-react";
 import React from "react";
 import Image from "next/image";
 import { NavLinks, NavDropdownItems } from "./NavComponents";
 import { Button } from "@/components/ui/button";
-import { UserCircleIcon } from "@heroicons/react/24/solid";
+import { Bars3CenterLeftIcon, UserCircleIcon } from "@heroicons/react/24/solid";
 
 export default async function Header() {
   const supabase = createClient();
@@ -163,7 +161,7 @@ backdrop-blur-sm"
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="h-5 w-5" />
+                  <Bars3CenterLeftIcon className="size-6" />
                   <span className="sr-only">Open menu</span>
                 </Button>
               </DropdownMenuTrigger>

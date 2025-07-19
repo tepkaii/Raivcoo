@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Pricing tiers configuration (same as in your PricingClient)
+    // Updated pricing tiers to match PricingClient.tsx
     const pricingTiers = {
       free: {
         name: "Free",
@@ -31,30 +31,12 @@ export async function POST(request: NextRequest) {
         additionalStorageUnit: 1,
         maxStorage: 0.5,
         features: [
-          "Upload videos, images",
+          "Upload videos,images",
           "200MB max upload size",
           "2 Active projects",
           "2 Members per project",
-          "Timestamped comments",
-          "Accurate Pin/Draw Annotation",
+          "Pin & Draw Annotations",
           "Email/App notifications",
-        ],
-      },
-      lite: {
-        name: "Lite",
-        basePrice: 2.99,
-        baseStorage: 50,
-        additionalStoragePrice: 1.0,
-        additionalStorageUnit: 25,
-        maxStorage: 150,
-        features: [
-          "Everything in Free plan",
-          "2GB max upload size",
-          "flexible storage up to 150GB",
-          "Unlimited projects",
-          "Unlimited members",
-          "Password protection for links",
-          "Custom expiration dates",
         ],
       },
       pro: {
@@ -67,12 +49,31 @@ export async function POST(request: NextRequest) {
         features: [
           "Everything in Free plan",
           "5GB max upload size",
-          "flexible storage up to 2TB",
+          "Flexible storage up to 2TB",
           "Unlimited projects",
           "Unlimited members",
           "Password protection for links",
           "Custom expiration dates",
+          "Download controls",
           "Priority support",
+        ],
+      },
+      lite: {
+        name: "Lite",
+        basePrice: 2.99,
+        baseStorage: 50,
+        additionalStoragePrice: 1.0,
+        additionalStorageUnit: 25,
+        maxStorage: 150,
+        features: [
+          "Everything in Free plan",
+          "2GB max upload size",
+          "Flexible storage up to 150GB",
+          "5 Active projects",
+          "5 Members per project",
+          "Password protection for links",
+          "Custom expiration dates",
+          "Download controls",
         ],
       },
     };

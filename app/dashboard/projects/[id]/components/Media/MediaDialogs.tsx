@@ -8,6 +8,7 @@ import { ManageReviewLinksDialog } from "../Dialogs/ManageReviewLinksDialog";
 import { VersionManagerDialog } from "../Dialogs/VersionManagerDialog";
 import { DeleteMediaDialog } from "../Dialogs/DeleteMediaDialog";
 import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
+import { EditMediaNameDialog } from "../Dialogs/EditMediaNameDialog";
 
 interface ReviewLink {
   id: string;
@@ -74,6 +75,15 @@ interface MediaDialogsProps {
   onDeleteMedia: (mediaFile: MediaFile) => void;
   projectId: string;
   onMediaUpdated: (updatedMedia: MediaFile[]) => void;
+  editNameDialog: {
+    open: boolean;
+    mediaFile?: MediaFile;
+    isUpdating: boolean;
+  };
+  onEditNameDialogChange: (dialog: any) => void;
+  onRenameMedia?: (mediaFile: MediaFile) => void;
+  onReviewLinksUpdated?: (newLinks: ReviewLink[]) => void;
+  reviewLinks: ReviewLink[];
 }
 
 export function MediaDialogs({
@@ -92,6 +102,10 @@ export function MediaDialogs({
   onDeleteMedia,
   projectId,
   onMediaUpdated,
+  editNameDialog,
+  onEditNameDialogChange,
+  onReviewLinksUpdated,
+  reviewLinks,
 }: MediaDialogsProps) {
   return (
     <>
@@ -107,8 +121,10 @@ export function MediaDialogs({
         onToggleReviewLink={onToggleReviewLink}
         onUpdateReviewLink={onUpdateReviewLink}
         onDeleteReviewLink={onDeleteReviewLink}
+        onReviewLinksUpdated={onReviewLinksUpdated}
+        reviewLinks={reviewLinks}
+        projectId={projectId} // ✅ Add this
       />
-
       <VersionManagerDialog
         versionManagerDialog={versionManagerDialog}
         onVersionManagerDialogChange={onVersionManagerDialogChange}
@@ -120,6 +136,12 @@ export function MediaDialogs({
         deleteDialog={deleteDialog}
         onDeleteDialogChange={onDeleteDialogChange}
         onDeleteMedia={onDeleteMedia}
+      />
+      <EditMediaNameDialog
+        editNameDialog={editNameDialog}
+        onEditNameDialogChange={onEditNameDialogChange}
+        projectId={projectId}
+        onMediaUpdated={onMediaUpdated}
       />
     </>
   );

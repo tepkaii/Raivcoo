@@ -109,7 +109,7 @@ export function VersionManagerDialog({
         })
       }
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Manage Versions</DialogTitle>
         </DialogHeader>

@@ -32,6 +32,7 @@ import {
   createCommentHandlers,
   ProjectRole,
 } from "./handlers/Workspace";
+import { ProjectInfoDialog } from "./components/TeamManagement/ProjectInfoDialog";
 
 // Add enhanced folder interface
 interface FolderStats {
@@ -191,11 +192,20 @@ export function ProjectWorkspace({
               <span className="text-sm md:text-base">
                 {project.name} - Project
               </span>
-              {!isOwner && project.user_role && (
-                <Badge variant="outline" className="text-sm">
-                  {project.user_role}
-                </Badge>
-              )}
+              <div className="flex items-center gap-1">
+                {!isOwner && project.user_role && (
+                  <>
+                    {/* Only show Project Info Dialog for members (non-owners) */}
+                    <ProjectInfoDialog
+                      projectId={project.id}
+                      projectName={project.name}
+                      userRole={project.user_role}
+                      isOwner={isOwner}
+                      currentUserId={authenticatedUser?.id || ""}
+                    />
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
