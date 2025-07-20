@@ -4,7 +4,7 @@ import { Metadata } from "next";
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Support Center - Raivcoo",
+  title: "Support Center",
   description: "Get help or report issues with Raivcoo. ",
 };
 function page() {

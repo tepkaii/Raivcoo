@@ -19,7 +19,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   return {
-    title: "Folders | Project Workspace",
+    title: "Folders",
     description: "Manage project folders and organization",
   };
 }

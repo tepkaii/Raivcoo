@@ -3,7 +3,7 @@ import PricingClient from "./PricingClient";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing ",
+  title: "Pricing",
   description:
     "Explore Raivcoo pricing plans for solo editors. Flexible, fair pricing for video review and collaboration tools.",
   openGraph: {
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     siteName: "Raivcoo",
   },
   twitter: {
-    title: "Pricing ",
+    title: "Pricing",
     description:
       "Explore Raivcoo pricing plans for solo editors. Flexible, fair pricing for video review and collaboration tools.",
     card: "summary_large_image",

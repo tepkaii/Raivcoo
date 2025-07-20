@@ -5,7 +5,7 @@ import { Metadata } from "next";
 import SettingsClient from "./settings-client";
 
 export const metadata: Metadata = {
-  title: "Settings - Raivcoo",
+  title: "Settings",
   description: "Manage your account settings, notifications, and preferences",
 };
 

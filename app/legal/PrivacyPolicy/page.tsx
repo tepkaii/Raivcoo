@@ -4,7 +4,7 @@ import Privacy from "./Privacy";
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Raivcoo - Video Portfolio Platform",
+  title: "Privacy Policy",
   description:
     "Read our privacy policy to understand how Raivcoo handles your personal data and protects your privacy.",
   openGraph: {

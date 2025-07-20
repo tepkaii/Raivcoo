@@ -359,23 +359,8 @@ export default function HomePage() {
         {/* Workflow Examples */}
         <section className="py-16">
           <div className="container mx-auto px-4">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
-                See How It Works
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Real features that help you work faster and get better feedback.
-              </p>
-            </motion.div>
-
             <div className="space-y-24 max-w-6xl mx-auto">
-              {/* Multi-Panel Workspace */}
+              {/* Multi-Panel Workspace - Video Left */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -383,7 +368,24 @@ export default function HomePage() {
                 transition={{ duration: 0.6 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1">
+                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
+                    <video
+                      width={600}
+                      height={400}
+                      className="rounded-xl shadow-lg border"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    >
+                      <source
+                        src="/assets/home/workspace-demo.mp4"
+                        type="video/mp4"
+                      />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                  <div className="flex-1 order-1 md:order-2">
                     <h3 className="text-2xl font-semibold mb-4">
                       Simple Multi-Panel Interface
                     </h3>
@@ -392,50 +394,10 @@ export default function HomePage() {
                       Resize panels to fit your workflow.
                     </p>
                   </div>
-                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
-                    <Image
-                      src="/workspace-demo.png"
-                      alt="Multi-panel workspace interface"
-                      width={600}
-                      height={400}
-                      className="rounded-xl shadow-lg border"
-                      loading="lazy"
-                    />
-                  </div>
                 </div>
               </motion.div>
 
-              {/* Smart Organization */}
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-              >
-                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
-                    <Image
-                      src="/folder-organization.png"
-                      alt="Folder organization with nested structure"
-                      width={600}
-                      height={400}
-                      className="rounded-xl shadow-lg border"
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="flex-1 order-1 md:order-2">
-                    <h3 className="text-2xl font-semibold mb-4">
-                      Keep Projects Organized
-                    </h3>
-                    <p className="text-muted-foreground text-lg mb-6">
-                      Create folders and upload files. Keep your projects
-                      organized.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Precise Annotations */}
+              {/* Precise Annotations - Video Right */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -454,19 +416,26 @@ export default function HomePage() {
                     </p>
                   </div>
                   <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
-                    <Image
-                      src="/annotation-demo.png"
-                      alt="Pin and draw annotations on video"
+                    <video
                       width={600}
                       height={400}
                       className="rounded-xl shadow-lg border"
-                      loading="lazy"
-                    />
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    >
+                      <source
+                        src="/assets/home/annotation-demo.mp4"
+                        type="video/mp4"
+                      />
+                      Your browser does not support the video tag.
+                    </video>
                   </div>
                 </div>
               </motion.div>
 
-              {/* Global Search */}
+              {/* Global Search - Video Left */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -474,15 +443,22 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.3 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1 order-2 md:order-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
-                    <Image
-                      src="/search-demo.png"
-                      alt="Global search interface with filters"
+                  <div className="flex-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
+                    <video
                       width={600}
                       height={400}
                       className="rounded-xl shadow-lg border"
-                      loading="lazy"
-                    />
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    >
+                      <source
+                        src="/assets/home/search-demo.mp4"
+                        type="video/mp4"
+                      />
+                      Your browser does not support the video tag.
+                    </video>
                   </div>
                   <div className="flex-1 order-1 md:order-2">
                     <h3 className="text-2xl font-semibold mb-4">
@@ -497,7 +473,44 @@ export default function HomePage() {
                 </div>
               </motion.div>
 
-              {/* Simple Collaboration */}
+              {/* Smart Organization - Video Right */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-semibold mb-4">
+                      Keep Projects Organized
+                    </h3>
+                    <p className="text-muted-foreground text-lg mb-6">
+                      Create folders and upload files. Keep your projects
+                      organized.
+                    </p>
+                  </div>
+                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
+                    <video
+                      width={600}
+                      height={400}
+                      className="rounded-xl shadow-lg border"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    >
+                      <source
+                        src="/assets/home/folder-organization.mp4"
+                        type="video/mp4"
+                      />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Simple Collaboration - Image Left */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -505,16 +518,6 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-semibold mb-4">
-                      Simple Collaboration
-                    </h3>
-                    <p className="text-muted-foreground text-lg mb-6">
-                      Invite people with specific roles. Get notifications for
-                      comments and uploads without email overload. Perfect for
-                      small projects.
-                    </p>
-                  </div>
                   <div className="flex-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <Image
                       src="/team.png"
@@ -525,10 +528,20 @@ export default function HomePage() {
                       loading="lazy"
                     />
                   </div>
+                  <div className="flex-1 order-1 md:order-2">
+                    <h3 className="text-2xl font-semibold mb-4">
+                      Simple Collaboration
+                    </h3>
+                    <p className="text-muted-foreground text-lg mb-6">
+                      Invite people with specific roles. Get notifications for
+                      comments and uploads without email overload. Perfect for
+                      small projects.
+                    </p>
+                  </div>
                 </div>
               </motion.div>
 
-              {/* Adobe Integration */}
+              {/* Adobe Integration - Image Right */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -536,19 +549,7 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.5 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1 order-2 md:order-1">
-                    <div className="relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
-                      <Image
-                        src="/extension version.png"
-                        alt="Adobe After Effects and Premiere Pro integration"
-                        width={600}
-                        height={400}
-                        className="rounded-xl shadow-lg border"
-                        loading="lazy"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex-1 order-1 md:order-2">
+                  <div className="flex-1">
                     <h3 className="text-2xl font-semibold mb-4">
                       Adobe Timeline Integration
                       <Badge variant="secondary" className="ml-2">
@@ -560,6 +561,18 @@ export default function HomePage() {
                       Premiere Pro timeline. Click any comment to jump to that
                       exact frame in both the app and your editor.
                     </p>
+                  </div>
+                  <div className="flex-1">
+                    <div className="relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
+                      <Image
+                        src="/extension version.png"
+                        alt="Adobe After Effects and Premiere Pro integration"
+                        width={600}
+                        height={400}
+                        className="rounded-xl shadow-lg border"
+                        loading="lazy"
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>

@@ -142,66 +142,60 @@ export const MediaPreview = ({ result }: { result: EnhancedSearchResult }) => {
   if (result.type === "folder") {
     // Show folder thumbnail with media files if available
     if (result.folderMediaFiles && result.folderMediaFiles.length > 0) {
-      const mediaFiles = result.folderMediaFiles;
+      // Filter out SVG files from thumbnail display
+      const displayableMedia = result.folderMediaFiles.filter(
+        (media) =>
+          media.file_type === "image" &&
+          !media.original_filename.toLowerCase().endsWith(".svg") &&
+          (media.thumbnail_r2_url || media.r2_url)
+      );
 
-      if (mediaFiles.length === 1) {
-        const media = mediaFiles[0];
+      if (displayableMedia.length === 1) {
+        const media = displayableMedia[0];
         const thumbnailUrl = media.thumbnail_r2_url || media.r2_url;
 
-        if (media.file_type === "image" && thumbnailUrl) {
-          return (
-            <div className="w-12 h-12 bg-black rounded-md overflow-hidden flex-shrink-0 relative">
-              <img
-                src={thumbnailUrl}
-                alt={media.original_filename}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = "none";
-                  target.parentElement!.innerHTML = `
-                    <div class="w-full h-full bg-gradient-to-br from-yellow-500 to-yellow-700 flex items-center justify-center">
-                      <svg class="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
-                      </svg>
-                    </div>
-                  `;
-                }}
-              />
-              <div className="absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded">
-                {result.totalFiles || 0}
-              </div>
+        return (
+          <div className="w-12 h-12 bg-black rounded-md overflow-hidden flex-shrink-0 relative">
+            <img
+              src={thumbnailUrl}
+              alt={media.original_filename}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                target.parentElement!.innerHTML = `
+                  <div class="w-full h-full bg-gradient-to-br from-yellow-500 to-yellow-700 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                    </svg>
+                  </div>
+                `;
+              }}
+            />
+            <div className="absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded">
+              {result.totalFiles || 0}
             </div>
-          );
-        }
-      } else if (mediaFiles.length > 1) {
-        // Show grid of thumbnails for multiple files
+          </div>
+        );
+      } else if (displayableMedia.length > 1) {
+        // Show grid of thumbnails for multiple files (excluding SVGs)
         return (
           <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden flex-shrink-0 relative">
             <div className="grid grid-cols-2 gap-0.5 h-full">
-              {mediaFiles.slice(0, 4).map((media, index) => {
+              {displayableMedia.slice(0, 4).map((media, index) => {
                 const thumbnailUrl = media.thumbnail_r2_url || media.r2_url;
 
-                if (media.file_type === "image" && thumbnailUrl) {
-                  return (
-                    <div key={media.id} className="bg-black">
-                      <img
-                        src={thumbnailUrl}
-                        alt={media.original_filename}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  );
-                }
                 return (
-                  <div
-                    key={media.id}
-                    className="bg-gray-300 flex items-center justify-center"
-                  >
-                    <DocumentIcon className="h-2 w-2 text-gray-500" />
+                  <div key={media.id} className="bg-black">
+                    <img
+                      src={thumbnailUrl}
+                      alt={media.original_filename}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                      }}
+                    />
                   </div>
                 );
               })}
@@ -214,7 +208,7 @@ export const MediaPreview = ({ result }: { result: EnhancedSearchResult }) => {
       }
     }
 
-    // Default folder icon with file count
+    // Default folder icon with file count (fallback case for folders with no displayable images or SVG-only folders)
     return (
       <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-700 rounded-md flex items-center justify-center flex-shrink-0 relative">
         <FolderOpenIcon className="h-6 w-6 text-white" />
@@ -227,6 +221,7 @@ export const MediaPreview = ({ result }: { result: EnhancedSearchResult }) => {
     );
   }
 
+  // Rest of the component remains the same...
   const mediaType =
     result.mediaType ||
     (result.mimeType ? getMediaTypeFromMimeType(result.mimeType) : "document");

@@ -5,7 +5,7 @@ import Terms from "./Terms";
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Raivcoo - Video Portfolio Platform",
+  title: "Terms of Service",
   description:
     "Read Raivcoo's Terms of Service to understand your rights and responsibilities when using our video portfolio platform. Clear guidelines for content creation and sharing.",
   openGraph: {

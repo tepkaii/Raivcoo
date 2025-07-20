@@ -8,7 +8,7 @@ import { CreateProjectDialog } from "./components/MainProjects/CreateProjectDial
 import { createProject } from "./lib/actions";
 
 export const metadata: Metadata = {
-  title: "Projects | Dashboard",
+  title: "Projects",
   description: "Manage all your video editing projects and workspaces.",
 };
 

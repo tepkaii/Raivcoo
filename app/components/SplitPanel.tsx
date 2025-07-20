@@ -175,9 +175,8 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
         </div>
       )}
 
-      {/* Right Panel */}
       <div
-        className={`flex flex-col transition-all duration-200 p-3 min-h-full ${
+        className={`flex flex-col p-3 min-h-full ${
           isRightPanelOpen ? "flex-shrink-0" : "hidden"
         }`}
         style={{ width: getRightPanelWidth() }}

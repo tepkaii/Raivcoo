@@ -5,7 +5,7 @@ import { Metadata } from "next";
 import SignUpForm from "./signup";
 
 export const metadata: Metadata = {
-  title: "Sign Up - Raivcoo",
+  title: "Sign Up",
   description:
     "Create a free Raivcoo account to start building your video editing portfolio today. Share your projects and connect with potential clients.",
 };

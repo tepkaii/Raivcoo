@@ -765,7 +765,7 @@ export function MediaGrid({
 
           {/* Tab Content */}
           <TabsContent value="files" className="min-h-screen">
-            <div className="flex-1 overflow-y-auto min-h-screen">
+            <div className="flex-1 overflow-y-auto min-h-screen ">
               {organizedMedia.length === 0 && filteredFolders.length === 0 ? (
                 <div className="text-center py-12">
                   <DocumentDuplicateIcon className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
@@ -913,8 +913,11 @@ export function MediaGrid({
             </div>
           </TabsContent>
 
-          <TabsContent value="folders" className="mt-0 min-h-screen">
-            <div className="flex-1 overflow-y-auto" ref={containerRef}>
+          <TabsContent value="folders" className=" min-h-screen">
+            <div
+              className="flex-1 overflow-y-auto min-h-screen"
+              ref={containerRef}
+            >
               {isLoadingFolders ? (
                 <div className="text-center py-12">
                   <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin" />
@@ -940,27 +943,30 @@ export function MediaGrid({
                   )}
                 </div>
               ) : (
-                <div
-                  className={getGridClasses(
-                    filteredFolders.length,
-                    containerWidth
-                  )}
-                >
-                  {filteredFolders.map((folder) => (
-                    <FolderCard
-                      key={folder.id}
-                      folder={folder}
-                      projectId={projectId}
-                      viewMode={viewMode}
-                      onFoldersUpdate={(updatedFolders) => {
-                        setFolders(updatedFolders);
-                        if (passedOnFoldersUpdate) {
-                          passedOnFoldersUpdate(updatedFolders);
-                        }
-                      }}
-                      allFolders={folders}
-                    />
-                  ))}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Folders</h3>
+                  <div
+                    className={getGridClasses(
+                      filteredFolders.length,
+                      containerWidth
+                    )}
+                  >
+                    {filteredFolders.map((folder) => (
+                      <FolderCard
+                        key={folder.id}
+                        folder={folder}
+                        projectId={projectId}
+                        viewMode={viewMode}
+                        onFoldersUpdate={(updatedFolders) => {
+                          setFolders(updatedFolders);
+                          if (passedOnFoldersUpdate) {
+                            passedOnFoldersUpdate(updatedFolders);
+                          }
+                        }}
+                        allFolders={folders}
+                      />
+                    ))}
+                  </div>{" "}
                 </div>
               )}
             </div>

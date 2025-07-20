@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+
+.group:hover .folder-3d-open {
+  transform: perspective(800px) rotateX(-30deg) translateY(-3px) translateZ(10px);
+}
+
+
+.group:hover .folder-3d-open {
+  transform: perspective(1200px) rotateX(-15deg) translateY(-1px);
+}
+
+
+.group:hover .folder-3d-open {
+  transform: perspective(1000px) rotateX(-25deg) translateY(-2px) scale(1.02);
+}
+.group:hover .folder-3d-open {
+  transform: perspective(1000px) rotateX(-25deg) translateY(-2px);
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+}
 .loader {
   position: relative;
   width: 54px;

@@ -21,7 +21,6 @@ import {
   EyeIcon,
   UsersIcon,
 } from "@heroicons/react/24/solid";
-import { Badge } from "@/components/ui/badge";
 
 // Import handlers
 import {
@@ -327,13 +326,16 @@ export function ProjectWorkspace({
       {/* Main Content Area */}
       <div ref={containerRef} className="flex-1 flex overflow-hidden min-h-0">
         {/* Media Library Panel */}
-        {(panelHandlers.showMediaLibrary || isMobile) && (
-          <div
-            className="border-r flex flex-col flex-shrink-0 min-w-0"
-            style={{
-              width: isMobile ? "100%" : `${panelHandlers.widths.library}%`,
-            }}
-          >
+        <div
+          className="border-r flex flex-col flex-shrink-0 min-w-0"
+          style={{
+            width: isMobile ? "100%" : `${panelHandlers.widths.library}%`,
+
+            overflow: "hidden", // Always hidden
+          }}
+        >
+          {/* Only conditionally render CONTENT, not the container */}
+          {(panelHandlers.showMediaLibrary || isMobile) && (
             <div className="flex-1 min-h-0 overflow-y-auto">
               <MediaGrid
                 mediaFiles={mediaFiles}
@@ -350,13 +352,13 @@ export function ProjectWorkspace({
                   canEditStatus: permissions.canEditStatus,
                   canCreateReviewLinks: permissions.canCreateReviewLinks,
                 }}
-                currentFolderId={currentFolderId} // Use the prop instead of undefined variable
-                folders={folders} // Pass the enhanced folders with media data
-                onFoldersUpdate={handleFoldersUpdate} // Pass the folder update handler
+                currentFolderId={currentFolderId}
+                folders={folders}
+                onFoldersUpdate={handleFoldersUpdate}
               />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Resize Handle between Library and Player */}
         {!isMobile &&
@@ -390,52 +392,59 @@ export function ProjectWorkspace({
           )}
 
         {/* Media Player Panel */}
-        {!isMobile && panelHandlers.showMediaPlayer && (
-          <div
-            className="bg-black flex flex-col min-w-0 flex-shrink-0"
-            style={{ width: `${panelHandlers.widths.player}%` }}
-          >
-            {mediaHandlers.selectedMedia ? (
-              <MediaViewer
-                ref={mediaViewerRef}
-                media={mediaHandlers.selectedMedia}
-                allVersions={mediaHandlers.getAllVersionsForMedia(
-                  mediaHandlers.selectedMedia
-                )}
-                onMediaChange={mediaHandlers.setSelectedMedia}
-                onTimeUpdate={mediaHandlers.setCurrentTime}
-                currentTime={mediaHandlers.currentTime}
-                showHeaderControls={false}
-                onCommentsUpdate={mediaHandlers.handleCommentsUpdate}
-                onAnnotationCreate={handleAnnotationCreate}
-                authenticatedUser={authenticatedUser}
-                allowDownload={true}
-                userPermissions={{
-                  canComment: permissions.canComment,
-                  canEditStatus: permissions.canEditStatus,
-                }}
-                onCommentPinClick={(comment) => {
-                  if (mediaViewerRef.current) {
-                    mediaViewerRef.current.handleCommentPinClick(comment);
-                  }
-                }}
-                onCommentDrawingClick={(comment) => {
-                  if (mediaViewerRef.current) {
-                    mediaViewerRef.current.handleCommentDrawingClick(comment);
-                  }
-                }}
-              />
-            ) : (
-              <div className="flex-1 min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                  <EyeIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">Select Media</h3>
-                  <p className="text-sm">Choose a video or image to view</p>
+        <div
+          className="bg-black flex flex-col min-w-0 flex-shrink-0"
+          style={{
+            width: `${panelHandlers.widths.player}%`,
+
+            overflow: panelHandlers.widths.player === 0 ? "hidden" : "visible",
+          }}
+        >
+          {/* Only conditionally render CONTENT */}
+          {!isMobile && panelHandlers.showMediaPlayer && (
+            <>
+              {mediaHandlers.selectedMedia ? (
+                <MediaViewer
+                  ref={mediaViewerRef}
+                  media={mediaHandlers.selectedMedia}
+                  allVersions={mediaHandlers.getAllVersionsForMedia(
+                    mediaHandlers.selectedMedia
+                  )}
+                  onMediaChange={mediaHandlers.setSelectedMedia}
+                  onTimeUpdate={mediaHandlers.setCurrentTime}
+                  currentTime={mediaHandlers.currentTime}
+                  showHeaderControls={false}
+                  onCommentsUpdate={mediaHandlers.handleCommentsUpdate}
+                  onAnnotationCreate={handleAnnotationCreate}
+                  authenticatedUser={authenticatedUser}
+                  allowDownload={true}
+                  userPermissions={{
+                    canComment: permissions.canComment,
+                    canEditStatus: permissions.canEditStatus,
+                  }}
+                  onCommentPinClick={(comment) => {
+                    if (mediaViewerRef.current) {
+                      mediaViewerRef.current.handleCommentPinClick(comment);
+                    }
+                  }}
+                  onCommentDrawingClick={(comment) => {
+                    if (mediaViewerRef.current) {
+                      mediaViewerRef.current.handleCommentDrawingClick(comment);
+                    }
+                  }}
+                />
+              ) : (
+                <div className="flex-1 min-h-screen flex items-center justify-center">
+                  <div className="text-center">
+                    <EyeIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-medium mb-2">Select Media</h3>
+                    <p className="text-sm">Choose a video or image to view</p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
 
         {/* Resize Handle between Player and Comments */}
         {!isMobile &&
@@ -453,13 +462,19 @@ export function ProjectWorkspace({
           )}
 
         {/* Comments Panel */}
-        {!isMobile &&
-          panelHandlers.showCommentsPanel &&
-          permissions.canComment && (
-            <div
-              className="border-l rounded-md p-4 flex flex-col flex-shrink-0 min-w-0"
-              style={{ width: `${panelHandlers.widths.comments}%` }}
-            >
+        <div
+          className="border-l rounded-md p-4 flex flex-col flex-shrink-0 min-w-0"
+          style={{
+            width: `${panelHandlers.widths.comments}%`,
+
+            overflow:
+              panelHandlers.widths.comments === 0 ? "hidden" : "visible",
+          }}
+        >
+          {/* Only conditionally render CONTENT */}
+          {!isMobile &&
+            panelHandlers.showCommentsPanel &&
+            permissions.canComment && (
               <div className="flex-1 min-h-0 overflow-hidden bg-primary-foreground/35 border rounded-2xl">
                 {mediaHandlers.selectedMedia ? (
                   <ReviewComments
@@ -531,8 +546,8 @@ export function ProjectWorkspace({
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+        </div>
       </div>
     </div>
   );

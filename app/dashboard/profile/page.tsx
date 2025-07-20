@@ -4,7 +4,7 @@ import { Metadata } from "next";
 import ProfileClient from "./profile-client";
 
 export const metadata: Metadata = {
-  title: "Profile - Raivcoo",
+  title: "Profile",
   description: "Manage your profile information and settings",
 };
 

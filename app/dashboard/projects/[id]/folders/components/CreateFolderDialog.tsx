@@ -127,9 +127,7 @@ export function CreateFolderDialog({
                   key={colorOption}
                   type="button"
                   className={`w-6 h-6 rounded-full border-2 ${
-                    color === colorOption
-                      ? "border-gray-900"
-                      : "border-gray-300"
+                    color === colorOption ? " border-gray-300" : ""
                   }`}
                   style={{ backgroundColor: colorOption }}
                   onClick={() => setColor(colorOption)}

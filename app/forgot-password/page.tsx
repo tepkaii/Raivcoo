@@ -3,7 +3,7 @@ import { DotPatternBg } from "../components/backgrounds/backgrounds";
 import ForgotPasswordForm from "./ForgotPasswordForm";
 
 export const metadata: Metadata = {
-  title: "Forgot Password - Raivcoo",
+  title: "Forgot Password",
   description:
     "Forgot your password? Reset it here to regain access to your Raivcoo account and portfolio.",
 };

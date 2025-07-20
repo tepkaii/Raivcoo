@@ -5,7 +5,7 @@ import { Metadata } from "next";
 import SetPasswordForm from "./set-password-form";
 
 export const metadata: Metadata = {
-  title: "Set Password - Raivcoo",
+  title: "Set Password",
   description: "Set or update your account password",
 };
 
