@@ -4,22 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import { MediaViewer } from "./MediaViewer";
 import { Metadata } from "next";
+import { getFileCategory } from "@/app/dashboard/utilities";
 
-// ✅ ADD FILE CATEGORY HELPER
-const getFileCategory = (fileType: string, mimeType: string) => {
-  if (fileType === "video") return "video";
-  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
-  if (mimeType === "image/svg+xml") return "svg";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (
-    mimeType === "application/pdf" ||
-    mimeType.includes("document") ||
-    mimeType.includes("presentation") ||
-    mimeType === "text/plain"
-  )
-    return "document";
-  return "unknown";
-};
 
 // Dynamic metadata generation
 export async function generateMetadata({

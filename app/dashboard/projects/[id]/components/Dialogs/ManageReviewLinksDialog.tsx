@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { MediaFile, ReviewLink } from "@/app/dashboard/lib/types";
+import { MediaFile, ReviewLink } from "@/app/dashboard/types";
 import {
   ArrowTopRightOnSquareIcon,
   CalendarIcon,
@@ -28,7 +28,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
 import { createClient } from "@/utils/supabase/client";
-import { formatDate } from "@/app/dashboard/lib/formats";
+import { formatDate } from "@/app/dashboard/utilities";
 import { deleteAllReviewLinksAction } from "../../lib/GeneralActions";
 
 interface ManageLinksDialogState {

@@ -3,13 +3,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ReviewComments } from "./components/ReviewComments";
+import { ReviewComments } from "./components/Review/ReviewComments";
 import { VersionSelector } from "./components/VersionSelector";
-import { MediaDisplay } from "./components/MediaDisplay";
-import { PlayerControls } from "./components/PlayerControls";
+import { MediaDisplay } from "./components/Display/MediaDisplay";
+import { PlayerControls } from "./components/Timeline/PlayerControls";
 import { SplitPanel } from "@/app/components/SplitPanel";
 import { getCommentsAction, updateMediaStatusAction } from "./lib/actions";
-import { MediaFile } from "@/app/dashboard/lib/types";
+import { MediaFile } from "@/app/dashboard/types";
 
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,42 +29,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
-// ✅ ADD FILE CATEGORY HELPER
-const getFileCategory = (fileType: string, mimeType: string) => {
-  if (fileType === "video") return "video";
-  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
-  if (mimeType === "image/svg+xml") return "svg";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (
-    mimeType === "application/pdf" ||
-    mimeType.includes("document") ||
-    mimeType.includes("presentation") ||
-    mimeType === "text/plain"
-  )
-    return "document";
-  return "unknown";
-};
-
-// Status configuration - matches the project workspace
-export const MEDIA_STATUS_OPTIONS = [
-  { value: "on_hold", label: "On Hold", color: "bg-gray-500" },
-  { value: "in_progress", label: "In Progress", color: "bg-blue-500" },
-  { value: "needs_review", label: "Needs Review", color: "bg-yellow-500" },
-  { value: "rejected", label: "Rejected", color: "bg-red-500" },
-  { value: "approved", label: "Approved", color: "bg-green-500" },
-] as const;
-
-export const getStatusConfig = (status: string) => {
-  return (
-    MEDIA_STATUS_OPTIONS.find((option) => option.value === status) || {
-      value: status,
-      label: status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-      color: "bg-gray-500",
-    }
-  );
-};
+import {
+  getFileCategory,
+  getStatusConfig,
+  MEDIA_STATUS_OPTIONS,
+} from "@/app/dashboard/utilities";
 
 interface MediaComment {
+  timestamp_start_seconds: any;
   id: string;
   media_id: string;
   parent_comment_id?: string;
@@ -163,7 +135,11 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null); // ✅ ADD AUDIO REF
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
-
+  const [isRangeSelectionMode, setIsRangeSelectionMode] = useState(false);
+  const [pendingRangeSelection, setPendingRangeSelection] = useState<{
+    startTime: number;
+    endTime: number;
+  } | null>(null);
   // ✅ GET FILE CATEGORY
   const fileCategory = getFileCategory(
     currentMedia.file_type,
@@ -228,6 +204,24 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     },
     [allowDownload]
   );
+  // ✅ NEW: Range selection handlers
+  const handleRangeCommentRequest = useCallback(() => {
+    setIsRangeSelectionMode(true);
+  }, []);
+
+  const handleRangeSelect = useCallback(
+    (startTime: number, endTime: number) => {
+      setPendingRangeSelection({ startTime, endTime });
+      setIsRangeSelectionMode(false);
+    },
+    []
+  );
+
+  const handleRangeSelectionComplete = useCallback(() => {
+    setPendingRangeSelection(null);
+    setIsRangeSelectionMode(false);
+    // Also clear Timeline's range selection if needed
+  }, []);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -325,7 +319,22 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     },
     []
   );
+  const handleSeekToTimestamp = useCallback(
+    (timestamp: number) => {
+      if (fileCategory === "video" && videoRef.current) {
+        videoRef.current.currentTime = timestamp;
 
+        // ✅ UPDATE THE STATE TOO!
+        setCurrentTime(timestamp);
+      } else if (fileCategory === "audio" && audioRef.current) {
+        audioRef.current.currentTime = timestamp;
+
+        // ✅ UPDATE THE STATE TOO!
+        setCurrentTime(timestamp);
+      }
+    },
+    [fileCategory]
+  );
   const handleAnnotationComplete = (annotationData: any) => {
     // Reset annotation mode
     setAnnotationMode("none");
@@ -334,21 +343,36 @@ export const MediaInterface: React.FC<MediaInterface> = ({
 
   const handleCommentDrawingClick = useCallback(
     (comment: MediaComment) => {
-      if (comment.drawing_data && comment.timestamp_seconds !== undefined) {
+      if (comment.drawing_data) {
         // If this drawing is already active, hide it (toggle off)
         if (activeCommentDrawing === comment.id) {
           setActiveCommentDrawing(null);
           return;
         }
 
-        // Otherwise show this drawing
-        handleSeekToTimestamp(comment.timestamp_seconds);
+        // ✅ FIXED: Use the correct timestamp priority
+        let seekTime = undefined;
+
+        // Priority 1: Use drawing_data.timestamp (for drawings created during range selection)
+        if (comment.drawing_data.timestamp !== undefined) {
+          seekTime = comment.drawing_data.timestamp;
+        }
+        // Priority 2: Use regular timestamp_seconds
+        else if (comment.timestamp_seconds !== undefined) {
+          seekTime = comment.timestamp_seconds;
+        }
+        // Priority 3: Use range start timestamp
+        else if (comment.timestamp_start_seconds !== undefined) {
+          seekTime = comment.timestamp_start_seconds;
+        }
+        if (seekTime !== undefined) {
+          handleSeekToTimestamp(seekTime);
+        }
         setActiveCommentDrawing(comment.id);
       }
     },
-    [activeCommentDrawing]
+    [activeCommentDrawing, handleSeekToTimestamp]
   );
-
   const clearActiveComments = useCallback(() => {
     setActiveCommentPin(null);
     setActiveCommentDrawing(null);
@@ -357,13 +381,29 @@ export const MediaInterface: React.FC<MediaInterface> = ({
   useEffect(() => {
     if (activeCommentDrawing && (videoRef.current || audioRef.current)) {
       const activeComment = comments.find((c) => c.id === activeCommentDrawing);
-      if (activeComment && activeComment.timestamp_seconds !== undefined) {
-        const timeDiff = Math.abs(
-          currentTime - activeComment.timestamp_seconds
-        );
-        const mediaElement = videoRef.current || audioRef.current;
-        if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
-          setActiveCommentDrawing(null);
+      if (activeComment) {
+        // ✅ FIXED: Use the correct timestamp for comparison
+        let commentTimestamp = undefined;
+
+        // Priority 1: Use drawing_data.timestamp
+        if (activeComment.drawing_data?.timestamp !== undefined) {
+          commentTimestamp = activeComment.drawing_data.timestamp;
+        }
+        // Priority 2: Use regular timestamp_seconds
+        else if (activeComment.timestamp_seconds !== undefined) {
+          commentTimestamp = activeComment.timestamp_seconds;
+        }
+        // Priority 3: Use range start timestamp
+        else if (activeComment.timestamp_start_seconds !== undefined) {
+          commentTimestamp = activeComment.timestamp_start_seconds;
+        }
+
+        if (commentTimestamp !== undefined) {
+          const timeDiff = Math.abs(currentTime - commentTimestamp);
+          const mediaElement = videoRef.current || audioRef.current;
+          if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
+            setActiveCommentDrawing(null);
+          }
         }
       }
     }
@@ -375,31 +415,63 @@ export const MediaInterface: React.FC<MediaInterface> = ({
 
   const handleCommentPinClick = useCallback(
     (comment: MediaComment) => {
-      if (comment.annotation_data && comment.timestamp_seconds !== undefined) {
+      if (comment.annotation_data) {
         // If this pin is already active, hide it (toggle off)
         if (activeCommentPin === comment.id) {
           setActiveCommentPin(null);
           return;
         }
 
-        // Otherwise show this pin
-        handleSeekToTimestamp(comment.timestamp_seconds);
+        // ✅ FIXED: Use the correct timestamp priority
+        let seekTime = undefined;
+
+        // Priority 1: Use annotation_data.timestamp (for pins created during range selection)
+        if (comment.annotation_data.timestamp !== undefined) {
+          seekTime = comment.annotation_data.timestamp;
+        }
+        // Priority 2: Use regular timestamp_seconds
+        else if (comment.timestamp_seconds !== undefined) {
+          seekTime = comment.timestamp_seconds;
+        }
+        // Priority 3: Use range start timestamp
+        else if (comment.timestamp_start_seconds !== undefined) {
+          seekTime = comment.timestamp_start_seconds;
+        }
+        if (seekTime !== undefined) {
+          handleSeekToTimestamp(seekTime);
+        }
         setActiveCommentPin(comment.id);
       }
     },
-    [activeCommentPin]
+    [activeCommentPin, handleSeekToTimestamp]
   );
 
   useEffect(() => {
     if (activeCommentPin && (videoRef.current || audioRef.current)) {
       const activeComment = comments.find((c) => c.id === activeCommentPin);
-      if (activeComment && activeComment.timestamp_seconds !== undefined) {
-        const timeDiff = Math.abs(
-          currentTime - activeComment.timestamp_seconds
-        );
-        const mediaElement = videoRef.current || audioRef.current;
-        if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
-          setActiveCommentPin(null);
+      if (activeComment) {
+        // ✅ FIXED: Use the correct timestamp for comparison
+        let commentTimestamp = undefined;
+
+        // Priority 1: Use annotation_data.timestamp
+        if (activeComment.annotation_data?.timestamp !== undefined) {
+          commentTimestamp = activeComment.annotation_data.timestamp;
+        }
+        // Priority 2: Use regular timestamp_seconds
+        else if (activeComment.timestamp_seconds !== undefined) {
+          commentTimestamp = activeComment.timestamp_seconds;
+        }
+        // Priority 3: Use range start timestamp
+        else if (activeComment.timestamp_start_seconds !== undefined) {
+          commentTimestamp = activeComment.timestamp_start_seconds;
+        }
+
+        if (commentTimestamp !== undefined) {
+          const timeDiff = Math.abs(currentTime - commentTimestamp);
+          const mediaElement = videoRef.current || audioRef.current;
+          if (timeDiff > 2 && mediaElement && !mediaElement.paused) {
+            setActiveCommentPin(null);
+          }
         }
       }
     }
@@ -409,20 +481,40 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     setCurrentMedia(version);
   };
 
-  const handleSeekToTimestamp = useCallback(
-    (timestamp: number) => {
-      if (fileCategory === "video" && videoRef.current) {
-        videoRef.current.currentTime = timestamp;
-      } else if (fileCategory === "audio" && audioRef.current) {
-        audioRef.current.currentTime = timestamp;
-      }
-    },
-    [fileCategory]
-  );
-
   const handleCommentDeleted = useCallback((deletedCommentId: string) => {
     setComments((prev) => prev.filter((c) => c.id !== deletedCommentId));
   }, []);
+
+  const unlockTimelineRange = useCallback(() => {
+    // This will be called from ReviewComments to unlock the timeline
+    if (typeof window !== "undefined" && (window as any).unlockTimelineRange) {
+      (window as any).unlockTimelineRange();
+    }
+  }, []);
+
+  // ✅ ADD: Also create a function that unlocks ReviewComments from Timeline
+  const unlockReviewCommentsRange = useCallback(() => {
+    // This will unlock ReviewComments range mode
+    if (
+      typeof window !== "undefined" &&
+      (window as any).unlockRangeFromComments
+    ) {
+      (window as any).unlockRangeFromComments();
+    }
+  }, []);
+
+  // ✅ ADD: Expose the ReviewComments unlock function to window
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).mediaInterfaceUnlockRange = unlockReviewCommentsRange;
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).mediaInterfaceUnlockRange;
+      }
+    };
+  }, [unlockReviewCommentsRange]);
 
   // ✅ DETERMINE IF PLAYER CONTROLS SHOULD SHOW
   const showPlayerControls =
@@ -454,12 +546,13 @@ export const MediaInterface: React.FC<MediaInterface> = ({
       </div>
 
       {/* ✅ ONLY SHOW PLAYER CONTROLS FOR VIDEO AND AUDIO */}
+
       {showPlayerControls && (
         <PlayerControls
           videoRef={videoRef}
-          audioRef={audioRef} // ✅ ADD AUDIO REF
+          audioRef={audioRef}
           mediaType={currentMedia.file_type}
-          media={currentMedia} // ✅ ADD THIS LINE
+          media={currentMedia}
           comments={comments}
           onSeekToTimestamp={handleSeekToTimestamp}
           onTimeUpdate={setCurrentTime}
@@ -468,6 +561,10 @@ export const MediaInterface: React.FC<MediaInterface> = ({
             isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""
           }
           authenticatedUser={authenticatedUser}
+          // ✅ NEW: Range selection props
+          onRangeSelect={handleRangeSelect}
+          isRangeSelectionMode={isRangeSelectionMode}
+          onRangeSelectionModeChange={setIsRangeSelectionMode}
         />
       )}
     </div>
@@ -477,7 +574,7 @@ export const MediaInterface: React.FC<MediaInterface> = ({
     <ReviewComments
       mediaId={currentMedia.id}
       mediaType={currentMedia.file_type}
-      media={currentMedia} // ✅ ADD THIS LINE
+      media={currentMedia}
       currentTime={currentTime}
       onSeekToTimestamp={handleSeekToTimestamp}
       className="h-full"
@@ -499,6 +596,12 @@ export const MediaInterface: React.FC<MediaInterface> = ({
         canComment: true,
         canEditStatus: true,
       }}
+      // ✅ NEW: Range selection props
+      onRangeCommentRequest={handleRangeCommentRequest}
+      pendingRangeSelection={pendingRangeSelection}
+      onRangeSelectionComplete={handleRangeSelectionComplete}
+      // ✅ ADD: Timeline unlock function
+      onTimelineRangeUnlock={unlockTimelineRange}
     />
   );
 
@@ -639,12 +742,11 @@ export const MediaInterface: React.FC<MediaInterface> = ({
               />
             </div>
 
-            {/* ✅ PLAYER CONTROLS - ONLY FOR VIDEO/AUDIO */}
             {showPlayerControls && (
               <div className="flex-shrink-0">
                 <PlayerControls
                   videoRef={videoRef}
-                  audioRef={audioRef} // ✅ ADD AUDIO REF
+                  audioRef={audioRef}
                   mediaType={currentMedia.file_type}
                   media={currentMedia}
                   comments={comments}
@@ -652,6 +754,11 @@ export const MediaInterface: React.FC<MediaInterface> = ({
                   onTimeUpdate={setCurrentTime}
                   fullscreenContainerRef={null}
                   className=""
+                  authenticatedUser={authenticatedUser}
+                  // ✅ NEW: Range selection props
+                  onRangeSelect={handleRangeSelect}
+                  isRangeSelectionMode={isRangeSelectionMode}
+                  onRangeSelectionModeChange={setIsRangeSelectionMode}
                 />
               </div>
             )}

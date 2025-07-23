@@ -1,38 +1,24 @@
 // app/media/full-size/[id]/FullsizeVideoViewer.tsx
 // @ts-nocheck
+
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { PlayerControls } from "@/app/review/[token]/components/PlayerControls";
-import { ClickAnimation } from "@/app/review/[token]/lib/ClickAnimation";
+import { PlayerControls } from "@/app/review/[token]/components/Timeline/PlayerControls";
+import { ClickAnimation } from "@/app/review/[token]/components/Display/ClickAnimation";
 import {
   MusicalNoteIcon,
   DocumentIcon,
   CodeBracketIcon,
 } from "@heroicons/react/24/solid";
 import { Button } from "@/components/ui/button";
-
-// ✅ ADD FILE CATEGORY HELPER
-const getFileCategory = (fileType: string, mimeType: string) => {
-  if (fileType === "video") return "video";
-  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
-  if (mimeType === "image/svg+xml") return "svg";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (
-    mimeType === "application/pdf" ||
-    mimeType.includes("document") ||
-    mimeType.includes("presentation") ||
-    mimeType === "text/plain"
-  )
-    return "document";
-  return "unknown";
-};
+import { getFileCategory } from "@/app/dashboard/utilities";
 
 interface MediaFile {
   id: string;
   filename: string;
   original_filename: string;
-  file_type: "video" | "image" | "audio" | "document"; // ✅ EXPAND TYPES
+  file_type: "video" | "image" | "audio" | "document";
   mime_type: string;
   file_size: number;
   r2_url: string;
@@ -56,15 +42,22 @@ export function MediaViewer({
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isMediaReady, setIsMediaReady] = useState(false);
-  const [showClickAnimation, setShowClickAnimation] = useState(false);
+
+  // Animation states for all three types
+  const [showPlayPauseAnimation, setShowPlayPauseAnimation] = useState(false);
+  const [showBackwardAnimation, setShowBackwardAnimation] = useState(false);
+  const [showForwardAnimation, setShowForwardAnimation] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
+
+  // Double click detection
+  const [clickTimeout, setClickTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [clickCount, setClickCount] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ✅ GET FILE CATEGORY
   const fileCategory = getFileCategory(
     mediaFile.file_type,
     mediaFile.mime_type
@@ -72,7 +65,7 @@ export function MediaViewer({
   const hasPlayerControls =
     fileCategory === "video" || fileCategory === "audio";
 
-  // ✅ PREVENT RIGHT-CLICK CONTEXT MENU IF DOWNLOADS DISABLED
+  // Prevent right-click context menu if downloads disabled
   const handleContextMenu = (e: React.MouseEvent) => {
     if (!allowDownload) {
       e.preventDefault();
@@ -80,7 +73,7 @@ export function MediaViewer({
     }
   };
 
-  // ✅ PREVENT DRAG IF DOWNLOADS DISABLED
+  // Prevent drag if downloads disabled
   const handleDragStart = (e: React.DragEvent) => {
     if (!allowDownload) {
       e.preventDefault();
@@ -88,14 +81,136 @@ export function MediaViewer({
     }
   };
 
-  // ✅ GET CURRENT MEDIA ELEMENT
+  // Get current media element
   const getMediaElement = () => {
     if (fileCategory === "video") return videoRef.current;
     if (fileCategory === "audio") return audioRef.current;
     return null;
   };
 
-  // ✅ MEDIA READY STATE MANAGEMENT - HANDLES BOTH VIDEO AND AUDIO
+  // Handle video seeking
+  const seekVideo = useCallback(
+    (seconds: number) => {
+      const video = videoRef.current;
+      if (video && fileCategory === "video") {
+        const newTime = Math.max(
+          0,
+          Math.min(video.duration, video.currentTime + seconds)
+        );
+        video.currentTime = newTime;
+      }
+    },
+    [fileCategory]
+  );
+
+  // Handle video clicks with position detection - ONLY FOR VIDEO
+  const handleVideoClick = useCallback(
+    (e: React.MouseEvent) => {
+      const video = videoRef.current;
+      if (!video || fileCategory !== "video" || !isMediaReady) return;
+
+      // Get click position relative to video element
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const videoWidth = rect.width;
+
+      // Divide video into three zones: left (0-33%), center (33-67%), right (67-100%)
+      const leftZone = videoWidth * 0.33;
+      const rightZone = videoWidth * 0.67;
+
+      let clickZone: "left" | "center" | "right";
+      if (clickX < leftZone) {
+        clickZone = "left";
+      } else if (clickX > rightZone) {
+        clickZone = "right";
+      } else {
+        clickZone = "center";
+      }
+
+      // Handle click counting for double-click detection
+      const newClickCount = clickCount + 1;
+      setClickCount(newClickCount);
+
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
+
+      if (newClickCount === 1) {
+        // Single click - only for center zone (play/pause)
+        if (clickZone === "center") {
+          const timeout = setTimeout(() => {
+            // Single click confirmed for center
+            if (video.paused) {
+              video.play().catch(console.error);
+            } else {
+              video.pause();
+            }
+            setShowPlayPauseAnimation(true);
+            setClickCount(0);
+          }, 250); // Wait 250ms to see if there's a second click
+          setClickTimeout(timeout);
+        } else {
+          // For left/right zones, wait for potential double click
+          const timeout = setTimeout(() => {
+            // Single click in left/right zone - do nothing
+            setClickCount(0);
+          }, 250);
+          setClickTimeout(timeout);
+        }
+      } else if (newClickCount === 2) {
+        // Double click confirmed
+        clearTimeout(clickTimeout);
+        setClickTimeout(null);
+
+        if (clickZone === "left") {
+          // Double click left - seek backward 5 seconds
+          seekVideo(-5);
+          setShowBackwardAnimation(true);
+        } else if (clickZone === "right") {
+          // Double click right - seek forward 5 seconds
+          seekVideo(5);
+          setShowForwardAnimation(true);
+        } else {
+          // Double click center - toggle play/pause
+          if (video.paused) {
+            video.play().catch(console.error);
+          } else {
+            video.pause();
+          }
+          setShowPlayPauseAnimation(true);
+        }
+        setClickCount(0);
+      }
+
+      // Reset controls timeout
+      if (hasPlayerControls) {
+        resetControlsTimeout();
+      }
+    },
+    [
+      fileCategory,
+      isMediaReady,
+      clickCount,
+      clickTimeout,
+      seekVideo,
+      hasPlayerControls,
+    ]
+  );
+
+  // Animation complete handlers
+  const handlePlayPauseAnimationComplete = useCallback(() => {
+    setShowPlayPauseAnimation(false);
+  }, []);
+
+  const handleBackwardAnimationComplete = useCallback(() => {
+    setShowBackwardAnimation(false);
+  }, []);
+
+  const handleForwardAnimationComplete = useCallback(() => {
+    setShowForwardAnimation(false);
+  }, []);
+
+  // Media ready state management - handles both video and audio
   useEffect(() => {
     if (!hasPlayerControls) {
       setIsMediaReady(false);
@@ -138,7 +253,7 @@ export function MediaViewer({
     };
   }, [fileCategory, mediaFile.r2_url, hasPlayerControls]);
 
-  // Auto-hide controls logic - ✅ ONLY FOR VIDEO/AUDIO
+  // Auto-hide controls logic - only for video/audio
   const resetControlsTimeout = useCallback(() => {
     if (!hasPlayerControls) return;
 
@@ -160,34 +275,12 @@ export function MediaViewer({
     }
   }, [resetControlsTimeout, hasPlayerControls]);
 
-  // ✅ VIDEO CLICK HANDLER - ONLY FOR VIDEO
-  const handleVideoClick = useCallback(() => {
-    const video = videoRef.current;
-    if (video && fileCategory === "video" && isMediaReady) {
-      if (video.paused) {
-        video.play().catch(console.error);
-        setShowClickAnimation(true);
-      } else {
-        video.pause();
-        setShowClickAnimation(true);
-      }
-    }
-    if (hasPlayerControls) {
-      resetControlsTimeout();
-    }
-  }, [fileCategory, isMediaReady, resetControlsTimeout, hasPlayerControls]);
-
-  // Add animation complete handler
-  const handleAnimationComplete = useCallback(() => {
-    setShowClickAnimation(false);
-  }, []);
-
-  // ✅ TIME UPDATE HANDLER - FOR BOTH VIDEO AND AUDIO
+  // Time update handler - for both video and audio
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
   }, []);
 
-  // ✅ SEEK TO TIMESTAMP HANDLER - FOR BOTH VIDEO AND AUDIO
+  // Seek to timestamp handler - for both video and audio
   const handleSeekToTimestamp = useCallback(
     (timestamp: number) => {
       if (!isMediaReady) return;
@@ -201,7 +294,7 @@ export function MediaViewer({
     [fileCategory, isMediaReady]
   );
 
-  // ✅ PLAY/PAUSE STATE TRACKING - FOR BOTH VIDEO AND AUDIO
+  // Play/pause state tracking - for both video and audio
   useEffect(() => {
     const mediaElement = getMediaElement();
     if (!mediaElement || !hasPlayerControls) return;
@@ -218,7 +311,7 @@ export function MediaViewer({
     };
   }, [fileCategory, hasPlayerControls]);
 
-  // ✅ CONTROLS VISIBILITY - FOR BOTH VIDEO AND AUDIO
+  // Controls visibility - for both video and audio
   useEffect(() => {
     const mediaElement = getMediaElement();
     if (!mediaElement || !hasPlayerControls || !isMediaReady) return;
@@ -240,7 +333,7 @@ export function MediaViewer({
     };
   }, [resetControlsTimeout, hasPlayerControls, isMediaReady]);
 
-  // ✅ DISABLE BROWSER SHORTCUTS THAT ALLOW SAVING IF DOWNLOADS DISABLED
+  // Disable browser shortcuts that allow saving if downloads disabled
   useEffect(() => {
     if (!allowDownload) {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -280,7 +373,7 @@ export function MediaViewer({
     };
   }, []);
 
-  // ✅ RENDER MEDIA CONTENT BASED ON FILE CATEGORY - MATCHING MediaDisplay
+  // Render media content based on file category
   const renderMediaContent = () => {
     switch (fileCategory) {
       case "video":
@@ -305,10 +398,28 @@ export function MediaViewer({
                 userSelect: allowDownload ? "auto" : "none",
               }}
             />
+
+            {/* All three click animations for video */}
             <ClickAnimation
-              show={showClickAnimation}
+              show={showPlayPauseAnimation}
               isPlaying={videoPlaying}
-              onAnimationComplete={handleAnimationComplete}
+              animationType="play-pause"
+              position="center"
+              onAnimationComplete={handlePlayPauseAnimationComplete}
+            />
+
+            <ClickAnimation
+              show={showBackwardAnimation}
+              animationType="backward"
+              position="left"
+              onAnimationComplete={handleBackwardAnimationComplete}
+            />
+
+            <ClickAnimation
+              show={showForwardAnimation}
+              animationType="forward"
+              position="right"
+              onAnimationComplete={handleForwardAnimationComplete}
             />
           </>
         );
@@ -430,7 +541,7 @@ export function MediaViewer({
       className="min-h-dvh bg-black relative overflow-hidden"
       onMouseMove={handleMouseMove}
     >
-      {/* ✅ DOWNLOAD RESTRICTION OVERLAY */}
+      {/* Download restriction overlay */}
       {!allowDownload && (
         <div
           className="absolute inset-0 z-40 pointer-events-none"
@@ -446,7 +557,7 @@ export function MediaViewer({
         {renderMediaContent()}
       </div>
 
-      {/* ✅ CONTROLS OVERLAY - FOR VIDEO AND AUDIO */}
+      {/* Controls overlay - for video and audio */}
       {hasPlayerControls && (
         <div
           className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${
@@ -482,7 +593,7 @@ export function MediaViewer({
         </div>
       </div>
 
-      {/* ✅ LOADING STATE - FOR VIDEO AND AUDIO */}
+      {/* Loading state - for video and audio */}
       {hasPlayerControls && !isMediaReady && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-white text-sm">Loading {fileCategory}...</div>

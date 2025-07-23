@@ -12,9 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical, ChevronRight } from "lucide-react";
-import { ProjectFolder, MediaFile } from "@/app/dashboard/lib/types";
+import { ProjectFolder, MediaFile } from "@/app/dashboard/types";
 import { EditFolderDialog } from "./EditFolderDialog";
 import { DeleteFolderDialog } from "./DeleteFolderDialog";
+import { MoveFolderDialog } from "./MoveFolderDialog";
 import { Badge } from "@/components/ui/badge";
 import {
   FolderIcon,
@@ -22,9 +23,10 @@ import {
   DocumentIcon,
   PencilSquareIcon,
   TrashIcon,
+  ArrowsUpDownIcon, // ✅ Better icon for moving folders
 } from "@heroicons/react/24/solid";
 import { MacOSFolderIcon } from "./AnimatedFolderIcon";
-import { formatDate } from "@/app/dashboard/lib/formats";
+import { formatDate } from "@/app/dashboard/utilities";
 
 interface FolderStats {
   totalFiles: number;
@@ -61,6 +63,7 @@ export function FolderCard({
 }: FolderCardProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -72,6 +75,12 @@ export function FolderCard({
     e.stopPropagation();
     e.preventDefault();
     setDeleteDialogOpen(true);
+  };
+
+  const handleMove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setMoveDialogOpen(true);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -96,10 +105,14 @@ export function FolderCard({
     setDeleteDialogOpen(false);
   };
 
+  const handleMoveComplete = (updatedFolders: EnhancedProjectFolder[]) => {
+    // Update the local folder state instead of refreshing
+    onFoldersUpdate(updatedFolders);
+  };
   if (viewMode === "list") {
     return (
       <>
-        <Card className=" cursor-pointer group z-10">
+        <Card className=" cursor-pointer group ">
           <Link href={`/dashboard/projects/${projectId}/folders/${folder.id}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -175,6 +188,12 @@ export function FolderCard({
                         <PencilSquareIcon className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
+
+                      <DropdownMenuItem onClick={handleMove}>
+                        <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
+                        Move Folder
+                      </DropdownMenuItem>
+
                       <DropdownMenuItem
                         onClick={handleDelete}
                         className="text-red-600"
@@ -206,6 +225,15 @@ export function FolderCard({
           folder={folder}
           projectId={projectId}
           onFolderDeleted={handleFolderDeleted}
+        />
+
+        <MoveFolderDialog
+          open={moveDialogOpen}
+          onOpenChange={setMoveDialogOpen}
+          folder={folder}
+          allFolders={allFolders}
+          projectId={projectId}
+          onMoveComplete={handleMoveComplete} // Now passes updated folders
         />
       </>
     );
@@ -251,7 +279,7 @@ export function FolderCard({
               <Button
                 variant="outline"
                 size="icon"
-                className="size-8 opacity-0 group-hover:opacity-100 transition-opacity  backdrop-blur-sm "
+                className="size-8 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
                 onClick={(e) => e.preventDefault()}
               >
                 <MoreVertical className="h-3 w-3" />
@@ -262,6 +290,12 @@ export function FolderCard({
                 <PencilSquareIcon className="h-4 w-4 mr-2" />
                 Edit
               </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={handleMove}>
+                <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
+                Move Folder
+              </DropdownMenuItem>
+
               <DropdownMenuItem onClick={handleDelete} className="text-red-600">
                 <TrashIcon className="h-4 w-4 mr-2" />
                 Delete
@@ -285,6 +319,15 @@ export function FolderCard({
         folder={folder}
         projectId={projectId}
         onFolderDeleted={handleFolderDeleted}
+      />
+
+      <MoveFolderDialog
+        open={moveDialogOpen}
+        onOpenChange={setMoveDialogOpen}
+        folder={folder}
+        allFolders={allFolders}
+        projectId={projectId}
+        onMoveComplete={handleMoveComplete}
       />
     </>
   );

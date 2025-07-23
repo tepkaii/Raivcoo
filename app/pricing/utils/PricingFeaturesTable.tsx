@@ -5,7 +5,6 @@ import { CheckBadgeIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import {
   featureCategories,
   getFeaturesByCategory,
-  type PricingFeature,
 } from "./features-data";
 import React from "react";
 

@@ -366,94 +366,6 @@ export async function deleteFolderAction(projectId: string, folderId: string) {
   }
 }
 
-export async function moveFolderAction(
-  projectId: string,
-  folderId: string,
-  newParentFolderId?: string
-) {
-  try {
-    const { supabase, user, editorProfile, accessCheck } =
-      await getAuthenticatedEditorWithProjectAccess(projectId);
-
-    // Check if user has folder management permission
-    if (
-      !hasPermission(accessCheck.role, accessCheck.is_owner, "manageFolders")
-    ) {
-      throw new Error("You don't have permission to move folders");
-    }
-
-    // Verify folder exists and belongs to project
-    const { data: folder, error: folderError } = await supabase
-      .from("project_folders")
-      .select("*")
-      .eq("id", folderId)
-      .eq("project_id", projectId)
-      .single();
-
-    if (folderError || !folder) {
-      throw new Error("Folder not found");
-    }
-
-    // Verify new parent folder exists if specified
-    if (newParentFolderId) {
-      const { data: parentFolder, error: parentError } = await supabase
-        .from("project_folders")
-        .select("id")
-        .eq("id", newParentFolderId)
-        .eq("project_id", projectId)
-        .single();
-
-      if (parentError || !parentFolder) {
-        throw new Error("Parent folder not found");
-      }
-
-      // Check for circular reference
-      if (newParentFolderId === folderId) {
-        throw new Error("Cannot move folder into itself");
-      }
-    }
-
-    // Check for duplicate names in new location
-    const { data: existingFolder } = await supabase
-      .from("project_folders")
-      .select("id")
-      .eq("project_id", projectId)
-      .eq("name", folder.name)
-      .eq("parent_folder_id", newParentFolderId || null)
-      .neq("id", folderId)
-      .single();
-
-    if (existingFolder) {
-      throw new Error(
-        "A folder with this name already exists in the destination"
-      );
-    }
-
-    // Move the folder
-    const { error: moveError } = await supabase
-      .from("project_folders")
-      .update({
-        parent_folder_id: newParentFolderId || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", folderId);
-
-    if (moveError) throw moveError;
-
-    revalidatePath(`/dashboard/projects/${projectId}`);
-
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.error("Move folder error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to move folder",
-    };
-  }
-}
-
 export async function getFoldersAction(projectId: string) {
   try {
     const { supabase, accessCheck } =
@@ -570,6 +482,94 @@ export async function getFolderMediaAction(
         error instanceof Error ? error.message : "Failed to get folder media",
       mediaFiles: [],
       reviewLinks: [],
+    };
+  }
+}
+
+export async function moveFolderAction(
+  projectId: string,
+  folderId: string,
+  newParentFolderId?: string
+) {
+  try {
+    const { supabase, user, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    // Check if user has folder management permission
+    if (
+      !hasPermission(accessCheck.role, accessCheck.is_owner, "manageFolders")
+    ) {
+      throw new Error("You don't have permission to move folders");
+    }
+
+    // Verify folder exists and belongs to project
+    const { data: folder, error: folderError } = await supabase
+      .from("project_folders")
+      .select("*")
+      .eq("id", folderId)
+      .eq("project_id", projectId)
+      .single();
+
+    if (folderError || !folder) {
+      throw new Error("Folder not found");
+    }
+
+    // Verify new parent folder exists if specified
+    if (newParentFolderId) {
+      const { data: parentFolder, error: parentError } = await supabase
+        .from("project_folders")
+        .select("id")
+        .eq("id", newParentFolderId)
+        .eq("project_id", projectId)
+        .single();
+
+      if (parentError || !parentFolder) {
+        throw new Error("Parent folder not found");
+      }
+
+      // Check for circular reference
+      if (newParentFolderId === folderId) {
+        throw new Error("Cannot move folder into itself");
+      }
+    }
+
+    // Check for duplicate names in new location
+    const { data: existingFolder } = await supabase
+      .from("project_folders")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("name", folder.name)
+      .eq("parent_folder_id", newParentFolderId || null)
+      .neq("id", folderId)
+      .single();
+
+    if (existingFolder) {
+      throw new Error(
+        "A folder with this name already exists in the destination"
+      );
+    }
+
+    // Move the folder
+    const { error: moveError } = await supabase
+      .from("project_folders")
+      .update({
+        parent_folder_id: newParentFolderId || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", folderId);
+
+    if (moveError) throw moveError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("Move folder error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to move folder",
     };
   }
 }

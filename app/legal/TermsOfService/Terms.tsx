@@ -34,7 +34,7 @@ const Section = ({ title, children, index }: SectionProps) => (
 const TermsOfService = () => {
   return (
     <div className="min-h-screen flex justify-center bg-background">
-      <main className=" space-y-16 mt-32 container">
+      <main className="pb-12 md:pb-16 space-y-16 mt-32 container">
         <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
           <h1 className="text-4xl md:text-5xl font-normal tracking-tighter lg:text-5xl text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
             Terms of Service

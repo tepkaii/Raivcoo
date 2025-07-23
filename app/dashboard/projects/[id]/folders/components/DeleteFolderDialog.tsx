@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
-import { ProjectFolder } from "@/app/dashboard/lib/types";
+import { ProjectFolder } from "@/app/dashboard/types";
 import { deleteFolderAction } from "../../lib/FolderActions";
 import { toast } from "@/hooks/use-toast";
 

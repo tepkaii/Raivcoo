@@ -421,6 +421,8 @@ export async function deleteCommentAction(
   }
 }
 
+// app/review/[token]/lib/actions.ts - Add this to the createCommentAction function
+
 export async function createCommentAction(data: {
   mediaId: string;
   userName: string;
@@ -429,6 +431,8 @@ export async function createCommentAction(data: {
   content: string;
   avatarUrl?: string;
   timestampSeconds?: number;
+  timestampStartSeconds?: number; // ✅ NEW: Range start
+  timestampEndSeconds?: number;   // ✅ NEW: Range end
   parentCommentId?: string;
   ipAddress?: string;
   userAgent?: string;
@@ -471,6 +475,8 @@ export async function createCommentAction(data: {
       user_email: data.userEmail,
       content: data.content,
       timestamp_seconds: data.timestampSeconds,
+      timestamp_start_seconds: data.timestampStartSeconds, // ✅ NEW
+      timestamp_end_seconds: data.timestampEndSeconds,     // ✅ NEW
       parent_comment_id: data.parentCommentId || null,
       ip_address: data.ipAddress,
       user_agent: data.userAgent,
@@ -505,7 +511,6 @@ export async function createCommentAction(data: {
       setImmediate(() => {
         sendReviewCommentNotifications(data.reviewToken!, comment, isReply);
       });
-    } else {
     }
 
     return { success: true, comment };
@@ -514,13 +519,12 @@ export async function createCommentAction(data: {
     return { success: false, error: "Failed to create comment" };
   }
 }
-
 export async function getCommentsAction(mediaId: string) {
   try {
     const supabase = await createClient();
 
     const { data: comments, error } = await supabase
-      .from("media_comments") // ✅ Query the table directly now
+      .from("media_comments")
       .select("*")
       .eq("media_id", mediaId)
       .eq("is_approved", true)
@@ -531,9 +535,10 @@ export async function getCommentsAction(mediaId: string) {
       return { success: false, error: error.message };
     }
 
-    // Parse annotation_data for each comment
+    // ✅ ENHANCED: Parse both annotation_data AND drawing_data
     const parsedComments =
       comments?.map((comment) => {
+        // Parse annotation_data
         if (
           comment.annotation_data &&
           typeof comment.annotation_data === "string"
@@ -545,6 +550,20 @@ export async function getCommentsAction(mediaId: string) {
             comment.annotation_data = null;
           }
         }
+
+        // ✅ NEW: Parse drawing_data
+        if (
+          comment.drawing_data &&
+          typeof comment.drawing_data === "string"
+        ) {
+          try {
+            comment.drawing_data = JSON.parse(comment.drawing_data);
+          } catch (e) {
+            console.error("Error parsing drawing_data:", e);
+            comment.drawing_data = null;
+          }
+        }
+
         return comment;
       }) || [];
 

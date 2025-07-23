@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { MediaFile } from "@/app/dashboard/lib/types";
+import { MediaFile } from "@/app/dashboard/types";
 import { LockClosedIcon } from "@heroicons/react/24/solid";
 import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
 import { createClient } from "@/utils/supabase/client";

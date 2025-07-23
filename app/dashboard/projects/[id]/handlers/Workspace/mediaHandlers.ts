@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { MediaFile } from "@/app/dashboard/lib/types";
+import { MediaFile } from "@/app/dashboard/types";
 
 export const createMediaHandlers = (
   mediaFiles: MediaFile[],

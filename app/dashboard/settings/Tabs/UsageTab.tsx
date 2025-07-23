@@ -18,7 +18,7 @@ import {
   ServerIcon,
   UsersIcon,
 } from "@heroicons/react/24/solid";
-import { formatStatus, formatDate, formatNumber } from "../../lib/formats";
+import { formatStatus, formatDate, formatNumber } from "../../utilities";
 interface UsageTabProps {
   user: any;
 }
@@ -337,11 +337,6 @@ export default function UsageTab({ user }: UsageTabProps) {
     planInfo?.isActivePlan &&
     (subscription?.plan_id?.toLowerCase() === "lite" ||
       subscription?.plan_name?.toLowerCase() === "lite");
-
-  const formatStorage = (gb: number) => {
-    if (gb < 1) return `${Math.round(gb * 1000)}MB`;
-    return `${gb.toFixed(1)}GB`;
-  };
 
   const getProgressValue = (used: number, limit: number) => {
     if (limit === Infinity) return 0; // Don't show progress for unlimited

@@ -10,7 +10,7 @@ import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
-import { formatDate } from "../dashboard/lib/formats";
+import { formatDate } from "../dashboard/utilities";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 import { motion, useInView } from "framer-motion";
 import { GridBackground2, Spotlight } from "@/components/ui/spotlight-new";

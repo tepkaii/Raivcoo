@@ -8,11 +8,13 @@ export const createCommentHandlers = (projectId: string) => {
       mediaId: data.mediaId,
       content: data.content,
       timestampSeconds: data.timestampSeconds,
+      // ✅ ADD: Range timestamp parameters
+      timestampStartSeconds: data.timestampStartSeconds,
+      timestampEndSeconds: data.timestampEndSeconds,
       parentCommentId: data.parentCommentId,
       annotationData: data.annotationData,
       drawingData: data.drawingData,
     });
-
     if (!result.success) {
       throw new Error(result.error);
     }

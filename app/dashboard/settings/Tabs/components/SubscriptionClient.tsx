@@ -24,7 +24,7 @@ import {
   formatDate,
   formatFullDate,
   formatNumber,
-} from "../../../lib/formats";
+} from "../../../utilities";
 
 interface Subscription {
   id: string;

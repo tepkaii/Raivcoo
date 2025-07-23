@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VersionDragList } from "./VersionDragList";
-import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
+import { MediaFile, OrganizedMedia } from "@/app/dashboard/types";
 
 interface VersionManagerDialogState {
   open: boolean;

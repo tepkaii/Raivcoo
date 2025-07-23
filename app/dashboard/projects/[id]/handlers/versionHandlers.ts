@@ -1,6 +1,6 @@
 // app/dashboard/projects/[id]/handlers/versionHandlers.ts
 import { toast } from "@/hooks/use-toast";
-import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
+import { MediaFile, OrganizedMedia } from "@/app/dashboard/types";
 import { createClient } from "@/utils/supabase/client";
 import {
   reorderVersionsAction,

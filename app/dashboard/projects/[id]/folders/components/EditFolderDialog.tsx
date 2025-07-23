@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ProjectFolder } from "@/app/dashboard/lib/types";
+import { ProjectFolder } from "@/app/dashboard/types";
 import { updateFolderAction } from "../../lib/FolderActions";
 import { toast } from "@/hooks/use-toast";
 

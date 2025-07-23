@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, ChevronUp, ChevronDown } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
-import { MediaFile } from "@/app/dashboard/lib/types";
+import { MediaFile } from "@/app/dashboard/types";
 import {
   EyeIcon,
   TrashIcon,

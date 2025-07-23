@@ -10,6 +10,11 @@ import type { User } from "@supabase/supabase-js";
 import { CheckBadgeIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
 import Lottie from "lottie-react";
 import animationData from "../../../public/assets/lottie/check-icon.json";
+import {
+  formatDate,
+  formatStorage,
+  formatUploadSize,
+} from "@/app/dashboard/utilities";
 
 interface Plan {
   id: string;
@@ -66,28 +71,6 @@ export default function SuccessClient({
       clearTimeout(timer2);
     };
   }, []);
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatStorage = (gb: number) => {
-    if (gb < 1) return `${Math.round(gb * 1000)}MB`;
-    return `${gb}GB`;
-  };
-
-  const formatUploadSize = (planId: string) => {
-    const uploadSizes = {
-      free: "200MB",
-      lite: "2GB",
-      pro: "5GB",
-    };
-    return uploadSizes[planId as keyof typeof uploadSizes] || "Unknown";
-  };
 
   const getSuccessMessage = () => {
     switch (action) {

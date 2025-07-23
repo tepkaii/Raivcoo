@@ -5,7 +5,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MediaGrid } from "./components/Media/MediaGrid";
 import { MediaViewer } from "./components/Media/MediaViewer";
-import { ReviewComments } from "@/app/review/[token]/components/ReviewComments";
+import { ReviewComments } from "@/app/review/[token]/components/Review/ReviewComments";
 import { TeamManagement } from "./components/TeamManagement/TeamManagement";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -14,14 +14,13 @@ import {
   MediaCardsPanel,
   MediaPlayerPanel,
 } from "@/app/components/icons";
-import { MediaFile, ReviewLink, ProjectFolder } from "../../lib/types";
+import { MediaFile, ReviewLink, ProjectFolder } from "../../types";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   ChatBubbleBottomCenterTextIcon,
   EyeIcon,
   UsersIcon,
 } from "@heroicons/react/24/solid";
-
 // Import handlers
 import {
   createPanelHandlers,
@@ -109,6 +108,47 @@ export function ProjectWorkspace({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mediaViewerRef = useRef<any>(null);
+  const [isRangeSelectionMode, setIsRangeSelectionMode] = useState(false);
+
+  // ✅ ADD BACK: Local range selection state for proper synchronization
+  const [pendingRangeSelection, setPendingRangeSelection] = useState<{
+    startTime: number;
+    endTime: number;
+  } | null>(null);
+
+  const handleRangeCancelled = () => {
+    setPendingRangeSelection(null);
+    setIsRangeSelectionMode(false);
+    // Also unlock the timeline
+    if (mediaViewerRef.current?.unlockTimelineRange) {
+      mediaViewerRef.current.unlockTimelineRange();
+    }
+  };
+  // ✅ ADD BACK: Range selection handlers that sync with MediaViewer
+  const handleRangeSelect = (startTime: number, endTime: number) => {
+    setPendingRangeSelection({ startTime, endTime });
+    setIsRangeSelectionMode(false);
+  };
+
+  const handleRangeSelectionComplete = () => {
+    setPendingRangeSelection(null);
+    setIsRangeSelectionMode(false);
+  };
+
+  const handleRangeCommentRequest = () => {
+    setIsRangeSelectionMode(true);
+    if (mediaViewerRef.current?.handleRangeCommentRequest) {
+      mediaViewerRef.current.handleRangeCommentRequest();
+    }
+  };
+
+  const handleTimelineRangeUnlock = () => {
+    setPendingRangeSelection(null);
+    setIsRangeSelectionMode(false);
+    if (mediaViewerRef.current?.unlockTimelineRange) {
+      mediaViewerRef.current.unlockTimelineRange();
+    }
+  };
 
   // Create handlers
   const permissions = createPermissionHandlers(project.user_role, isOwner);
@@ -330,7 +370,6 @@ export function ProjectWorkspace({
           className="border-r flex flex-col flex-shrink-0 min-w-0"
           style={{
             width: isMobile ? "100%" : `${panelHandlers.widths.library}%`,
-
             overflow: "hidden", // Always hidden
           }}
         >
@@ -396,7 +435,6 @@ export function ProjectWorkspace({
           className="bg-black flex flex-col min-w-0 flex-shrink-0"
           style={{
             width: `${panelHandlers.widths.player}%`,
-
             overflow: panelHandlers.widths.player === 0 ? "hidden" : "visible",
           }}
         >
@@ -422,16 +460,13 @@ export function ProjectWorkspace({
                     canComment: permissions.canComment,
                     canEditStatus: permissions.canEditStatus,
                   }}
-                  onCommentPinClick={(comment) => {
-                    if (mediaViewerRef.current) {
-                      mediaViewerRef.current.handleCommentPinClick(comment);
-                    }
-                  }}
-                  onCommentDrawingClick={(comment) => {
-                    if (mediaViewerRef.current) {
-                      mediaViewerRef.current.handleCommentDrawingClick(comment);
-                    }
-                  }}
+                  onCommentPinClick={undefined}
+                  onCommentDrawingClick={undefined}
+                  onRangeSelect={handleRangeSelect} // ✅ SYNC WITH LOCAL STATE
+                  isRangeSelectionMode={isRangeSelectionMode}
+                  onRangeSelectionModeChange={setIsRangeSelectionMode}
+                  pendingRangeSelection={pendingRangeSelection} // ✅ USE LOCAL STATE
+                  onRangeSelectionComplete={handleRangeSelectionComplete} // ✅ SYNC WITH LOCAL STATE
                 />
               ) : (
                 <div className="flex-1 min-h-screen flex items-center justify-center">
@@ -466,7 +501,6 @@ export function ProjectWorkspace({
           className="border-l rounded-md p-4 flex flex-col flex-shrink-0 min-w-0"
           style={{
             width: `${panelHandlers.widths.comments}%`,
-
             overflow:
               panelHandlers.widths.comments === 0 ? "hidden" : "visible",
           }}
@@ -535,6 +569,10 @@ export function ProjectWorkspace({
                     projectMode={true}
                     projectId={project.id}
                     createCommentOverride={commentHandlers.handleCreateComment}
+                    onRangeCommentRequest={handleRangeCommentRequest} // ✅ PROPER HANDLER
+                    pendingRangeSelection={pendingRangeSelection} // ✅ USE LOCAL STATE (NOT REF)
+                    onRangeSelectionComplete={handleRangeSelectionComplete} // ✅ PROPER HANDLER
+                    onTimelineRangeUnlock={handleTimelineRangeUnlock} // ✅ PROPER HANDLER
                   />
                 ) : (
                   <div className="flex-1 min-h-screen flex items-center justify-center p-8">

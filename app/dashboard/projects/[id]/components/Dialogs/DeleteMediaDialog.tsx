@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MediaFile } from "@/app/dashboard/lib/types";
+import { MediaFile } from "@/app/dashboard/types";
 
 interface DeleteDialogState {
   open: boolean;

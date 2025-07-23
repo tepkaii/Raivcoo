@@ -1,7 +1,7 @@
 // app/dashboard/projects/[id]/handlers/reviewLinkHandlers.ts
 // @ts-nocheck
 import { toast } from "@/hooks/use-toast";
-import { MediaFile, ReviewLink } from "@/app/dashboard/lib/types";
+import { MediaFile, ReviewLink } from "@/app/dashboard/types";
 import {
   createReviewLinkAction,
   getReviewLinksAction,

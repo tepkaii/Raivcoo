@@ -9,6 +9,7 @@ import {
   DocumentIcon,
   CodeBracketIcon,
 } from "@heroicons/react/24/solid";
+import { getFileCategory } from "@/app/dashboard/utilities";
 
 interface MediaFile {
   id: string;
@@ -76,21 +77,6 @@ function getRotationValues(index: number, totalCount: number) {
 
 // Media thumbnail component
 function MediaThumbnail({ media }: { media: MediaFile }) {
-  const getFileCategory = (fileType: string, mimeType: string) => {
-    if (fileType === "video") return "video";
-    if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
-    if (mimeType === "image/svg+xml") return "svg";
-    if (mimeType.startsWith("audio/")) return "audio";
-    if (
-      mimeType === "application/pdf" ||
-      mimeType.includes("document") ||
-      mimeType.includes("presentation") ||
-      mimeType === "text/plain"
-    )
-      return "document";
-    return "unknown";
-  };
-
   const fileCategory = getFileCategory(media.file_type, media.mime_type);
 
   const getThumbnailUrl = () => {

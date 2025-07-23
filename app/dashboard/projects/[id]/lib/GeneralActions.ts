@@ -1329,3 +1329,67 @@ export async function deleteAllReviewLinksAction(mediaId: string) {
     };
   }
 }
+export async function moveMediaAction(
+  projectId: string,
+  mediaId: string,
+  newFolderId?: string
+) {
+  try {
+    const { supabase, user, editorProfile, accessCheck } =
+      await getAuthenticatedEditorWithProjectAccess(projectId);
+
+    // Check if user has upload permission (allows moving media)
+    if (!hasPermission(accessCheck.role, accessCheck.is_owner, "upload")) {
+      throw new Error("You don't have permission to move media files");
+    }
+
+    // Verify media exists and belongs to project
+    const { data: media, error: mediaError } = await supabase
+      .from("project_media")
+      .select("*")
+      .eq("id", mediaId)
+      .eq("project_id", projectId)
+      .single();
+
+    if (mediaError || !media) {
+      throw new Error("Media not found");
+    }
+
+    // Verify new folder exists if specified
+    if (newFolderId) {
+      const { data: folder, error: folderError } = await supabase
+        .from("project_folders")
+        .select("id")
+        .eq("id", newFolderId)
+        .eq("project_id", projectId)
+        .single();
+
+      if (folderError || !folder) {
+        throw new Error("Destination folder not found");
+      }
+    }
+
+    // Move the media
+    const { error: moveError } = await supabase
+      .from("project_media")
+      .update({
+        folder_id: newFolderId || null,
+        parent_media_id: null, // Remove from parent media if it was a version
+      })
+      .eq("id", mediaId);
+
+    if (moveError) throw moveError;
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("Move media error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to move media",
+    };
+  }
+}

@@ -35,8 +35,6 @@ export async function generateVideoThumbnail(
         ])
         .on("end", async () => {
           try {
-            // The thumbnail buffer will be available in the output
-            console.log("Thumbnail generated successfully");
             resolve({
               r2_key: thumbnailR2Key,
               r2_url: getPublicUrl(thumbnailR2Key),

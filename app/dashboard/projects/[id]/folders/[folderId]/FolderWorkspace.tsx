@@ -6,7 +6,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
-import { ProjectFolder, MediaFile, ReviewLink } from "../../../../lib/types";
+import { ProjectFolder, MediaFile, ReviewLink } from "../../../../types";
 import { CreateFolderDialog } from "../components/CreateFolderDialog";
 import { FolderUpload } from "../components/FolderUpload";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +16,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 // Import workspace components and handlers
 import { MediaGrid } from "../../components/Media/MediaGrid";
 import { MediaViewer } from "../../components/Media/MediaViewer";
-import { ReviewComments } from "@/app/review/[token]/components/ReviewComments";
+import { ReviewComments } from "@/app/review/[token]/components/Review/ReviewComments";
 
 import {
   CommentsPanel,
@@ -111,11 +111,16 @@ export function FolderWorkspace({
   const [reviewLinks, setReviewLinks] = useState<ReviewLink[]>(
     project.review_links || []
   );
-  const [members, setMembers] = useState<ProjectMember[]>(
-    project.project_members || []
-  );
+
+  const [isRangeSelectionMode, setIsRangeSelectionMode] = useState(false);
+
+  // ✅ ADD: Local range selection state for proper synchronization
+  const [pendingRangeSelection, setPendingRangeSelection] = useState<{
+    startTime: number;
+    endTime: number;
+  } | null>(null);
+
   const [folders, setFolders] = useState<ProjectFolder[]>(allFolders);
-  const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [folderUploadOpen, setFolderUploadOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -144,11 +149,6 @@ export function FolderWorkspace({
     containerRef
   );
   const commentHandlers = createCommentHandlers(project.id);
-
-  // Get subfolders
-  const subfolders = folders.filter(
-    (f) => f.parent_folder_id === currentFolder.id
-  );
 
   // Check screen size
   useEffect(() => {
@@ -182,6 +182,40 @@ export function FolderWorkspace({
   };
 
   const breadcrumbs = getBreadcrumbs();
+
+  const handleRangeCancelled = () => {
+    setPendingRangeSelection(null);
+    setIsRangeSelectionMode(false);
+    // Also unlock the timeline
+    if (mediaViewerRef.current?.unlockTimelineRange) {
+      mediaViewerRef.current.unlockTimelineRange();
+    }
+  };
+
+  const handleRangeSelect = (startTime: number, endTime: number) => {
+    setPendingRangeSelection({ startTime, endTime });
+    setIsRangeSelectionMode(false);
+  };
+
+  const handleRangeSelectionComplete = () => {
+    setPendingRangeSelection(null);
+    setIsRangeSelectionMode(false);
+  };
+
+  const handleRangeCommentRequest = () => {
+    setIsRangeSelectionMode(true);
+    if (mediaViewerRef.current?.handleRangeCommentRequest) {
+      mediaViewerRef.current.handleRangeCommentRequest();
+    }
+  };
+
+  const handleTimelineRangeUnlock = () => {
+    setPendingRangeSelection(null);
+    setIsRangeSelectionMode(false);
+    if (mediaViewerRef.current?.unlockTimelineRange) {
+      mediaViewerRef.current.unlockTimelineRange();
+    }
+  };
 
   // Update handlers when dependencies change
   const handleMediaUpdated = (newFiles: MediaFile[]) => {
@@ -629,6 +663,12 @@ export function FolderWorkspace({
                     mediaViewerRef.current.handleCommentDrawingClick(comment);
                   }
                 }}
+                // ✅ ADD: Range selection props
+                onRangeSelect={handleRangeSelect}
+                isRangeSelectionMode={isRangeSelectionMode}
+                onRangeSelectionModeChange={setIsRangeSelectionMode}
+                pendingRangeSelection={pendingRangeSelection}
+                onRangeSelectionComplete={handleRangeSelectionComplete}
               />
             ) : (
               <div className="flex-1 min-h-screen flex items-center justify-center">
@@ -725,6 +765,11 @@ export function FolderWorkspace({
                     projectMode={true}
                     projectId={project.id}
                     createCommentOverride={commentHandlers.handleCreateComment}
+                    // ✅ ADD: Range selection props
+                    onRangeCommentRequest={handleRangeCommentRequest}
+                    pendingRangeSelection={pendingRangeSelection}
+                    onRangeSelectionComplete={handleRangeSelectionComplete}
+                    onTimelineRangeUnlock={handleTimelineRangeUnlock}
                   />
                 ) : (
                   <div className="flex-1 min-h-screen flex items-center justify-center p-8">

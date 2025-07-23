@@ -1,5 +1,4 @@
 // app/dashboard/projects/[id]/lib/commentActions.ts
-// @ts-ignore
 // @ts-nocheck
 
 "use server";
@@ -81,114 +80,119 @@ function hasPermission(
 }
 
 export async function createCommentAction(data: {
- projectId: string;
- mediaId: string;
- content: string;
- timestampSeconds?: number;
- parentCommentId?: string;
- annotationData?: any;
- drawingData?: any;
+  projectId: string;
+  mediaId: string;
+  content: string;
+  timestampSeconds?: number;
+  timestampStartSeconds?: number; // ✅ ADD THIS
+  timestampEndSeconds?: number; // ✅ ADD THIS
+  parentCommentId?: string;
+  annotationData?: any;
+  drawingData?: any;
 }) {
- try {
-   const { supabase, user, editorProfile, accessCheck } =
-     await getAuthenticatedUserWithProjectAccess(data.projectId);
+  try {
+    const { supabase, user, editorProfile, accessCheck } =
+      await getAuthenticatedUserWithProjectAccess(data.projectId);
 
-   // ✅ FETCH AVATAR URL DIRECTLY
-   const { data: profile } = await supabase
-     .from("editor_profiles")
-     .select("avatar_url")
-     .eq("user_id", user.id)
-     .single();
+    // ✅ FETCH AVATAR URL DIRECTLY
+    const { data: profile } = await supabase
+      .from("editor_profiles")
+      .select("avatar_url")
+      .eq("user_id", user.id)
+      .single();
 
-   const avatarUrl = profile?.avatar_url || null;
+    const avatarUrl = profile?.avatar_url || null;
 
-   // Check if user has comment permission
-   if (!hasPermission(accessCheck.role, accessCheck.is_owner, "comment")) {
-     throw new Error("You don't have permission to add comments");
-   }
+    // Check if user has comment permission
+    if (!hasPermission(accessCheck.role, accessCheck.is_owner, "comment")) {
+      throw new Error("You don't have permission to add comments");
+    }
 
-   // Validate media exists in the project
-   const { data: mediaExists, error: mediaError } = await supabase
-     .from("project_media")
-     .select("id")
-     .eq("id", data.mediaId)
-     .eq("project_id", data.projectId)
-     .single();
+    // Validate media exists in the project
+    const { data: mediaExists, error: mediaError } = await supabase
+      .from("project_media")
+      .select("id")
+      .eq("id", data.mediaId)
+      .eq("project_id", data.projectId)
+      .single();
 
-   if (mediaError || !mediaExists) {
-     throw new Error("Media not found in this project");
-   }
+    if (mediaError || !mediaExists) {
+      throw new Error("Media not found in this project");
+    }
 
-   // If this is a reply, validate parent comment exists
-   if (data.parentCommentId) {
-     const { data: parentExists, error: parentError } = await supabase
-       .from("media_comments")
-       .select("id")
-       .eq("id", data.parentCommentId)
-       .eq("media_id", data.mediaId)
-       .single();
+    // If this is a reply, validate parent comment exists
+    if (data.parentCommentId) {
+      const { data: parentExists, error: parentError } = await supabase
+        .from("media_comments")
+        .select("id")
+        .eq("id", data.parentCommentId)
+        .eq("media_id", data.mediaId)
+        .single();
 
-     if (parentError || !parentExists) {
-       throw new Error("Parent comment not found");
-     }
-   }
+      if (parentError || !parentExists) {
+        throw new Error("Parent comment not found");
+      }
+    }
 
-   // Create the comment
-   const insertData = {
-     media_id: data.mediaId,
-     user_id: user.id,
-     user_name: editorProfile.full_name || editorProfile.email || "Unknown User",
-     user_email: editorProfile.email,
-     avatar_url: avatarUrl,
-     content: data.content.trim(),
-     timestamp_seconds: data.timestampSeconds || null,
-     parent_comment_id: data.parentCommentId || null,
-     annotation_data: data.annotationData || null,
-     drawing_data: data.drawingData || null,
-     session_id: null,
-     is_approved: true,
-     is_pinned: false,
-     is_resolved: false,
-   };
+    // Create the comment
+    const insertData = {
+      media_id: data.mediaId,
+      user_id: user.id,
+      user_name:
+        editorProfile.full_name || editorProfile.email || "Unknown User",
+      user_email: editorProfile.email,
+      avatar_url: avatarUrl,
+      content: data.content.trim(),
+      timestamp_seconds: data.timestampSeconds || null,
+      timestamp_start_seconds: data.timestampStartSeconds || null, // ✅ ADD THIS
+      timestamp_end_seconds: data.timestampEndSeconds || null, // ✅ ADD THIS
+      parent_comment_id: data.parentCommentId || null,
+      annotation_data: data.annotationData || null,
+      drawing_data: data.drawingData || null,
+      session_id: null,
+      is_approved: true,
+      is_pinned: false,
+      is_resolved: false,
+    };
 
-   const { data: comment, error: createError } = await supabase
-     .from("media_comments")
-     .insert(insertData)
-     .select()
-     .single();
+    const { data: comment, error: createError } = await supabase
+      .from("media_comments")
+      .insert(insertData)
+      .select()
+      .single();
 
-   if (createError) {
-     console.error("COMMENT INSERT ERROR:", createError);
-     throw createError;
-   }
+    if (createError) {
+      console.error("COMMENT INSERT ERROR:", createError);
+      throw createError;
+    }
 
-   // ✅ COMMENT CREATED SUCCESSFULLY - NOW REVALIDATE
-   revalidatePath(`/dashboard/projects/${data.projectId}`);
+    // ✅ COMMENT CREATED SUCCESSFULLY - NOW REVALIDATE
+    revalidatePath(`/dashboard/projects/${data.projectId}`);
 
-   // 🔥 SEND NOTIFICATIONS ASYNCHRONOUSLY - USE EXISTING PROJECT NOTIFICATION SYSTEM
-   const isReply = !!data.parentCommentId;
+    // 🔥 SEND NOTIFICATIONS ASYNCHRONOUSLY - USE EXISTING PROJECT NOTIFICATION SYSTEM
+    const isReply = !!data.parentCommentId;
 
-   setImmediate(() => {
-     sendCommentNotifications(
-       data.projectId,
-       data.mediaId,
-       comment,
-       user,
-       editorProfile,
-       accessCheck,
-       isReply
-     );
-   });
+    setImmediate(() => {
+      sendCommentNotifications(
+        data.projectId,
+        data.mediaId,
+        comment,
+        user,
+        editorProfile,
+        accessCheck,
+        isReply
+      );
+    });
 
-   return { success: true, comment };
- } catch (error) {
-   console.error("PROJECT COMMENT ACTION ERROR:", error);
-   return {
-     success: false,
-     error:
-       error instanceof Error ? error.message : "Failed to create comment",
-   };
- }
+    return { success: true, comment };
+  } catch (error) {
+    console.error("PROJECT COMMENT ACTION ERROR:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to create comment",
+    };
+  }
 }
 
 export async function createReplyAction(data: {

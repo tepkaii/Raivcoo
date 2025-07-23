@@ -1,6 +1,6 @@
 // app/dashboard/projects/[id]/handlers/mediaHandlers.ts
 import { toast } from "@/hooks/use-toast";
-import { MediaFile, ReviewLink } from "@/app/dashboard/lib/types";
+import { MediaFile, ReviewLink } from "@/app/dashboard/types";
 import { deleteMediaAction } from "../lib/DeleteMediaActions";
 import { updateMediaStatusAction } from "../lib/GeneralActions";
 

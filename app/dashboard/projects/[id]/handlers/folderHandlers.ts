@@ -1,7 +1,7 @@
 // app/dashboard/projects/[id]/handlers/folderHandlers.ts
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
-import { ProjectFolder } from "@/app/dashboard/lib/types";
+import { ProjectFolder } from "@/app/dashboard/types";
 import { getFoldersAction } from "../lib/FolderActions";
 
 export const createFolderHandlers = (

@@ -1,6 +1,6 @@
 // app/dashboard/projects/[id]/handlers/uploadHandlers.ts
 import { toast } from "@/hooks/use-toast";
-import { MediaFile } from "@/app/dashboard/lib/types";
+import { MediaFile } from "@/app/dashboard/types";
 import { uploadFilesWithThumbnails } from "../lib/uploadWithThumbnails";
 import { UploadValidator } from "../lib/UploadLogic";
 

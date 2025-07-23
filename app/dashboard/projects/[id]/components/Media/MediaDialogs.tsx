@@ -7,7 +7,7 @@ import { CreateReviewLinkDialog } from "../Dialogs/CreateReviewLinkDialog";
 import { ManageReviewLinksDialog } from "../Dialogs/ManageReviewLinksDialog";
 import { VersionManagerDialog } from "../Dialogs/VersionManagerDialog";
 import { DeleteMediaDialog } from "../Dialogs/DeleteMediaDialog";
-import { MediaFile, OrganizedMedia } from "@/app/dashboard/lib/types";
+import { MediaFile, OrganizedMedia } from "@/app/dashboard/types";
 import { EditMediaNameDialog } from "../Dialogs/EditMediaNameDialog";
 
 interface ReviewLink {

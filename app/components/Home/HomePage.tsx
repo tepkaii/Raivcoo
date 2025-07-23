@@ -18,6 +18,7 @@ import Pin from "../../../public/assets/lottie/pin.json";
 import Upload from "../../../public/assets/lottie/upload.json";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 import { pricingTiers } from "@/app/pricing/PricingClient";
+import { formatStorage } from "@/app/dashboard/utilities";
 
 function AnimatedSection({ children, className }: any) {
   const ref = useRef(null);
@@ -56,11 +57,6 @@ function PricingCard({
   const yearlyPrice = monthlyPrice * 8.4;
   const displayPrice = isYearly ? yearlyPrice : monthlyPrice;
   const savings = isYearly && !isFreePlan ? monthlyPrice * 3.6 : 0;
-
-  const formatStorage = (gb: number) => {
-    if (gb < 1) return `${Math.round(gb * 1000)}MB`;
-    return `${gb}GB`;
-  };
 
   const formatUploadSize = (mb: number) => {
     if (mb >= 1024) return `${(mb / 1024).toFixed(0)}GB`;
@@ -385,7 +381,7 @@ export default function HomePage() {
                       Your browser does not support the video tag.
                     </video>
                   </div>
-                  <div className="flex-1 order-1 md:order-2">
+                  <div className="flex-1">
                     <h3 className="text-2xl font-semibold mb-4">
                       Simple Multi-Panel Interface
                     </h3>
@@ -402,7 +398,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1">
@@ -435,15 +431,15 @@ export default function HomePage() {
                 </div>
               </motion.div>
 
-              {/* Global Search - Video Left */}
+              {/* Timeline Range Comments - Video Left */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                  <div className="flex-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
+                  <div className="flex-1 relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <video
                       width={600}
                       height={400}
@@ -454,20 +450,20 @@ export default function HomePage() {
                       playsInline
                     >
                       <source
-                        src="/assets/home/search-demo.mp4"
+                        src="/assets/home/range-comments-demo.mp4"
                         type="video/mp4"
                       />
                       Your browser does not support the video tag.
                     </video>
                   </div>
-                  <div className="flex-1 order-1 md:order-2">
+                  <div className="flex-1">
                     <h3 className="text-2xl font-semibold mb-4">
-                      Find Anything Fast
+                      Range Comments with Draw & Pin
                     </h3>
                     <p className="text-muted-foreground text-lg mb-6">
-                      Find any project or media file instantly with Cmd+K. Smart
-                      filters help you locate exactly what you need across all
-                      your work.
+                      Select a specific range on the timeline to leave feedback.
+                      Your comments will be tied to the exact start and end
+                      times.
                     </p>
                   </div>
                 </div>
@@ -478,7 +474,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
                   <div className="flex-1">
@@ -510,7 +506,7 @@ export default function HomePage() {
                 </div>
               </motion.div>
 
-              {/* Simple Collaboration - Image Left */}
+              {/* Global Search - Video Left */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -518,6 +514,54 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                  <div className="flex-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
+                    <video
+                      width={600}
+                      height={400}
+                      className="rounded-xl shadow-lg border"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    >
+                      <source
+                        src="/assets/home/search-demo.mp4"
+                        type="video/mp4"
+                      />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-semibold mb-4">
+                      Find Anything Fast
+                    </h3>
+                    <p className="text-muted-foreground text-lg mb-6">
+                      Find any project or media file instantly with Cmd+K. Smart
+                      filters help you locate exactly what you need across all
+                      your work.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Simple Collaboration - Image Right */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+              >
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-semibold mb-4">
+                      Simple Collaboration
+                    </h3>
+                    <p className="text-muted-foreground text-lg mb-6">
+                      Invite people with specific roles. Get notifications for
+                      comments and uploads without email overload. Perfect for
+                      small projects.
+                    </p>
+                  </div>
                   <div className="flex-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
                     <Image
                       src="/team.png"
@@ -528,27 +572,29 @@ export default function HomePage() {
                       loading="lazy"
                     />
                   </div>
-                  <div className="flex-1 order-1 md:order-2">
-                    <h3 className="text-2xl font-semibold mb-4">
-                      Simple Collaboration
-                    </h3>
-                    <p className="text-muted-foreground text-lg mb-6">
-                      Invite people with specific roles. Get notifications for
-                      comments and uploads without email overload. Perfect for
-                      small projects.
-                    </p>
-                  </div>
                 </div>
               </motion.div>
 
-              {/* Adobe Integration - Image Right */}
+              {/* Adobe Integration - Image Left */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
               >
                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                  <div className="flex-1 rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
+                    <div className="relative">
+                      <Image
+                        src="/extension version.png"
+                        alt="Adobe After Effects and Premiere Pro integration"
+                        width={600}
+                        height={400}
+                        className="rounded-xl shadow-lg border"
+                        loading="lazy"
+                      />
+                    </div>
+                  </div>
                   <div className="flex-1">
                     <h3 className="text-2xl font-semibold mb-4">
                       Adobe Timeline Integration
@@ -561,18 +607,6 @@ export default function HomePage() {
                       Premiere Pro timeline. Click any comment to jump to that
                       exact frame in both the app and your editor.
                     </p>
-                  </div>
-                  <div className="flex-1">
-                    <div className="relative rounded-xl overflow-hidden bg-white/5 backdrop-opacity-50 backdrop-blur-xl border border-white/10 p-1 max-w-5xl mx-auto shadow-2xl">
-                      <Image
-                        src="/extension version.png"
-                        alt="Adobe After Effects and Premiere Pro integration"
-                        width={600}
-                        height={400}
-                        className="rounded-xl shadow-lg border"
-                        loading="lazy"
-                      />
-                    </div>
                   </div>
                 </div>
               </motion.div>

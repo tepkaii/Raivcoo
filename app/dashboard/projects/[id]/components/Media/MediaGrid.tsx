@@ -28,7 +28,7 @@ import {
   OrganizedMedia,
   ReviewLink,
   ProjectFolder,
-} from "@/app/dashboard/lib/types";
+} from "@/app/dashboard/types";
 import { updateProjectReferencesAction } from "../../lib/GeneralActions";
 import { UploadValidator, getUploadValidatorData } from "../../lib/UploadLogic";
 import { DocumentDuplicateIcon, FolderIcon } from "@heroicons/react/24/solid";
@@ -903,6 +903,8 @@ export function MediaGrid({
                             onRenameMedia={handleRenameMedia}
                             reviewLinks={reviewLinks}
                             onReviewLinksUpdated={onReviewLinksUpdated}
+                            allFolders={folders} // This should come from your parent component's state
+                            onMediaUpdated={handleMediaUpdated} // This should be a function in your parent component
                           />
                         ))}
                       </div>

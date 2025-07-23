@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Grid, List, Upload, MoreHorizontal } from "lucide-react";
-import { ProjectFolder, MediaFile } from "@/app/dashboard/lib/types";
+import { ProjectFolder, MediaFile } from "@/app/dashboard/types";
 import { FolderCard } from "./components/FolderCard";
 import { CreateFolderDialog } from "./components/CreateFolderDialog";
 import { FolderUpload } from "./components/FolderUpload";

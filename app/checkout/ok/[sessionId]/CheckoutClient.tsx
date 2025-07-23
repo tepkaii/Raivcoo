@@ -11,6 +11,7 @@ import type { User } from "@supabase/supabase-js";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import Link from "next/link";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
+import { formatUploadSize } from "@/app/dashboard/utilities";
 
 interface Subscription {
   id: string;
@@ -331,14 +332,6 @@ export default function CheckoutClient({
     }
   };
 
-  const formatUploadSize = (planId: string) => {
-    const uploadSizes = {
-      free: "200MB",
-      lite: "2GB",
-      pro: "5GB",
-    };
-    return uploadSizes[planId as keyof typeof uploadSizes] || "Unknown";
-  };
 
   return (
     <div className="min-h-screen bg-background">

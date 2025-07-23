@@ -12,7 +12,7 @@ import {
   redirectToProject,
   redirectToDashboard,
 } from "../actions";
-import { formatFullDate } from "@/app/dashboard/lib/formats";
+import { formatFullDate } from "@/app/dashboard/utilities";
 
 interface InvitationAcceptanceProps {
   invitation: {

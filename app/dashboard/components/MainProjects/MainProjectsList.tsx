@@ -3,7 +3,6 @@
 
 import React, { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -26,9 +25,14 @@ import {
   MoreVertical,
 } from "lucide-react";
 import Link from "next/link";
-import { formatDate, formatFullDate } from "../../lib/formats";
+import {
+  formatDate,
+  formatFileSize,
+  formatFullDate,
+  getFileCategory,
+} from "../../utilities";
 import { Button } from "@/components/ui/button";
-import { MediaFile } from "../../lib/types";
+import { MediaFile } from "../../types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +47,6 @@ import {
   ClockIcon,
   FolderIcon,
   FunnelIcon,
-  MagnifyingGlassIcon,
   Cog6ToothIcon,
   TrashIcon,
   UserGroupIcon,
@@ -284,22 +287,6 @@ export function MainProjectsList({
 
 // ✅ FIXED MediaThumbnail Component with proper fallbacks
 function MediaThumbnail({ media }: { media: MediaFile }) {
-  // Get file category for proper fallback
-  const getFileCategory = (fileType: string, mimeType: string) => {
-    if (fileType === "video") return "video";
-    if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
-    if (mimeType === "image/svg+xml") return "svg";
-    if (mimeType.startsWith("audio/")) return "audio";
-    if (
-      mimeType === "application/pdf" ||
-      mimeType.includes("document") ||
-      mimeType.includes("presentation") ||
-      mimeType === "text/plain"
-    )
-      return "document";
-    return "unknown";
-  };
-
   const fileCategory = getFileCategory(media.file_type, media.mime_type);
 
   // ✅ FIX: Only use thumbnail_r2_url, don't fallback to r2_url for videos
@@ -941,10 +928,3 @@ function getProjectStats(project: Project) {
   };
 }
 
-function formatFileSize(bytes: number) {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-}

@@ -1,7 +1,7 @@
 // app/dashboard/projects/[id]/components/media/MediaCard.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,12 +22,14 @@ import {
 import {
   MediaFile,
   OrganizedMedia,
+  ProjectFolder,
   ReviewLink,
-} from "@/app/dashboard/lib/types";
+} from "@/app/dashboard/types";
 import { Button } from "@/components/ui/button";
 
 import { toast } from "@/hooks/use-toast";
 import {
+  ArrowsUpDownIcon,
   ArrowUpOnSquareStackIcon,
   BoltIcon,
   ClipboardIcon,
@@ -42,26 +44,14 @@ import {
   VideoCameraIcon,
 } from "@heroicons/react/24/solid";
 import { changeMediaStatusAction } from "../../lib/StatusChangeActions";
-import { Copy } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-// Status configuration - can be easily modified
-export const MEDIA_STATUS_OPTIONS = [
-  { value: "on_hold", label: "On Hold", color: "bg-gray-500" },
-  { value: "in_progress", label: "In Progress", color: "bg-blue-500" },
-  { value: "needs_review", label: "Needs Review", color: "bg-yellow-500" },
-  { value: "rejected", label: "Rejected", color: "bg-red-500" },
-  { value: "approved", label: "Approved", color: "bg-green-500" },
-] as const;
-
-export const getStatusConfig = (status: string) => {
-  return (
-    MEDIA_STATUS_OPTIONS.find((option) => option.value === status) || {
-      value: status,
-      label: status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-      color: "bg-gray-500",
-    }
-  );
-};
+import {
+  formatFileSize,
+  getFileCategory,
+  getStatusConfig,
+  MEDIA_STATUS_OPTIONS,
+} from "@/app/dashboard/utilities";
+import { MoveMediaDialog } from "../Dialogs/MoveMediaDialog";
 
 interface MediaCardProps {
   media: OrganizedMedia;
@@ -93,29 +83,11 @@ interface MediaCardProps {
   projectId: string;
   reviewLinks: ReviewLink[];
   onReviewLinksUpdated: (newLinks: ReviewLink[]) => void;
+  // Add these missing props:
+  allFolders: ProjectFolder[];
+  onMediaUpdated: (updatedMedia: MediaFile[]) => void;
 }
 
-export const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
-const getFileCategory = (fileType: string, mimeType: string) => {
-  if (fileType === "video") return "video";
-  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
-  if (mimeType === "image/svg+xml") return "svg"; // ✅ Keep SVG as separate category
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (
-    mimeType === "application/pdf" ||
-    mimeType.includes("document") ||
-    mimeType.includes("presentation") ||
-    mimeType === "text/plain"
-  )
-    return "document";
-  return "unknown";
-};
 // ✅ MEMOIZED MediaCard component with proper download functionality
 export const MediaCard = React.memo(
   function MediaCard({
@@ -143,6 +115,8 @@ export const MediaCard = React.memo(
     onRenameMedia,
     reviewLinks,
     onReviewLinksUpdated,
+    allFolders, // ✅ Now available
+    onMediaUpdated, // ✅ Now available
   }: MediaCardProps) {
     // ✅ Stable media object creation (performance optimization)
     const stableMediaObject = React.useMemo(
@@ -170,6 +144,21 @@ export const MediaCard = React.memo(
     const isSelected = selectedMedia?.id === media.currentVersion.id;
     const [localStatus, setLocalStatus] = React.useState(
       media.currentVersion.status || "in_progress"
+    );
+
+    const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+
+    const handleMoveMedia = React.useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+      setMoveDialogOpen(true);
+    }, []);
+    const handleMoveComplete = React.useCallback(
+      (updatedMedia: MediaFile) => {
+        // Update your media state here
+        // This will depend on how you manage state in your parent component
+        onMediaUpdated([updatedMedia]);
+      },
+      [onMediaUpdated]
     );
     const [latestLink, setLatestLink] = React.useState<{
       link_token: string;
@@ -785,6 +774,10 @@ export const MediaCard = React.memo(
                       </DropdownMenuItem>
                     </>
                   )}{" "}
+                  <DropdownMenuItem onClick={handleMoveMedia}>
+                    <ArrowsUpDownIcon className="h-4 w-4 mr-2" />
+                    Move Media
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {/* Download - Everyone can download */}
                   <DropdownMenuItem onClick={handleDownload}>
@@ -890,6 +883,14 @@ export const MediaCard = React.memo(
             </div>
           </div>
         </Card>
+        <MoveMediaDialog
+          open={moveDialogOpen}
+          onOpenChange={setMoveDialogOpen}
+          mediaFile={media.currentVersion}
+          allFolders={allFolders} // Pass this from parent
+          projectId={projectId}
+          onMoveComplete={handleMoveComplete}
+        />
       </div>
     );
   },

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, FileText, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { MediaFile } from "@/app/dashboard/lib/types";
+import { MediaFile } from "@/app/dashboard/types";
 import { updateMediaNameAction } from "../../lib/GeneralActions";
 
 interface EditMediaNameDialogProps {

@@ -10,24 +10,12 @@ import React, {
   useImperativeHandle,
   useCallback,
 } from "react";
-import { MediaDisplay } from "@/app/review/[token]/components/MediaDisplay";
-import { PlayerControls } from "@/app/review/[token]/components/PlayerControls";
+import { MediaDisplay } from "@/app/review/[token]/components/Display/MediaDisplay";
+import { PlayerControls } from "@/app/review/[token]/components/Timeline/PlayerControls";
 import { VersionSelector } from "@/app/review/[token]/components/VersionSelector";
 import { getCommentsAction } from "@/app/review/[token]/lib/actions";
-import { MediaFile } from "@/app/dashboard/lib/types";
-
-// ✅ ADD FILE CATEGORY HELPER
-const getFileCategory = (fileType: string, mimeType: string) => {
-  if (fileType === "video") return "video";
-  if (fileType === "image" && mimeType !== "image/svg+xml") return "image";
-  if (mimeType === "image/svg+xml") return "svg";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType === "application/pdf" || 
-      mimeType.includes("document") || 
-      mimeType.includes("presentation") ||
-      mimeType === "text/plain") return "document";
-  return "unknown";
-};
+import { MediaFile } from "@/app/dashboard/types";
+import { getFileCategory } from "@/app/dashboard/utilities";
 
 interface MediaComment {
   id: string;
@@ -37,6 +25,8 @@ interface MediaComment {
   user_email?: string;
   content: string;
   timestamp_seconds?: number;
+  timestamp_start_seconds?: number; // ✅ ADD THIS
+  timestamp_end_seconds?: number; // ✅ ADD THIS
   ip_address?: string;
   user_agent?: string;
   is_approved: boolean;
@@ -95,6 +85,12 @@ interface MediaViewerProps {
     canComment?: boolean;
     canEditStatus?: boolean;
   };
+  // ✅ ADD: Range selection props
+  onRangeSelect?: (startTime: number, endTime: number) => void;
+  isRangeSelectionMode?: boolean;
+  onRangeSelectionModeChange?: (mode: boolean) => void;
+  pendingRangeSelection?: { startTime: number; endTime: number } | null;
+  onRangeSelectionComplete?: () => void;
 }
 
 export interface MediaViewerRef {
@@ -108,6 +104,10 @@ export interface MediaViewerRef {
     config: any
   ) => void;
   clearActiveComments: () => void;
+  // ✅ ADD: Range selection methods
+  handleRangeCommentRequest: () => void;
+  handleRangeSelectionComplete: () => void;
+  unlockTimelineRange: () => void;
 }
 
 export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
@@ -127,6 +127,12 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
       allowDownload = true,
       authenticatedUser,
       userPermissions,
+      // ✅ Range selection props from parent
+      onRangeSelect,
+      isRangeSelectionMode = false,
+      onRangeSelectionModeChange,
+      pendingRangeSelection,
+      onRangeSelectionComplete,
     },
     ref
   ) => {
@@ -148,12 +154,16 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
     const [annotationConfig, setAnnotationConfig] = useState<any>({});
 
     const videoRef = useRef<HTMLVideoElement>(null);
-    const audioRef = useRef<HTMLAudioElement>(null); // ✅ ADD AUDIO REF
+    const audioRef = useRef<HTMLAudioElement>(null);
     const fullscreenContainerRef = useRef<HTMLDivElement>(null);
 
     // ✅ GET FILE CATEGORY
-    const fileCategory = getFileCategory(currentMedia.file_type, currentMedia.mime_type);
-    const showPlayerControls = fileCategory === "video" || fileCategory === "audio";
+    const fileCategory = getFileCategory(
+      currentMedia.file_type,
+      currentMedia.mime_type
+    );
+    const showPlayerControls =
+      fileCategory === "video" || fileCategory === "audio";
 
     // Update current media when prop changes
     useEffect(() => {
@@ -178,6 +188,34 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
           handleFullscreenChange
         );
       };
+    }, []);
+
+    // ✅ UPDATED: Use parent's range selection handlers
+    const handleRangeCommentRequest = useCallback(() => {
+      onRangeSelectionModeChange?.(true);
+    }, [onRangeSelectionModeChange]);
+
+    const handleRangeSelect = useCallback(
+      (startTime: number, endTime: number) => {
+        onRangeSelect?.(startTime, endTime);
+        onRangeSelectionModeChange?.(false);
+      },
+      [onRangeSelect, onRangeSelectionModeChange]
+    );
+
+    const handleRangeSelectionComplete = useCallback(() => {
+      onRangeSelectionComplete?.();
+      onRangeSelectionModeChange?.(false);
+    }, [onRangeSelectionComplete, onRangeSelectionModeChange]);
+
+    const unlockTimelineRange = useCallback(() => {
+      // This will be called from ReviewComments to unlock the timeline
+      if (
+        typeof window !== "undefined" &&
+        (window as any).unlockTimelineRange
+      ) {
+        (window as any).unlockTimelineRange();
+      }
     }, []);
 
     // Load comments function
@@ -313,13 +351,75 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
 
     // ✅ EXPOSE METHODS TO PARENT VIA REF
     useImperativeHandle(ref, () => ({
-      handleCommentPinClick,
-      handleCommentDrawingClick,
+      handleCommentPinClick: (comment: MediaComment) => {
+        if (comment.annotation_data) {
+          if (activeCommentPin === comment.id) {
+            setActiveCommentPin(null);
+            return;
+          }
+
+          // ✅ FIXED: Use the correct timestamp priority
+          let seekTime = undefined;
+
+          // Priority 1: Use annotation_data.timestamp (for pins created during range selection)
+          if (comment.annotation_data.timestamp !== undefined) {
+            seekTime = comment.annotation_data.timestamp;
+          }
+          // Priority 2: Use regular timestamp_seconds
+          else if (comment.timestamp_seconds !== undefined) {
+            seekTime = comment.timestamp_seconds;
+          }
+          // Priority 3: Use range start timestamp
+          else if (comment.timestamp_start_seconds !== undefined) {
+            seekTime = comment.timestamp_start_seconds;
+          }
+
+          if (seekTime !== undefined) {
+            handleSeekToTimestamp(seekTime);
+          }
+          setActiveCommentPin(comment.id);
+        }
+      },
+
+      handleCommentDrawingClick: (comment: MediaComment) => {
+        if (comment.drawing_data) {
+          if (activeCommentDrawing === comment.id) {
+            setActiveCommentDrawing(null);
+            return;
+          }
+
+          // ✅ FIXED: Use the correct timestamp priority
+          let seekTime = undefined;
+
+          // Priority 1: Use drawing_data.timestamp (for drawings created during range selection)
+          if (comment.drawing_data.timestamp !== undefined) {
+            seekTime = comment.drawing_data.timestamp;
+          }
+          // Priority 2: Use regular timestamp_seconds
+          else if (comment.timestamp_seconds !== undefined) {
+            seekTime = comment.timestamp_seconds;
+          }
+          // Priority 3: Use range start timestamp
+          else if (comment.timestamp_start_seconds !== undefined) {
+            seekTime = comment.timestamp_start_seconds;
+          }
+
+          if (seekTime !== undefined) {
+            handleSeekToTimestamp(seekTime);
+          }
+          setActiveCommentDrawing(comment.id);
+        }
+      },
+
       handleSeekToTimestamp,
       comments,
       loadComments,
       handleAnnotationRequest,
       clearActiveComments,
+      // ✅ Range selection methods - use parent handlers
+      handleRangeCommentRequest,
+      handleRangeSelectionComplete,
+      unlockTimelineRange,
     }));
 
     // Create the media content
@@ -334,7 +434,7 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
           <MediaDisplay
             media={currentMedia}
             videoRef={videoRef}
-            audioRef={audioRef} // ✅ ADD AUDIO REF
+            audioRef={audioRef}
             className="h-full"
             onAnnotationComplete={handleAnnotationComplete}
             activeCommentPin={activeCommentPin}
@@ -351,9 +451,9 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
         {showPlayerControls && (
           <PlayerControls
             videoRef={videoRef}
-            audioRef={audioRef} // ✅ ADD AUDIO REF
+            audioRef={audioRef}
             mediaType={currentMedia.file_type}
-            media={currentMedia} // ✅ ADD MEDIA OBJECT
+            media={currentMedia}
             comments={comments}
             onSeekToTimestamp={handleSeekToTimestamp}
             onTimeUpdate={handleTimeUpdate}
@@ -362,6 +462,12 @@ export const MediaViewer = forwardRef<MediaViewerRef, MediaViewerProps>(
             className={
               isFullscreen ? "absolute bottom-0 left-0 right-0 z-50" : ""
             }
+            // ✅ UPDATED: Pass parent's range selection props
+            onRangeSelect={handleRangeSelect}
+            isRangeSelectionMode={isRangeSelectionMode} // ✅ FROM PARENT
+            onRangeSelectionModeChange={onRangeSelectionModeChange} // ✅ FROM PARENT
+            pendingRangeSelection={pendingRangeSelection} // ✅ FROM PARENT
+            onRangeSelectionComplete={handleRangeSelectionComplete}
           />
         )}
       </div>
