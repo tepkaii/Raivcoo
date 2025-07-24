@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       to: "raivcoo@gmail.com",
       subject: "New User Signup Notification 👋",
       html: `
-        <h1>New User Signup 📑</h1>
+        <h3>New User Signup 📑</h3>
         <p>A new user has signed up on raivcoo.com 🪄.</p>
         ${
           lastUser
