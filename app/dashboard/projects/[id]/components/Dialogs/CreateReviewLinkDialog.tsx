@@ -7,7 +7,6 @@ import {
   Copy,
   ExternalLink,
   Link,
-  Check,
   Loader2,
   Download,
   Crown,
@@ -38,6 +37,8 @@ import { getSubscriptionInfo } from "@/app/dashboard/lib/actions";
 import { createClient } from "@/utils/supabase/client";
 import Lottie from "lottie-react";
 import animationData from "../../../../../../public/assets/lottie/check-icon.json";
+
+
 interface CreateLinkDialogState {
   open: boolean;
   mediaFile?: MediaFile;

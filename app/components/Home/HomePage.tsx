@@ -273,8 +273,18 @@ export default function HomePage() {
 
             <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* Upload Animation */}
-              <div className="p-6 rounded-xl border bg-muted/10 backdrop-blur-sm">
-                <div className="size-20 flex items-center justify-center mb-4">
+              <div className="relative p-6 rounded-xl border bg-muted/10 backdrop-blur-sm overflow-hidden">
+                <Image
+                  src="/assets/home/bg-1.png" // or whatever background image you want
+                  alt=""
+                  fill
+                  className="object-cover -z-10"
+                />
+
+                {/* Dark overlay for better text readability */}
+                <div className="absolute inset-0 bg-black/60 -z-5" />
+
+                <div className="size-20 flex items-center justify-center mb-4 relative z-10">
                   <motion.div
                     ref={uploadRef}
                     initial={{ opacity: 0, y: 10 }}
@@ -291,16 +301,28 @@ export default function HomePage() {
                     )}
                   </motion.div>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Upload Anything</h3>
-                <p className="text-muted-foreground">
+                <h3 className="text-xl font-semibold mb-2 text-white relative z-10">
+                  Upload Anything
+                </h3>
+                <p className="text-gray-200 relative z-10">
                   Videos, images, audio, documents, and SVG files. Up to 5GB per
                   file. Works with all the formats you actually use.
                 </p>
               </div>
 
               {/* Pin Animation */}
-              <div className="p-6 rounded-xl border bg-muted/10 backdrop-blur-sm">
-                <div className="size-20 flex items-center justify-center mb-4">
+              <div className="relative p-6 rounded-xl border bg-muted/10 backdrop-blur-sm overflow-hidden">
+                <Image
+                  src="/assets/home/bg-1.png" // or whatever background image you want
+                  alt=""
+                  fill
+                  className="object-cover -z-10"
+                />
+
+                {/* Dark overlay for better text readability */}
+                <div className="absolute inset-0 bg-black/60 -z-5" />
+
+                <div className="size-20 flex items-center justify-center mb-4 relative z-10">
                   <motion.div
                     ref={pinRef}
                     initial={{ opacity: 0, y: 10 }}
@@ -317,16 +339,28 @@ export default function HomePage() {
                     )}
                   </motion.div>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Precise Feedback</h3>
-                <p className="text-muted-foreground">
+                <h3 className="text-xl font-semibold mb-2 text-white relative z-10">
+                  Precise Feedback
+                </h3>
+                <p className="text-gray-200 relative z-10">
                   Pin comments to exact frames, draw directly on media, and get
                   timestamped feedback. No more confusing email chains.
                 </p>
               </div>
 
               {/* Shield Animation */}
-              <div className="p-6 rounded-xl border bg-muted/10 backdrop-blur-sm">
-                <div className="size-20 flex items-center justify-center mb-4">
+              <div className="relative p-6 rounded-xl border bg-muted/10 backdrop-blur-sm overflow-hidden">
+                <Image
+                  src="/assets/home/bg-1.png"
+                  alt=""
+                  fill
+                  className="object-cover -z-10"
+                />
+
+                {/* Dark overlay for better text readability */}
+                <div className="absolute inset-0 bg-black/60 -z-5" />
+
+                <div className="size-20 flex items-center justify-center mb-4 relative z-10">
                   <motion.div
                     ref={shieldRef}
                     initial={{ opacity: 0, y: 10 }}
@@ -343,8 +377,10 @@ export default function HomePage() {
                     )}
                   </motion.div>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Share Securely</h3>
-                <p className="text-muted-foreground">
+                <h3 className="text-xl font-semibold mb-2 text-white relative z-10">
+                  Share Securely
+                </h3>
+                <p className="text-gray-200 relative z-10">
                   Password protection, custom expiration, and download controls.
                   Clients don't need to sign up for anything.
                 </p>
@@ -698,17 +734,29 @@ export default function HomePage() {
         {/* CTA Section */}
         <AnimatedSection className="pt-10 pb-10">
           <div className="container mx-auto px-4 text-center">
-            <div className="bg-muted/35 border-2 rounded-xl p-12 max-w-3xl mx-auto relative overflow-hidden">
+            <div className="relative bg-muted/35 border-2 rounded-xl p-12 max-w-3xl mx-auto overflow-hidden">
+              {/* Background Image */}
+              <Image
+                src="/assets/home/bg-1.png"
+                alt=""
+                fill
+                className="object-cover -z-10"
+              />
+
+              {/* Dark overlay for better text readability */}
+              <div className="absolute inset-0 bg-black/60 -z-5" />
+
               <BorderTrail />
-              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-transparent bg-clip-text dark:bg-[linear-gradient(180deg,_#FFF_0%,_rgba(255,_255,_255,_0.00)_202.08%)] bg-[linear-gradient(180deg,_#000_0%,_rgba(0,_0,_0,_0.00)_202.08%)]">
+
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white relative z-10">
                 Start Free. Scale Smart.
               </h2>
-              <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
+              <p className="text-lg text-gray-200 mb-8 max-w-xl mx-auto relative z-10">
                 Get better client feedback with simple tools and fair pricing.
                 500MB free storage, no commitment required.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
                 <Link href="/signup">
                   <Button size="lg" variant="default">
                     Start Free Today
@@ -722,17 +770,17 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              <div className="mt-8 flex justify-center gap-8 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
+              <div className="mt-8 flex justify-center gap-8 text-sm text-gray-200 relative z-10">
+                <div className="flex items-center gap-2 text-xs sm:text-base">
+                  <CheckBadgeIcon className="h-4 w-4 text-blue-400" />
                   No credit card required
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
+                <div className="flex items-center gap-2 text-xs sm:text-base">
+                  <CheckBadgeIcon className="h-4 w-4 text-blue-400" />
                   500MB free storage
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
+                <div className="flex items-center gap-2 text-xs sm:text-base">
+                  <CheckBadgeIcon className="h-4 w-4 text-blue-400" />
                   Cancel anytime
                 </div>
               </div>
