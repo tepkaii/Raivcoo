@@ -276,8 +276,9 @@ export default function HomePage() {
               <div className="relative p-6 rounded-xl border bg-muted/10 backdrop-blur-sm overflow-hidden">
                 <Image
                   src="/assets/home/bg-1.png" // or whatever background image you want
-                  alt=""
+                  alt="Background Image"
                   fill
+                  priority
                   className="object-cover -z-10"
                 />
 
@@ -314,8 +315,9 @@ export default function HomePage() {
               <div className="relative p-6 rounded-xl border bg-muted/10 backdrop-blur-sm overflow-hidden">
                 <Image
                   src="/assets/home/bg-1.png" // or whatever background image you want
-                  alt=""
+                  alt="Background Image"
                   fill
+                  priority
                   className="object-cover -z-10"
                 />
 
@@ -352,8 +354,9 @@ export default function HomePage() {
               <div className="relative p-6 rounded-xl border bg-muted/10 backdrop-blur-sm overflow-hidden">
                 <Image
                   src="/assets/home/bg-1.png"
-                  alt=""
+                  alt="Background Image"
                   fill
+                  priority
                   className="object-cover -z-10"
                 />
 
